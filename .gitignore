@@ -48,6 +48,8 @@ __pycache__/
 *.log
 *.tmp
 *.bak
+build_error*.txt
+build_tmp*.err
 UpgradeLog*.htm
 UpgradeLog*.html
 UpgradeLog*.xml

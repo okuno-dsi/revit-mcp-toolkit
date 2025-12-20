@@ -16,6 +16,18 @@ There may be other projects exploring similar ideas worldwide; however, as far a
 
 ---
 
+## Getting Started
+- Start with `Codex/START_HERE.md` (quick path: connection check → basic operations).
+
+---
+
+## Runtime Prerequisites
+- **.NET 8 Runtime** (e.g. `RevitMCPServer` / `ExcelMCP` / `RhinoMcpServer` / `AutoCadMcpServer`)
+- **.NET 6 Runtime** (`Codex/CodexGui`)
+- **.NET Framework 4.8** (`RevitMCPAddin` / `RhinoMcpPlugin`)
+
+---
+
 ## Related MCP Components
 This repository focuses on Revit MCP. Under the same concept, there may be related components (possibly in separate repositories/distributions):
 

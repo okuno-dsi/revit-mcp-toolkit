@@ -16,6 +16,18 @@
 
 ---
 
+## はじめに（入口）
+- まずは `Codex/START_HERE.md` を参照してください（接続確認〜基本操作の最短導線）。
+
+---
+
+## 実行に必要なもの（ランタイム）
+- **.NET 8 Runtime**（例：`RevitMCPServer` / `ExcelMCP` / `RhinoMcpServer` / `AutoCadMcpServer`）
+- **.NET 6 Runtime**（`Codex/CodexGui`）
+- **.NET Framework 4.8**（`RevitMCPAddin` / `RhinoMcpPlugin`）
+
+---
+
 ## プロジェクト群（関連MCP）
 本リポジトリは Revit 向け MCP を中心に扱いますが、同一構想の下で以下の関連コンポーネントが存在し得ます（別リポジトリ／別配布形態の場合があります）。
 
