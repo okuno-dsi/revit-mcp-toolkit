@@ -70,10 +70,15 @@ __pycache__/
 
 # Local / generated work dirs
 Codex/Work/
+Codex/Manuals/Work/
+**/logs/
 **/temp/
 **/Temp/
 **/tmp/
 **/tmp_*/
+**/tmp_*
+*.bak_*
+*.bak.*
 
 # OS
 .DS_Store
