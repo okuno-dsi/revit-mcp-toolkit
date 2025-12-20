@@ -41,12 +41,8 @@ Please refer to the documentation of each component for its distribution terms, 
 
 ## What it can do (Examples)
 
-- Query and inspect Revit elements (filters, categories, parameter inspection)
-- Edit elements (parameter updates, type changes)
-- Transform elements (move/rotate) and delete elements
-- Logging and audit trails (depending on configuration)
-
-> The exact scope is defined by the command catalog / API definitions included in this repository.
+We turned as much as possible of what is achievable via the Revit API into commands.  
+Have an AI agent read the manuals and ask it what you want to do.
 
 ---
 
