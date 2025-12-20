@@ -1,0 +1,3716 @@
+{
+  "activate_view": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "add_curtain_wall_panel": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "add_floor_layer": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "add_roof_layer": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "add_spaces_to_zone": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "find_room_placeable_regions": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "place_room_in_circuit": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "add_wall_layer": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "adjust_grid_extents": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "agent_bootstrap": {
+    "category": "Bootstrap/Project",
+    "importance": "high",
+    "kind": "write"
+  },
+  "align_dimension": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "analyze_segments": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "area_boundary_adjust_by_material_corecenter": {
+    "category": "Area",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "area_boundary_create_by_material_corecenter": {
+    "category": "Area",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_instances_geometry": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "read"
+  },
+  "apply_3d_view_settings": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_conditional_coloring": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_material_to_element": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_paint": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_paint_by_reference": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_quick_color_scheme": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "arrange_views": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "assign_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "audit_hidden_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "auto_area_boundaries_from_walls": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "auto_crop_elevation_to_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "auto_crop_elevations_for_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "bind_link": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_architectural_column_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_ceiling_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_curtain_wall_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_family_instance_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_fire_protection_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_mass_instance_type": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_mep_element_type": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_railing_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_revision_cloud_type": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_roof_type": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_sanitary_fixture_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_stair_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_structural_column_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_structural_foundation_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "change_structural_frame_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "classify_wall_faces_by_side": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_candidate_exterior_columns": {
+    "category": "Columns",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_candidate_exterior_floors": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_candidate_exterior_walls": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "change_wall_type": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "write"
+  },
+  "check_clashes": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "check_fire_rating_compliance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "check_mullion_connectivity": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "check_panel_size": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "classify_points_in_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clean_area_boundaries": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clean_room_boundaries": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clear_conditional_coloring": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clear_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clear_visual_override": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "close_inactive_views": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "compute_zone_metrics": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "copy_area_boundaries_from_rooms": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "copy_family_type_between_docs": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_3d_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_architectural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_area": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_areas_from_rooms_by_material_corecenter": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_area_boundary_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_area_plan": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_area_scheme": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_cable_tray": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_ceiling": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_conduit": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_curtain_wall": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_curtain_wall_elevation_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_default_revision": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_detail_arc": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_detail_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_dimension": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_direct_shape_mass": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_door": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_door_on_wall": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_duct": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_elevation_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_family_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_family_on_face": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_fire_protection_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_floor": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_grids": {
+    "category": "Levels/Grids",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_interior_elevation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_interior_elevation_facing_wall": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_level": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_mass_instance": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_material": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_model_arc": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_model_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_mullion": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_perspective_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_pipe": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_railing": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_revision_cloud": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_revision_cloud_for_element_projection": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_roof": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_room": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_room_boundary_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_room_interior_elevations": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_schedule_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_section": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_sheet": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_space": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_spatial_volume_overlay": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_structural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_structural_foundation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_structural_frame": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_tag": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_tag_bounds_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "create_text_note": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_view_plan": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_walkthrough": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_wall": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_window": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_window_on_wall": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_workset": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_zone": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "debug_dump_dockable_panes": {
+    "category": "Debug/Windowing",
+    "importance": "low",
+    "kind": "write"
+  },
+  "debug_resolve_dockable_pane": {
+    "category": "Debug/Windowing",
+    "importance": "low",
+    "kind": "write"
+  },
+  "delete_architectural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_area": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_area_boundary_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_ceiling": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_ceiling_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_curtain_wall": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_detail_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_dimension": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_door": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_family_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_fire_protection_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_fire_protection_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_floor": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_grid": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_mass_instance": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_material": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_mep_element": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_model_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_model_lines": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_mullion": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_orphan_elevation_markers": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_railing": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_railing_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_revision_cloud": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_roof": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_room_boundary_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_sanitary_fixture": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_sanitary_fixture_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_schedule": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_sheet": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_space": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_spatial_volume_overlays": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_stair_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_stair_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_structural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_structural_foundation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_structural_frame": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_tag": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_text_note": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_wall": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_window": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_zone": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "detach_link": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "dockable_pane_sequence": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_architectural_column_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_ceiling_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_door_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_fire_protection_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_floor_type": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_mass_type": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_material": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_railing_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_stair_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_stair_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_structural_column_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_structural_foundation_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_structural_frame_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_wall_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_window_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "explode_model_line_to_detail": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_curtain_wall_report": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_curves_to_dxf": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_dwg": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_schedule_to_excel": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_schedule_to_csv": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_snapshot": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "extend_area_boundary_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "extend_room_boundary_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "flatten_stacked_wall_to_basic": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "flip_curtain_panel_orientation": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "flip_door_orientation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "flip_family_instance_orientation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "flip_window_orientation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "generate_fire_protection_schedule": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_architectural_column_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_architectural_column_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_architectural_columns": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary_duplicates": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary_gaps": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary_intersections": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary_lines_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_boundary_walls": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_centroid": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_geometry": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_metrics": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_params": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_schemes": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_area_volume_settings": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_areas": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_bounding_box": {
+    "category": "Selection/Query",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_categories_used_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_category_visibility": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_ceiling_boundaries": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_ceiling_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_ceiling_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_ceiling_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_ceilings": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_current_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_views": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "compare_view_states": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_curtain_wall_panel_geometry": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_curtain_wall_schedule": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_curtain_wall_types": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_curtain_walls": {
+    "category": "Curtain Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_curves_by_category": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_detail_line_styles": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_detail_lines_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_dimension_types": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_dimensions_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_door_orientation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_door_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_door_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_door_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_doors": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_element_group_membership": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_element_info": {
+    "category": "Selection/Query",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_element_material": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_element_workset": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_elements_in_view": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_elevation_view_types": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_face_finish_data": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_face_paint_data": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_face_region_detail": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_face_region_takeoff": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_face_regions": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_family_instance_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_family_instances": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_family_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_family_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_fire_protection_instances": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_fire_protection_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_fire_protection_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_floor_boundary": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_floor_layers": {
+    "category": "Floors",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_floor_parameters": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_floor_type_info": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_floor_type_parameters": {
+    "category": "Floors",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_floor_types": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_floors": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_grids": {
+    "category": "Levels/Grids",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_grids_with_bubbles": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_group_constraints_report": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_group_info": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_group_members": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_group_types": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_groups": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_groups_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_inplace_families": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_level_parameters": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_levels": {
+    "category": "Levels/Grids",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_line_styles": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mass_instance_parameters": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mass_instances": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mass_type_parameters": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mass_types": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_material_parameters": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_materials": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mep_elements": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mep_parameters": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_model_lines_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_open_documents": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_oriented_bbox": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_paint_info": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "scan_paint_and_split_regions": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_param_meta": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_param_values": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_project_categories": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_project_info": {
+    "category": "Bootstrap/Project",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_fill_patterns": {
+    "category": "Document/Patterns",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "update_project_info": {
+    "category": "Bootstrap/Project",
+    "importance": "normal",
+    "kind": "write",
+    "summary": "Update Project Information fields (name, number, client, status, issueDate, address)",
+    "params_example": {
+      "projectName": "Test BIM Model",
+      "projectNumber": "P-001"
+    },
+    "result_example": {
+      "ok": true,
+      "updated": 2
+    }
+  },
+  "get_railing_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_railing_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_railing_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_railings": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_revision_cloud_geometry": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_revision_cloud_parameters": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_revision_cloud_spacing": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_revision_cloud_type_parameters": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_revision_cloud_types": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_roof_layers": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_roof_slope": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_roof_type_info": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_boundary": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_room_boundary_lines_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_boundary_walls": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_room_centroid": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_label_point": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_neighbors": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_openings": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_params": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_room_planar_centroid": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_rooms": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_sanitary_fixture_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_sanitary_fixtures": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_schedule_data": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_schedules": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_selected_element_ids": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_sheets": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_boundary": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_boundary_walls": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_centroid": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_geometry": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_metrics": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_params": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_spaces": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stacked_wall_parts": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stair_flights": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stair_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stair_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stair_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_stairs": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_column_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_column_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_column_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_column_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_columns": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_foundation_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_foundation_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_foundation_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_foundation_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_foundations": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_frame_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_frame_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_frame_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_frame_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_structural_frames": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_surface_regions": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_tag_parameters": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_tag_symbols": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_tags_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_text_notes_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_view_info": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_view_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_visual_overrides_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_baseline": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_faces": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_finish_summary": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_layers": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_wall_parameter": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_parameters": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_wall_type_info": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_wall_type_parameters": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_wall_types": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_walls": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_window_orientation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_window_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_window_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_window_types": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_windows": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_worksets": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_zone_params": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_zones": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "hide_dockable_pane": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "hide_elements_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "highlight_overlarge_panels": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "list_color_schemes": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_colorfill_builtin_param_suggestions": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_colorfill_supported_params": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_curtain_wall_panels": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "list_dockable_panes": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "read"
+  },
+  "list_links": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_material_parameters": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_mullions": {
+    "category": "Curtain Walls",
+    "importance": "high",
+    "kind": "read"
+  },
+  "list_open_views": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "read"
+  },
+  "list_revisions": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_scope_boxes": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_sheet_revisions": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_structural_column_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_structural_foundation_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_structural_frame_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_view_colorfill_categories": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_wall_parameters": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_zone_members": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "merge_areas": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_architectural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_area": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_area_boundary_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_ceiling": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_detail_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_dimension": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_door": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_family_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_fire_protection_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_floor": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_grid": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_mass_instance": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_mep_element": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_model_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_revision_cloud": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_roof": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_room_boundary_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_sanitary_fixture": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_space": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_stair_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_structural_column": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_structural_foundation": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_structural_frame": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_tag": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_text_note": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "move_window": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "open_views": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "ping_server": {
+    "category": "Bootstrap/Project",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "place_view_on_sheet": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "prepare_sunstudy_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "reload_link": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "reload_link_from": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_curtain_wall_panel": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_floor_layer": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_paint": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_paint_by_reference": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_roof_layer": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_spaces_from_zone": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_view_from_sheet": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_wall_layer": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_door_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_floor_type": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_mass_type": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_material": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_view_template": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_wall_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_window_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "replace_stacked_wall_part_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "reset_all_view_overrides": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "write"
+  },
+  "reset_category_override": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "resize_section_box": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rotate_detail_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rotate_mass_instance": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rotate_model_line": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rotate_tag": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "save_3d_view_settings": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "save_view_as_template": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "select_elements": {
+    "category": "Selection/Query",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "select_elements_by_filter_id": {
+    "category": "Selection/Query",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_area_volume_settings": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_category_override": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "write"
+  },
+  "set_category_visibility": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_category_visibility_bulk": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_ceiling_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_ceiling_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_curtain_wall_panel_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_detail_line_style": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_detail_lines_style": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_element_workset": {
+    "category": "Groups/Worksets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_family_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_fire_protection_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_floor_parameter": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_floor_type_parameter": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_floor_variable_layer": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_mep_parameter": {
+    "category": "MEP/Pipes/Ducts",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_model_line_style": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_model_lines_style": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_railing_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_railing_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_revision_cloud_parameter": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_revision_cloud_spacing": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_revision_cloud_type_parameter": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_roof_parameter": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_roof_slope": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_roof_type_parameter": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_roof_variable_layer": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_room_param": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_section_box_by_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_stair_flight_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_stair_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_stair_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_view_parameter": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_view_template": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_view_type": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_visual_override": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "write"
+  },
+  "set_wall_variable_layer": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_zone_param": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "show_dockable_pane": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "simulate_sunlight": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "start_command_logging": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "write"
+  },
+  "stop_command_logging": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "write"
+  },
+  "swap_floor_layer_materials": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "swap_roof_layer_materials": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "swap_wall_layer_materials": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "tile_windows": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "toggle_dockable_pane": {
+    "category": "RevitUI",
+    "importance": "high",
+    "kind": "write"
+  },
+  "trim_area_boundary_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "trim_room_boundary_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "unhide_elements_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "unload_link": {
+    "category": "Links/Docs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_architectural_column_geometry": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_architectural_column_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_area": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_curtain_wall_geometry": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_curtain_wall_parameter": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_dimension_format": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_direct_shape_parameter": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_door_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_family_instance_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_floor_boundary": {
+    "category": "Floors",
+    "importance": "high",
+    "kind": "write"
+  },
+  "update_floor_layer": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_grid_name": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_level_elevation": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_level_name": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_level_parameter": {
+    "category": "Levels/Grids",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_mass_instance_parameter": {
+    "category": "Mass",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_material_parameter": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_mullion_type": {
+    "category": "Curtain Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_revision": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_roof_boundary": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_roof_layer": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_sanitary_fixture": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_schedule_fields": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_schedule_filters": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_schedule_sorting": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_scope_box": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_space": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_stacked_wall_part": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_column_geometry": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_column_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_column_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_foundation_geometry": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_foundation_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_foundation_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_frame_geometry": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_frame_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_structural_frame_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_tag_parameter": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_text_note_parameter": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_wall_geometry": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_wall_layer": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_wall_parameter": {
+    "category": "Walls",
+    "importance": "high",
+    "kind": "write"
+  },
+  "update_wall_type_parameter": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_window_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "list_commands": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "read"
+  },
+  "string (\"bbox\" or \"solid\")": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "bbox": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "solid": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "fast": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "write"
+  },
+  "create_revision_circle": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_roofs": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_types_in_view": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_type_parameters_bulk": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_instance_parameters_bulk": {
+    "category": "Other",
+    "importance": "high",
+    "kind": "read"
+  },
+  "join_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "unjoin_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "are_elements_joined": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "switch_join_order": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "close_views": {
+    "category": "RevitUI",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "close_views_except": {
+    "kind": "write",
+    "importance": "normal",
+    "category": "RevitUI"
+  },
+  "get_compare_factors": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "find_similar_by_factors": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "map_room_area_space": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "add_shared_project_parameter": {
+    "category": "Parameters",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "append_toposurface_points|replace_toposurface_points": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "apply_transform_delta": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "batch_set_visual_override": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "build_views_by_param_values": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "build_views_by_ruleset": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "check_lighting_energy": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "clear_view_template": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "compare_projects_summary": {
+    "category": "Bootstrap/Project",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_obb_cloud_for_selection": {
+    "category": "Revisions",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_property_line_from_points": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_revision_clouds_for_elements": {
+    "category": "Revisions",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_site_subregion_from_boundary|delete_site_subregion": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_toposurface_from_points": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_type_if_unused|purge_unused_types|force_delete_type": {
+    "category": "Types",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "diff_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "ensure_compare_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "estimate_illuminance_in_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "excel_plan_import": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_dashboard_html": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_dwg_by_param_groups": {
+    "category": "Parameters",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_dwg_with_workset_bucketing": {
+    "category": "Worksets",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_lighting_report": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_schedules_html": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_snapshot_bundle": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_view_3dm": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_view_3dm_brep": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "export_view_mesh": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "generate_dwg_merge_script|gen_dwg_script": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "gesture_orbit": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "gesture_pan": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "gesture_zoom": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_element_visual_override": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_instance_geometry": {
+    "category": "Geometry",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_joined_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_last_selection": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_lighting_power_summary": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_parameter_identity": {
+    "category": "Parameters",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_project_summary": {
+    "category": "Bootstrap/Project",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_topography_info|list_topographies|get_site_subregions|set_topography_material|set_subregion_material": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_view_placements": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "inspect_schedule_fields": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "isolate_by_filter_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "list_levels_simple": {
+    "category": "Levels",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_lighting_fixtures": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_revision_clouds_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_schedulable_fields": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "lock_constraint|unlock_constraint|set_alignment_constraint|update_dimension_value_if_temp_dim": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "place_building_pad": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "place_parking_spot|list_parking_spots|delete_parking_spot": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "place_site_component|list_site_components|delete_site_component": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "refresh_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "regen_and_refresh": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "remove_project_parameter_binding": {
+    "category": "Parameters",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_types_bulk": {
+    "category": "Types",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_types_by_parameter": {
+    "category": "Types",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "restore_selection": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "restore_view_state": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "save_snapshot": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "save_view_state": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "search_commands": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "set_gesture_enabled": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_gesture_zoom_enabled": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_project_base_point|set_survey_point|set_shared_coordinates_from_points|get_site_overview": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "show_all_in_view": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "smoke_test": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "snapshot_view_elements": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "stash_selection": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "summarize_elements_by_category": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "summarize_family_types_by_category": {
+    "category": "Families",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "summarize_rooms_by_level": {
+    "category": "Levels",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_elements_by_category_and_level": {
+    "category": "Selection/Query",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_filled_region_types": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_filled_regions_in_view": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "create_filled_region": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_filled_region_type": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "replace_filled_region_boundary": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_filled_region": {
+    "category": "Annotations/FilledRegion",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "sync_view_state": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_parameters_batch": {
+    "category": "Parameters",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_parameter_for_elements": {
+    "category": "Parameters",
+    "importance": "high",
+    "kind": "write"
+  },
+  "update_property_line|delete_property_line": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "validate_compare_context": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "validate_create_room": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_fit": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_orbit": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_pan": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_reset_origin": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_zoom": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "view_zoom_to_element": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "visibility_profile_preview": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "replace_view_on_sheet": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_room_boundaries": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "create_room_masses": {
+    "category": "Rooms/Spaces",
+    "importance": "high",
+    "kind": "write"
+  },
+  "add_door_size_dimensions": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "get_family_instance_references": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "auto_revision_clouds": {
+    "category": "Revision/Sheets",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "classify_columns_by_room_arms": {
+    "category": "Columns",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "colorize_tags_by_param": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "copy_legend_components_between_views": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_door_window_legend_by_mark": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_element_elevation_views": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_element_sectionbox_debug": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_legend_view_from_template": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_space_separation_lines": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "create_walls": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "debug_element_view_crop": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "debug_section_view_sectionbox": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "delete_detail_lines": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_space_separation_lines": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "delete_walls": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "disallow_structural_frame_join_at_end": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "disallow_wall_join_at_end": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_fire_protection_instance": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_material_asset": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "duplicate_sanitary_fixture_type": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "export_dxf_custom_layers": {
+    "category": "Export",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "find_walls_near_segments": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_areas_by_scheme": {
+    "category": "Area",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_door_window_types_for_schedule": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_elevation_view_info": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_fire_protection_type_parameters": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_material_asset_properties": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_material_assets": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_mcp_ledger_summary": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_inner_walls_by_baseline": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_perimeter_with_columns": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_room_perimeter_with_columns_and_walls": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_space_separation_lines_in_view": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_spatial_context_for_element": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_spatial_context_for_elements": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_view_parameters": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_view_workspace_restore_status": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "layout_legend_components_in_view": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "list_area_schemes": {
+    "category": "Area",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_physical_assets": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "list_thermal_assets": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "lookup_element": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "move_space_separation_line": {
+    "category": "Rooms/Spaces",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "place_roof_brace_from_prompt": {
+    "category": "Roofs",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "populate_door_window_legend_from_template": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rejoin_walls": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "rename_floor_types_by_thickness": {
+    "category": "Floors",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "reorder_schedule_fields": {
+    "category": "Schedules",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "reset_tag_colors": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "restore_view_workspace": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "save_view_workspace": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_fire_protection_type_parameter": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_legend_component_type": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_asset": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_asset_name": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_structural_asset": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_thermal_asset": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_thermal_conductivity": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_material_thermal_properties": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_text": {
+    "category": "Detail/Model Lines",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_view_workspace_autosave": {
+    "category": "Views/Graphics",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_wall_join_type": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_wall_miter_joint": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "unpin_element": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "unpin_elements": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "update_property_set_element_parameter": {
+    "category": "Materials",
+    "importance": "normal",
+    "kind": "write"
+  }
+}

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>RevitMCPAddin</Name>
+    <Assembly>RevitMCPAddin\RevitMCPAddin.dll</Assembly>
+    <AddInId>1B22E885-40C8-4E18-BB5D-FCC2D7D8C272</AddInId>
+    <FullClassName>RevitMCPAddin.App</FullClassName>
+    <VendorId>YOUR</VendorId>
+    <VendorDescription>Your description</VendorDescription>
+  </AddIn>
+</RevitAddIns>
+

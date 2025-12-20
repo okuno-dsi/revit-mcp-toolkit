@@ -1,0 +1,11 @@
+{
+  "uniqueId": "AI-TEST-0001",
+  "transform": [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
+  "units": "feet",
+  "vertices": [ [0,0,0], [1,0,0], [0,1,0] ],
+  "submeshes": [ { "materialKey": "default", "intIndices": [0,1,2] } ],
+  "materials": [],
+  "snapshotStamp": "2025-10-05T00:00:00Z",
+  "geomHash": "hash-min-1"
+}
+

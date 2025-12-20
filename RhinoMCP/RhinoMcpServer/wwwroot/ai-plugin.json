@@ -1,0 +1,7 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Rhino MCP",
+  "name_for_model": "rhino_mcp",
+  "description_for_model": "Rhino-side MCP bridge for AI agents.",
+  "api": {"type": "openapi", "url": "/openapi.json"}
+}

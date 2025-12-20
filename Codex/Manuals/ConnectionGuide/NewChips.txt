@@ -1,0 +1,225 @@
+System Prompt (drop-in)
+
+You are an AI operator for the Revit MCP environment.
+
+Operating rules
+
+Units: Always request/interpret Length=mm and Angle=deg. Server handles internal ft/rad.
+
+Bootstrap: Call agent_bootstrap once at startup. Cache environment.units.input, environment.activeViewId, and commands.catalog.
+
+ID-first: Prefer element/type IDs for execution. Names are only for resolution.
+
+View templates: Some actions may be safely skipped when a view template is applied; the server will explain why.
+
+Failures: Do not auto-retry application-level errors (ok:false). Summarize the reason in one short sentence for the user.
+
+Execution flow
+
+On first run, call agent_bootstrap.
+
+Build a local command index from commands.catalog.
+
+Plan → call → summarize. Only request extra command details when needed.
+
+Developer Prompt (helper)
+
+Immediate “hot” commands (common quick wins):
+
+Visibility: get_elements_in_view, set_category_visibility, set_visual_override
+
+Element ops: create_wall, update_wall_parameter, move_*
+
+Query: get_element_info, get_bounding_box, get_walls
+
+Visualization: apply_conditional_coloring, clear_conditional_coloring
+
+Use the lightweight catalog from agent_bootstrap.commands.catalog for planning.
+When you need full details for a specific method, call describe_command(method).
+
+First User Instruction (one-liner)
+
+At startup, call agent_bootstrap once. Then call get_elements_in_view; if count > 0, apply set_visual_override to one element as a smoke test and summarize the outcome.
+
+This single line confirms connectivity, active view/permissions, and performs one safe write.
+After that, execute user requests by mapping them directly to JSON-RPC using commands.hot as primary options.
+
+Server: agent_bootstrap Contract (summary)
+
+One call that aggregates: ping_server, get_project_info, list_commands (compressed), default units, active view, known constraints/error dictionary.
+Return partial success per section with warnings (do not fail the whole call if one section fails).
+
+Response (abridged)
+
+{
+  "ok": true,
+  "server": {"product":"Autodesk Revit 2024","process":{"pid":12345,"port":5210}},
+  "project": {"ok": true, "name":"Sample Building","number":"P-2025-01"},
+  "environment": {
+    "units": {"input":{"Length":"mm","Angle":"deg"},"internal":{"Length":"ft","Angle":"rad"}},
+    "activeViewId": 401,
+    "activeViewName": "Level 1 - Plan"
+  },
+  "commands": {
+    "count": 300,
+    "hot": ["get_elements_in_view","set_category_visibility","set_visual_override","create_wall"],
+    "catalog": [
+      { "method":"get_elements_in_view","category":"ViewOps","desc":"List visible elements in the active view","paramsMin":"viewId?","resultHint":"ok,count,items[]" }
+      /* … compressed list … */
+    ]
+  },
+  "policies": {
+    "idFirst": true,
+    "lengthUnit": "mm",
+    "angleUnit": "deg",
+    "throttle": {"minMsBetweenCalls": 80}
+  },
+  "knownErrors": [
+    {"code":"VIEW_TEMPLATE_LOCK","msg":"Operation may be skipped due to view template"},
+    {"code":"READONLY_PARAM","msg":"Parameter is read-only (check type vs instance)"},
+    {"code":"NO_LOCATION","msg":"Element has no Location; cannot move"}
+  ],
+  "warnings": []
+}
+
+
+Implementation note: The server may simply call the existing ping_server, get_project_info, and list_commands internally and merge the results. The catalog is a lite list: method, category, desc, paramsMin, resultHint. Use describe_command(method) to fetch full params_example/result_example on demand.
+
+Error & Retry Policy (minimal, AI-friendly)
+
+Auto-retry only for transport errors (HTTP/network). Use exponential backoff, max 2 retries.
+
+Application errors (ok:false): no retries. Summarize the message and propose one actionable next step.
+
+Short reason mapping
+
+View template → “Skipped due to view template; try reset_all_view_overrides or detach template.”
+
+Read-only parameter → “Check type vs instance; consider ChangeTypeId or edit the family type.”
+
+No location → “Group/system element without Location; consider alternatives (e.g., ElementTransformUtils.MoveElement where applicable).”
+
+Minimal Protocol (pseudo-code)
+
+Startup
+
+if !cache.has("bootstrap"):
+  resp = call("agent_bootstrap", {})
+  cache.set("bootstrap", resp)
+  setDefaultUnits(resp.environment.units.input)      // mm/deg
+  setActiveView(resp.environment.activeViewId)
+  buildCommandIndex(resp.commands.catalog)           // method → minimal params
+
+
+Execute a user goal
+
+intent = parseUserGoal(user_text)                     // e.g., “In 1F, make exterior walls red 40%”
+method, params = plan(intent, commandIndex)           // e.g., set_category_visibility / set_visual_override
+result = call(method, params)
+if !result.ok: explainShort(result.msg or mapKnownError(result))
+
+Client “Primer” (JSONL fallback if server changes aren’t ready)
+{"primer":"revit_mcp_v1","units":{"Length":"mm","Angle":"deg"},"hot":["get_elements_in_view","set_visual_override","create_wall"]}
+{"method":"ping_server"}
+{"method":"get_project_info"}
+{"method":"list_commands","namesOnly":true}
+
+
+Load this once at agent startup instead of step-by-step manual prompting.
+
+Quick Tips (token & time savers)
+
+Prefer namesOnly / idsOnly variants for listings; pull details only when needed.
+
+Cache default units and active view ID in memory; don’t re-query unless the user switches context.
+
+When planning, pre-check fragile states once (e.g., visibility or template locks) to avoid predictable failures.
+
+Common Command Options
+
+Most commands that enumerate or return Revit elements support two common sections:
+  _filter and _shape
+
+_filter:
+  viewTypeFilter: "Section" | "FloorPlan" | ...
+    - Only execute when the active view type matches
+
+  modelOnly: true/false
+    - Skip annotation/detail categories if true (default: true)
+
+  excludeImports: true/false
+    - Skip DWG/DXF/ImportInstance elements if true (default: true)
+
+  includeCategoryIds / excludeCategoryIds: [int]
+    - Explicitly include or exclude categories
+
+  includeClasses / excludeClasses: [string]
+    - Restrict by element class name (e.g. "Wall","FamilyInstance")
+
+  includeLevelIds: [int]
+    - Restrict results to given level IDs (via LEVEL_PARAM)
+
+_shape:
+  page: { limit:int, offset:int }
+    - Page through results, default limit = 10000
+
+  idsOnly: true/false
+    - Return only elementId list (lightweight)
+
+  countsOnly: true/false
+    - Return only counts
+
+  summaryOnly: true/false
+    - Return counts and summary, omit element list
+
+  dedupe: true/false
+    - Default true: avoid duplicate elementIds
+
+  saveToFile: true/false
+    - Save large JSON under %LOCALAPPDATA%\RevitMCP\data
+      and return only the file path
+
+Notes:
+- These common options are available to any command that returns a list of elements.
+- Use idsOnly/countsOnly/page to keep results lightweight.
+- Use saveToFile to avoid timeouts when results are very large.
+
+audit_hidden_in_view Specific Options
+
+_filter:
+  includeKinds: ["explicit","category","temporary"]
+    - "explicit": element-level Hide in View (red items in Reveal Hidden Elements)
+    - "category": hidden because category is turned off
+    - "temporary": temporary hide/isolate (rare; default off)
+    Default = ["explicit"]
+
+  reasonFilter: ["hidden_in_view","category_hidden"]
+    - Limit results by hide reason
+
+  onlyRevealables: true/false
+    - Default true: only elements that would appear with the “Reveal Hidden Elements” button
+
+Notes:
+- Default audit is safe and lightweight: explicit-only, model elements, imports skipped.
+- Section views often benefit from viewTypeFilter:"Section" + includeKinds:["explicit"].
+
+---
+Quick Reference - MCP Connectivity & Project Info (UTF-8 Safe)
+
+Note: Replace `<PORT>` with the active MCP port reported by `agent_bootstrap.server.process.port` (5210 is common, but it changes per session).
+
+1. Verify the MCP queue is reachable: run `Test-NetConnection localhost -Port <PORT>` and confirm `TcpTestSucceeded : True`.
+2. Export the current project metadata in UTF-8:
+   - Ensure the console is using UTF-8 (`chcp 65001`) or set `$env:PYTHONUTF8 = '1'` for the session.
+   - Execute `python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command get_project_info --output-file project_info.json`.
+3. Display the primary fields without mojibake:
+   ```powershell
+   chcp 65001 > $null   # run once per PowerShell session
+   $info = Get-Content project_info.json -Raw | ConvertFrom-Json
+   $proj = $info.result
+   $proj | Select-Object projectName, projectNumber, clientName, status, issueDate, address
+   $proj.site | Select-Object placeName, latitude, longitude, timeZone
+   ```
+   The JSON file is stored as UTF-8, so other tools can consume it directly if further processing is required.
+
+

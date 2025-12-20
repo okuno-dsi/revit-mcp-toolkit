@@ -1,0 +1,39 @@
+﻿# get_curves_by_category
+
+- カテゴリ: DxfOps
+- 目的: このコマンドは『get_curves_by_category』を取得します。
+
+## 概要
+このコマンドは JSON-RPC を通じて実行され、目的に記載の処理を行います。使い方のセクションを参考にリクエストを作成してください。
+
+## 使い方
+- メソッド: get_curves_by_category
+
+### パラメータ
+| 名前 | 型 | 必須 | 既定値 |
+|---|---|---|---|
+| arcsOnly | bool | いいえ/状況による | false |
+| limit | int | いいえ/状況による |  |
+| linesOnly | bool | いいえ/状況による | false |
+| skip | int | いいえ/状況による | 0 |
+
+### リクエスト例
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "get_curves_by_category",
+  "params": {
+    "arcsOnly": false,
+    "limit": 0,
+    "linesOnly": false,
+    "skip": 0
+  }
+}
+```
+
+## 関連コマンド
+## 関連コマンド
+- export_curves_to_dxf
+- generate_dwg_merge_script_manual
+- 

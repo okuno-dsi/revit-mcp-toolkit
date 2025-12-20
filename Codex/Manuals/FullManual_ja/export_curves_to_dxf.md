@@ -1,0 +1,37 @@
+﻿# export_curves_to_dxf
+
+- カテゴリ: DxfOps
+- 目的: このコマンドは『export_curves_to_dxf』を書き出しします。
+
+## 概要
+このコマンドは JSON-RPC を通じて実行され、目的に記載の処理を行います。使い方のセクションを参考にリクエストを作成してください。
+
+## 使い方
+- メソッド: export_curves_to_dxf
+
+### パラメータ
+| 名前 | 型 | 必須 | 既定値 |
+|---|---|---|---|
+| inputUnit | string | いいえ/状況による | mm |
+| layerName | string | いいえ/状況による | 0 |
+| outputFilePath | string | いいえ/状況による |  |
+
+### リクエスト例
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "export_curves_to_dxf",
+  "params": {
+    "inputUnit": "...",
+    "layerName": "...",
+    "outputFilePath": "..."
+  }
+}
+```
+
+## 関連コマンド
+## 関連コマンド
+- get_grids_with_bubbles
+- generate_dwg_merge_script_manual
+- 

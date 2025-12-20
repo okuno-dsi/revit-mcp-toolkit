@@ -1,0 +1,564 @@
+﻿// ================================================================
+// File: Commands/ElementOps/GetElementInfoHandler.cs
+// Purpose : elementId/uniqueId系から要素情報を取得（mm/ft両立）
+// Changes :
+//  - 単位変換を UnitHelper に統一（FtToMm, XyzToMm など）
+//  - coordinates(ft) は後方互換で維持し、coordinatesMm(mm) を追加
+//  - bboxMm / 各種オフセット(mm) を UnitHelper で算出
+//  - (NEW) includeVisual/viewId を受け取り、visualOverride フラグを付与
+// Target  : .NET Framework 4.8 / Revit 2023+ / C# 8
+// ================================================================
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
+using RevitMCPAddin.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+
+namespace RevitMCPAddin.Commands.ElementOps
+{
+    /// <summary>
+    /// elementId/elementIds または uniqueId/uniqueIds から
+    /// カテゴリ・ファミリ名・タイプ名・レベル・座標（既存ft + 追加mm）を返す。
+    /// "rich": true の場合は以下を追加:
+    ///  - identity: uniqueId, className, categoryId, typeId, levelId
+    ///  - location: locationKind(point/curve/none), curveType, bboxMm
+    ///  - flags: isPinned, isMirrored (FamilyInstance), viewSpecific, ownerViewId
+    ///  - group: isInGroup, groupId, groupName
+    ///  - link: isLinkInstance, linkTypeId, linkDocTitle
+    ///  - host: hostId, hostCategory
+    ///  - phase: phaseCreated, phaseDemolished
+    ///  - workset/designOption: worksetId, worksetName, designOptionId, designOptionName
+    ///  - constraints: 壁/柱用の拘束情報（レベル・オフセット・高さ ※mm）
+    ///  - nextActions: 推奨MCPコマンドのヒント配列（文字列）
+    /// 既存の feet 座標は後方互換で維持、mm併記。
+    ///
+    /// (NEW)
+    ///  - params: includeVisual?:bool, viewId?:int
+    ///  - output: visualOverride: boolean | null  ※ includeVisual==true の時のみ付与
+    /// </summary>
+    public class GetElementInfoHandler : IRevitCommandHandler
+    {
+        public string CommandName => "get_element_info";
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            try
+            {
+                var p = (JObject)cmd.Params;
+                var doc = uiapp?.ActiveUIDocument?.Document;
+                if (doc == null) return new { ok = false, msg = "No active document." };
+
+                bool rich = p.Value<bool?>("rich") ?? false;
+
+                // (NEW) 追加パラメータ
+                bool includeVisual = p.Value<bool?>("includeVisual") ?? false;
+                int? visualViewId = p.Value<int?>("viewId");
+                View visualView = null;
+                if (includeVisual)
+                {
+                    visualView = ResolveViewForVisual(doc, visualViewId);
+                }
+
+                // 入力解決
+                var ids = new List<int>();
+                // elementIds / elementId
+                if (p.TryGetValue("elementIds", out var arrIdsToken))
+                {
+                    var arrIds = arrIdsToken.ToObject<int[]>();
+                    if (arrIds != null && arrIds.Length > 0) ids.AddRange(arrIds);
+                }
+                else if (p.TryGetValue("elementId", out var singleIdToken))
+                {
+                    ids.Add(singleIdToken.Value<int>());
+                }
+                // uniqueIds / uniqueId
+                if (p.TryGetValue("uniqueIds", out var arrUidsToken))
+                {
+                    var arrUids = arrUidsToken.ToObject<string[]>();
+                    if (arrUids != null)
+                    {
+                        foreach (var uid in arrUids.Where(s => !string.IsNullOrWhiteSpace(s)))
+                        {
+                            var e = doc.GetElement(uid);
+                            if (e != null) ids.Add(e.Id.IntegerValue);
+                        }
+                    }
+                }
+                else if (p.TryGetValue("uniqueId", out var singleUidToken))
+                {
+                    var uid = singleUidToken.Value<string>();
+                    if (!string.IsNullOrWhiteSpace(uid))
+                    {
+                        var e = doc.GetElement(uid);
+                        if (e != null) ids.Add(e.Id.IntegerValue);
+                    }
+                }
+
+                if (ids.Count == 0)
+                    return new { ok = false, msg = "elementId/elementIds もしくは uniqueId/uniqueIds を指定してください" };
+
+                ids = ids.Distinct().ToList();
+
+                var result = new JArray();
+
+                foreach (int id in ids)
+                {
+                    var elem = doc.GetElement(new ElementId(id));
+                    if (elem == null) continue;
+
+                    // 既存（後方互換）
+                    string category = elem.Category?.Name ?? "";
+
+                    string familyName, typeName;
+                    int? typeId = null;
+
+                    if (elem is FamilyInstance fi)
+                    {
+                        var sym = fi.Symbol;
+                        familyName = sym?.Family?.Name ?? "";
+                        typeName = sym?.Name ?? "";
+                        if (sym != null) typeId = sym.Id.IntegerValue;
+                    }
+                    else
+                    {
+                        familyName = elem.GetType().Name;
+                        typeName = elem.Name ?? "";
+
+                        var et = doc.GetElement(elem.GetTypeId()) as ElementType;
+                        if (et != null) typeId = et.Id.IntegerValue;
+                    }
+
+                    string levelName = "";
+                    int? levelId = null;
+
+                    if (elem is FamilyInstance fi2 && fi2.LevelId != ElementId.InvalidElementId)
+                    {
+                        levelId = fi2.LevelId.IntegerValue;
+                        var lvl = doc.GetElement(fi2.LevelId) as Level;
+                        levelName = lvl?.Name ?? "";
+                    }
+                    else
+                    {
+                        var lp = elem.LookupParameter("Level") ?? elem.LookupParameter("Reference Level");
+                        if (lp != null)
+                            levelName = lp.AsValueString() ?? lp.AsString() ?? "";
+                    }
+
+                    // 位置（ft → mm も併記）
+                    double x = 0, y = 0, z = 0;
+                    string locationKind = "none";
+                    string curveType = null;
+
+                    if (elem.Location is LocationPoint lpnt && lpnt.Point != null)
+                    {
+                        x = lpnt.Point.X; y = lpnt.Point.Y; z = lpnt.Point.Z;
+                        locationKind = "point";
+                    }
+                    else if (elem.Location is LocationCurve lcrv && lcrv.Curve != null)
+                    {
+                        var st = lcrv.Curve.GetEndPoint(0);
+                        x = st.X; y = st.Y; z = st.Z;
+                        locationKind = "curve";
+                        curveType = lcrv.Curve.GetType().Name;
+                    }
+
+                    var info = new JObject
+                    {
+                        ["elementId"] = id,
+                        ["category"] = category,
+                        ["familyName"] = familyName,
+                        ["typeName"] = typeName,
+                        ["level"] = levelName,
+                        // 旧互換: ft のまま
+                        ["coordinates"] = new JObject
+                        {
+                            ["x"] = x,
+                            ["y"] = y,
+                            ["z"] = z
+                        },
+                        // 追加: mm 併記（UnitHelper）
+                        ["coordinatesMm"] = new JObject
+                        {
+                            ["x"] = Math.Round(UnitHelper.FtToMm(x), 3),
+                            ["y"] = Math.Round(UnitHelper.FtToMm(y), 3),
+                            ["z"] = Math.Round(UnitHelper.FtToMm(z), 3)
+                        }
+                    };
+
+                    // (NEW) ビュー基準の visualOverride フラグ（任意）
+                    if (includeVisual)
+                    {
+                        bool? hasOv = null;
+                        try
+                        {
+                            if (visualView != null)
+                                hasOv = VisualOverrideChecker.HasVisualOverride(visualView, elem.Id);
+                        }
+                        catch
+                        {
+                            hasOv = null;
+                        }
+                        if (hasOv.HasValue)
+                        {
+                            info["visualOverride"] = hasOv.Value;           // bool → JToken へ暗黙変換OK
+                        }
+                        else
+                        {
+                            info["visualOverride"] = JValue.CreateNull();   // null を明示
+                        }
+                    }
+
+                    if (rich)
+                    {
+                        // identity
+                        TryAdd(info, "uniqueId", elem.UniqueId);
+                        TryAdd(info, "className", elem.GetType().Name);
+                        if (elem.Category != null)
+                            TryAdd(info, "categoryId", elem.Category.Id.IntegerValue);
+                        if (typeId.HasValue)
+                            TryAdd(info, "typeId", typeId.Value);
+                        if (levelId.HasValue)
+                            TryAdd(info, "levelId", levelId.Value);
+
+                        // location
+                        TryAdd(info, "locationKind", locationKind);
+                        if (!string.IsNullOrEmpty(curveType))
+                            TryAdd(info, "curveType", curveType);
+
+                        // bbox (mm, UnitHelper)
+                        var bb = elem.get_BoundingBox(null);
+                        if (bb != null)
+                        {
+                            info["bboxMm"] = new JObject
+                            {
+                                ["min"] = MmPt(bb.Min),
+                                ["max"] = MmPt(bb.Max)
+                            };
+                        }
+
+                        // flags
+                        info["isPinned"] = elem.Pinned;
+                        if (elem is FamilyInstance fi3) info["isMirrored"] = fi3.Mirrored;
+
+                        // group
+                        var grpId = elem.GroupId;
+                        if (grpId != null && grpId != ElementId.InvalidElementId)
+                        {
+                            var grp = doc.GetElement(grpId) as Group;
+                            info["isInGroup"] = true;
+                            info["groupId"] = grpId.IntegerValue;
+                            info["groupName"] = grp?.Name ?? "";
+                        }
+                        else
+                        {
+                            info["isInGroup"] = false;
+                        }
+
+                        // link
+                        if (elem is RevitLinkInstance rli)
+                        {
+                            info["isLinkInstance"] = true;
+                            info["linkTypeId"] = rli.GetTypeId().IntegerValue;
+                            var ldoc = rli.GetLinkDocument();
+                            if (ldoc != null) info["linkDocTitle"] = ldoc.Title;
+                        }
+                        else info["isLinkInstance"] = false;
+
+                        // host / owner view
+                        if (elem is FamilyInstance fi4 && fi4.Host != null)
+                        {
+                            info["hostId"] = fi4.Host.Id.IntegerValue;
+                            info["hostCategory"] = fi4.Host.Category?.Name ?? "";
+                        }
+                        info["viewSpecific"] = elem.ViewSpecific;
+                        if (elem.ViewSpecific) info["ownerViewId"] = elem.OwnerViewId.IntegerValue;
+
+                        // phases
+                        info["phaseCreated"] = GetPhaseName(elem, BuiltInParameter.PHASE_CREATED, doc);
+                        info["phaseDemolished"] = GetPhaseName(elem, BuiltInParameter.PHASE_DEMOLISHED, doc);
+
+                        // workset
+                        var wsId = elem.WorksetId;
+                        if (wsId != null && wsId.IntegerValue > 0)
+                        {
+                            info["worksetId"] = wsId.IntegerValue;
+                            try
+                            {
+                                var ws = doc.GetWorksetTable()?.GetWorkset(wsId);
+                                if (ws != null) info["worksetName"] = ws.Name;
+                            }
+                            catch { /* ignore */ }
+                        }
+
+                        // design option
+                        var doParam = elem.get_Parameter(BuiltInParameter.DESIGN_OPTION_ID);
+                        if (doParam != null && doParam.StorageType == StorageType.ElementId)
+                        {
+                            var doId = doParam.AsElementId();
+                            if (doId != ElementId.InvalidElementId)
+                            {
+                                info["designOptionId"] = doId.IntegerValue;
+                                var dop = doc.GetElement(doId) as DesignOption;
+                                if (dop != null) info["designOptionName"] = dop.Name;
+                            }
+                        }
+
+                        // element-specific constraints（mm）
+                        var constraints = new JObject();
+
+                        if (elem is Autodesk.Revit.DB.Wall w)
+                        {
+                            var baseL = w.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT)?.AsElementId();
+                            var topL = w.get_Parameter(BuiltInParameter.WALL_HEIGHT_TYPE)?.AsElementId();
+
+                            var baseOff = w.get_Parameter(BuiltInParameter.WALL_BASE_OFFSET)?.AsDouble() ?? 0.0;
+                            var topOff = w.get_Parameter(BuiltInParameter.WALL_TOP_OFFSET)?.AsDouble() ?? 0.0;
+                            var unconn = w.get_Parameter(BuiltInParameter.WALL_USER_HEIGHT_PARAM)?.AsDouble();
+
+                            var wallObj = new JObject();
+
+                            if (baseL != null && baseL != ElementId.InvalidElementId)
+                            {
+                                wallObj["baseLevelId"] = baseL.IntegerValue;
+                                wallObj["baseLevelName"] = (doc.GetElement(baseL) as Level)?.Name ?? "";
+                            }
+                            if (topL != null && topL != ElementId.InvalidElementId)
+                            {
+                                wallObj["topLevelId"] = topL.IntegerValue;
+                                wallObj["topLevelName"] = (doc.GetElement(topL) as Level)?.Name ?? "";
+                            }
+
+                            wallObj["baseOffsetMm"] = Math.Round(UnitHelper.InternalToMm(baseOff), 3);
+                            wallObj["topOffsetMm"] = Math.Round(UnitHelper.InternalToMm(topOff), 3);
+                            if (unconn.HasValue) wallObj["unconnectedHeightMm"] = Math.Round(UnitHelper.InternalToMm(unconn.Value), 3);
+
+                            constraints["wall"] = wallObj;
+                        }
+
+                        if (elem is FamilyInstance cf && (IsArchitecturalColumn(cf) || IsStructuralColumn(cf)))
+                        {
+                            var baseL = cf.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM)?.AsElementId();
+                            var topL = cf.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM)?.AsElementId();
+                            var baseOff = cf.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM)?.AsDouble() ?? 0.0;
+                            var topOff = cf.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM)?.AsDouble() ?? 0.0;
+
+                            var colObj = new JObject();
+                            if (baseL != null && baseL != ElementId.InvalidElementId)
+                            {
+                                colObj["baseLevelId"] = baseL.IntegerValue;
+                                colObj["baseLevelName"] = (doc.GetElement(baseL) as Level)?.Name ?? "";
+                            }
+                            if (topL != null && topL != ElementId.InvalidElementId)
+                            {
+                                colObj["topLevelId"] = topL.IntegerValue;
+                                colObj["topLevelName"] = (doc.GetElement(topL) as Level)?.Name ?? "";
+                            }
+                            colObj["baseOffsetMm"] = Math.Round(UnitHelper.InternalToMm(baseOff), 3);
+                            colObj["topOffsetMm"] = Math.Round(UnitHelper.InternalToMm(topOff), 3);
+
+                            constraints["column"] = colObj;
+                        }
+
+                        if (constraints.Properties().Any())
+                            info["constraints"] = constraints;
+
+                        // next actions (ヒント)
+                        info["nextActions"] = SuggestNextActions(elem, info);
+                    }
+
+                    result.Add(info);
+                }
+
+                return new { ok = true, count = result.Count, elements = result };
+            }
+            catch (Exception ex)
+            {
+                return new { ok = false, msg = ex.Message };
+            }
+        }
+
+        private static View ResolveViewForVisual(Document doc, int? viewId)
+        {
+            try
+            {
+                if (viewId.HasValue && viewId.Value > 0)
+                {
+                    var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    if (v != null && !v.IsTemplate) return v;
+                }
+                return doc.ActiveView;
+            }
+            catch { return doc.ActiveView; }
+        }
+
+        private static void TryAdd(JObject obj, string name, object value)
+        {
+            if (value == null) return;
+            if (value is string s && string.IsNullOrWhiteSpace(s)) return;
+            obj[name] = JToken.FromObject(value);
+        }
+
+        private static JObject MmPt(XYZ p)
+        {
+            var mm = UnitHelper.XyzToMm(p);
+            return new JObject
+            {
+                ["x"] = Math.Round(mm.x, 3),
+                ["y"] = Math.Round(mm.y, 3),
+                ["z"] = Math.Round(mm.z, 3)
+            };
+        }
+
+        private static string GetPhaseName(Element e, BuiltInParameter bip, Document doc)
+        {
+            try
+            {
+                var p = e.get_Parameter(bip);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                {
+                    var pid = p.AsElementId();
+                    var ph = doc.GetElement(pid) as Phase;
+                    return ph?.Name ?? null;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static bool IsArchitecturalColumn(FamilyInstance fi)
+        {
+            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_Columns; }
+            catch { return false; }
+        }
+
+        private static bool IsStructuralColumn(FamilyInstance fi)
+        {
+            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralColumns; }
+            catch { return false; }
+        }
+
+        private static JArray SuggestNextActions(Element elem, JObject info)
+        {
+            var hints = new List<string>();
+
+            // 汎用
+            if (info["bboxMm"] != null && (info["viewSpecific"]?.Value<bool>() ?? false) == false)
+            {
+                hints.Add("set_section_box_by_elements");
+            }
+            hints.Add("get_bounding_box");
+
+            // グループ
+            if (info["isInGroup"]?.Value<bool>() == true)
+            {
+                hints.Add("get_group_info");
+                hints.Add("get_group_members");
+                hints.Add("get_element_group_membership");
+            }
+
+            // 壁
+            if (elem is Autodesk.Revit.DB.Wall)
+            {
+                hints.Add("get_wall_parameters");
+                hints.Add("update_wall_parameter");
+                hints.Add("change_wall_type");
+                hints.Add("get_wall_faces");
+            }
+
+            // 窓・ドア
+            if (elem is FamilyInstance fi)
+            {
+                var catId = fi.Category?.Id.IntegerValue ?? 0;
+                if (catId == (int)BuiltInCategory.OST_Windows)
+                    hints.Add("get_window_parameters");
+                if (catId == (int)BuiltInCategory.OST_Doors)
+                    hints.Add("get_door_parameters");
+            }
+
+            // ワークセット/オプション
+            if (info["worksetId"] != null) hints.Add("get_element_workset");
+            if (info["designOptionId"] != null) hints.Add("get_open_documents");
+
+            // リンク
+            if (info["isLinkInstance"]?.Value<bool>() == true)
+            {
+                hints.Add("get_open_documents");
+            }
+
+            return new JArray(hints.Distinct());
+        }
+
+        // ============================================================
+        // (NEW) 内部ヘルパー: ビュー内の要素に Visual Override があるか判定
+        //  - まず反射で View.AreGraphicsOverridesApplied(ElementId) を試みる
+        //  - 使えなければ GetElementOverrides() → 既定値比較で判定
+        //  - 2023 の型/プロパティ差に配慮してベストエフォート
+        // ============================================================
+        private static class VisualOverrideChecker
+        {
+            private static readonly MethodInfo AreAppliedMI =
+                typeof(View).GetMethod("AreGraphicsOverridesApplied", new[] { typeof(ElementId) });
+
+            public static bool HasVisualOverride(View view, ElementId elementId)
+            {
+                // 高速経路（存在すれば）
+                try
+                {
+                    if (AreAppliedMI != null)
+                    {
+                        var obj = AreAppliedMI.Invoke(view, new object[] { elementId });
+                        if (obj is bool applied) return applied;
+                    }
+                }
+                catch { /* ignore and fallback */ }
+
+                // フォールバック：OverrideGraphicSettings で差分を確認
+                try
+                {
+                    var ogs = view.GetElementOverrides(elementId); // OverrideGraphicSettings
+                    return !IsDefault(ogs);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            private static bool IsDefault(OverrideGraphicSettings ogs)
+            {
+                if (ogs == null) return true;
+
+                // 2023で確実に参照できる項目中心に判定（透明度・パターンID）
+                if (SafeGetTransparency(ogs) != 0) return false;
+
+                if (SafeGetId(ogs, nameof(OverrideGraphicSettings.SurfaceForegroundPatternId)) != 0) return false;
+                if (SafeGetId(ogs, nameof(OverrideGraphicSettings.SurfaceBackgroundPatternId)) != 0) return false;
+                if (SafeGetId(ogs, nameof(OverrideGraphicSettings.CutForegroundPatternId)) != 0) return false;
+                if (SafeGetId(ogs, nameof(OverrideGraphicSettings.CutBackgroundPatternId)) != 0) return false;
+
+                // 色getterは環境差があるため、判定には使わない
+                return true;
+            }
+
+            private static int SafeGetTransparency(OverrideGraphicSettings ogs)
+            {
+                try { return ogs.Transparency; } catch { return 0; }
+            }
+
+            private static int SafeGetId(OverrideGraphicSettings ogs, string propName)
+            {
+                try
+                {
+                    var pi = typeof(OverrideGraphicSettings).GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
+                    if (pi == null) return 0;
+                    var id = pi.GetValue(ogs) as ElementId;
+                    return id?.IntegerValue ?? 0;
+                }
+                catch { return 0; }
+            }
+        }
+    }
+}

@@ -1,0 +1,62 @@
+﻿# get_structural_columns
+
+- カテゴリ: ElementOps
+- 目的: このコマンドは『get_structural_columns』を取得します。
+
+## 概要
+このコマンドは JSON-RPC を通じて実行され、目的に記載の処理を行います。使い方のセクションを参考にリクエストを作成してください。
+
+## 使い方
+- メソッド: get_structural_columns
+
+### パラメータ
+| 名前 | 型 | 必須 | 既定値 |
+|---|---|---|---|
+| count | int | いいえ/状況による |  |
+| elementId | int | いいえ/状況による | 0 |
+| familyName | string | いいえ/状況による |  |
+| levelId | int | いいえ/状況による | 0 |
+| levelName | string | いいえ/状況による |  |
+| nameContains | string | いいえ/状況による |  |
+| namesOnly | bool | いいえ/状況による | false |
+| pinned | bool | いいえ/状況による |  |
+| skip | int | いいえ/状況による | 0 |
+| typeId | int | いいえ/状況による | 0 |
+| typeName | string | いいえ/状況による |  |
+| uniqueId | string | いいえ/状況による |  |
+| withParameters | bool | いいえ/状況による | false |
+
+### リクエスト例
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "get_structural_columns",
+  "params": {
+    "count": 0,
+    "elementId": 0,
+    "familyName": "...",
+    "levelId": 0,
+    "levelName": "...",
+    "nameContains": "...",
+    "namesOnly": false,
+    "pinned": false,
+    "skip": 0,
+    "typeId": 0,
+    "typeName": "...",
+    "uniqueId": "...",
+    "withParameters": false
+  }
+}
+```
+
+## 関連コマンド
+## 関連コマンド
+- get_material_parameters
+- list_material_parameters
+- update_material_parameter
+- duplicate_material
+- rename_material
+- delete_material
+- create_material
+- 

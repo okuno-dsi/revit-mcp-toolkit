@@ -1,0 +1,670 @@
+# Commands Index (All, English, AI‑friendly)
+
+Notes:
+- Input units: mm/deg; ID‑first; prefer list_commands(namesOnly) to confirm availability.
+- Importance and kind are heuristic; curated list marks high.
+- Parameter write commands accept parameter keys in priority: builtInId → builtInName → guid → paramName (locale‑agnostic). Existing paramName continues to work.
+
+## Bootstrap/Project
+- (high)
+  - `agent_bootstrap` — write
+  - `get_project_info` — read
+  - `update_project_info` — write
+- (normal)
+  - `ping_server` — write
+
+## Curtain Walls
+- (high)
+  - `get_curtain_walls` — read
+  - `list_mullions` — read
+- (normal)
+  - `check_mullion_connectivity` — write
+  - `check_panel_size` — write
+  - `create_curtain_wall` — write
+  - `create_mullion` — write
+  - `delete_curtain_wall` — write
+  - `delete_mullion` — write
+  - `flip_curtain_panel_orientation` — write
+  - `highlight_overlarge_panels` — write
+  - `update_mullion_type` — write
+
+## Debug/Windowing
+- (normal)
+  - `debug_dump_dockable_panes` — write
+  - `debug_resolve_dockable_pane` — write
+
+## Detail/Model Lines
+- (normal)
+  - `align_dimension` — write
+  - `create_detail_line` — write
+  - `create_dimension` — write
+  - `add_door_size_dimensions` — write
+  - `create_model_line` — write
+  - `create_tag` — write
+  - `create_text_note` — write
+  - `delete_detail_line` — write
+  - `delete_dimension` — write
+  - `delete_model_line` — write
+  - `delete_model_lines` — write
+  - `delete_tag` — write
+  - `delete_text_note` — write
+  - `explode_model_line_to_detail` — write
+  - `get_detail_line_styles` — read
+  - `get_dimension_types` — read
+  - `get_tag_parameters` — read
+  - `get_tag_symbols` — read
+  - `move_detail_line` — write
+  - `move_dimension` — write
+  - `move_model_line` — write
+  - `move_tag` — write
+  - `move_text_note` — write
+  - `rotate_detail_line` — write
+  - `rotate_model_line` — write
+  - `rotate_tag` — write
+  - `set_detail_line_style` — write
+  - `set_detail_lines_style` — write
+  - `set_model_line_style` — write
+  - `set_model_lines_style` — write
+  - `update_dimension_format` — write
+  - `update_tag_parameter` — write
+  - `update_text_note_parameter` — write
+
+## Export
+- (normal)
+  - `export_curves_to_dxf` — write
+  - `export_dwg` — write
+  - `export_snapshot` — write
+
+## Floors
+- (high)
+  - `get_floor_layers` — read
+  - `get_floor_type_parameters` — read
+  - `update_floor_boundary` — write
+- (normal)
+  - `add_floor_layer` — write
+  - `duplicate_floor_type` — write
+  - `get_floor_boundary` — read
+  - `get_floor_parameters` — read
+  - `get_floor_type_info` — read
+  - `get_floor_types` — read
+  - `remove_floor_layer` — write
+  - `rename_floor_type` — write
+  - `set_floor_parameter` — write
+  - `set_floor_type_parameter` — write
+  - `set_floor_variable_layer` — write
+  - `swap_floor_layer_materials` — write
+  - `update_floor_layer` — write
+
+## Groups/Worksets
+- (normal)
+  - `create_workset` — write
+  - `get_element_group_membership` — read
+  - `get_element_workset` — read
+  - `get_group_constraints_report` — read
+  - `get_group_info` — read
+  - `get_group_members` — read
+  - `get_group_types` — read
+  - `get_groups` — read
+  - `get_worksets` — read
+  - `set_element_workset` — write
+
+## Levels/Grids
+- (high)
+  - `create_grids` — write
+  - `get_grids` — read
+  - `get_levels` — read
+- (normal)
+  - `adjust_grid_extents` — write
+  - `create_level` — write
+  - `delete_grid` — write
+  - `get_grids_with_bubbles` — read
+  - `get_level_parameters` — read
+  - `move_grid` — write
+  - `update_grid_name` — write
+  - `update_level_elevation` — write
+  - `update_level_name` — write
+  - `update_level_parameter` — write
+
+## Links/Docs
+- (normal)
+  - `bind_link` — write
+  - `detach_link` — write
+  - `list_links` — read
+  - `reload_link` — write
+  - `reload_link_from` — write
+  - `unload_link` — write
+
+## MEP/Pipes/Ducts
+- (normal)
+  - `change_mep_element_type` — write
+  - `create_cable_tray` — write
+  - `create_conduit` — write
+  - `create_duct` — write
+  - `create_pipe` — write
+  - `delete_mep_element` — write
+  - `get_mep_elements` — read
+  - `get_mep_parameters` — read
+  - `move_mep_element` — write
+  - `set_mep_parameter` — write
+
+## Mass
+- (normal)
+  - `change_mass_instance_type` — write
+  - `create_mass_instance` — write
+  - `delete_mass_instance` — write
+  - `duplicate_mass_type` — write
+  - `get_mass_instance_parameters` — read
+  - `get_mass_instances` — read
+  - `get_mass_type_parameters` — read
+  - `get_mass_types` — read
+  - `move_mass_instance` — write
+  - `rename_mass_type` — write
+  - `rotate_mass_instance` — write
+  - `update_mass_instance_parameter` — write
+
+## Materials
+- (normal)
+  - `get_material_assets` — read
+  - `list_physical_assets` — read
+  - `list_thermal_assets` — read
+  - `get_material_asset_properties` — read
+  - `set_material_asset` — write
+  - `set_material_asset_name` — write
+  - `duplicate_material_asset` — write
+  - `update_property_set_element_parameter` — write
+  - `set_material_thermal_conductivity` — write
+  - `set_material_thermal_properties` — write
+ 
+- (normal)
+  - `apply_material_to_element` — write
+  - `apply_paint` — write
+  - `apply_paint_by_reference` — write
+  - `create_material` — write
+  - `delete_material` — write
+  - `duplicate_material` — write
+  - `get_element_material` — read
+  - `get_face_paint_data` — read
+  - `get_material_parameters` — read
+  - `get_materials` — read
+  - `get_paint_info` — read
+  - `list_material_parameters` — read
+  - `remove_paint` — write
+  - `remove_paint_by_reference` — write
+  - `rename_material` — write
+  - `update_material_parameter` — write
+
+## MetaOps
+- (high)
+  - `list_commands` — read
+  - `start_command_logging` — write
+  - `stop_command_logging` — write
+
+## Other
+- (high)
+  - `bbox` — write
+  - `create_floor` — write
+  - `create_wall` — write
+  - `fast` — write
+  - `solid` — write
+  - `string ("bbox" or "solid")` — write
+  - `get_instances_geometry` — read
+  - `join_elements` — write
+  - `unjoin_elements` — write
+  - `are_elements_joined` — read
+  - `switch_join_order` — write
+- (normal)
+  - `analyze_segments` — write
+  - `area_boundary_adjust_by_material_corecenter` — write
+  - `area_boundary_create_by_material_corecenter` — write
+  - `auto_area_boundaries_from_walls` — write
+  - `change_architectural_column_type` — write
+  - `change_ceiling_type` — write
+  - `change_family_instance_type` — write
+  - `change_fire_protection_type` — write
+  - `change_railing_type` — write
+  - `change_sanitary_fixture_type` — write
+  - `change_stair_type` — write
+  - `change_structural_column_type` — write
+  - `change_structural_foundation_type` — write
+  - `change_structural_frame_type` — write
+  - `check_clashes` — write
+  - `check_fire_rating_compliance` — write
+  - `clean_area_boundaries` — write
+  - `compute_zone_metrics` — write
+  - `copy_family_type_between_docs` — write
+  - `create_architectural_column` — write
+  - `create_area` — write
+  - `create_area_boundary_line` — write
+  - `create_area_plan` — write
+  - `create_area_scheme` — write
+  - `create_ceiling` — write
+  - `create_detail_arc` — write
+  - `create_direct_shape_mass` — write
+  - `create_door` — write
+  - `create_door_on_wall` — write
+  - `create_family_instance` — write
+  - `create_family_on_face` — write
+  - `create_fire_protection_instance` — write
+  - `create_interior_elevation` — write
+  - `create_interior_elevation_facing_wall` — write
+  - `create_model_arc` — write
+  - `create_railing` — write
+  - `create_roof` — write
+  - `create_section` — write
+  - `create_spatial_volume_overlay` — write
+  - `create_structural_column` — write
+  - `create_structural_foundation` — write
+  - `create_structural_frame` — write
+  - `create_walkthrough` — write
+  - `create_window` — write
+  - `create_window_on_wall` — write
+  - `create_zone` — write
+  - `delete_architectural_column` — write
+  - `delete_area` — write
+  - `delete_area_boundary_line` — write
+  - `delete_ceiling` — write
+  - `delete_ceiling_type` — write
+  - `delete_door` — write
+  - `delete_family_instance` — write
+  - `delete_fire_protection_instance` — write
+  - `delete_fire_protection_type` — write
+  - `delete_floor` — write
+  - `delete_railing` — write
+  - `delete_railing_type` — write
+  - `delete_roof` — write
+  - `delete_sanitary_fixture` — write
+  - `delete_sanitary_fixture_type` — write
+  - `delete_spatial_volume_overlays` — write
+  - `delete_stair_instance` — write
+  - `delete_stair_type` — write
+  - `delete_structural_column` — write
+  - `delete_structural_foundation` — write
+  - `delete_structural_frame` — write
+  - `delete_wall` — write
+  - `delete_window` — write
+  - `delete_zone` — write
+  - `dockable_pane_sequence` — write
+  - `duplicate_architectural_column_type` — write
+  - `duplicate_ceiling_type` — write
+  - `duplicate_door_type` — write
+  - `duplicate_fire_protection_type` — write
+  - `duplicate_railing_type` — write
+  - `duplicate_stair_instance` — write
+  - `duplicate_stair_type` — write
+  - `duplicate_structural_column_type` — write
+  - `duplicate_structural_foundation_type` — write
+  - `duplicate_structural_frame_type` — write
+  - `duplicate_window_type` — write
+  - `extend_area_boundary_line` — write
+  - `flip_door_orientation` — write
+  - `flip_family_instance_orientation` — write
+  - `flip_window_orientation` — write
+  - `get_architectural_column_parameters` — read
+  - `get_architectural_column_types` — read
+  - `get_architectural_columns` — read
+  - `get_area_boundary` — read
+  - `get_area_boundary_duplicates` — read
+  - `get_area_boundary_gaps` — read
+  - `get_area_boundary_intersections` — read
+  - `get_area_boundary_walls` — read
+  - `get_area_centroid` — read
+  - `get_area_geometry` — read
+  - `get_area_metrics` — read
+  - `get_area_params` — read
+  - `get_area_schemes` — read
+  - `get_area_volume_settings` — read
+  - `get_areas` — read
+  - `get_category_visibility` — read
+  - `get_ceiling_boundaries` — read
+  - `get_ceiling_parameters` — read
+  - `get_ceiling_type_parameters` — read
+  - `get_ceiling_types` — read
+  - `get_ceilings` — read
+  - `get_curves_by_category` — read
+  - `get_door_orientation` — read
+  - `get_door_parameters` — read
+  - `get_door_type_parameters` — read
+  - `get_door_types` — read
+  - `get_doors` — read
+  - `get_face_finish_data` — read
+  - `get_face_region_detail` — read
+  - `get_face_region_takeoff` — read
+  - `get_face_regions` — read
+  - `get_family_instance_parameters` — read
+  - `get_family_instance_references` — read
+  - `get_family_instances` — read
+  - `get_family_type_parameters` — read
+  - `get_family_types` — read
+  - `get_fire_protection_instances` — read
+  - `get_fire_protection_parameters` — read
+  - `get_fire_protection_types` — read
+  - `get_floors` — read
+  - `get_inplace_families` — read
+  - `get_line_styles` — read
+  - `get_open_documents` — read
+  - `get_oriented_bbox` — read
+  - `get_param_meta` — read
+  - `get_param_values` — read
+  - `get_project_categories` — read
+  - `get_railing_parameters` — read
+  - `get_railing_type_parameters` — read
+  - `get_railing_types` — read
+  - `get_railings` — read
+  - `get_sanitary_fixture_types` — read
+  - `get_sanitary_fixtures` — read
+  - `get_selected_element_ids` — read
+  - `get_stair_flights` — read
+  - `get_stair_parameters` — read
+  - `get_stair_type_parameters` — read
+  - `get_stair_types` — read
+  - `get_stairs` — read
+  - `get_structural_column_parameter` — read
+  - `get_structural_column_parameters` — read
+  - `get_structural_column_type_parameters` — read
+  - `get_structural_column_types` — read
+  - `get_structural_columns` — read
+  - `get_structural_foundation_parameter` — read
+  - `get_structural_foundation_parameters` — read
+  - `get_structural_foundation_type_parameters` — read
+  - `get_structural_foundation_types` — read
+  - `get_structural_foundations` — read
+  - `get_structural_frame_parameter` — read
+  - `get_structural_frame_parameters` — read
+  - `get_structural_frame_type_parameters` — read
+  - `get_structural_frame_types` — read
+  - `get_structural_frames` — read
+  - `get_surface_regions` — read
+  - `get_walls` — read
+  - `get_window_orientation` — read
+  - `get_window_parameters` — read
+  - `get_window_type_parameters` — read
+  - `get_window_types` — read
+  - `get_windows` — read
+  - `get_zone_params` — read
+  - `get_zones` — read
+  - `list_structural_column_parameters` — read
+  - `list_structural_foundation_parameters` — read
+  - `list_structural_frame_parameters` — read
+  - `list_zone_members` — read
+  - `merge_areas` — write
+  - `move_architectural_column` — write
+  - `move_area` — write
+  - `move_area_boundary_line` — write
+  - `move_ceiling` — write
+  - `move_door` — write
+  - `move_family_instance` — write
+  - `move_fire_protection_instance` — write
+  - `move_floor` — write
+  - `move_roof` — write
+  - `move_sanitary_fixture` — write
+  - `move_stair_instance` — write
+  - `move_structural_column` — write
+  - `move_structural_foundation` — write
+  - `move_structural_frame` — write
+  - `move_window` — write
+  - `rename_door_type` — write
+  - `rename_window_type` — write
+  - `resize_section_box` — write
+  - `set_area_volume_settings` — write
+  - `set_category_visibility` — write
+  - `set_ceiling_parameter` — write
+  - `set_ceiling_type_parameter` — write
+  - `set_family_type_parameter` — write
+  - `set_fire_protection_parameter` — write
+  - `set_railing_parameter` — write
+  - `set_railing_type_parameter` — write
+  - `set_section_box_by_elements` — write
+  - `set_stair_flight_parameters` — write
+  - `set_stair_parameter` — write
+  - `set_stair_type_parameter` — write
+  - `set_zone_param` — write
+  - `simulate_sunlight` — write
+  - `trim_area_boundary_line` — write
+  - `update_architectural_column_geometry` — write
+  - `update_architectural_column_parameter` — write
+  - `update_area` — write
+  - `update_direct_shape_parameter` — write
+  - `update_door_parameter` — write
+  - `update_family_instance_parameter` — write
+  - `update_sanitary_fixture` — write
+  - `update_structural_column_geometry` — write
+  - `update_structural_column_parameter` — write
+  - `update_structural_column_type_parameter` — write
+  - `update_structural_foundation_geometry` — write
+  - `update_structural_foundation_parameter` — write
+  - `update_structural_foundation_type_parameter` — write
+  - `update_structural_frame_geometry` — write
+  - `update_structural_frame_parameter` — write
+  - `update_structural_frame_type_parameter` — write
+  - `update_window_parameter` — write
+
+## Parameters (Bulk)
+- (high)
+  - `get_type_parameters_bulk` — read
+  - `get_instance_parameters_bulk` — read
+
+## Revision/Sheets
+- (normal)
+  - `change_revision_cloud_type` — write
+  - `create_default_revision` — write
+  - `create_revision_cloud` — write
+  - `create_revision_circle` — write
+  - `create_revision_cloud_for_element_projection` — write
+  - `create_sheet` — write
+  - `delete_revision_cloud` — write
+  - `delete_sheet` — write
+  - `get_revision_cloud_geometry` — read
+  - `get_revision_cloud_parameters` — read
+  - `get_revision_cloud_spacing` — read
+  - `get_revision_cloud_type_parameters` — read
+  - `get_revision_cloud_types` — read
+  - `get_sheets` — read
+  - `list_revisions` — read
+  - `list_sheet_revisions` — read
+  - `move_revision_cloud` — write
+  - `set_revision_cloud_parameter` — write
+  - `set_revision_cloud_spacing` — write
+  - `set_revision_cloud_type_parameter` — write
+  - `update_revision` — write
+
+## RevitUI
+- (high)
+  - `activate_view` — write
+  - `close_inactive_views` — write
+  - `hide_dockable_pane` — write
+  - `list_dockable_panes` — read
+  - `list_open_views` — read
+  - `open_views` — write
+  - `show_dockable_pane` — write
+  - `tile_windows` — write
+  - `toggle_dockable_pane` — write
+
+## Roofs
+- (normal)
+  - `add_roof_layer` — write
+  - `change_roof_type` — write
+  - `get_roofs` — read
+  - `get_roof_layers` — read
+  - `get_roof_slope` — read
+  - `get_roof_type_info` — read
+  - `remove_roof_layer` — write
+  - `set_roof_parameter` — write
+  - `set_roof_slope` — write
+  - `set_roof_type_parameter` — write
+  - `set_roof_variable_layer` — write
+  - `swap_roof_layer_materials` — write
+  - `update_roof_boundary` — write
+  - `update_roof_layer` — write
+
+## Rooms/Spaces
+- (high)
+  - `create_room` — write
+  - `create_space` — write
+  - `get_room_boundary` — read
+  - `get_room_boundary_walls` — read
+  - `get_room_params` — read
+  - `get_rooms` — read
+- (normal)
+  - `find_room_placeable_regions` — read
+  - `place_room_in_circuit` — write
+  - `add_spaces_to_zone` — write
+  - `auto_crop_elevation_to_room` — write
+  - `auto_crop_elevations_for_room` — write
+  - `classify_points_in_room` — write
+  - `clean_room_boundaries` — write
+  - `copy_area_boundaries_from_rooms` — write
+  - `create_areas_from_rooms_by_material_corecenter` — write
+  - `create_room_boundary_line` — write
+  - `create_room_interior_elevations` — write
+  - `delete_room` — write
+  - `delete_room_boundary_line` — write
+  - `delete_space` — write
+  - `extend_room_boundary_line` — write
+  - `get_room_centroid` — read
+  - `get_room_label_point` — read
+  - `get_room_neighbors` — read
+  - `get_room_openings` — read
+  - `get_room_planar_centroid` — read
+  - `get_space_boundary` — read
+  - `get_space_boundary_walls` — read
+  - `get_space_centroid` — read
+  - `get_space_geometry` — read
+  - `get_space_metrics` — read
+  - `get_space_params` — read
+  - `get_spaces` — read
+  - `move_room_boundary_line` — write
+  - `move_space` — write
+  - `remove_spaces_from_zone` — write
+  - `set_room_param` — write
+  - `trim_room_boundary_line` — write
+  - `update_space` — write
+
+## Schedules
+- (normal)
+  - `delete_schedule` — write
+  - `export_schedule_to_csv` — write
+  - `export_schedule_to_excel` — write
+  - `generate_fire_protection_schedule` — write
+  - `get_schedule_data` — read
+  - `get_schedules` — read
+  - `update_schedule_fields` — write
+  - `update_schedule_filters` — write
+  - `update_schedule_sorting` — write
+
+## Selection/Query
+- (high)
+  - `get_element_info` — read
+- (normal)
+  - `get_bounding_box` — read
+  - `select_elements` — write
+  - `select_elements_by_filter_id` — write
+
+## Views/Graphics
+- (high)
+  - `get_elements_in_view` — read
+  - `get_types_in_view` — read
+  - `reset_all_view_overrides` — write
+  - `set_category_override` — write
+  - `set_visual_override` — write
+- (normal)
+  - `apply_3d_view_settings` — write
+  - `apply_conditional_coloring` — write
+  - `apply_quick_color_scheme` — write
+  - `arrange_views` — write
+  - `assign_scope_box` — write
+  - `audit_hidden_in_view` — write
+  - `clear_conditional_coloring` — write
+  - `clear_scope_box` — write
+  - `clear_visual_override` — write
+  - `create_3d_view` — write
+  - `create_curtain_wall_elevation_view` — write
+  - `create_elevation_view` — write
+  - `create_perspective_view` — write
+  - `create_schedule_view` — write
+  - `create_scope_box` — write
+  - `create_view_plan` — write
+  - `delete_view` — write
+  - `delete_orphan_elevation_markers` — write
+  - `get_area_boundary_lines_in_view` — read
+  - `get_categories_used_in_view` — read
+  - `get_current_view` — read
+  - `get_detail_lines_in_view` — read
+  - `get_dimensions_in_view` — read
+  - `get_elevation_view_types` — read
+  - `get_groups_in_view` — read
+  - `get_model_lines_in_view` — read
+  - `get_room_boundary_lines_in_view` — read
+  - `get_tags_in_view` — read
+  - `get_tag_bounds_in_view` — read
+  - `get_text_notes_in_view` — read
+  - `get_view_info` — read
+  - `get_view_scope_box` — read
+  - `get_visual_overrides_in_view` — read
+  - `hide_elements_in_view` — write
+  - `list_color_schemes` — read
+  - `list_colorfill_builtin_param_suggestions` — read
+  - `list_colorfill_supported_params` — read
+  - `list_scope_boxes` — read
+  - `list_view_colorfill_categories` — read
+  - `place_view_on_sheet` — write
+  - `prepare_sunstudy_view` — write
+  - `remove_view_from_sheet` — write
+  - `rename_scope_box` — write
+  - `rename_view_template` — write
+  - `reset_category_override` — write
+  - `save_3d_view_settings` — write
+  - `save_view_as_template` — write
+  - `set_view_parameter` — write
+  - `set_view_template` — write
+  - `set_view_type` — write
+  - `unhide_elements_in_view` — write
+  - `update_scope_box` — write
+
+## Walls
+- (high)
+  - `change_wall_type` — write
+  - `get_curtain_wall_schedule` — read
+  - `get_wall_layers` — read
+  - `get_wall_parameters` — read
+  - `get_wall_type_parameters` — read
+  - `list_curtain_wall_panels` — read
+  - `update_wall_parameter` — write
+- (normal)
+  - `add_curtain_wall_panel` — write
+  - `add_wall_layer` — write
+  - `change_curtain_wall_type` — write
+  - `duplicate_wall_type` — write
+  - `export_curtain_wall_report` — write
+  - `flatten_stacked_wall_to_basic` — write
+  - `get_curtain_wall_panel_geometry` — read
+  - `get_curtain_wall_types` — read
+  - `get_stacked_wall_parts` — read
+  - `get_wall_baseline` — read
+  - `get_wall_faces` — read
+  - `get_wall_finish_summary` — read
+  - `get_wall_parameter` — read
+  - `get_wall_type_info` — read
+  - `get_wall_types` — read
+  - `list_wall_parameters` — read
+  - `remove_curtain_wall_panel` — write
+  - `remove_wall_layer` — write
+  - `rename_wall_type` — write
+  - `replace_stacked_wall_part_type` — write
+  - `set_curtain_wall_panel_type` — write
+  - `set_wall_variable_layer` — write
+  - `swap_wall_layer_materials` — write
+  - `update_curtain_wall_geometry` — write
+  - `update_curtain_wall_parameter` — write
+  - `update_stacked_wall_part` — write
+  - `update_wall_geometry` — write
+  - `update_wall_layer` — write
+  - `update_wall_type_parameter` — write
+
+
+
+## Updates (Resilient View/Visualization)
+- See Manuals/UPDATED_VIEW_VISUALIZATION_COMMANDS_EN.md for non-blocking patterns and examples.
+- JSONL examples: Manuals/updated_view_visualization_commands.en.jsonl
+
+
+

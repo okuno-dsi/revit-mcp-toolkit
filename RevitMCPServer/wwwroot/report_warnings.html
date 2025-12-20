@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja"><head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Warnings</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+    .error { color: #b00020; }
+  </style>
+  <script>
+    async function rpc(method, params={}){
+      const reqId = `ui:${method}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+      const res = await fetch(`/rpc/${method}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({jsonrpc:'2.0', id:reqId, method, params})});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      if(data && data.error) throw new Error(data.error.message||'RPC error');
+      let payload = (data && data.jsonrpc && typeof data.result !== 'undefined') ? data.result : data;
+      if(payload && payload.queued){
+        const deadline = Date.now()+30000;
+        while(true){
+          const r = await fetch(payload.jobId ? (`/get_result?jobId=${encodeURIComponent(payload.jobId)}`) : '/get_result');
+          if(r.status===204){ if(Date.now()>deadline) throw new Error('RPC timeout'); await new Promise(s=>setTimeout(s,300)); continue; }
+          if(!r.ok){ if(Date.now()>deadline) throw new Error('RPC failed'); await new Promise(s=>setTimeout(s,300)); continue; }
+          const txt=await r.text(); let obj; try{ obj=JSON.parse(txt);}catch{continue}
+          if(payload.jobId){ if(obj && obj.jsonrpc && (typeof obj.result!=='undefined')) return obj.result; }
+          else if(obj && obj.id===reqId){ if(obj.error) throw new Error(obj.error.message||'RPC error'); return (typeof obj.result!=='undefined')?obj.result:obj; }
+        }
+      }
+      return payload;
+    }
+    async function load(){
+      const tbody=document.querySelector('tbody'); const err=document.getElementById('err'); err.textContent='';
+      try{
+        let data;
+        try { data = await rpc('get_warnings_summary', {}); } catch {}
+        if(!data || !data.ok){
+          // Fallback: show total count from project summary
+          const sum = await rpc('get_project_summary', {});
+          if(!sum.ok) throw new Error(sum.msg||'RPC failed');
+          document.getElementById('fallback').textContent = `Total warnings: ${sum.warnings}`;
+          tbody.innerHTML = `<tr><td colspan="2">Summary not available</td></tr>`;
+          return;
+        }
+        (data.items||[]).forEach(w=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${w.kind}</td><td>${w.count}</td>`; tbody.appendChild(tr); });
+      }catch(e){ err.textContent=e.message||String(e); }
+    }
+    addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h1>Warnings</h1>
+  <div id="err" class="error"></div>
+  <div id="fallback"></div>
+  <table>
+    <thead><tr><th>Kind</th><th>Count</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p><a href="index.html">Back</a></p>
+</body></html>

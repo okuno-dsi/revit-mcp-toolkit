@@ -1,0 +1,6 @@
+@ExcelMCP_HostAddress = http://localhost:5087
+
+GET {{ExcelMCP_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

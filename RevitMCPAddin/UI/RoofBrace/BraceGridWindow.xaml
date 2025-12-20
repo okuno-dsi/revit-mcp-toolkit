@@ -1,0 +1,181 @@
+﻿<Window x:Class="RevitMCPAddin.UI.RoofBrace.BraceGridWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:RevitMCPAddin.UI.RoofBrace"
+        Title="Roof Brace Pattern Grid"
+        Height="480"
+        Width="720"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <Style x:Key="BayButtonStyle" TargetType="Button">
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="MinWidth" Value="40"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="10">
+        <!-- Top bar: global brace type -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Brace type (符号:タイプ名):" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox Width="260"
+                      ItemsSource="{Binding BraceTypes}"
+                      SelectedItem="{Binding SelectedGlobalBraceType}"
+                      DisplayMemberPath="ShortLabel"/>
+        </StackPanel>
+
+        <!-- Bottom: prompt summary + buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Margin="0,8,0,0">
+            <!-- Prompt / condition summary -->
+            <TextBlock Text="{Binding PromptSummary}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,4"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Width="90" Margin="0,0,8,0" IsDefault="True" Click="Ok_Click">OK</Button>
+                <Button Width="90" IsCancel="True" Click="Cancel_Click">Cancel</Button>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Bay grid with X/Y headers (Excel-like freeze panes) -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- X headers -->
+                <RowDefinition Height="*"/>    <!-- Y headers + bays -->
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- Y headers -->
+                <ColumnDefinition Width="*"/>    <!-- bays -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Top-left corner (empty) -->
+            <Border Grid.Row="0" Grid.Column="0" Background="Transparent" />
+
+            <!-- X grid names (top, scroll horizontally only) -->
+            <ScrollViewer x:Name="XHeaderScrollViewer"
+                          Grid.Row="0" Grid.Column="1"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled">
+                <Canvas x:Name="XHeaderCanvas"
+                        Height="32"
+                        HorizontalAlignment="Stretch" />
+            </ScrollViewer>
+
+            <!-- Y grid names (left, scroll vertically only) -->
+            <ScrollViewer x:Name="YHeaderScrollViewer"
+                          Grid.Row="1" Grid.Column="0"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Hidden">
+                <Canvas x:Name="YHeaderCanvas"
+                        Width="56"
+                        VerticalAlignment="Stretch" />
+            </ScrollViewer>
+
+            <!-- Main bay grid (scroll both directions) + shared grid lines -->
+            <ScrollViewer x:Name="MainScrollViewer"
+                          Grid.Row="1" Grid.Column="1"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          ScrollChanged="MainScrollViewer_ScrollChanged">
+                <Grid>
+                    <!-- Shared grid lines for beams/boundaries -->
+                    <Canvas x:Name="GridLinesCanvas"
+                            IsHitTestVisible="False"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"/>
+
+                    <!-- Bay cells -->
+                    <ItemsControl x:Name="BayItemsControl"
+                                  ItemsSource="{Binding Bays}"
+                                  SizeChanged="BayItemsControl_SizeChanged">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="{Binding RowCount}"
+                                             Columns="{Binding ColumnCount}"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:BayViewModel}">
+                                <Button Style="{StaticResource BayButtonStyle}"
+                                        Command="{Binding DataContext.TogglePatternCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}">
+                                    <Viewbox Stretch="Uniform">
+                                        <Grid Width="100" Height="100" ClipToBounds="True">
+                                            <!-- Existing brace lines (red, read-only unless overridden) -->
+                                            <Path Data="M-0.5,-0.5 L1.5,1.5"
+                                                  Stroke="Red"
+                                                  StrokeThickness="2"
+                                                  Stretch="Fill"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  Visibility="{Binding ShowExistingBackSlash, Converter={StaticResource BoolToVisibility}}"/>
+                                            <Path Data="M-0.5,1.5 L1.5,-0.5"
+                                                  Stroke="Red"
+                                                  StrokeThickness="2"
+                                                  Stretch="Fill"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  Visibility="{Binding ShowExistingSlash, Converter={StaticResource BoolToVisibility}}"/>
+
+                                            <!-- New brace pattern (black) -->
+                                            <Path x:Name="BackSlashPath"
+                                                  Data="M-0.5,-0.5 L1.5,1.5"
+                                                  Stroke="DarkSlateGray"
+                                                  StrokeThickness="2"
+                                                  Stretch="Fill"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  Visibility="Collapsed"/>
+                                            <Path x:Name="SlashPath"
+                                                  Data="M-0.5,1.5 L1.5,-0.5"
+                                                  Stroke="DarkSlateGray"
+                                                  StrokeThickness="2"
+                                                  Stretch="Fill"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  Visibility="Collapsed"/>
+
+                                            <!-- Brace type label (e.g. "RB-1:H-BRACE_75x5"), slightly below center -->
+                                            <TextBlock x:Name="TypeLabel"
+                                                       Text="{Binding BraceTypeLabel}"
+                                                       FontWeight="Bold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,42,0,0"
+                                                       Visibility="Collapsed"/>
+                                        </Grid>
+                                    </Viewbox>
+                                </Button>
+                                <DataTemplate.Triggers>
+                                    <!-- X (both diagonals) -->
+                                    <DataTrigger Binding="{Binding Pattern}" Value="{x:Static vm:BayPattern.X}">
+                                        <Setter TargetName="BackSlashPath" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="SlashPath" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="TypeLabel" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <!-- BackSlash (\) -->
+                                    <DataTrigger Binding="{Binding Pattern}" Value="{x:Static vm:BayPattern.BackSlash}">
+                                        <Setter TargetName="BackSlashPath" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="TypeLabel" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <!-- Slash (/) -->
+                                    <DataTrigger Binding="{Binding Pattern}" Value="{x:Static vm:BayPattern.Slash}">
+                                        <Setter TargetName="SlashPath" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="TypeLabel" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>
+

@@ -1,0 +1,81 @@
+# Visual Studio / .NET
+.vs/
+**/.vs/
+[Bb]in/
+[Oo]bj/
+**/[Bb]in/
+**/[Oo]bj/
+**/TestResults/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build / publish outputs
+**/publish/
+**/publish_out/
+publish/
+publish_out/
+
+# NuGet (classic packages folder)
+**/packages/
+**/*.nupkg
+nuget.exe
+
+# Node
+**/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Archives / binaries (do not publish)
+*.zip
+*.7z
+*.rar
+*.exe
+*.dll
+*.pdb
+*.so
+*.dylib
+*.a
+*.lib
+*.obj
+*.p7s
+
+# Common generated files
+*.cache
+*.log
+*.tmp
+*.bak
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.vsidx
+*.Up2Date
+
+# Autodesk / CAD data (do not publish)
+*.dwg
+*.dxf
+*.ifc
+*.rvt
+*.rfa
+*.rte
+*.rft
+
+# Documents (often 3rd-party)
+*.pdf
+
+# Local / generated work dirs
+Codex/Work/
+**/temp/
+**/Temp/
+**/tmp/
+**/tmp_*/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

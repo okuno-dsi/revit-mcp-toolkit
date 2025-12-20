@@ -1,0 +1,747 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Rhino3dm props (存在時のみ) -->
+  <Import Project="packages\Rhino3dm.8.17.0\build\net45\Rhino3dm.props" Condition="Exists('packages\Rhino3dm.8.17.0\build\net45\Rhino3dm.props')" />
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <!-- 共通設定 -->
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <!-- 既定プラットフォームは x64 に寄せる -->
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{386664F9-8037-4DEF-9284-67C0365CD22A}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RevitMCPAddin</RootNamespace>
+    <AssemblyName>RevitMCPAddin</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <!-- Revitはx64専用 -->
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- C# 8.0 を明示 -->
+    <LangVersion>8.0</LangVersion>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <!-- Revit 2024 の既定インストールパス（必要に応じて切替用にプロパティ化） -->
+    <RevitInstallDir>$(ProgramW6432)\Autodesk\Revit 2024</RevitInstallDir>
+    <!-- RevitMCP.Abstractions.csproj: このリポジトリは「Codex 配下（Junction）」と「実体フォルダ」両方でビルドされ得るため、両方の相対パスに対応する -->
+    <RevitMcpAbstractionsProject>..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
+    <RevitMcpAbstractionsProject Condition="!Exists('..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj') and Exists('..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj')">..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
+  </PropertyGroup>
+  <!-- AnyCPU 構成は残すが、出力は分ける（必要なら後で削除可） -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <!-- x64 構成 -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <!-- Build-time copy of server exe into $(OutputPath)server/ (dev convenience) -->
+  <Target Name="CopyRevitMcpServerExe" AfterTargets="Build">
+    <PropertyGroup>
+      <ServerExeSource Condition="Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish\RevitMCPServer.exe</ServerExeSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe</ServerExeSource>
+    </PropertyGroup>
+    <Message Text="[RevitMCP] Copy server exe: '$(ServerExeSource)' -&gt; '$(OutputPath)server\RevitMCPServer.exe'" Importance="High" Condition=" '$(ServerExeSource)'!='' " />
+    <MakeDir Directories="$(OutputPath)server" Condition=" '$(ServerExeSource)'!='' " />
+    <Copy SourceFiles="$(ServerExeSource)" DestinationFiles="$(OutputPath)server\RevitMCPServer.exe" SkipUnchangedFiles="true" Condition=" '$(ServerExeSource)'!='' " />
+  </Target>
+  <!-- 参照 -->
+  <ItemGroup>
+    <Reference Include="ClosedXML, Version=0.95.4.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\ClosedXML.0.95.4\lib\net46\ClosedXML.dll</HintPath>
+    </Reference>
+    <Reference Include="ClosedXML.Parser, Version=1.0.0.0, Culture=neutral, PublicKeyToken=1d5f7376574c51ec, processorArchitecture=MSIL">
+      <HintPath>packages\ClosedXML.Parser.2.0.0\lib\netstandard2.0\ClosedXML.Parser.dll</HintPath>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml, Version=3.3.0.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>packages\DocumentFormat.OpenXml.3.3.0\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
+    </Reference>
+    <Reference Include="DocumentFormat.OpenXml.Framework, Version=3.3.0.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>packages\DocumentFormat.OpenXml.Framework.3.3.0\lib\net46\DocumentFormat.OpenXml.Framework.dll</HintPath>
+    </Reference>
+    <Reference Include="ExcelNumberFormat, Version=1.1.0.0, Culture=neutral, PublicKeyToken=23c6f5d73be07eca, processorArchitecture=MSIL">
+      <HintPath>packages\ExcelNumberFormat.1.1.0\lib\net20\ExcelNumberFormat.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.0-rc.2.25502.107\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.HashCode, Version=6.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Bcl.HashCode.6.0.0\lib\net462\Microsoft.Bcl.HashCode.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=16.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.Office.Interop.Excel.16.0.18925.20022\lib\net40\Microsoft.Office.Interop.Excel.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="netDxf, Version=2023.11.10.0, Culture=neutral, PublicKeyToken=618c63290969e781, processorArchitecture=MSIL">
+      <HintPath>packages\netDxf.2023.11.10\lib\net48\netDxf.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="RBush, Version=4.0.0.0, Culture=neutral, PublicKeyToken=c77e27b81f4d0187, processorArchitecture=MSIL">
+      <HintPath>packages\RBush.Signed.4.0.0\lib\net47\RBush.dll</HintPath>
+    </Reference>
+    <!-- Revit API / UI はx64の標準パスから。コピーしない -->
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- ★ 手動DLL参照の RevitMCP.Abstractions は削除（ProjectReferenceに一本化） -->
+    <!-- <Reference Include="RevitMCP.Abstractions, ..."> ... </Reference> -->
+    <Reference Include="Rhino3dm, Version=8.17.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\Rhino3dm.8.17.0\lib\net48\Rhino3dm.dll</HintPath>
+    </Reference>
+    <Reference Include="SixLabors.Fonts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=d998eea7b14cab13, processorArchitecture=MSIL">
+      <HintPath>packages\SixLabors.Fonts.1.0.0\lib\netstandard2.0\SixLabors.Fonts.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core" />
+    <Reference Include="System.IO.Pipelines, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.IO.Pipelines.10.0.0-rc.2.25502.107\lib\net462\System.IO.Pipelines.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\System.Numerics.Vectors.4.6.1\lib\net462\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Text.Encodings.Web.10.0.0-rc.2.25502.107\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=9.0.0.10, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Text.Json.9.0.10\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="PresentationFramework" />
+  </ItemGroup>
+  <!-- ソース（タイポ2カ所修正済み） -->
+  <ItemGroup>
+    <Compile Include="Commands\AnalysisOps\CheckClashesCommand.cs" />
+    <Compile Include="Commands\AnalysisOps\SummarizeElementsByCategoryCommand.cs" />
+    <Compile Include="Commands\AnalysisOps\SummarizeFamilyTypesByCategoryCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\AddDoorSizeDimensionsCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\CreateTextNoteCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\DeleteTextNoteCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\DetailLineCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\DoorWindowLegendCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\FilledRegionCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\GetTagBoundsInViewCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\GetTextNotesInViewCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\LegendComponentCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\ModelLineCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\MoveTextNoteCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\TagUtil.cs" />
+    <Compile Include="Commands\AnnotationOps\TextNoteCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\TextNoteUnitsHelper.cs" />
+    <Compile Include="Commands\AnnotationOps\UpdateTextNoteParameterCommand.cs" />
+    <Compile Include="Commands\Area\CombinedAreaCommands.cs" />
+    <Compile Include="Commands\Area\AreaBoundaryMaterialCoreCenterCommands.cs" />
+    <Compile Include="Commands\Area\CreateAreasFromRoomsByMaterialCoreCenterCommand.cs" />
+    <Compile Include="Commands\BridgeControl\StartBridgeCommand.cs" />
+    <Compile Include="Commands\BridgeControl\StopBridgeCommand.cs" />
+    <Compile Include="Commands\ConstraintOps\ConstraintCommands.cs" />
+    <Compile Include="Commands\DatumOps\ListLevelsSimpleCommand.cs" />
+    <Compile Include="Commands\Dev\LaunchCodexGuiCommand.cs" />
+    <Compile Include="Commands\DocumentOps\GetProjectSummaryCommand.cs" />
+    <Compile Include="Commands\DocumentOps\SaveSnapshotCommand.cs" />
+    <Compile Include="Commands\DocumentOps\UpdateProjectInfoCommand.cs" />
+    <Compile Include="Commands\DxfOps\GenerateDwgMergeScriptCommand.cs" />
+    <Compile Include="Commands\ElementOps\JoinGeometryCommands.cs" />
+    <Compile Include="Commands\ElementOps\Material\ThermalAssetHelpers.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\ClassifyColumnsByRoomArmsCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\GetCandidateExteriorColumnsCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameJoinCommands.cs" />
+    <Compile Include="Commands\ElementOps\Wall\ClassifyWallFacesBySideCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetCandidateExteriorWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\FindWallsNearSegmentsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\RejoinWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\WallJoinCommands.cs" />
+    <Compile Include="Commands\ExcelPlan\ExcelPlanImporterCommand.cs" />
+    <Compile Include="Commands\Export\ExportDashboardHtmlCommand.cs" />
+    <Compile Include="Commands\Export\ExportSchedulesToHtmlCommand.cs" />
+    <Compile Include="Commands\Export\ExportView3dmBrepCommand.cs" />
+    <Compile Include="Commands\Export\ExportView3dmCommand.cs" />
+    <Compile Include="Commands\ListDuplicateElementsHandler.cs" />
+    <Compile Include="Commands\LookupOps\LookupElementCommand.cs" />
+    <Compile Include="Commands\Misc\UnpinElementCommands.cs" />
+    <Compile Include="Commands\ParamOps\GetParameterIdentityCommand.cs" />
+    <Compile Include="Commands\ParamOps\UpdateParametersBatchCommand.cs" />
+    <Compile Include="Commands\ParamOps\SetParameterForElementsCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateRevisionCircleCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateRevisionCloudFromCurvesCommand.cs" />
+    <Compile Include="Commands\Room\FindRoomPlaceableRegionsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsAndWallsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomInnerWallsByBaselineCommand.cs" />
+    <Compile Include="Commands\Room\PlaceRoomInCircuitCommand.cs" />
+    <Compile Include="Commands\Room\SummarizeRoomsByLevelCommand.cs" />
+    <Compile Include="Commands\Room\ValidateCreateRoomCommand.cs" />
+    <Compile Include="Commands\MetaOps\SearchCommandsHandler.cs" />
+    <Compile Include="Commands\ScheduleOps\ExportScheduleToExcelCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\InspectScheduleFieldsCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\ListSchedulableFieldsCommand.cs" />
+    <Compile Include="Commands\SmokeTest\SmokeTestNoopHandler.cs" />
+    <Compile Include="Commands\Dev\OpenAddinLogFolderCommand.cs" />
+    <Compile Include="Commands\ElementOps\ApplyTransformDeltaCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\GetArchitecturalColumnParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\CopyFamilyTypeBetweenDocsCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\FlipCurtainPanelOrientationCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\FlipDoorOrientationCommand.cs" />
+    <Compile Include="Commands\ElementOps\Face\GetFaceRegionDetailCommand.cs" />
+    <Compile Include="Commands\ElementOps\FamilyInstanceOps\FlipFamilyInstanceOrientationCommand.cs" />
+    <Compile Include="Commands\ElementOps\FamilyInstanceOps\GetFamilyInstanceReferencesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\FloorLayerCommands.cs" />
+    <Compile Include="Commands\ElementOps\GetInstanceGeometryCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\UpdateDirectShapeParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Face\GetFaceRegionTakeoffCommand.cs" />
+    <Compile Include="Commands\ElementOps\Roof\RoofLayerCommands.cs" />
+    <Compile Include="Commands\ElementOps\Roof\RoofTypeExtras.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\FoundationUnits.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallBaselineCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\FlipWindowOrientationCommand.cs" />
+    <Compile Include="Commands\Export\ExportDwgByParamGroupsCommand.cs" />
+    <Compile Include="Commands\Export\ExportDwgCommand.cs" />
+    <Compile Include="Commands\Export\ExportDwgWithWorksetBucketingCommand.cs" />
+    <Compile Include="Commands\Export\ExportDxfCustomLayersCommand.cs" />
+    <Compile Include="Commands\Export\ExportViewMeshCommand.cs" />
+    <Compile Include="Commands\GridOps\GridCommnds.cs" />
+    <Compile Include="Commands\DocumentOps\GetProjectCategoriesCommand.cs" />
+    <Compile Include="Commands\DocumentOps\GetProjectInfoCommand.cs" />
+    <Compile Include="Commands\DocumentOps\GetFillPatternsCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CurtainWallUtil.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\GetCurtainWallSchedul.cs" />
+    <Compile Include="Commands\ElementOps\Door\DoorUtil.cs" />
+    <Compile Include="Commands\ElementOps\FamilyInstanceOps\ChangeFamilyInstanceTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\FamilyInstanceOps\FamilyInstanceCommands.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetFloorBoundaryCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetCandidateExteriorFloorsCommand.cs" />
+    <Compile Include="Commands\ElementOps\GetInplaceFamiliesCommand.cs" />
+    <Compile Include="Commands\ElementOps\WallLookupUtil.cs" />
+    <Compile Include="Commands\ElementOps\Wall\StackedWallCommands.cs" />
+    <Compile Include="Commands\ElementOps\Wall\WallLayerCommands.cs" />
+    <Compile Include="Commands\GeneralOps\SelectElementsByFilterCommand.cs" />
+    <Compile Include="Commands\GeneralOps\SelectElementsCommand.cs" />
+    <Compile Include="Commands\GetOrientedBoundingBoxHandler.cs" />
+    <Compile Include="Commands\GridOps\AdjustGridExtentsCommand.cs" />
+    <Compile Include="Commands\GroupOps\GroupGetHandlers.cs" />
+    <Compile Include="Commands\LightingOps\CheckLightingEnergyCommand.cs" />
+    <Compile Include="Commands\LightingOps\EstimateIlluminanceInRoomCommand.cs" />
+    <Compile Include="Commands\LightingOps\ExportLightingReportCommand.cs" />
+    <Compile Include="Commands\LightingOps\GetLightingPowerSummaryCommand.cs" />
+    <Compile Include="Commands\LightingOps\LightingCommon.cs" />
+    <Compile Include="Commands\LightingOps\ListLightingFixturesCommand.cs" />
+    <Compile Include="Commands\LinkOps\LinksCommand.cs" />
+    <Compile Include="Commands\MEPOps\ChangeMepElementTypeCommand.cs" />
+    <Compile Include="Commands\MEPOps\CreateCableTrayCommand.cs" />
+    <Compile Include="Commands\MEPOps\CreateConduitCommand.cs" />
+    <Compile Include="Commands\MEPOps\CreateDuctCommand.cs" />
+    <Compile Include="Commands\MEPOps\CreatePipeCommand.cs" />
+    <Compile Include="Commands\MEPOps\DeleteMepElementCommand.cs" />
+    <Compile Include="Commands\MEPOps\GetMepElementsCommand.cs" />
+    <Compile Include="Commands\MEPOps\GetMepParametersCommand.cs" />
+    <Compile Include="Commands\MEPOps\MepCommon.cs" />
+    <Compile Include="Commands\MEPOps\MoveMepElementCommand.cs" />
+    <Compile Include="Commands\MEPOps\SetMepParameterCommand.cs" />
+    <Compile Include="Commands\MetaOps\AgentBootstrapHandler.cs" />
+    <Compile Include="Commands\MetaOps\GetMcpLedgerSummaryCommand.cs" />
+    <Compile Include="Commands\MetaOps\StartCommandLoggingCommand.cs" />
+    <Compile Include="Commands\MetaOps\StopCommandLoggingCommand.cs" />
+    <Compile Include="Commands\Misc\UnitModeCommands.cs" />
+    <Compile Include="Commands\Models\RevisionInfo.cs" />
+    <Compile Include="Commands\ParamOps\GetParamMetaCommand.cs" />
+    <Compile Include="Commands\ParamOps\GetParamValuesCommand.cs" />
+    <Compile Include="Commands\ParamOps\GetTypeParametersBulkCommand.cs" />
+    <Compile Include="Commands\ParamOps\GetInstanceParametersBulkCommand.cs" />
+    <Compile Include="Commands\ParamOps\AddSharedProjectParameterCommand.cs" />
+    <Compile Include="Commands\ParamOps\RemoveProjectParameterBindingCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\AutoRevisionCloudsCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateRevisionCloudForElementProjectionCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\GetRevisionCloudGeometryCommand.cs" />
+    <Compile Include="Commands\Spatial\GetSpatialContextForElementCommand.cs" />
+    <Compile Include="Commands\SystemOps\SetPriorityHighCommand.cs" />
+    <Compile Include="Commands\SystemOps\SetPriorityNormalCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\RevisionCloudParamCommands.cs" />
+    <Compile Include="Commands\RevisionCloud\RevisionCloudTypeCommands.cs" />
+    <Compile Include="Commands\RevisionCloud\RevisionQueriesAndSettingsCommands.cs" />
+    <Compile Include="Commands\Revision\ExportSnapshotBundleCommand.cs" />
+    <Compile Include="Commands\Revision\ExportSnapshotCommand.cs" />
+    <Compile Include="Commands\Room\AreaVolumeSettingsCommands.cs" />
+    <Compile Include="Commands\Room\GetRoomNeighborsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomOpeningsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomRepresentativePointsCommand.cs" />
+    <Compile Include="Commands\Room\RoomBoundaryCommands.cs" />
+    <Compile Include="Commands\Rpc\PingServerCommand.cs" />
+    <Compile Include="Commands\ServerControl\StartMcpServerCommand.cs" />
+    <Compile Include="Commands\ServerControl\StopMcpServerCommand.cs" />
+    <Compile Include="Commands\SiteOps\CreateToposurfaceHandler.cs" />
+    <Compile Include="Commands\SiteOps\EditToposurfacePointsHandler.cs" />
+    <Compile Include="Commands\SiteOps\ParkingSpotHandler.cs" />
+    <Compile Include="Commands\SiteOps\PlaceBuildingPadHandler.cs" />
+    <Compile Include="Commands\SiteOps\PropertyLineEditDeleteHandler.cs" />
+    <Compile Include="Commands\SiteOps\PropertyLineHandler.cs" />
+    <Compile Include="Commands\SiteOps\SiteComponentHandler.cs" />
+    <Compile Include="Commands\SiteOps\SiteCoordinatesHandler.cs" />
+    <Compile Include="Commands\SiteOps\SiteSubRegionHandler.cs" />
+    <Compile Include="Commands\SiteOps\TopographyInfoHandler.cs" />
+    <Compile Include="Commands\Space\SpaceSeparationCommands.cs" />
+    <Compile Include="Commands\Spatial\ClassifyPointsInRoomHandler.cs" />
+    <Compile Include="Commands\Spatial\MapRoomAreaSpaceCommand.cs" />
+    <Compile Include="Commands\Spatial\GetCompareFactorsCommand.cs" />
+    <Compile Include="Commands\Spatial\FindSimilarByFactorsCommand.cs" />
+    <Compile Include="Commands\SurfaceOps\GetSurfaceRegionsHandler.cs" />
+    <Compile Include="Commands\System\ListCommandsHandler.cs" />
+    <Compile Include="Commands\System\OpenSettingsCommand.cs" />
+    <Compile Include="Commands\System\ReloadServerSettingsCommand.cs" />
+    <Compile Include="Commands\TypeOps\DeleteTypeIfUnusedCommand.cs" />
+    <Compile Include="Commands\TypeOps\RenameTypesBulkCommand.cs" />
+    <Compile Include="Commands\TypeOps\RenameTypesByParameterCommand.cs" />
+    <Compile Include="Commands\ViewOps\3DViewCommands.cs" />
+    <Compile Include="Commands\ViewOps\AuditHiddenInViewHandler.cs" />
+    <Compile Include="Commands\ViewOps\BuildViewsByRulesetCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateElementElevationViewsCommand.cs" />
+    <Compile Include="Commands\ViewOps\DeleteOrphanElevationMarkersCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateInteriorElevationCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateInteriorElevationFacingWallCommand.cs" />
+    <Compile Include="Commands\ViewOps\DebugElementViewCropCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateElementSectionBoxDebugCommand.cs" />
+    <Compile Include="Commands\ViewOps\DebugSectionViewSectionBoxCommand.cs" />
+    <Compile Include="Commands\ViewOps\DuplicateViewSimpleCommand.cs" />
+    <Compile Include="Commands\ViewOps\GestureHandler.cs" />
+    <Compile Include="Commands\ViewOps\GetCategoriesUsedInViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\HideElementsInViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\InteriorElevationAutoCropCommands.cs" />
+    <Compile Include="Commands\ViewOps\IsolateByFilterInViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\RenameViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\ResizeSectionBoxCommand.cs" />
+    <Compile Include="Commands\ViewOps\ScopeBoxCommands.cs" />
+    <Compile Include="Commands\ViewOps\SetCategoryVisibilityCommand.cs" />
+    <Compile Include="Commands\ViewOps\SetSectionBoxByElementsCommand.cs" />
+    <Compile Include="Commands\ViewOps\SheetCommands.cs" />
+    <Compile Include="Commands\ViewOps\ShowAllInViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\SyncViewStateCommand.cs" />
+    <Compile Include="Commands\ViewOps\LegendTemplateCommands.cs" />
+    <Compile Include="Commands\ViewOps\ViewManagementCommands.cs" />
+    <Compile Include="Commands\ViewOps\ViewCameraHandlers.cs" />
+    <Compile Include="Commands\ViewOps\ViewPlacementCommands.cs" />
+    <Compile Include="Commands\ViewOps\VisibilityProfilePreviewCommand.cs" />
+    <Compile Include="Commands\ViewOps\BuildViewsByParamValuesCommand.cs" />
+    <Compile Include="Commands\ViewOps\GetViewsCommand.cs" />
+    <!-- 二重バックスラッシュを修正 -->
+    <Compile Include="Commands\ViewOps\CompareViewStatesCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\ApplyConditionalColoringCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\ColorizeTagsByParamCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\ColorFillCommands.cs" />
+    <Compile Include="Commands\VisualizationOps\CreateSpatialVolumeOverlayCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\DeleteSpatialVolumeOverlaysCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\GetElementVisualOverrideCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\DoorWindowLegendTemplateCommands.cs" />
+    <Compile Include="Commands\VisualizationOps\GetVisualOverridesInViewCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\SolarCommands.cs" />
+    <Compile Include="Commands\VisualizationOps\ViewRefreshHandlers.cs" />
+    <Compile Include="Commands\ZoneOps\ZoneCommands.cs" />
+    <Compile Include="Core\AdaptiveWaitController.cs" />
+    <Compile Include="Core\AuditCapture.cs" />
+    <Compile Include="Core\CategoryResolver.cs" />
+    <Compile Include="Core\CmdUtils.cs" />
+    <Compile Include="Core\CommandCommonOption.cs" />
+    <Compile Include="Core\CommandLogModels.cs" />
+    <Compile Include="Core\CommandLogWriter.cs" />
+    <Compile Include="Core\CommandRegistry.cs" />
+    <Compile Include="Core\CommandRunner.cs" />
+    <Compile Include="Core\Compat\RequestShim.cs" />
+    <Compile Include="Core\Dto\ObbDtos.cs" />
+    <Compile Include="Core\Dto\PaintAndRegionScanModels.cs" />
+    <Compile Include="Core\Dto\WallFaceClassificationModels.cs" />
+    <Compile Include="Core\ElementFilterUtil.cs" />
+    <Compile Include="Core\ElementPaintAndRegionUtils.cs" />
+    <Compile Include="Core\ElementUtils.cs" />
+    <Compile Include="Core\ElementUtils.Identity.cs" />
+    <Compile Include="Core\Errors\ErrorContracts.cs" />
+    <Compile Include="Core\ExportDwgByParamGroupsTick.cs" />
+    <Compile Include="Core\Failures\FailureCaptureScope.cs" />
+    <Compile Include="Core\Failures\FailureRecord.cs" />
+    <Compile Include="Core\GeometryJsonHelper.cs" />
+    <Compile Include="Core\GeometryUtils.cs" />
+    <Compile Include="Core\Geometry\AnalyzeSegmentsCommand.cs" />
+    <Compile Include="Core\Geometry\OrientedBoundingBox.cs" />
+    <Compile Include="Core\Geometry\OrientedBoundingBoxUtil.cs" />
+    <Compile Include="Core\Geometry\Point3D.cs" />
+    <Compile Include="Core\GraphicsOverrideHelper.cs" />
+    <Compile Include="Core\IdempotencyRegistry.cs" />
+    <Compile Include="Core\InputPointReader.cs" />
+    <Compile Include="Core\IRevitCommandHandler.cs" />
+    <Compile Include="Core\LongOpEngine.cs" />
+    <Compile Include="Core\McpLedger.cs" />
+    <Compile Include="Core\Net\BridgeProcessManager.cs" />
+    <Compile Include="Core\Net\PortUtil.cs" />
+    <Compile Include="Core\Net\ServerLock.cs" />
+    <Compile Include="Core\Net\ServerProcessManager.cs" />
+    <Compile Include="Core\ParamResolver.cs" />
+    <!-- タイポ修正: ..cs -> .cs -->
+    <Compile Include="Core\ParamSanitizer.cs" />
+    <Compile Include="Core\ParamUtils.cs" />
+    <Compile Include="Core\Paths.cs" />
+    <Compile Include="Core\PortLocator.cs" />
+    <Compile Include="Core\ExpectedContextGuard.cs" />
+    <Compile Include="Core\ProceedWithWarningsFailuresPreprocessor.cs" />
+    <Compile Include="Core\RequestMeta.cs" />
+    <Compile Include="Core\ResponseAutoFixer.cs" />
+    <Compile Include="Core\ResponseNormalizer.cs" />
+    <Compile Include="Core\ResultEnricher.cs" />
+    <Compile Include="Core\ResultShaper.cs" />
+    <Compile Include="Core\ResultStore.cs" />
+    <Compile Include="Core\ResultUtil.cs" />
+    <Compile Include="Core\RevitLogger.cs" />
+    <Compile Include="Core\SettingsHelper.cs" />
+    <Compile Include="Core\Ledger\LedgerDocKeyProvider.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceModels.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceStore.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceCapture.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceRestoreCoordinator.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceSettings.cs" />
+    <Compile Include="Core\ViewWorkspace\ViewWorkspaceService.cs" />
+    <Compile Include="Core\Snapshot\ManifestModels.cs" />
+    <Compile Include="Core\Snapshot\SnapshotManager.cs" />
+    <Compile Include="Core\Snapshot\SnapshotOptions.cs" />
+    <Compile Include="Core\Snapshot\SnapshotWriter.cs" />
+    <Compile Include="Core\SuppressWarningsPreprocessor.cs" />
+    <Compile Include="Core\TxnUtil.cs" />
+    <Compile Include="Core\TypeUtils.cs" />
+    <Compile Include="Core\UiEventPump.cs" />
+    <Compile Include="Core\UnitHelper.cs" />
+    <Compile Include="Core\UnitSettings.cs" />
+    <Compile Include="Core\VersionUtils.cs" />
+    <Compile Include="Core\ViewScopeUtil.cs" />
+    <Compile Include="Manifest\ManifestExporter.cs" />
+    <Compile Include="RevitUI\DebugPaneIntrospectionCommand.cs" />
+    <Compile Include="RevitUI\DebugPaneResolveCommand.cs" />
+    <Compile Include="RevitUI\DockablePaneCommands.cs" />
+    <Compile Include="RevitUI\DockablePaneSequenceCommand.cs" />
+    <Compile Include="RevitUI\UiHelpers.cs" />
+    <Compile Include="RevitUI\ViewWindowCommands.cs" />
+    <Compile Include="UI\RibbonPortUi.cs" />
+    <Compile Include="UI\RibbonUnits.cs" />
+    <Compile Include="UI\RibbonViewWorkspace.cs" />
+    <ProjectReference Include="$(RevitMcpAbstractionsProject)">
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+    </ProjectReference>
+    <Compile Include="App.cs" />
+    <Compile Include="Commands\AnnotationOps\DimensionCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\TagCommands.cs" />
+    <Compile Include="Commands\LevelOps\CreateLevelCommand.cs" />
+    <Compile Include="Commands\LevelOps\GetLevelParametersCommand.cs" />
+    <Compile Include="Commands\LevelOps\GetLevelsCommand.cs" />
+    <Compile Include="Commands\LevelOps\UpdateLevelElevationCommand.cs" />
+    <Compile Include="Commands\LevelOps\UpdateLevelNameCommand.cs" />
+    <Compile Include="Commands\LevelOps\UpdateLevelParameterCommand.cs" />
+    <Compile Include="Commands\DxfOps\ExportCurvesToDxfHandler.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\ChangeArchitecturalColumnTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\CreateArchitecturalColumnCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\DeleteArchitecturalColumnCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\DuplicateArchitecturalColumnTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\GetArchitecturalColumnsAndParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\GetArchitecturalColumnTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\MoveArchitecturalColumnCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\UpdateArchitecturalColumnGeometryCommand.cs" />
+    <Compile Include="Commands\ElementOps\ArchitecturalColumn\UpdateArchitecturalColumnParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\CeilingCommands.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\CeilingParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\ChangeCeilingTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\CreateCeilingCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\DeleteCeilingCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\GetCeilingBoundariesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\GetCeilingsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Ceiling\MoveCeilingCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\ChangeCurtainWallTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CheckMullionConnectivityCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CheckPanelSizeCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CombinedSource.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CreateCurtainWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CreateCurtainWallElevationViewCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\DeleteCurtainWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\ExportCurtainWallReportCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\CurtainUtil.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\GetCurtainWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\GetCurtainWallTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\HighlightOverlargePanelsCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\UpdateCurtainWallGeometryCommand.cs" />
+    <Compile Include="Commands\ElementOps\CurtainWall\UpdateCurtainWallParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\CreateDoorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\CreateDoorOnWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\DeleteDoorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\DuplicateDoorTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\GetDoorOrientationCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\GetDoorParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\GetDoorsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\GetDoorTypeParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\GetDoorTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\MoveDoorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\RenameDoorTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Door\UpdateDoorParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\FaceHost\CreateFamilyOnFaceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\CreateFloorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\DeleteFloorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\DuplicateFloorTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetFloorParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetFloorsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetFloorTypeParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\GetFloorTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\MoveFloorCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\RenameFloorTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\SetFloorParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\SetFloorTypeParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\UpdateFloorBoundaryCommand.cs" />
+    <Compile Include="Commands\ElementOps\GetBoundingBoxCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\ChangeMassInstanceTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\CreateMassByExtrusionCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\CreateMassInstanceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\DeleteMassInstanceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\DuplicateMassTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\GetMassAndParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\MassElementInfo.cs" />
+    <Compile Include="Commands\ElementOps\Mass\MoveMassInstanceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\RenameMassTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\RotateMassInstanceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Mass\UpdateMassInstanceParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Paint\ApplyPaintByReferenceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Paint\ApplyPaintCommand.cs" />
+    <Compile Include="Commands\ElementOps\Face\GetFaceRegionsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Paint\GetPaintInfoCommand.cs" />
+    <Compile Include="Commands\ElementOps\Paint\RemovePaintByReferenceCommand.cs" />
+    <Compile Include="Commands\ElementOps\Paint\RemovePaintCommand.cs" />
+    <Compile Include="Commands\ElementOps\Railing\RailingCommands.cs" />
+    <Compile Include="Commands\ElementOps\Roof\RoofCommands.cs" />
+    <Compile Include="Commands\ElementOps\SanitaryFixture\SanitaryFixtureCommands.cs" />
+    <Compile Include="Commands\ElementOps\StairOps\StairCommands.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallFinishSummaryCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\GetWindowOrientationHandler.cs" />
+    <Compile Include="Commands\FireProtection\FireProtectionCommands.cs" />
+    <Compile Include="Commands\Materials\ScanPaintAndSplitRegionsHandler.cs" />
+    <Compile Include="Commands\GeneralOps\GetElementsInViewCommand.cs" />
+    <Compile Include="Commands\GeneralOps\GetTypesInViewCommand.cs" />
+    <Compile Include="Commands\Misc\GetElementInfoHandler.cs" />
+    <Compile Include="Commands\ElementOps\Material\MaterialCommands.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\CreateStructuralColumnCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\DuplicateStructuralColumnType.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\GetStructuralColumnsCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\StructuralColumnCommands.cs" />
+    <Compile Include="Commands\ElementOps\StructuralColumn\UpdateStructuralColumnTypeParameter.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\ChangeStructuralFoundationTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\CreateStructuralFoundationCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\DeleteStructuralFoundationCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\DuplicateStructuralFoundationTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\GetStructuralFoundationParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\GetStructuralFoundationParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\GetStructuralFoundationsCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\GetStructuralFoundationTypeParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\GetStructuralFoundationTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\ListStructuralFoundationParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\MoveStructuralFoundationCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\UpdateStructuralFoundationGeometryCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\UpdateStructuralFoundationParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFoundation\UpdateStructuralFoundationTypeParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameCommands.cs" />
+    <Compile Include="Commands\ElementOps\Wall\ChangeWallTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\CreateWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\DuplicateWallTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\DeleteWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallTypeParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\GetWallTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\ListWallParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\RenameWallTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\UpdateWallGeometryCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\UpdateWallParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\UpdateWallTypeParameterCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\CreateWindowCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\CreateWindowOnWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\DeleteWindowCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\DuplicateWindowTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\GetWindowParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\GetWindowsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\GetWindowTypeParametersCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\GetWindowTypesCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\MoveWindowCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\RenameWindowTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Window\UpdateWindowParameterCommand.cs" />
+    <Compile Include="Commands\Misc\GetSelectedElementIdsCommand.cs" />
+    <Compile Include="Commands\Misc\GetLastSelectionCommand.cs" />
+    <Compile Include="Commands\ElementOps\GetInstancesGeometryCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateDefaultRevisionCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateRevisionCloudCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\DeleteRevisionCloudCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\MoveRevisionCloudCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\UpdateRevisionCommand.cs" />
+    <Compile Include="Commands\Room\CreateRoomCommand.cs" />
+    <Compile Include="Commands\Room\DeleteRoomCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomBoundaryCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomBoundaryWallsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomCentroidCommand.cs" />
+    <Compile Include="Commands\ViewOps\3DViewSettingsHandlers.cs" />
+    <Compile Include="Commands\Rpc\GetOpenDocumentsCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\CreateScheduleViewCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\DeleteScheduleCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\ExportScheduleToCsvCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\GetScheduleDataCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\GetSchedulesCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\UpdateScheduleFieldsCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\ReorderScheduleFieldsCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\UpdateScheduleFiltersCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\UpdateScheduleSortingCommand.cs" />
+    <Compile Include="Commands\Space\CombinedSpaceCommands.cs" />
+    <Compile Include="Commands\Space\CreateSpaceCommand.cs" />
+    <Compile Include="Commands\Space\DeleteSpaceCommand.cs" />
+    <Compile Include="Commands\Space\GetSpaceParamsCommand.cs" />
+    <Compile Include="Commands\Space\GetSpacesCommand.cs" />
+    <Compile Include="Commands\Space\MoveSpaceCommand.cs" />
+    <Compile Include="Commands\Space\UpdateSpaceCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateSectionViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateViewPlanCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateElevationViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\GetCategoryVisibilityCommand.cs" />
+    <Compile Include="Commands\ViewOps\GetCurrentViewCommand.cs" />
+    <Compile Include="Commands\ViewOps\GetViewInfoCommand.cs" />
+    <Compile Include="Commands\ViewOps\SaveViewStateCommand.cs" />
+    <Compile Include="Commands\ViewOps\RestoreViewStateCommand.cs" />
+    <Compile Include="Commands\ViewOps\ViewWorkspaceCommands.cs" />
+    <Compile Include="Commands\ViewOps\SetCategoryOverrideCommand.cs" />
+    <Compile Include="Commands\ViewOps\SetCategoryVisibilityBulkCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\ClearVisualOverrideCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\SetVisualOverrideCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\ResetTagColorsCommand.cs" />
+    <Compile Include="Commands\WorksetOps\GetWorksetsCommand.cs" />
+    <Compile Include="Core\FaceHostHelper.cs" />
+    <Compile Include="Core\PaintHelper.cs" />
+    <Compile Include="RevitMcpWorker.cs" />
+    <Compile Include="Core\RequestCommand.cs" />
+    <Compile Include="Core\CommandRouter.cs" />
+    <Compile Include="ExternalEvents\RevitCommandExecutor.cs" />
+    <Compile Include="Commands\Room\GetRoomsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomParamsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomBoundariesCommand.cs" />
+    <Compile Include="Commands\Room\CreateRoomMassesCommand.cs" />
+    <Compile Include="Commands\Room\SetRoomParamCommand.cs" />
+    <Compile Include="Core\SpatialUtils.cs" />
+    <Compile Include="Commands\Spatial\GetSpatialContextForElementCommand.cs" />
+    <Compile Include="Commands\Spatial\GetSpatialContextForElementsCommand.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- WPF/XAML (Page) compile support for class library -->
+  <Import Project="$(MSBuildToolsPath)\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets')" />
+  <Import Project="$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets"
+          Condition="!Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets') and Exists('$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets')" />
+  <Import Project="$(windir)\Microsoft.NET\Framework64\v4.0.30319\Microsoft.WinFX.targets"
+          Condition="!Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets') and !Exists('$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets') and Exists('$(windir)\Microsoft.NET\Framework64\v4.0.30319\Microsoft.WinFX.targets')" />
+  <Import Project="packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
+  <!-- NuGet パッケージ存在チェック -->
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細: http://go.microsoft.com/fwlink/?LinkID=322105 。見つからないファイルは {0} です。</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets'))" />
+    <Error Condition="!Exists('packages\Rhino3dm.8.17.0\build\net45\Rhino3dm.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Rhino3dm.8.17.0\build\net45\Rhino3dm.props'))" />
+  </Target>
+  <ItemGroup>
+    <Compile Include="Commands\ViewOps\SnapshotViewElementsCommand.cs" />
+    <Compile Include="Commands\AnalysisOps\DiffElementsCommand.cs" />
+    <Compile Include="Commands\ViewOps\EnsureCompareViewCommand.cs" />
+    <Compile Include="Commands\VisualizationOps\BatchSetVisualOverrideCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateRevisionCloudsForElementsCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\ListRevisionCloudsInViewCommand.cs" />
+    <Compile Include="Commands\Misc\StashSelectionCommand.cs" />
+    <Compile Include="Commands\Misc\RestoreSelectionCommand.cs" />
+    <Compile Include="Commands\RevisionCloud\CreateObbCloudForSelectionCommand.cs" />
+    <Compile Include="Core\SelectionStash.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Commands\CompareOps\ValidateCompareContextCommand.cs" />
+    <Compile Include="Commands\\CompareOps\\CompareProjectsSummary.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Core\SpfCatalog.cs" />
+    <Compile Include="Core\Compare\DeepJsonComparer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Commands\ElementOps\GetElementsByCategoryAndLevelCommand.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Commands\RoofOps\RoofBraceFromBeamsCommand.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="UI\RoofBrace\BraceGridWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="UI\RoofBrace\RelayCommand.cs" />
+    <Compile Include="UI\RoofBrace\BraceGridViewModel.cs" />
+    <Compile Include="UI\RoofBrace\BraceGridWindow.xaml.cs">
+      <DependentUpon>BraceGridWindow.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

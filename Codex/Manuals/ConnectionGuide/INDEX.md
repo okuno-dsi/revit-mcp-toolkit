@@ -1,0 +1,39 @@
+# Connection Guides (Curated)
+
+Included references:
+- README.md
+- 01_最重要_Revitポーリングロジック.md
+- 02_重要_環境設定と接続確認.md
+- 04_基本操作_要素タイプ変更.md
+- 05_基本操作_タイプ複製とリネーム.md
+- 06_基本操作_構造要素の配置.md
+- 06_基本操作_壁の作成.md
+- 08_基本操作_マス操作.md
+- 09_情報取得_選択要素.md
+- 10_情報取得_部屋情報と分析.md
+- 11_情報取得_天井要素と分析.md
+- 12_情報取得_ドア情報と分析.md
+- 13_情報取得_スペース配置と管理.md
+- 15_エリア操作手順書.md
+- 17_応用_壁の向きによる色分け.md
+- 23_補足_ドア回転角度の計算.md
+- 24_補足_天井高さの確認と変更.md
+- Codex_to_RevitMCP_Command_Send_Instructions_EN.md
+- Codex_to_RevitMCP_接続コマンド送信手順.md
+- EN_Current_View_Walls_White_50pct.md
+- get_face_region_commands_usage.md
+- Revitデータ取得完全ガイド.md
+- Revit要素IDの正確な特定手順書.md
+- snapshot_save_guide_単一プロジェクトのスナップショットを保存する方法.md
+- グリッド間寸法作成手順書.md
+- テンプレ_厳密判定ルーチン_ポリゴン重なり面積.md
+- 解決手順書_Revitコマンドエラー.md
+- 天井_データ整理手順_部屋面積出力付き.md
+- 部屋_外周線と関連壁取得手順_レベルフィルタあり.md
+- 壁の基準線からエリア境界線を作成する手順書.md
+- 14_応用_柱ジオメトリ比較.md
+- 19_応用_壁とグリッドのDXFエクスポート.md
+- DiffReportCommand_generate_diff_report_usage.md
+- Generic_Snapshot_Procedure.md
+- smoke_test_guide.md
+

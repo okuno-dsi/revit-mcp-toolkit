@@ -1,0 +1,28 @@
+FILEDIA 0
+._-LAYER _THAW * _ON * _UNLOCK * _
+
+; Units/INSBASE are defined in seed.dwg
+; === INSERT ===
+$FOR_EACH_INPUT
+._-INSERT "$IN_PATH" 0,0,0 1 1 0
+._EXPLODE L
+$END_FOR_EACH
+
+; === LAYER MAP / MERGE ===
+$FOR_EACH_LAYMAP
+._-LAYMRG _N "$FROM" "$TO" _
+$END_FOR_EACH
+
+; === LAYTRANS ===
+$IF_LAYTRANS
+._-LAYTRANS
+"$DWS_PATH"
+*.* 
+$END_IF
+
+; === CLEANUP ===
+._-PURGE _A _* _N
+._-PURGE _R _* _N
+._-AUDIT _Y
+._QSAVE
+FILEDIA 1

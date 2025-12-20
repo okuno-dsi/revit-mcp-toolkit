@@ -1,0 +1,5 @@
+{"primer":"revit_mcp_v1","units":{"Length":"mm","Angle":"deg"},"hot":["get_elements_in_view","set_visual_override","create_wall"]}
+{"method":"ping_server"}
+{"method":"get_project_info"}
+{"method":"list_commands","namesOnly":true}
+
