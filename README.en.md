@@ -81,7 +81,7 @@ If your organization builds and distributes binaries internally, ensure complian
 ---
 
 ## Credits
-- Created by **Tetsuya Okuno** and **GPT series** (2025)
+- Created by **Tetsuya Okuno** and **GPT series** (2025) — 99.9% vibe coding
 
 ---
 

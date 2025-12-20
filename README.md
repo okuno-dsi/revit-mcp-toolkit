@@ -82,7 +82,7 @@
 ---
 
 ## クレジット
-- Created by **奥野哲也** and **GPT series** (2025)
+- Created by **奥野哲也** and **GPT series** (2025) — 99.9％バイブコーディング
 
 ---
 
