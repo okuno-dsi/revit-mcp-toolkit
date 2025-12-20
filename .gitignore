@@ -48,6 +48,12 @@ __pycache__/
 *.log
 *.tmp
 *.bak
+UpgradeLog*.htm
+UpgradeLog*.html
+UpgradeLog*.xml
+UpgradeReport*.htm
+UpgradeReport*.html
+UpgradeReport*.xml
 *.db
 *.db-shm
 *.db-wal
@@ -55,6 +61,10 @@ __pycache__/
 *.sqlite3
 *.vsidx
 *.Up2Date
+
+# Local traces (do not publish)
+**/rpc_trace.txt
+**/vsinfo.json
 
 # Autodesk / CAD data (do not publish)
 *.dwg
