@@ -1,2 +1,0 @@
-# 1) プロキシ起動（別ウィンドウで）
-python .\proxy_mcp_logger.py --listen 127.0.0.1:5210 --upstream http://127.0.0.1:5209 --logdir .\logs
