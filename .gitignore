@@ -69,6 +69,7 @@ __pycache__/
 *.pdf
 
 # Local / generated work dirs
+Codex/Design/
 Codex/Work/
 Codex/Manuals/Work/
 **/logs/
