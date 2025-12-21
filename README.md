@@ -21,6 +21,18 @@
 
 ---
 
+## サポート・質問
+- 質問・不具合報告: GitHub Issues
+- 相談・議論: GitHub Discussions
+- メール等の個別連絡先は公開しません。対応方針は `SUPPORT.md` を参照してください。
+
+---
+
+## コントリビュート
+- Pull Request は歓迎します。手順は `CONTRIBUTING.md` を参照してください。
+
+---
+
 ## 実行に必要なもの（ランタイム）
 - **.NET 8 Runtime**（例：`RevitMCPServer` / `ExcelMCP` / `RhinoMcpServer` / `AutoCadMcpServer`）
 - **.NET 6 Runtime**（`Codex/CodexGui`）

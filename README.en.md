@@ -21,6 +21,18 @@ There may be other projects exploring similar ideas worldwide; however, as far a
 
 ---
 
+## Support & Questions
+- Questions / bug reports: GitHub Issues
+- Discussions: GitHub Discussions
+- We do not publish email contact. See `SUPPORT.md` for the support policy.
+
+---
+
+## Contributing
+- Pull requests are welcome. See `CONTRIBUTING.md`.
+
+---
+
 ## Runtime Prerequisites
 - **.NET 8 Runtime** (e.g. `RevitMCPServer` / `ExcelMCP` / `RhinoMcpServer` / `AutoCadMcpServer`)
 - **.NET 6 Runtime** (`Codex/CodexGui`)
