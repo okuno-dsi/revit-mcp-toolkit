@@ -73,6 +73,7 @@ This project is independently implemented using the official **Autodesk Revit AP
 It does **not** copy, decompile, reverse-engineer, or incorporate proprietary code from other products/services.
 
 ### Trademarks
+Codex is a product of OpenAI.
 Autodesk® and Revit® are trademarks of Autodesk, Inc.  
 Please avoid names, logos, or descriptions that could cause confusion with third-party products.
 
