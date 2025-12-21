@@ -1,6 +1,6 @@
 # RevitMCP Server
 
-This project provides an open integration layer (server + Revit add-in) to **safely operate and orchestrate Autodesk Revit®** from external tools (including AI agents, CLIs, and automation systems).
+This project provides an open integration layer (server + Revit add-in) to **safely operate and orchestrate Autodesk Revit®** 2024 from external tools (including AI agents, CLIs, and automation systems).
 
 There may be other projects exploring similar ideas worldwide; however, as far as we know, this implementation is **explicitly designed to be usable in Japanese environments**, enabling workflows aligned with Japan-specific standards and regulations (e.g., local building codes and organizational guidelines).
 
