@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://github.com/okuno-dsi/revit-mcp-toolkit/discussions
+    about: Please use Discussions for questions, usage help, and general topics.
+  - name: Support policy
+    url: https://github.com/okuno-dsi/revit-mcp-toolkit/blob/main/SUPPORT.md
+    about: Please read the support policy before posting.
