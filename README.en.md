@@ -28,6 +28,11 @@ There may be other projects exploring similar ideas worldwide; however, as far a
 
 ---
 
+## Utilities
+- For batch helpers to show/stop RevitMCPServer, see `tools/README.md`.
+
+---
+
 ## Related MCP Components
 This repository focuses on Revit MCP. Under the same concept, there may be related components (possibly in separate repositories/distributions):
 
