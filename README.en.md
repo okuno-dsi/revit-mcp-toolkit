@@ -11,9 +11,6 @@
 - ? Utilities to check/stop the server: `tools/README.md`
 - ? Japanese version: `README.md`
 
-> **This README is a draft ordered by impact.**  
-> Fill the `TODO:` comments to bring it closer to a publishable version.
-
 ---
 
 ## Why it matters (value)
@@ -42,14 +39,11 @@ Example use-case patterns:
 - **Tool integrations**
   - Integrate with Excel / Rhino / AutoCAD under the same concept (related components may exist in this repo)
 
-> TODO: Add a link (or auto-generated list) of available commands  
-> TODO: Add three short, successful prompt examples
 
 ---
 
 ## Demo (one-screen impact)
 
-> TODO: Add screenshots/GIFs (e.g., AI gets model info -> shows diffs -> confirm -> apply)
 - Consider placing images under `assets/` and referencing them from the README
 
 ---
@@ -61,8 +55,6 @@ Example use-case patterns:
 3. Start the server (local recommended)
 4. Connect from an MCP client (AI/CLI/tool) and run commands
 
-> TODO: Add three common pitfalls (permissions/path/execution policy)  
-> TODO: Add a one-line health check command if available
 
 ---
 
@@ -80,7 +72,6 @@ flowchart LR
   C --> D[Autodesk Revit 2024<br/>Revit API]
 ```
 
-> TODO: If the transport is finalized, document it (local only, fixed/variable port, etc.)
 
 ---
 
@@ -96,7 +87,6 @@ This repository centers on Revit MCP and can host related components under the s
 - `tools`: utilities to check/stop the server
 - `ExcelMCP` / `RhinoMCP` / `AutoCadMCP`: related MCPs (if present; see their docs)
 
-> TODO: Update each directory's one-line description to match reality
 
 ---
 
@@ -106,7 +96,6 @@ This repository centers on Revit MCP and can host related components under the s
 - **.NET 6 Runtime** (`Codex/CodexGui`)
 - **.NET Framework 4.8** (`RevitMCPAddin` / `RhinoMcpPlugin`)
 
-> TODO: Separate "Developer (SDKs)" vs "User (runtime only)" requirements
 
 ---
 
@@ -119,7 +108,6 @@ This repository centers on Revit MCP and can host related components under the s
   - change diff previews
   - extra confirmation for critical actions
 
-> TODO: If possible, document guardrails for dangerous operations (delete/bulk changes)
 
 ---
 
@@ -144,7 +132,6 @@ This repository centers on Revit MCP and can host related components under the s
 
 Pull requests are welcome. See `CONTRIBUTING.md`.
 
-> TODO: If you run "good first issue", add policy here
 
 ---
 
