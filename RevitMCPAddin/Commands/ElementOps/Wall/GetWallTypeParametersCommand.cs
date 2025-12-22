@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/GetWallTypeParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/GetWallTypeParametersCommand.cs
 // UnitHelper化: ResolveUnitsMode + MapParameter で統一
 using System;
 using System.Linq;
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             int typeId = p.Value<int?>("typeId") ?? 0;
             string typeName = p.Value<string>("typeName");
 
-            if (typeId > 0) wallType = doc.GetElement(new ElementId(typeId)) as WallType;
+            if (typeId > 0) wallType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as WallType;
             else if (!string.IsNullOrWhiteSpace(typeName))
                 wallType = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
                            .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.OrdinalIgnoreCase));
@@ -34,14 +34,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             if (wallType == null)
                 return new { ok = false, msg = $"WallType not found: {(typeId > 0 ? typeId.ToString() : typeName)}" };
 
-            typeId = wallType.Id.IntegerValue;
+            typeId = wallType.Id.IntValue();
             typeName = wallType.Name ?? string.Empty;
 
             int skip = p.Value<int?>("skip") ?? 0;
             int count = p.Value<int?>("count") ?? int.MaxValue;
 
             var allParams = wallType.Parameters?.Cast<Parameter>()
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa)
                 .ToList() ?? new System.Collections.Generic.List<Parameter>();
@@ -79,3 +79,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

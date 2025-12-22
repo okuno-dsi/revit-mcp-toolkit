@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +33,9 @@ namespace RevitMCPAddin.Commands.SiteOps
                 using (var t = new Transaction(doc, "Create TopographySurface"))
                 {
                     t.Start();
+#pragma warning disable 0618 // TopographySurface is deprecated in Revit 2024+ (Toposolid). Keep for legacy projects.
                     var ts = TopographySurface.Create(doc, xyzs);
+#pragma warning restore 0618
                     if (ts == null)
                     {
                         t.RollBack();
@@ -42,8 +44,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                     if (!string.IsNullOrWhiteSpace(siteName)) ts.Name = siteName!;
                     t.Commit();
 
-                    LoggerProxy.Info($"[Site] Created TopographySurface id={ts.Id.IntegerValue}, name='{ts.Name}'");
-                    return new { ok = true, elementId = ts.Id.IntegerValue, name = ts.Name };
+                    LoggerProxy.Info($"[Site] Created TopographySurface id={ts.Id.IntValue()}, name='{ts.Name}'");
+                    return new { ok = true, elementId = ts.Id.IntValue(), name = ts.Name };
                 }
             }
             catch (Exception ex)
@@ -84,3 +86,4 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+

@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     int? viewIdInt = p.Value<int?>("viewId");
                     if (viewIdInt.HasValue && viewIdInt.Value > 0)
                     {
-                        var e = doc.GetElement(new ElementId(viewIdInt.Value));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt.Value));
                         baseView = e as View;
                     }
                     else
@@ -107,8 +107,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             ok = true,
                             created = false,
-                            viewId = storedView.Id.IntegerValue,
-                            elementId = storedView.Id.IntegerValue,
+                            viewId = storedView.Id.IntValue(),
+                            elementId = storedView.Id.IntValue(),
                             uniqueId = storedView.UniqueId ?? string.Empty,
                             name = storedView.Name ?? string.Empty
                         };
@@ -140,8 +140,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             ok = true,
                             created = false,
-                            viewId = ev.Id.IntegerValue,
-                            elementId = ev.Id.IntegerValue,
+                            viewId = ev.Id.IntValue(),
+                            elementId = ev.Id.IntValue(),
                             uniqueId = ev.UniqueId ?? string.Empty,
                             name = ev.Name ?? string.Empty,
                             conflict = "returnExisting"
@@ -228,8 +228,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var dto = new DuplicateViewResultDto
                     {
                         ok = true,
-                        viewId = v.Id.IntegerValue,
-                        elementId = v.Id.IntegerValue,
+                        viewId = v.Id.IntValue(),
+                        elementId = v.Id.IntValue(),
                         uniqueId = v.UniqueId ?? string.Empty,
                         name = v.Name ?? string.Empty,
                         created = true
@@ -250,3 +250,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

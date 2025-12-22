@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/GetStructuralFoundationTypesCommand.cs (UnitHelper対応/返却整備)
+// File: Commands/ElementOps/Foundation/GetStructuralFoundationTypesCommand.cs (UnitHelper対応/返却整備)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             if (targetElementId > 0 || !string.IsNullOrWhiteSpace(targetUniqueId))
             {
-                var inst = targetElementId > 0 ? doc.GetElement(new ElementId(targetElementId)) : doc.GetElement(targetUniqueId);
+                var inst = targetElementId > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetElementId)) : doc.GetElement(targetUniqueId);
                 if (inst == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
                 var tid = inst.GetTypeId();
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             if (filterTypeId > 0)
             {
-                var t = doc.GetElement(new ElementId(filterTypeId)) as ElementType;
+                var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(filterTypeId)) as ElementType;
                 if (t == null) return ResultUtil.Err($"typeId={filterTypeId} のタイプが見つかりません。");
                 q = new[] { t };
             }
@@ -76,7 +76,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             }
 
             if (filterFamilyId > 0)
-                q = q.Where(t => (t as FamilySymbol)?.Family?.Id.IntegerValue == filterFamilyId);
+                q = q.Where(t => (t as FamilySymbol)?.Family?.Id.IntValue() == filterFamilyId);
 
             if (!string.IsNullOrWhiteSpace(filterFamilyName))
                 q = q.Where(t => string.Equals(t.FamilyName ?? "", filterFamilyName, StringComparison.OrdinalIgnoreCase));
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             if (!string.IsNullOrWhiteSpace(nameContains))
                 q = q.Where(t => (t.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
-            var ordered = q.Select(t => new { t, fam = t.FamilyName ?? "", name = t.Name ?? "", id = t.Id.IntegerValue })
+            var ordered = q.Select(t => new { t, fam = t.FamilyName ?? "", name = t.Name ?? "", id = t.Id.IntValue() })
                            .OrderBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id).Select(x => x.t).ToList();
 
             int total = ordered.Count;
@@ -103,10 +103,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
         private static object ToDto(ElementType t)
         {
-            int? familyId = (t as FamilySymbol)?.Family?.Id.IntegerValue;
+            int? familyId = (t as FamilySymbol)?.Family?.Id.IntValue();
             return new
             {
-                typeId = t.Id.IntegerValue,
+                typeId = t.Id.IntValue(),
                 uniqueId = t.UniqueId,
                 typeName = t.Name ?? string.Empty,
                 familyId,
@@ -115,3 +115,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+
+

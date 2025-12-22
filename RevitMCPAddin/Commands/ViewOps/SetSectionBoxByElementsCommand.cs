@@ -32,7 +32,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             View3D view3d = null;
             if (p.TryGetValue("viewId", out var vidTok))
             {
-                view3d = doc.GetElement(new ElementId(vidTok.Value<int>())) as View3D;
+                view3d = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vidTok.Value<int>())) as View3D;
             }
             else
             {
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 var selIds = uidoc.Selection.GetElementIds();
                 if (selIds != null && selIds.Count > 0)
-                    elementIds.AddRange(selIds.Select(e => e.IntegerValue));
+                    elementIds.AddRange(selIds.Select(e => e.IntValue()));
             }
             if (elementIds.Count == 0)
             {
@@ -73,11 +73,11 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             foreach (int id in elementIds.Distinct())
             {
-                var e = doc.GetElement(new ElementId(id));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 // Skip 3D Section Box pseudo-element (no-op for section box itself)
                 try
                 {
-                    if (e?.Category?.Id?.IntegerValue == -2000301)
+                    if (e?.Category?.Id?.IntValue() == -2000301)
                     {
                         skipped.Add(new { elementId = id, reason = "section_box" });
                         continue;
@@ -146,7 +146,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new
                     {
                         ok = true,
-                        viewId = view3d.Id.IntegerValue,
+                        viewId = view3d.Id.IntValue(),
                         sectionBox = new
                         {
                             min = new
@@ -174,3 +174,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

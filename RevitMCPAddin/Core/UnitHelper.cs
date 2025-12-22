@@ -163,7 +163,7 @@ namespace RevitMCPAddin.Core
                 case StorageType.ElementId:
                     {
                         var id = p.AsElementId();
-                        ex.Value = id?.IntegerValue ?? 0;
+                        ex.Value = id?.IntValue() ?? 0;
                         ex.Unit = "ElementId";
                         ex.Raw = null;
                         break;
@@ -220,7 +220,7 @@ namespace RevitMCPAddin.Core
                     return new
                     {
                         name,
-                        id = p.Id.IntegerValue,
+                        id = p.Id.IntValue(),
                         storageType = storage,
                         isReadOnly = readOnly,
                         dataType,
@@ -234,7 +234,7 @@ namespace RevitMCPAddin.Core
                     return new
                     {
                         name,
-                        id = p.Id.IntegerValue,
+                        id = p.Id.IntValue(),
                         storageType = storage,
                         isReadOnly = readOnly,
                         dataType,
@@ -248,7 +248,7 @@ namespace RevitMCPAddin.Core
                     return new
                     {
                         name,
-                        id = p.Id.IntegerValue,
+                        id = p.Id.IntValue(),
                         storageType = storage,
                         isReadOnly = readOnly,
                         dataType,
@@ -267,7 +267,7 @@ namespace RevitMCPAddin.Core
                         return new
                         {
                             name,
-                            id = p.Id.IntegerValue,
+                            id = p.Id.IntValue(),
                             storageType = storage,
                             isReadOnly = readOnly,
                             dataType,
@@ -282,7 +282,7 @@ namespace RevitMCPAddin.Core
                         return new
                         {
                             name,
-                            id = p.Id.IntegerValue,
+                            id = p.Id.IntValue(),
                             storageType = storage,
                             isReadOnly = readOnly,
                             dataType,
@@ -297,7 +297,7 @@ namespace RevitMCPAddin.Core
                         return new
                         {
                             name,
-                            id = p.Id.IntegerValue,
+                            id = p.Id.IntValue(),
                             storageType = storage,
                             isReadOnly = readOnly,
                             dataType,
@@ -312,11 +312,11 @@ namespace RevitMCPAddin.Core
                         return new
                         {
                             name,
-                            id = p.Id.IntegerValue,
+                            id = p.Id.IntValue(),
                             storageType = storage,
                             isReadOnly = readOnly,
                             dataType,
-                            value = p.AsElementId()?.IntegerValue ?? 0,
+                            value = p.AsElementId()?.IntValue() ?? 0,
                             unit = "ElementId",
                             display,
                             raw = (double?)null
@@ -325,7 +325,7 @@ namespace RevitMCPAddin.Core
                     return new
                     {
                         name,
-                        id = p.Id.IntegerValue,
+                        id = p.Id.IntValue(),
                         storageType = storage,
                         isReadOnly = readOnly,
                         dataType,
@@ -421,7 +421,7 @@ namespace RevitMCPAddin.Core
                                 error = "Expected integer ElementId.";
                                 return false;
                             }
-                            return param.Set(new ElementId(eid));
+                            return param.Set(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                         }
                 }
 
@@ -528,7 +528,7 @@ namespace RevitMCPAddin.Core
                         value = prm.AsString() ?? "";
                         break;
                     case StorageType.ElementId:
-                        value = prm.AsElementId()?.IntegerValue ?? -1;
+                        value = prm.AsElementId()?.IntValue() ?? -1;
                         break;
                 }
             }
@@ -581,7 +581,7 @@ namespace RevitMCPAddin.Core
                     case StorageType.ElementId:
                         {
                             if (TryToInt(token?.ToObject<object>(), out var iv))
-                                return prm.Set(new ElementId(iv));
+                                return prm.Set(Autodesk.Revit.DB.ElementIdCompat.From(iv));
                             reason = "Expected integer ElementId.";
                             return false;
                         }
@@ -982,3 +982,5 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+
+

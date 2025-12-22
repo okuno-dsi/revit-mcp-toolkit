@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -100,8 +100,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             if (ptsTok == null || ptsTok.Count < 2)
                 return new { ok = false, msg = "baseline must contain at least 2 points" };
 
-            var typeId = new ElementId(p.Value<int>("railingTypeId"));
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("railingTypeId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             var loop = new CurveLoop();
             for (int i = 0; i < ptsTok.Count - 1; i++)
@@ -130,10 +130,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             return new
             {
                 ok = true,
-                elementId = railing.Id.IntegerValue,
+                elementId = railing.Id.IntValue(),
                 uniqueId = railing.UniqueId,
-                typeId = railing.GetTypeId().IntegerValue,
-                levelId = railing.LevelId.IntegerValue,
+                typeId = railing.GetTypeId().IntValue(),
+                levelId = railing.LevelId.IntValue(),
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
             };
@@ -178,33 +178,33 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 .ToList();
 
             // caches
-            var typeIds = all.Select(r => r.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(r => r.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, ElementType>(typeIds.Count);
-            foreach (var id in typeIds) typeMap[id] = doc.GetElement(new ElementId(id)) as ElementType;
+            foreach (var id in typeIds) typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ElementType;
 
-            var levelIds = all.Select(r => r.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(r => r.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
-            foreach (var id in levelIds) levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+            foreach (var id in levelIds) levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<ArchRailing> q = all;
 
             if (filterTypeId > 0)
-                q = q.Where(r => r.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(r => r.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
                 q = q.Where(r =>
                 {
-                    typeMap.TryGetValue(r.GetTypeId().IntegerValue, out var et);
+                    typeMap.TryGetValue(r.GetTypeId().IntValue(), out var et);
                     return et != null && string.Equals(et.Name ?? "", filterTypeName, StringComparison.OrdinalIgnoreCase);
                 });
 
             if (filterLevelId > 0)
-                q = q.Where(r => r.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(r => r.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
                 q = q.Where(r =>
                 {
-                    levelMap.TryGetValue(r.LevelId.IntegerValue, out var lv);
+                    levelMap.TryGetValue(r.LevelId.IntValue(), out var lv);
                     return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
 
@@ -213,7 +213,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 {
                     var n = r.Name ?? "";
                     if (n.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    typeMap.TryGetValue(r.GetTypeId().IntegerValue, out var et);
+                    typeMap.TryGetValue(r.GetTypeId().IntValue(), out var et);
                     return (et?.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
 
@@ -221,8 +221,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             var ordered = q
                 .Select(r =>
                 {
-                    typeMap.TryGetValue(r.GetTypeId().IntegerValue, out var et);
-                    return new { r, typeName = et?.Name ?? "", id = r.Id.IntegerValue };
+                    typeMap.TryGetValue(r.GetTypeId().IntValue(), out var et);
+                    return new { r, typeName = et?.Name ?? "", id = r.Id.IntValue() };
                 })
                 .OrderBy(x => x.typeName).ThenBy(x => x.id)
                 .Select(x => x.r)
@@ -240,7 +240,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                     .Skip(skip).Take(limit)
                     .Select(r => !string.IsNullOrEmpty(r.Name)
                         ? r.Name
-                        : (typeMap.TryGetValue(r.GetTypeId().IntegerValue, out var et) ? (et?.Name ?? "") : ""))
+                        : (typeMap.TryGetValue(r.GetTypeId().IntValue(), out var et) ? (et?.Name ?? "") : ""))
                     .ToList();
 
                 return new { ok = true, totalCount, names, inputUnits = RailingUnits.InputUnits(), internalUnits = RailingUnits.InternalUnits() };
@@ -253,7 +253,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
 
             if (idsOnly)
             {
-                var ids = paged.Select(r => r.Id.IntegerValue).ToList();
+                var ids = paged.Select(r => r.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids, inputUnits = RailingUnits.InputUnits(), internalUnits = RailingUnits.InternalUnits() };
             }
 
@@ -276,16 +276,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                     }
                 }
 
-                typeMap.TryGetValue(r.GetTypeId().IntegerValue, out var et);
-                levelMap.TryGetValue(r.LevelId.IntegerValue, out var lv);
+                typeMap.TryGetValue(r.GetTypeId().IntValue(), out var et);
+                levelMap.TryGetValue(r.LevelId.IntValue(), out var lv);
 
                 return new
                 {
-                    elementId = r.Id.IntegerValue,
+                    elementId = r.Id.IntValue(),
                     uniqueId = r.UniqueId,
-                    typeId = r.GetTypeId().IntegerValue,
+                    typeId = r.GetTypeId().IntValue(),
                     typeName = et?.Name ?? "",
-                    levelId = r.LevelId.IntegerValue,
+                    levelId = r.LevelId.IntValue(),
                     levelName = lv?.Name ?? "",
                     baseline
                 };
@@ -325,8 +325,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 tx.Commit();
             }
 
-            var ids = deleted != null ? deleted.Select(x => x.IntegerValue).ToList() : new List<int>();
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId, deletedCount = ids.Count, deletedElementIds = ids };
+            var ids = deleted != null ? deleted.Select(x => x.IntValue()).ToList() : new List<int>();
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId, deletedCount = ids.Count, deletedElementIds = ids };
         }
     }
 
@@ -355,7 +355,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 int typeId = p.Value<int?>("typeId") ?? p.Value<int?>("railingTypeId") ?? 0;
                 string typeName = p.Value<string>("typeName");
 
-                if (typeId > 0) target = doc.GetElement(new ElementId(typeId));
+                if (typeId > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId));
                 else if (!string.IsNullOrWhiteSpace(typeName))
                     target = new FilteredElementCollector(doc)
                         .OfClass(typeof(ArchRailingType)).Cast<ArchRailingType>()
@@ -370,7 +370,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (target.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -382,8 +382,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 {
                     ok = true,
                     scope,
-                    elementId = scope == "instance" ? (int?)target.Id.IntegerValue : null,
-                    typeId = scope == "type" ? target.Id.IntegerValue : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntegerValue : null),
+                    elementId = scope == "instance" ? (int?)target.Id.IntValue() : null,
+                    typeId = scope == "type" ? target.Id.IntValue() : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntValue() : null),
                     uniqueId = target.UniqueId,
                     totalCount,
                     inputUnits = RailingUnits.InputUnits(),
@@ -398,8 +398,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 {
                     ok = true,
                     scope,
-                    elementId = scope == "instance" ? (int?)target.Id.IntegerValue : null,
-                    typeId = scope == "type" ? target.Id.IntegerValue : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntegerValue : null),
+                    elementId = scope == "instance" ? (int?)target.Id.IntValue() : null,
+                    typeId = scope == "type" ? target.Id.IntValue() : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntValue() : null),
                     uniqueId = target.UniqueId,
                     totalCount,
                     names,
@@ -422,7 +422,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                         case StorageType.Double: val = RailingUnits.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -430,7 +430,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -442,8 +442,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             {
                 ok = true,
                 scope,
-                elementId = scope == "instance" ? (int?)target.Id.IntegerValue : null,
-                typeId = scope == "type" ? target.Id.IntegerValue : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntegerValue : null),
+                elementId = scope == "instance" ? (int?)target.Id.IntValue() : null,
+                typeId = scope == "type" ? target.Id.IntValue() : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId ? (int?)target.GetTypeId().IntValue() : null),
                 uniqueId = target.UniqueId,
                 totalCount,
                 parameters = list,
@@ -495,7 +495,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                             param.Set(vtok.Value<string>() ?? string.Empty);
                             break;
                         case StorageType.ElementId:
-                            param.Set(new ElementId(vtok.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>()));
                             break;
                         default:
                             tx.RollBack(); return new { ok = false, msg = $"Unsupported StorageType: {param.StorageType}" };
@@ -508,7 +508,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                     return new { ok = false, msg = $"Set failed: {ex.Message}" };
                 }
             }
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId };
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId };
         }
     }
 
@@ -558,7 +558,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             if (summaryOnly || limit == 0)
                 return new { ok = true, totalCount, inputUnits = RailingUnits.InputUnits(), internalUnits = RailingUnits.InternalUnits() };
 
-            var ordered = filtered.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntegerValue })
+            var ordered = filtered.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntValue() })
                                   .OrderBy(x => x.name).ThenBy(x => x.id)
                                   .Select(x => x.t).ToList();
 
@@ -570,12 +570,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
 
             if (idsOnly)
             {
-                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntegerValue).ToList();
+                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds, inputUnits = RailingUnits.InputUnits(), internalUnits = RailingUnits.InternalUnits() };
             }
 
             var types = ordered.Skip(skip).Take(limit)
-                .Select(t => new { typeId = t.Id.IntegerValue, uniqueId = t.UniqueId, typeName = t.Name ?? "" })
+                .Select(t => new { typeId = t.Id.IntValue(), uniqueId = t.UniqueId, typeName = t.Name ?? "" })
                 .ToList();
 
             return new { ok = true, totalCount, types, inputUnits = RailingUnits.InputUnits(), internalUnits = RailingUnits.InternalUnits() };
@@ -599,7 +599,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
 
             ArchRailingType newType = null;
             int typeId = p.Value<int?>("typeId") ?? p.Value<int?>("railingTypeId") ?? 0;
-            if (typeId > 0) newType = doc.GetElement(new ElementId(typeId)) as ArchRailingType;
+            if (typeId > 0) newType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ArchRailingType;
             else
             {
                 var tn = p.Value<string>("typeName");
@@ -610,7 +610,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             }
             if (newType == null) return new { ok = false, msg = "新しい RailingType が見つかりません。" };
 
-            int oldTypeId = el.GetTypeId().IntegerValue;
+            int oldTypeId = el.GetTypeId().IntValue();
 
             using (var tx = new Transaction(doc, "Change Railing Type"))
             {
@@ -619,7 +619,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId, oldTypeId = oldTypeId, typeId = el.GetTypeId().IntegerValue };
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId, oldTypeId = oldTypeId, typeId = el.GetTypeId().IntValue() };
         }
     }
 
@@ -638,7 +638,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             string newName = p.Value<string>("newName");
             if (string.IsNullOrWhiteSpace(newName)) return new { ok = false, msg = "newName が必要です。" };
 
-            var original = doc.GetElement(new ElementId(typeId)) as ArchRailingType;
+            var original = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ArchRailingType;
             if (original == null) return new { ok = false, msg = "Railing type not found" };
 
             ArchRailingType dup = null;
@@ -650,7 +650,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             }
             if (dup == null) return new { ok = false, msg = "タイプの複製に失敗しました。" };
 
-            return new { ok = true, newTypeId = dup.Id.IntegerValue, newTypeName = dup.Name, uniqueId = dup.UniqueId };
+            return new { ok = true, newTypeId = dup.Id.IntValue(), newTypeName = dup.Name, uniqueId = dup.UniqueId };
         }
     }
 
@@ -665,7 +665,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
         {
             var doc = uiapp.ActiveUIDocument.Document;
             int typeId = ((JObject)cmd.Params).Value<int>("railingTypeId");
-            ArchRailingType rt = doc.GetElement(new ElementId(typeId)) as ArchRailingType;
+            ArchRailingType rt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ArchRailingType;
             if (rt == null) return new { ok = false, msg = "Railing type not found" };
 
             ICollection<ElementId> deleted = null;
@@ -675,7 +675,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 deleted = doc.Delete(rt.Id);
                 tx.Commit();
             }
-            var ids = deleted != null ? deleted.Select(x => x.IntegerValue).ToList() : new List<int>();
+            var ids = deleted != null ? deleted.Select(x => x.IntValue()).ToList() : new List<int>();
             return new { ok = true, deletedCount = ids.Count, deletedElementIds = ids };
         }
     }
@@ -695,7 +695,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             ArchRailingType rt = null;
             int typeId = p.Value<int?>("typeId") ?? p.Value<int?>("railingTypeId") ?? 0;
             string typeName = p.Value<string>("typeName");
-            if (typeId > 0) rt = doc.GetElement(new ElementId(typeId)) as ArchRailingType;
+            if (typeId > 0) rt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ArchRailingType;
             else if (!string.IsNullOrWhiteSpace(typeName))
                 rt = new FilteredElementCollector(doc).OfClass(typeof(ArchRailingType)).Cast<ArchRailingType>()
                     .FirstOrDefault(t => string.Equals(t.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
@@ -706,7 +706,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (rt.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -735,7 +735,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                         case StorageType.Double: value = RailingUnits.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                         case StorageType.Integer: value = pa.AsInteger(); break;
                         case StorageType.String: value = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: value = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: value = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { value = null; }
@@ -743,7 +743,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                 parameters.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -770,7 +770,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
             ArchRailingType rt = null;
             int typeId = p.Value<int?>("typeId") ?? p.Value<int?>("railingTypeId") ?? 0;
             string typeName = p.Value<string>("typeName");
-            if (typeId > 0) rt = doc.GetElement(new ElementId(typeId)) as ArchRailingType;
+            if (typeId > 0) rt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ArchRailingType;
             else if (!string.IsNullOrWhiteSpace(typeName))
                 rt = new FilteredElementCollector(doc).OfClass(typeof(ArchRailingType)).Cast<ArchRailingType>()
                     .FirstOrDefault(t => string.Equals(t.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
@@ -802,7 +802,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                             param.Set(vtok.Value<string>() ?? string.Empty);
                             break;
                         case StorageType.ElementId:
-                            param.Set(new ElementId(vtok.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>()));
                             break;
                         default:
                             tx.RollBack(); return new { ok = false, msg = $"Unsupported StorageType: {param.StorageType}" };
@@ -815,7 +815,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Railing
                     return new { ok = false, msg = $"Set failed: {ex.Message}" };
                 }
             }
-            return new { ok = true, typeId = rt.Id.IntegerValue, uniqueId = rt.UniqueId };
+            return new { ok = true, typeId = rt.Id.IntValue(), uniqueId = rt.UniqueId };
         }
     }
 }
+
+

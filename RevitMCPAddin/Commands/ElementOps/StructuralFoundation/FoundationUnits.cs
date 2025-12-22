@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Internal: FoundationUnits (UnitHelper連携ユーティリティ)
 // 既定入出力: Length=mm / Area=mm2 / Volume=mm3 / Angle=deg
 // ================================================================
@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         {
             var eid = p.Value<int?>("elementId") ?? 0;
             var uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             var typeName = p.Value<string>("typeName");
             var familyName = p.Value<string>("familyName");
 
-            if (typeId > 0) return doc.GetElement(new ElementId(typeId)) as ElementType;
+            if (typeId > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
 
             if (!string.IsNullOrWhiteSpace(typeName))
             {
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                              && (string.IsNullOrWhiteSpace(familyName) || string.Equals(s.Family?.Name ?? "", familyName, StringComparison.OrdinalIgnoreCase)))
                     .OrderBy(s => s.Family?.Name ?? "")
                     .ThenBy(s => s.Name ?? "")
-                    .ThenBy(s => s.Id.IntegerValue)
+                    .ThenBy(s => s.Id.IntValue())
                     .FirstOrDefault();
                 if (sym != null) return sym;
 
@@ -76,3 +76,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/TypeOps/DeleteTypeIfUnusedCommand.cs
 // Purpose:
 //   - Delete an ElementType safely.
@@ -85,7 +85,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         var et = doc.GetElement(tid) as ElementType;
                         if (et == null) continue;
                         if (!HasInstancesOfType(doc, et))
-                            candidates.Add(et.Id.IntegerValue);
+                            candidates.Add(et.Id.IntValue());
                     }
 
                     if (dryRun)
@@ -110,7 +110,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         {
                             try
                             {
-                                var deletedIds = doc.Delete(new ElementId(tid));
+                                var deletedIds = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(tid));
                                 if (deletedIds != null && deletedIds.Count > 0)
                                 {
                                     deleted++;
@@ -148,7 +148,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                     return new { ok = false, msg = "Target type not found by given keys.", errorCode = "NOT_FOUND" };
 
                 // --- Cache everything BEFORE any deletion. Never touch 'target' after Delete. ---
-                int tId = target.Id.IntegerValue;
+                int tId = target.Id.IntValue();
                 string tCatName = target.Category?.Name ?? "?";
                 string? tFamName = TryGetFamilyName(target);
                 string tTypeName2 = target.Name;
@@ -197,7 +197,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                     using (var tx = new Transaction(doc, "[MCP] Delete unused type"))
                     {
                         tx.Start();
-                        var deletedIds = doc.Delete(new ElementId(tId));
+                        var deletedIds = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(tId));
                         tx.Commit();
                         steps.Add(new
                         {
@@ -257,7 +257,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         // Race-safety: instances disappeared between checks; just delete type.
                         try
                         {
-                            var del0 = doc.Delete(new ElementId(tId));
+                            var del0 = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(tId));
                             steps.Add(new { step = "delete-type", typeId = tId, ok = true, deletedCount = del0?.Count ?? 0 });
                             tx.Commit();
                         }
@@ -291,25 +291,25 @@ namespace RevitMCPAddin.Commands.TypeOps
                                     {
                                         fi.Symbol = sym; // FamilyInstance type change
                                         reassigned++;
-                                        steps.Add(new { step = "reassign", elementId = fi.Id.IntegerValue, ok = true, toTypeId = sym.Id.IntegerValue });
+                                        steps.Add(new { step = "reassign", elementId = fi.Id.IntValue(), ok = true, toTypeId = sym.Id.IntValue() });
                                     }
                                     else
                                     {
                                         inst.ChangeTypeId(reassignTo.Id);
                                         reassigned++;
-                                        steps.Add(new { step = "reassign", elementId = inst.Id.IntegerValue, ok = true, toTypeId = reassignTo.Id.IntegerValue });
+                                        steps.Add(new { step = "reassign", elementId = inst.Id.IntValue(), ok = true, toTypeId = reassignTo.Id.IntValue() });
                                     }
                                 }
                                 else
                                 {
                                     inst.ChangeTypeId(reassignTo.Id);
                                     reassigned++;
-                                    steps.Add(new { step = "reassign", elementId = inst.Id.IntegerValue, ok = true, toTypeId = reassignTo.Id.IntegerValue });
+                                    steps.Add(new { step = "reassign", elementId = inst.Id.IntValue(), ok = true, toTypeId = reassignTo.Id.IntValue() });
                                 }
                             }
                             catch (Exception ex)
                             {
-                                steps.Add(new { step = "reassign", elementId = inst.Id.IntegerValue, ok = false, reason = ex.Message });
+                                steps.Add(new { step = "reassign", elementId = inst.Id.IntValue(), ok = false, reason = ex.Message });
                             }
                         }
                     }
@@ -344,7 +344,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                     // Delete the type itself (NEVER touch 'target' after this call)
                     try
                     {
-                        var del = doc.Delete(new ElementId(tId));
+                        var del = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(tId));
                         steps.Add(new { step = "delete-type", typeId = tId, ok = true, deletedCount = del?.Count ?? 0 });
                     }
                     catch (Exception ex)
@@ -388,7 +388,7 @@ namespace RevitMCPAddin.Commands.TypeOps
             // 1) by typeId
             if (typeIdOpt.HasValue && typeIdOpt.Value > 0)
             {
-                var el = doc.GetElement(new ElementId(typeIdOpt.Value)) as ElementType;
+                var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeIdOpt.Value)) as ElementType;
                 if (el != null) return el;
                 steps.Add(new { step = "resolve-typeId", ok = false, typeId = typeIdOpt.Value });
             }
@@ -427,7 +427,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                 familyName,
                 typeName,
                 categoryName,
-                candidates = candidates.Select(c => new { id = c.Id.IntegerValue, fam = TryGetFamilyName(c), name = c.Name }).ToList()
+                candidates = candidates.Select(c => new { id = c.Id.IntValue(), fam = TryGetFamilyName(c), name = c.Name }).ToList()
             });
 
             // Fallback: first candidate (best-effort)
@@ -492,3 +492,5 @@ namespace RevitMCPAddin.Commands.TypeOps
         }
     }
 }
+
+

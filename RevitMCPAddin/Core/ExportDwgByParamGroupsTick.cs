@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Core
             Directory.CreateDirectory(outFolder);
 
             BuiltInCategory bic = ResolveBic(catName, BuiltInCategory.OST_Walls);
-            var baseView = doc.GetElement(new ElementId(viewId)) as View;
+            var baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (baseView == null || !baseView.CanBePrinted)
                 return (false, outputs, skipped, true, null, 0, 0, (int)sw.ElapsedMilliseconds, "init", "Target view is not printable.");
 
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Core
                     var map = new JObject();
                     foreach (var e in visElems)
                     {
-                        var id = e.Id.IntegerValue;
+                        var id = e.Id.IntValue();
                         allIds.Add(id);
                         var key = reader(e) ?? "";
                         if (map[key] == null) map[key] = new JArray();
@@ -201,7 +201,7 @@ namespace RevitMCPAddin.Core
                         var keep = (groupIdsCache[g] as JArray)?.Values<int>()?.ToHashSet() ?? new HashSet<int>();
                         foreach (var idInt in allVisIdsCache.Values<int>())
                         {
-                            if (!keep.Contains(idInt)) notMatch.Add(new ElementId(idInt));
+                            if (!keep.Contains(idInt)) notMatch.Add(Autodesk.Revit.DB.ElementIdCompat.From(idInt));
                         }
                     }
                     else
@@ -303,7 +303,7 @@ namespace RevitMCPAddin.Core
             // BuiltInParameter: Comments / コメント（インスタンス）
             if (string.Equals(paramName, "Comments", StringComparison.OrdinalIgnoreCase) || paramName == "コメント")
             {
-                provider = new ElementId(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                provider = Autodesk.Revit.DB.ElementIdCompat.From((long)BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
                 r = e =>
                 {
                     var p = e.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
@@ -330,7 +330,7 @@ namespace RevitMCPAddin.Core
                                 case StorageType.String: return p.AsString();
                                 case StorageType.Integer: return p.AsInteger().ToString();
                                 case StorageType.Double: return p.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
-                                case StorageType.ElementId: return p.AsElementId().IntegerValue.ToString();
+                                case StorageType.ElementId: return p.AsElementId().IntValue().ToString();
                             }
                         }
                         catch { }
@@ -357,7 +357,7 @@ namespace RevitMCPAddin.Core
                                 case StorageType.String: return p2.AsString();
                                 case StorageType.Integer: return p2.AsInteger().ToString();
                                 case StorageType.Double: return p2.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
-                                case StorageType.ElementId: return p2.AsElementId().IntegerValue.ToString();
+                                case StorageType.ElementId: return p2.AsElementId().IntValue().ToString();
                             }
                         }
                         catch { }
@@ -461,4 +461,6 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+
+
 

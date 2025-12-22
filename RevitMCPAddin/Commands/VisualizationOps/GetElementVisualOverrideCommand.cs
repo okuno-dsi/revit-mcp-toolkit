@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File   : Commands/VisualizationOps/VisualOverrides.Commands.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Depends: Autodesk.Revit.DB, Autodesk.Revit.UI, Newtonsoft.Json.Linq
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 foreach (var t in arr)
                 {
                     var v = t?.Value<int?>();
-                    if (v is int i && i != 0) list.Add(new ElementId(i));
+                    if (v is int i && i != 0) list.Add(Autodesk.Revit.DB.ElementIdCompat.From(i));
                 }
             }
             return list;
@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         public static View? ResolveView(Document doc, int? viewId)
         {
             if (viewId.HasValue && viewId.Value > 0)
-                return doc.GetElement(new ElementId(viewId.Value)) as View;
+                return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             return doc.ActiveView;
         }
 
@@ -92,7 +92,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             {
                 var pi = typeof(OverrideGraphicSettings).GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
                 var id = pi?.GetValue(ogs) as ElementId;
-                return id?.IntegerValue ?? 0;
+                return id?.IntValue() ?? 0;
             }
             catch { return 0; }
         }
@@ -159,9 +159,9 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
                 var targets = new List<ElementId>();
                 if (inp.elementId.HasValue && inp.elementId.Value > 0)
-                    targets.Add(new ElementId(inp.elementId.Value));
+                    targets.Add(Autodesk.Revit.DB.ElementIdCompat.From(inp.elementId.Value));
                 if (inp.elementIds != null && inp.elementIds.Count > 0)
-                    targets.AddRange(inp.elementIds.Select(i => new ElementId(i)));
+                    targets.AddRange(inp.elementIds.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)));
                 if (targets.Count == 0) return ResultUtil.Err("elementId or elementIds required.");
 
                 var flags = inp.include ?? new IncludeFlags();
@@ -179,7 +179,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                             var appliedObj = areOverridesAppliedMI.Invoke(view, new object[] { eid });
                             if (appliedObj is bool applied && !applied)
                             {
-                                items.Add(new JObject { ["elementId"] = eid.IntegerValue, ["hasAny"] = false });
+                                items.Add(new JObject { ["elementId"] = eid.IntValue(), ["hasAny"] = false });
                                 continue;
                             }
                         }
@@ -187,13 +187,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                         var ogs = view.GetElementOverrides(eid);
                         if (VisualOverrideHelpers.IsDefaultOverrides(ogs))
                         {
-                            items.Add(new JObject { ["elementId"] = eid.IntegerValue, ["hasAny"] = false });
+                            items.Add(new JObject { ["elementId"] = eid.IntValue(), ["hasAny"] = false });
                             continue;
                         }
 
                         var item = new JObject
                         {
-                            ["elementId"] = eid.IntegerValue,
+                            ["elementId"] = eid.IntValue(),
                             ["hasAny"] = true
                         };
 
@@ -256,10 +256,10 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     }
                     catch (Exception ex)
                     {
-                        RevitLogger.Warn($"get_element_visual_override: eid={eid.IntegerValue} {ex.Message}");
+                        RevitLogger.Warn($"get_element_visual_override: eid={eid.IntValue()} {ex.Message}");
                         items.Add(new JObject
                         {
-                            ["elementId"] = eid.IntegerValue,
+                            ["elementId"] = eid.IntValue(),
                             ["hasAny"] = false,
                             ["error"] = ex.Message
                         });
@@ -269,7 +269,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return ResultUtil.Ok(new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     count = items.Count,
                     items,
                     elapsedMs = sw.ElapsedMilliseconds
@@ -289,3 +289,5 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+

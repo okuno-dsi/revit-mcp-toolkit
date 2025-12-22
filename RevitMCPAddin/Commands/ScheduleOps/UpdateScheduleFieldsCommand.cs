@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleFieldsCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleFieldsCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             bool addElementId = p.Value<bool?>("addElementId") ?? false;
 
             Document doc = uiapp.ActiveUIDocument.Document;
-            var vs = doc.GetElement(new ElementId(id)) as ViewSchedule;
+            var vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewSchedule;
             if (vs == null)
                 return new { ok = false, message = $"ScheduleView {id} not found.", units = UnitHelper.DefaultUnitsMeta() };
 
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     var scheduleField = def.GetField(sfId);
                     bool byName = removeNames.Contains(scheduleField.GetName());
                     bool byParam = false;
-                    try { if (removeParamIds.Contains(scheduleField.ParameterId.IntegerValue)) byParam = true; } catch { }
+                    try { if (removeParamIds.Contains(scheduleField.ParameterId.IntValue())) byParam = true; } catch { }
                     if (byName || byParam)
                     {
                         def.RemoveField(sfId);
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             {
                 var sf = available.FirstOrDefault(f =>
                 {
-                    try { return f.ParameterId != null && f.ParameterId.IntegerValue == pid; }
+                    try { return f.ParameterId != null && f.ParameterId.IntValue() == pid; }
                     catch { return false; }
                 });
                 if (sf != null) def.AddField(sf);
@@ -121,7 +121,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         var sf = def.GetField(fid);
                         bool match = false;
                         try { if (!string.IsNullOrWhiteSpace(nameKey) && sf.GetName() == nameKey) match = true; } catch { }
-                        try { if (!match && pidKey != int.MinValue && sf.ParameterId != null && sf.ParameterId.IntegerValue == pidKey) match = true; } catch { }
+                        try { if (!match && pidKey != int.MinValue && sf.ParameterId != null && sf.ParameterId.IntValue() == pidKey) match = true; } catch { }
                         if (match)
                         {
                             try { sf.ColumnHeading = heading; } catch { }
@@ -138,7 +138,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 var fields = def.GetFieldOrder().Select(fid =>
                 {
                     var f = def.GetField(fid);
-                    int pid = -1; try { pid = f.ParameterId?.IntegerValue ?? -1; } catch { }
+                    int pid = -1; try { pid = f.ParameterId?.IntValue() ?? -1; } catch { }
                     string nm = ""; try { nm = f.GetName(); } catch { }
                     string head = ""; try { head = f.ColumnHeading; } catch { }
                     return new { name = nm, paramId = pid, heading = head, hidden = f.IsHidden };
@@ -167,3 +167,5 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+

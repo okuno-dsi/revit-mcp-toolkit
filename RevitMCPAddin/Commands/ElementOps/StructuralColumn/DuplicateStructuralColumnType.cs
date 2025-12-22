@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             FamilySymbol original = null;
             if (p.TryGetValue("typeId", out var tid))
             {
-                original = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                original = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             }
             else if (p.TryGetValue("typeName", out var tn))
             {
@@ -54,10 +54,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             return new
             {
                 ok = true,
-                originalId = original.Id.IntegerValue,
-                newTypeId = duplicated.Id.IntegerValue,
+                originalId = original.Id.IntValue(),
+                newTypeId = duplicated.Id.IntValue(),
                 newTypeName = duplicated.Name
             };
         }
     }
 }
+
+

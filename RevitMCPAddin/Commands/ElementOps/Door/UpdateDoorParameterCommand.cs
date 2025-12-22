@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/UpdateDoorParameterCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/UpdateDoorParameterCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,9 +18,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             if (!p.TryGetValue("elementId", out var idToken))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
-            var id = new ElementId(idToken.Value<int>());
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(idToken.Value<int>());
             var elem = doc.GetElement(id)
-                       ?? throw new InvalidOperationException($"Door not found: {id.IntegerValue}");
+                       ?? throw new InvalidOperationException($"Door not found: {id.IntValue()}");
 
             var param = ParamResolver.ResolveByPayload(elem, p, out var resolvedBy)
                        ?? throw new InvalidOperationException($"Parameter not found (name/builtIn/guid).");
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                         catch (Exception ex)
                         {
                             // 位置移動に失敗してもパラメータ更新自体は成功させる
-                            RevitMCPAddin.Core.RevitLogger.Warn($"update_door_parameter: move by offset failed for element {elem.Id.IntegerValue}: {ex.Message}");
+                            RevitMCPAddin.Core.RevitLogger.Warn($"update_door_parameter: move by offset failed for element {elem.Id.IntValue()}: {ex.Message}");
                         }
                     }
 
@@ -94,3 +94,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Rooms/PlaceRoomInCircuitCommand.cs
 // Desc: 指定レベルの回路Indexに部屋を配置（または任意XY点に配置）
 // API:  method = "place_room_in_circuit"
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.Rooms
                 if (levelId == 0)
                     return new { ok = false, msg = "levelId が必要です。", code = "ARG_MISSING" };
 
-                var level = doc.GetElement(new ElementId(levelId)) as Level;
+                var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
                 if (level == null)
                     return new { ok = false, msg = $"levelId={levelId} は Level ではありません。", code = "BAD_LEVEL" };
 
@@ -109,7 +109,7 @@ namespace RevitMCPAddin.Commands.Rooms
                 return new
                 {
                     ok = true,
-                    roomId = room?.Id?.IntegerValue ?? 0,
+                    roomId = room?.Id?.IntValue() ?? 0,
                     placedBy,
                     msg = "room placed"
                 };
@@ -174,3 +174,5 @@ namespace RevitMCPAddin.Commands.Rooms
         }
     }
 }
+
+

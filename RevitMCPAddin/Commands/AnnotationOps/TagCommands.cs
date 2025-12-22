@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/TagCommands.cs (InputPointReader対応版)
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // 改変点：位置・オフセット読取を InputPointReader に統一（mm基準）
@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             if (p.TryGetValue("viewId", out var vt))
             {
-                var v = doc.GetElement(new ElementId(vt.Value<int>())) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vt.Value<int>())) as View;
                 if (v != null) return v;
             }
             var vu = p.Value<string>("viewUniqueId");
@@ -48,7 +48,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             if (p.TryGetValue("hostElementId", out var et))
             {
-                var e = doc.GetElement(new ElementId(et.Value<int>()));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(et.Value<int>()));
                 if (e != null) return e;
             }
             var uid = p.Value<string>("uniqueId");
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             if (p.TryGetValue("typeId", out var tt))
             {
-                var fs = doc.GetElement(new ElementId(tt.Value<int>())) as FamilySymbol;
+                var fs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tt.Value<int>())) as FamilySymbol;
                 if (fs != null) return fs;
             }
 
@@ -122,7 +122,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     if (!string.IsNullOrWhiteSpace(category))
                         ok &= cat.Name.EndsWith(category, StringComparison.OrdinalIgnoreCase) || string.Equals(cat.Name, category, StringComparison.OrdinalIgnoreCase);
                     if (categoryIds.Count > 0)
-                        ok &= categoryIds.Contains(cat.Id.IntegerValue);
+                        ok &= categoryIds.Contains(cat.Id.IntValue());
                     if (categoryNames.Count > 0)
                         ok &= categoryNames.Contains(cat.Name);
 
@@ -137,7 +137,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 all = all.Where(fs => (fs.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
 
             var ordered = all
-                .Select(fs => new { fs, fam = fs.Family?.Name ?? "", cat = fs.Category?.Name ?? "", name = fs.Name ?? "", id = fs.Id.IntegerValue })
+                .Select(fs => new { fs, fam = fs.Family?.Name ?? "", cat = fs.Category?.Name ?? "", name = fs.Name ?? "", id = fs.Id.IntValue() })
                 .OrderBy(x => x.cat).ThenBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.fs).ToList();
 
@@ -147,7 +147,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             if (idsOnly)
             {
-                var ids = ordered.Skip(skip).Take(count).Select(fs => fs.Id.IntegerValue).ToList();
+                var ids = ordered.Skip(skip).Take(count).Select(fs => fs.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds = ids };
             }
 
@@ -159,11 +159,11 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             var list = ordered.Skip(skip).Take(count).Select(fs => new
             {
-                typeId = fs.Id.IntegerValue,
+                typeId = fs.Id.IntValue(),
                 uniqueId = fs.UniqueId,
                 typeName = fs.Name ?? "",
                 familyName = fs.Family?.Name ?? "",
-                categoryId = fs.Category?.Id.IntegerValue,
+                categoryId = fs.Category?.Id.IntValue(),
                 categoryName = fs.Category?.Name ?? ""
             }).ToList();
 
@@ -206,15 +206,15 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (!string.IsNullOrWhiteSpace(categoryName)) 
                 all = all.Where(t => string.Equals(t.Category?.Name ?? "", categoryName, StringComparison.OrdinalIgnoreCase)).ToList(); 
             if (categoryIds.Count > 0) 
-                all = all.Where(t => t.Category != null && categoryIds.Contains(t.Category.Id.IntegerValue)).ToList(); 
+                all = all.Where(t => t.Category != null && categoryIds.Contains(t.Category.Id.IntValue())).ToList(); 
             if (tagTypeIds.Count > 0) 
-                all = all.Where(t => tagTypeIds.Contains(t.GetTypeId().IntegerValue)).ToList(); 
+                all = all.Where(t => tagTypeIds.Contains(t.GetTypeId().IntValue())).ToList(); 
  
             if (!string.IsNullOrWhiteSpace(nameContains)) 
                 all = all.Where(t => (t.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0).ToList(); 
  
             var ordered = all.OrderBy(t => t.Category?.Name ?? "") 
-                             .ThenBy(t => t.Id.IntegerValue).ToList(); 
+                             .ThenBy(t => t.Id.IntValue()).ToList(); 
  
             int totalCount = ordered.Count; 
             if (summaryOnly || count == 0) 
@@ -228,7 +228,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
  
             if (idsOnly)
             {
-                var tagIds = ordered.Skip(skip).Take(count).Select(t => t.Id.IntegerValue).ToList();
+                var tagIds = ordered.Skip(skip).Take(count).Select(t => t.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, tagIds, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
             }
 
@@ -238,14 +238,14 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 try { head = tag.TagHeadPosition; } catch { head = (tag.Location as LocationPoint)?.Point ?? XYZ.Zero; } 
  
                 var hostIds = tag.GetTaggedLocalElementIds(); 
-                int hostId = (hostIds != null && hostIds.Count > 0) ? hostIds.First().IntegerValue : 0;
+                int hostId = (hostIds != null && hostIds.Count > 0) ? hostIds.First().IntValue() : 0;
 
                 return new
                 {
-                    tagId = tag.Id.IntegerValue,
+                    tagId = tag.Id.IntValue(),
                     uniqueId = tag.UniqueId,
-                    tagTypeId = tag.GetTypeId().IntegerValue,
-                    categoryId = tag.Category?.Id.IntegerValue,
+                    tagTypeId = tag.GetTypeId().IntValue(),
+                    categoryId = tag.Category?.Id.IntValue(),
                     categoryName = tag.Category?.Name ?? "",
                     hostElementId = hostId,
                     hasLeader = tag.HasLeader,
@@ -332,9 +332,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             return new
             {
                 ok = true,
-                tagId = tag.Id.IntegerValue,
+                tagId = tag.Id.IntValue(),
                 uniqueId = tag.UniqueId,
-                typeId = symbol.Id.IntegerValue,
+                typeId = symbol.Id.IntValue(),
                 inputUnits = TagHelpers.UnitsIn(),
                 internalUnits = TagHelpers.UnitsInt()
             };
@@ -354,7 +354,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             Element tag = null;
             int tagId = p.Value<int?>("tagId") ?? 0;
             string tagUid = p.Value<string>("uniqueId");
-            if (tagId > 0) tag = doc.GetElement(new ElementId(tagId));
+            if (tagId > 0) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagId));
             else if (!string.IsNullOrWhiteSpace(tagUid)) tag = doc.GetElement(tagUid);
             if (tag == null) return new { ok = false, msg = "Tag が見つかりません（tagId/uniqueId）。" };
 
@@ -370,7 +370,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 catch (Exception ex) { tx.RollBack(); return new { ok = false, msg = $"移動に失敗: {ex.Message}" }; }
                 tx.Commit();
             }
-            return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
+            return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
         }
     }
 
@@ -387,7 +387,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             Element tag = null;
             int tagId = p.Value<int?>("tagId") ?? 0;
             string tagUid = p.Value<string>("uniqueId");
-            if (tagId > 0) tag = doc.GetElement(new ElementId(tagId));
+            if (tagId > 0) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagId));
             else if (!string.IsNullOrWhiteSpace(tagUid)) tag = doc.GetElement(tagUid);
             if (tag == null) return new { ok = false, msg = "Tag が見つかりません（tagId/uniqueId）。" };
 
@@ -416,7 +416,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 catch (Exception ex) { tx.RollBack(); return new { ok = false, msg = $"回転に失敗: {ex.Message}" }; }
                 tx.Commit();
             }
-            return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId };
+            return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId };
         }
     }
 
@@ -433,7 +433,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             Element tag = null;
             int tagId = p.Value<int?>("tagId") ?? 0;
             string tagUid = p.Value<string>("uniqueId");
-            if (tagId > 0) tag = doc.GetElement(new ElementId(tagId));
+            if (tagId > 0) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagId));
             else if (!string.IsNullOrWhiteSpace(tagUid)) tag = doc.GetElement(tagUid);
             if (tag == null) return new { ok = false, msg = "Tag が見つかりません（tagId/uniqueId）。" };
 
@@ -442,18 +442,18 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (tag.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pr => new { pr, name = pr?.Definition?.Name ?? "", id = pr?.Id.IntegerValue ?? -1 })
+                .Select(pr => new { pr, name = pr?.Definition?.Name ?? "", id = pr?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pr).ToList();
 
             int totalCount = ordered.Count;
 
             if (count == 0)
-                return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId, totalCount, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
+                return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId, totalCount, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
 
             if (namesOnly)
             {
                 var names = ordered.Skip(skip).Take(count).Select(pr => pr?.Definition?.Name ?? "").ToList();
-                return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId, totalCount, names, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
+                return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId, totalCount, names, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
             }
 
             var page = ordered.Skip(skip).Take(count);
@@ -464,7 +464,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 result.Add(mapped);
             }
 
-            return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId, totalCount, parameters = result, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
+            return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId, totalCount, parameters = result, inputUnits = TagHelpers.UnitsIn(), internalUnits = TagHelpers.UnitsInt() };
         }
     }
 
@@ -481,7 +481,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             Element tag = null;
             int tagId = p.Value<int?>("tagId") ?? 0;
             string tagUid = p.Value<string>("uniqueId");
-            if (tagId > 0) tag = doc.GetElement(new ElementId(tagId));
+            if (tagId > 0) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagId));
             else if (!string.IsNullOrWhiteSpace(tagUid)) tag = doc.GetElement(tagUid);
             if (tag == null) return new { ok = false, msg = "Tag が見つかりません（tagId/uniqueId）。" };
 
@@ -511,7 +511,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 catch (Exception ex) { tx.RollBack(); return new { ok = false, msg = $"更新に失敗: {ex.Message}" }; }
                 tx.Commit();
             }
-            return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId };
+            return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId };
         }
     }
 
@@ -528,7 +528,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             Element tag = null;
             int tagId = p.Value<int?>("tagId") ?? 0;
             string tagUid = p.Value<string>("uniqueId");
-            if (tagId > 0) tag = doc.GetElement(new ElementId(tagId));
+            if (tagId > 0) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagId));
             else if (!string.IsNullOrWhiteSpace(tagUid)) tag = doc.GetElement(tagUid);
             if (tag == null) return new { ok = false, msg = "Tag が見つかりません（tagId/uniqueId）。" };
 
@@ -541,8 +541,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 tx.Commit();
             }
 
-            var ids = deleted?.Select(x => x.IntegerValue).ToList() ?? new List<int>();
-            return new { ok = true, tagId = tag.Id.IntegerValue, uniqueId = tag.UniqueId, deletedCount = ids.Count, deletedElementIds = ids };
+            var ids = deleted?.Select(x => x.IntValue()).ToList() ?? new List<int>();
+            return new { ok = true, tagId = tag.Id.IntValue(), uniqueId = tag.UniqueId, deletedCount = ids.Count, deletedElementIds = ids };
         }
     }
 }
+
+

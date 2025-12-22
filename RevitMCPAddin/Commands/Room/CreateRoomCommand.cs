@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/CreateRoomCommand.cs  (統合版: Safe+Strict)
 // Revit 2023 / .NET Framework 4.8
 //
@@ -47,7 +47,7 @@ namespace RevitMCPAddin.Commands.Room
             var levelId = p.Value<int?>("levelId");
             if (levelId.HasValue && levelId.Value > 0)
             {
-                level = doc.GetElement(new ElementId(levelId.Value)) as Level;
+                level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId.Value)) as Level;
             }
             else
             {
@@ -96,7 +96,7 @@ namespace RevitMCPAddin.Commands.Room
                                     {
                                         ok = true,
                                         mode = "existing",
-                                        elementId = rr.Id.IntegerValue,
+                                        elementId = rr.Id.IntValue(),
                                         name = rr.Name,
                                         location = new { xMm, yMm },
                                         units = UnitHelper.DefaultUnitsMeta()
@@ -180,14 +180,14 @@ namespace RevitMCPAddin.Commands.Room
                             FamilySymbol? symbol = null;
                             if (tagTypeIdParam > 0)
                             {
-                                symbol = doc.GetElement(new ElementId(tagTypeIdParam)) as FamilySymbol;
+                                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tagTypeIdParam)) as FamilySymbol;
                             }
                             if (symbol == null)
                             {
                                 symbol = new FilteredElementCollector(doc)
                                     .OfClass(typeof(FamilySymbol))
                                     .Cast<FamilySymbol>()
-                                    .FirstOrDefault(s => s.Category != null && s.Category.Id.IntegerValue == (int)BuiltInCategory.OST_RoomTags);
+                                    .FirstOrDefault(s => s.Category != null && s.Category.Id.IntValue() == (int)BuiltInCategory.OST_RoomTags);
                             }
 
                             if (symbol != null)
@@ -196,7 +196,7 @@ namespace RevitMCPAddin.Commands.Room
                                 XYZ head = (room.Location as LocationPoint)?.Point ?? XYZ.Zero;
                                 var reference = new Reference(room);
                                 var tag = IndependentTag.Create(doc, symbol.Id, view.Id, reference, false, TagOrientation.Horizontal, head);
-                                if (tag != null) tagIdOut = tag.Id.IntegerValue;
+                                if (tag != null) tagIdOut = tag.Id.IntValue();
                             }
                         }
                     }
@@ -212,7 +212,7 @@ namespace RevitMCPAddin.Commands.Room
                 {
                     ok = true,
                     mode = "created",
-                    elementId = room.Id.IntegerValue,
+                    elementId = room.Id.IntValue(),
                     name = room.Name,
                     tagId = (tagIdOut > 0 ? (int?)tagIdOut : null),
                     location = new { xMm, yMm },
@@ -242,3 +242,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

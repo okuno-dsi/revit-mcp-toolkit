@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnParametersCommand.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
                 bool includeUnit = p.Value<bool?>("includeUnit") ?? true;
                 int siDigits = p.Value<int?>("siDigits") ?? 3;
 
-                var fi = doc.GetElement(new ElementId(id)) as FamilyInstance
+                var fi = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilyInstance
                          ?? throw new InvalidOperationException($"Element not found: {id}");
 
                 var list = new List<object>();
@@ -75,3 +75,4 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+

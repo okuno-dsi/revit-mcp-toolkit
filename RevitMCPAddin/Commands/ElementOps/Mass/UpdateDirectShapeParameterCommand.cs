@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/MassOps/UpdateDirectShapeParameterCommand.cs
 // Target : Revit 2023+ / .NET Framework 4.8 / C# 8
 // Purpose: DirectShape（Mass相当）要素のパラメータを “安全に” 更新
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.MassOps
 
             if (elementId.HasValue && elementId.Value > 0)
             {
-                elem = doc.GetElement(new ElementId(elementId.Value));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId.Value));
             }
             else if (!string.IsNullOrWhiteSpace(uniqueId))
             {
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.MassOps
                         catch (Exception exMove)
                         {
                             // 位置移動に失敗してもパラメータ更新自体は成功させる
-                            RevitMCPAddin.Core.RevitLogger.Warn($"update_direct_shape_parameter: move by offset failed for element {elem.Id.IntegerValue}: {exMove.Message}");
+                            RevitMCPAddin.Core.RevitLogger.Warn($"update_direct_shape_parameter: move by offset failed for element {elem.Id.IntValue()}: {exMove.Message}");
                         }
                     }
 
@@ -159,7 +159,7 @@ namespace RevitMCPAddin.Commands.MassOps
             }
             else if (prm.StorageType == StorageType.ElementId)
             {
-                valueSi = prm.AsElementId()?.IntegerValue ?? 0;
+                valueSi = prm.AsElementId()?.IntValue() ?? 0;
             }
 
             // メタ（入力/内部単位ラベル）
@@ -171,7 +171,7 @@ namespace RevitMCPAddin.Commands.MassOps
 
             return ResultUtil.Ok(new
             {
-                elementId = elem.Id.IntegerValue,
+                elementId = elem.Id.IntValue(),
                 uniqueId = elem.UniqueId,
                 paramName,
                 value = valueSi,      // できる限り SI or 生の表示値（型に応じて）
@@ -181,3 +181,5 @@ namespace RevitMCPAddin.Commands.MassOps
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -14,7 +14,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var id = new ElementId(p.Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
 
             // mm → ft に変換
             double dx = UnitHelper.MmToInternal(p.Value<double>("dx"));
@@ -30,3 +30,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+

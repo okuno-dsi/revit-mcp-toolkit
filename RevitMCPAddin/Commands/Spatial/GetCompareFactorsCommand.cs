@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.Spatial
             {
                 try
                 {
-                    var id = new ElementId(t.Value<int>());
+                    var id = Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>());
                     var e = doc.GetElement(id);
                     if (e == null) continue;
                     var cat = e.Category;
@@ -50,10 +50,10 @@ namespace RevitMCPAddin.Commands.Spatial
                     }
                     list.Add(new
                     {
-                        elementId = e.Id.IntegerValue,
-                        categoryId = cat?.Id?.IntegerValue,
+                        elementId = e.Id.IntValue(),
+                        categoryId = cat?.Id?.IntValue(),
                         category = cat?.Name,
-                        levelId = levelId?.IntegerValue,
+                        levelId = levelId?.IntValue(),
                         level = levelName,
                         centroid = new { xMm = Math.Round(c.xMm,3), yMm = Math.Round(c.yMm,3), zMm = Math.Round(c.zMm,3) },
                         bbox = new { dxMm = Math.Round(dx,3), dyMm = Math.Round(dy,3), dzMm = Math.Round(dz,3) }
@@ -183,6 +183,8 @@ namespace RevitMCPAddin.Commands.Spatial
         }
     }
 }
+
+
 
 
 

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/CreateInteriorElevationCommand.cs
 // Purpose : Interior Elevation（展開図）を作成・情報取得
 // Target  : .NET Framework 4.8 / C# 8 / Revit 2023 API
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             int vftId = p.Value<int?>("viewTypeId") ?? 0;
             if (vftId > 0)
             {
-                var t = doc.GetElement(new ElementId(vftId)) as ViewFamilyType;
+                var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vftId)) as ViewFamilyType;
                 if (t != null && t.ViewFamily == ViewFamily.Elevation) return t;
             }
             // 最初に見つかった Elevation 用を返す
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             int lid = p.Value<int?>("levelId") ?? 0;
             if (lid > 0)
             {
-                var l = doc.GetElement(new ElementId(lid)) as Level;
+                var l = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lid)) as Level;
                 if (l != null) return l;
             }
             string lname = p.Value<string>("levelName");
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 .Cast<ViewFamilyType>()
                 .Where(vft => vft.ViewFamily == ViewFamily.Elevation)
                 .OrderBy(v => v.Name ?? "")
-                .ThenBy(v => v.Id.IntegerValue)
+                .ThenBy(v => v.Id.IntValue())
                 .ToList();
 
             int totalCount = all.Count;
@@ -133,7 +133,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             }
 
             var list = all.Skip(skip).Take(count)
-                .Select(v => new { viewTypeId = v.Id.IntegerValue, name = v.Name ?? "", viewFamily = v.ViewFamily.ToString() })
+                .Select(v => new { viewTypeId = v.Id.IntValue(), name = v.Name ?? "", viewFamily = v.ViewFamily.ToString() })
                 .ToList();
 
             return new { ok = true, totalCount, types = list };
@@ -156,7 +156,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var p = (JObject)cmd.Params;
 
             int vid = p.Value<int>("viewId");
-            var view = doc.GetElement(new ElementId(vid)) as ViewSection;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as ViewSection;
             if (view == null || view.ViewType != ViewType.Elevation)
                 return new { ok = false, msg = "Elevation view が見つかりません。" };
 
@@ -239,7 +239,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 int hostViewId = p.Value<int?>("hostViewId") ?? 0;
                 if (hostViewId > 0)
                 {
-                    hostPlan = doc.GetElement(new ElementId(hostViewId)) as ViewPlan;
+                    hostPlan = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(hostViewId)) as ViewPlan;
                 }
                 if (hostPlan == null)
                 {
@@ -294,7 +294,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = elevView?.Id.IntegerValue ?? 0,
+                    viewId = elevView?.Id.IntValue() ?? 0,
                     name = elevView?.Name ?? name,
                     inputUnits = ElevUtil.UnitsIn(),
                     internalUnits = ElevUtil.UnitsInt()
@@ -332,7 +332,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var p = (JObject)cmd.Params;
 
                 int roomId = p.Value<int>("roomId");
-                var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+                var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
                 if (room == null) return new { ok = false, msg = $"Room not found: {roomId}" };
 
                 // Elevation ViewFamilyType
@@ -404,7 +404,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             string name = $"{prefix}{f}";
                             try { elev.Name = name; } catch { /* 競合時は自動で (2) */ }
 
-                            created.Add(new { slotIndex = slot, viewId = elev.Id.IntegerValue, name = elev.Name });
+                            created.Add(new { slotIndex = slot, viewId = elev.Id.IntValue(), name = elev.Name });
                         }
                         catch (Exception ex)
                         {
@@ -432,3 +432,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

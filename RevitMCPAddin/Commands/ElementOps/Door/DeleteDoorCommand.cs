@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -14,14 +14,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
             var doc = uiapp.ActiveUIDocument.Document;
-            var id = new ElementId(((JObject)cmd.Params).Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(((JObject)cmd.Params).Value<int>("elementId"));
 
             using var tx = new Transaction(doc, "Delete Door");
             tx.Start();
             var deletedIds = doc.Delete(id);
             tx.Commit();
 
-            bool success = deletedIds.Any(e => e.IntegerValue == id.IntegerValue);
+            bool success = deletedIds.Any(e => e.IntValue() == id.IntValue());
             if (success)
             {
                 return new { ok = true };
@@ -33,3 +33,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+
+

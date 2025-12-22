@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             ElementId viewId = ElementId.InvalidElementId;
             if (reqViewId > 0)
             {
-                viewId = new ElementId(reqViewId);
+                viewId = Autodesk.Revit.DB.ElementIdCompat.From(reqViewId);
                 view = doc.GetElement(viewId) as View;
             }
             if (view == null)
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
             // ========== View Template ���o�Fdetach�I�v�V���� ==========
             bool templateApplied = view.ViewTemplateId != ElementId.InvalidElementId;
-            int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntegerValue : null;
+            int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntValue() : null;
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? false;
             if (templateApplied && detachTemplate)
             {
@@ -114,7 +114,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     count = 0,
                     skipped = new[] { new { reason = "View has a template; detach view template before calling set_visual_override." } },
                     errors = new object[0],
@@ -133,11 +133,11 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var elementIds = new List<ElementId>();
             if (p["elementId"] != null)
             {
-                elementIds.Add(new ElementId(p.Value<int>("elementId")));
+                elementIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             }
             else if (p["elementIds"] != null && p["elementIds"].Any())
             {
-                elementIds = p["elementIds"].Select(x => new ElementId((int)x)).ToList();
+                elementIds = p["elementIds"].Select(x => Autodesk.Revit.DB.ElementIdCompat.From((int)x)).ToList();
             }
             else
             {
@@ -206,8 +206,8 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                             }
                             catch (Exception ex)
                             {
-                                RevitLogger.Error($"SetElementOverrides failed for {id.IntegerValue}", ex);
-                                errors.Add(new { elementId = id.IntegerValue, reason = ex.Message });
+                                RevitLogger.Error($"SetElementOverrides failed for {id.IntValue()}", ex);
+                                errors.Add(new { elementId = id.IntValue(), reason = ex.Message });
                             }
                         }
                         tx.Commit();
@@ -231,7 +231,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             return new
             {
                 ok = true,
-                viewId = viewId.IntegerValue,
+                viewId = viewId.IntValue(),
                 count = applied,
                 errors,
                 color = new { r, g, b },
@@ -296,4 +296,6 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+
 

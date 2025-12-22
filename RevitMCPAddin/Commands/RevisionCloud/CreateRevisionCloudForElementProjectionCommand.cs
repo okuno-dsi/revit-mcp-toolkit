@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 View view = null;
                 if (p.TryGetValue("viewId", out var vTok))
                 {
-                    view = doc.GetElement(new ElementId(vTok.Value<int>())) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vTok.Value<int>())) as View;
                     if (view == null) return Fail("View not found.");
                 }
                 else
@@ -82,9 +82,9 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     ElementId revisionId0;
                     if (p.TryGetValue("revisionId", out var rTok0))
                     {
-                        revisionId0 = new ElementId(rTok0.Value<int>());
+                        revisionId0 = Autodesk.Revit.DB.ElementIdCompat.From(rTok0.Value<int>());
                         if (doc.GetElement(revisionId0) as Autodesk.Revit.DB.Revision == null)
-                            return Fail($"Revision not found: {revisionId0.IntegerValue}");
+                            return Fail($"Revision not found: {revisionId0.IntValue()}");
                     }
                     else
                     {
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                             {
                                 try
                                 {
-                                    var el = doc.GetElement(new ElementId(eid));
+                                    var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                                     var bb = el?.get_BoundingBox(view);
                                     if (bb != null)
                                     {
@@ -141,13 +141,13 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         }
                     }
 
-                    return new { ok = created.Count > 0, count = created.Count, cloudIds = created, usedRevisionId = revisionId0.IntegerValue, failures };
+                    return new { ok = created.Count > 0, count = created.Count, cloudIds = created, usedRevisionId = revisionId0.IntValue(), failures };
                 }
 
                 // 2) Element
                 Element elem = null;
                 if (p.TryGetValue("elementId", out var eTok))
-                    elem = doc.GetElement(new ElementId(eTok.Value<int>()));
+                    elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eTok.Value<int>()));
                 else if (p.TryGetValue("uniqueId", out var uTok))
                     elem = doc.GetElement(uTok.Value<string>());
                 if (elem == null) return Fail("Target element not found (elementId or uniqueId required).");
@@ -177,7 +177,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     var pl = sp.GetPlane();
                     diag["view"] = new JObject
                     {
-                        ["id"] = view.Id.IntegerValue,
+                        ["id"] = view.Id.IntValue(),
                         ["name"] = view.Name,
                         ["origin"] = Jpt(view.Origin),
                         ["right"] = Jvec(view.RightDirection),
@@ -341,9 +341,9 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 ElementId revisionId;
                 if (p.TryGetValue("revisionId", out var rTok))
                 {
-                    revisionId = new ElementId(rTok.Value<int>());
+                    revisionId = Autodesk.Revit.DB.ElementIdCompat.From(rTok.Value<int>());
                     if (doc.GetElement(revisionId) as Autodesk.Revit.DB.Revision == null)
-                        return Fail($"Revision not found: {revisionId.IntegerValue}");
+                        return Fail($"Revision not found: {revisionId.IntValue()}");
                 }
                 else
                 {
@@ -421,8 +421,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 return new
                 {
                     ok = true,
-                    cloudId = rc.Id.IntegerValue,
-                    usedRevisionId = revisionId.IntegerValue,
+                    cloudId = rc.Id.IntValue(),
+                    usedRevisionId = revisionId.IntValue(),
                     rect,
                     diag = debug ? diag : null
                 };
@@ -584,7 +584,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             }
 
             var opts = new Options { ComputeReferences = false, IncludeNonVisibleObjects = false, View = view };
-            var elem = doc.GetElement(new ElementId(elementId)); if (elem == null) return 0;
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)); if (elem == null) return 0;
 
             var uvPts = new List<UV>(); UV au = default, bu = default; bool hasLC = false;
             if (elem.Location is LocationCurve lc && lc.Curve != null)
@@ -668,7 +668,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 rc = SafeCreateRevisionCloud(doc, view, revisionId, curves);
                 tx.Commit();
             }
-            return rc?.Id?.IntegerValue ?? 0;
+            return rc?.Id?.IntValue() ?? 0;
         }
 
         // ===== UIView の現在ズーム矩形を取得（失敗すれば false）=====
@@ -705,3 +705,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         private static object Fail(string msg) => new { ok = false, msg };
     }
 }
+
+

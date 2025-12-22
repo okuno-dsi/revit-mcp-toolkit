@@ -65,22 +65,22 @@ namespace RevitMCPAddin.Commands.ParamOps
                         {
                             var tid = it.Value<int?>("typeId") ?? 0;
                             if (tid <= 0) throw new InvalidOperationException("typeId required for target=type");
-                            e = doc.GetElement(new ElementId(tid)) as ElementType;
+                            e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as ElementType;
                             if (e == null) throw new InvalidOperationException($"Type not found: {tid}");
                         }
                         else if (target == "instance")
                         {
                             var eid = it.Value<int?>("elementId") ?? 0;
                             if (eid <= 0) throw new InvalidOperationException("elementId required for target=instance");
-                            e = doc.GetElement(new ElementId(eid));
+                            e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                             if (e == null) throw new InvalidOperationException($"Element not found: {eid}");
                         }
                         else // auto
                         {
                             var eid = it.Value<int?>("elementId") ?? 0;
                             var tid = it.Value<int?>("typeId") ?? 0;
-                            if (eid > 0) e = doc.GetElement(new ElementId(eid));
-                            else if (tid > 0) e = doc.GetElement(new ElementId(tid)) as ElementType;
+                            if (eid > 0) e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
+                            else if (tid > 0) e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as ElementType;
                             else throw new InvalidOperationException("elementId or typeId required (target:auto)");
                             if (e == null) throw new InvalidOperationException("Target element/type not found.");
                         }
@@ -94,7 +94,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                             throw new InvalidOperationException(reason ?? "Failed to set value");
 
                         okCount++;
-                        results.Add(new { ok = true, id = e.Id.IntegerValue, where = (e is ElementType ? "type" : "instance"), param = param.Definition?.Name, resolvedBy });
+                        results.Add(new { ok = true, id = e.Id.IntValue(), where = (e is ElementType ? "type" : "instance"), param = param.Definition?.Name, resolvedBy });
 
                         // Time-slice: if long-running, commit and restart
                         if ((DateTime.UtcNow - startAt).TotalMilliseconds > maxMillis)
@@ -135,3 +135,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
+

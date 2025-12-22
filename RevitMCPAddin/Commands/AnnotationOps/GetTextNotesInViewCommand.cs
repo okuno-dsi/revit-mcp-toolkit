@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/GetTextNotesInViewCommand.cs
 // Purpose : List TextNotes in a view
 // Target  : .NET Framework 4.8 / Revit 2023+
@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             var p = (JObject?)cmd.Params ?? new JObject();
             int? viewIdOpt = p.Value<int?>("viewId");
             View view = viewIdOpt.HasValue
-                ? doc.GetElement(new ElementId(viewIdOpt.Value)) as View
+                ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdOpt.Value)) as View
                 : doc.ActiveView;
 
             if (view == null) return new { ok = false, msg = "View not found." };
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             // Early type filter (if provided)
             if (typeIdsArr.Count > 0)
             {
-                collector = collector.Where(tn => typeIdsArr.Contains(tn.GetTypeId().IntegerValue));
+                collector = collector.Where(tn => typeIdsArr.Contains(tn.GetTypeId().IntValue()));
             }
 
             // Apply text filters
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             var all = collector.Select(tn => tn).ToList();
             int totalCount = all.Count;
             if (summaryOnly)
-                return new { ok = true, viewId = view.Id.IntegerValue, totalCount };
+                return new { ok = true, viewId = view.Id.IntValue(), totalCount };
 
             // Paging
             IEnumerable<TextNote> paged = all;
@@ -84,8 +84,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             if (idsOnly)
             {
-                var ids = paged.Select(tn => tn.Id.IntegerValue).ToList();
-                return new { ok = true, viewId = view.Id.IntegerValue, totalCount, elementIds = ids };
+                var ids = paged.Select(tn => tn.Id.IntValue()).ToList();
+                return new { ok = true, viewId = view.Id.IntValue(), totalCount, elementIds = ids };
             }
 
             var items = paged.Select(tn =>
@@ -109,14 +109,16 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 }
                 return new
                 {
-                    elementId = tn.Id.IntegerValue,
+                    elementId = tn.Id.IntValue(),
                     text = tn.Text,
-                    typeId = tn.GetTypeId().IntegerValue,
+                    typeId = tn.GetTypeId().IntValue(),
                     bbox
                 };
             }).ToList();
 
-            return new { ok = true, viewId = view.Id.IntegerValue, totalCount, items };
+            return new { ok = true, viewId = view.Id.IntValue(), totalCount, items };
         }
     }
 }
+
+

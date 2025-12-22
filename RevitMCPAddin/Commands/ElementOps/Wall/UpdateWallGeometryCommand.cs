@@ -1,4 +1,4 @@
-﻿// -------------------------
+// -------------------------
 // UpdateWallGeometryCommand.cs (UnitHelper対応版)
 // -------------------------
 using Autodesk.Revit.DB;
@@ -18,9 +18,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            var elementId = new ElementId(p.Value<int>("elementId"));
+            var elementId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             var wall = doc.GetElement(elementId) as Autodesk.Revit.DB.Wall
-                        ?? throw new InvalidOperationException($"Wall not found: {elementId.IntegerValue}");
+                        ?? throw new InvalidOperationException($"Wall not found: {elementId.IntValue()}");
             var loc = wall.Location as LocationCurve
                         ?? throw new InvalidOperationException("Wall does not have LocationCurve");
 
@@ -38,3 +38,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

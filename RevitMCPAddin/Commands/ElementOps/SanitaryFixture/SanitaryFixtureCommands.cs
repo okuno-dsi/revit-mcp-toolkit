@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/SanitaryFixture/SanitaryFixtureCommands.cs
+// File: RevitMCPAddin/Commands/ElementOps/SanitaryFixture/SanitaryFixtureCommands.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -52,25 +52,25 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 .ToList();
 
             // キャッシュ
-            var typeIds = all.Select(x => x.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(x => x.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, FamilySymbol>(typeIds.Count);
-            foreach (var id in typeIds) typeMap[id] = doc.GetElement(new ElementId(id)) as FamilySymbol;
+            foreach (var id in typeIds) typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilySymbol;
 
-            var levelIds = all.Select(x => x.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(x => x.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
-            foreach (var id in levelIds) levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+            foreach (var id in levelIds) levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<FamilyInstance> q = all;
 
             // typeId / typeName(+familyName)
             if (filterTypeId > 0)
-                q = q.Where(x => x.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(x => x.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
             {
                 q = q.Where(x =>
                 {
-                    typeMap.TryGetValue(x.GetTypeId().IntegerValue, out var s);
+                    typeMap.TryGetValue(x.GetTypeId().IntValue(), out var s);
                     if (s == null) return false;
                     bool ok = string.Equals(s.Name ?? "", filterTypeName, StringComparison.OrdinalIgnoreCase);
                     if (!ok) return false;
@@ -82,13 +82,13 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
 
             // level
             if (filterLevelId > 0)
-                q = q.Where(x => x.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(x => x.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
             {
                 q = q.Where(x =>
                 {
-                    levelMap.TryGetValue(x.LevelId.IntegerValue, out var lv);
+                    levelMap.TryGetValue(x.LevelId.IntValue(), out var lv);
                     return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
             }
@@ -100,7 +100,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 {
                     var n = x.Name ?? "";
                     if (n.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    typeMap.TryGetValue(x.GetTypeId().IntegerValue, out var s);
+                    typeMap.TryGetValue(x.GetTypeId().IntValue(), out var s);
                     return (s?.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
             }
@@ -108,12 +108,12 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             // 並び: typeName -> elementId
             var ordered = q.Select(x =>
             {
-                typeMap.TryGetValue(x.GetTypeId().IntegerValue, out var s);
+                typeMap.TryGetValue(x.GetTypeId().IntValue(), out var s);
                 string tName = s?.Name ?? "";
                 return new { x, tName };
             })
             .OrderBy(a => a.tName)
-            .ThenBy(a => a.x.Id.IntegerValue)
+            .ThenBy(a => a.x.Id.IntValue())
             .Select(a => a.x)
             .ToList();
 
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 {
                     var n = x.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    typeMap.TryGetValue(x.GetTypeId().IntegerValue, out var s);
+                    typeMap.TryGetValue(x.GetTypeId().IntValue(), out var s);
                     return s?.Name ?? "";
                 }).ToList();
 
@@ -143,21 +143,21 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 XYZ pt = null;
                 if (fi.Location is LocationPoint lp && lp.Point != null) pt = lp.Point;
 
-                typeMap.TryGetValue(fi.GetTypeId().IntegerValue, out var sym);
+                typeMap.TryGetValue(fi.GetTypeId().IntValue(), out var sym);
                 string typeName = sym?.Name ?? "";
                 string familyName = sym?.Family?.Name ?? "";
 
-                levelMap.TryGetValue(fi.LevelId.IntegerValue, out var lv);
+                levelMap.TryGetValue(fi.LevelId.IntValue(), out var lv);
                 string levelName = lv?.Name ?? "";
 
                 return new
                 {
-                    elementId = fi.Id.IntegerValue,
+                    elementId = fi.Id.IntValue(),
                     uniqueId = fi.UniqueId,
-                    typeId = fi.GetTypeId().IntegerValue,
+                    typeId = fi.GetTypeId().IntValue(),
                     typeName,
                     familyName,
-                    levelId = fi.LevelId.IntegerValue,
+                    levelId = fi.LevelId.IntValue(),
                     levelName,
                     location = UnitHelper.XyzToMm(pt) // ★ UnitHelper へ統一
                 };
@@ -189,7 +189,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             Element el = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) el = doc.GetElement(new ElementId(eid));
+            if (eid > 0) el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) el = doc.GetElement(uid);
             if (el == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
@@ -225,7 +225,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                                 prm.Set(prop.Value.Type == JTokenType.Null ? string.Empty : prop.Value.Value<string>());
                                 break;
                             case StorageType.ElementId:
-                                prm.Set(new ElementId(prop.Value.Value<int>()));
+                                prm.Set(Autodesk.Revit.DB.ElementIdCompat.From(prop.Value.Value<int>()));
                                 break;
                             default:
                                 // 未対応データ型はスキップ or 失敗にするかは方針次第
@@ -241,7 +241,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 tx.Commit();
             }
 
-            return ResultUtil.Ok(new { elementId = el.Id.IntegerValue, uniqueId = el.UniqueId });
+            return ResultUtil.Ok(new { elementId = el.Id.IntValue(), uniqueId = el.UniqueId });
         }
     }
 
@@ -261,7 +261,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             Element el = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) el = doc.GetElement(new ElementId(eid));
+            if (eid > 0) el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) el = doc.GetElement(uid);
             if (el == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
@@ -294,7 +294,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
 
             return ResultUtil.Ok(new
             {
-                elementId = el.Id.IntegerValue,
+                elementId = el.Id.IntValue(),
                 uniqueId = el.UniqueId,
                 inputUnits = UnitsMeta.InputUnits(),
                 internalUnits = UnitsMeta.InternalUnits()
@@ -318,7 +318,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             Element el = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) el = doc.GetElement(new ElementId(eid));
+            if (eid > 0) el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) el = doc.GetElement(uid);
             if (el == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
@@ -375,7 +375,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             if (!string.IsNullOrWhiteSpace(nameContains))
                 q = q.Where(s => (s.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
-            var ordered = q.Select(s => new { s, fam = s.Family != null ? (s.Family.Name ?? "") : "", name = s.Name ?? "", id = s.Id.IntegerValue })
+            var ordered = q.Select(s => new { s, fam = s.Family != null ? (s.Family.Name ?? "") : "", name = s.Name ?? "", id = s.Id.IntValue() })
                            .OrderBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                            .Select(x => x.s).ToList();
 
@@ -392,10 +392,10 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
 
             var types = ordered.Skip(skip).Take(count).Select(s => new
             {
-                typeId = s.Id.IntegerValue,
+                typeId = s.Id.IntValue(),
                 uniqueId = s.UniqueId,
                 typeName = s.Name ?? "",
-                familyId = s.Family != null ? s.Family.Id.IntegerValue : (int?)null,
+                familyId = s.Family != null ? s.Family.Id.IntValue() : (int?)null,
                 familyName = s.Family != null ? (s.Family.Name ?? "") : ""
             }).ToList();
 
@@ -416,9 +416,9 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             if (doc == null) return ResultUtil.Err("アクティブドキュメントがありません。");
             var p = (JObject)cmd.Params;
 
-            var srcId = new ElementId(p.Value<int>("sourceTypeId"));
+            var srcId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("sourceTypeId"));
             var sym = doc.GetElement(srcId) as FamilySymbol;
-            if (sym == null) return ResultUtil.Err($"Type not found: {srcId.IntegerValue}");
+            if (sym == null) return ResultUtil.Err($"Type not found: {srcId.IntValue()}");
 
             string newName = p.Value<string>("newTypeName");
             if (string.IsNullOrWhiteSpace(newName)) return ResultUtil.Err("newTypeName が必要です。");
@@ -432,7 +432,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             }
             if (newSym == null) return ResultUtil.Err("タイプの複製に失敗しました。");
 
-            return ResultUtil.Ok(new { newTypeId = newSym.Id.IntegerValue, newTypeName = newSym.Name, uniqueId = newSym.UniqueId });
+            return ResultUtil.Ok(new { newTypeId = newSym.Id.IntValue(), newTypeName = newSym.Name, uniqueId = newSym.UniqueId });
         }
     }
 
@@ -450,7 +450,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             var p = (JObject)cmd.Params;
 
             int tid = p.Value<int>("typeId");
-            var id = new ElementId(tid);
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(tid);
             var t = doc.GetElement(id) as FamilySymbol;
             if (t == null) return ResultUtil.Err($"Type not found: {tid}");
 
@@ -483,7 +483,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             Element el = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) el = doc.GetElement(new ElementId(eid));
+            if (eid > 0) el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) el = doc.GetElement(uid);
             var inst = el as FamilyInstance;
             if (inst == null) return ResultUtil.Err("FamilyInstance が見つかりません（elementId/uniqueId）。");
@@ -492,7 +492,7 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
             int newTypeId = p.Value<int?>("newTypeId") ?? 0;
             if (newTypeId > 0)
             {
-                newSym = doc.GetElement(new ElementId(newTypeId)) as FamilySymbol;
+                newSym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newTypeId)) as FamilySymbol;
             }
             else
             {
@@ -519,7 +519,9 @@ namespace RevitMCPAddin.Commands.ElementOps.SanitaryFixture
                 tx.Commit();
             }
 
-            return ResultUtil.Ok(new { elementId = inst.Id.IntegerValue, uniqueId = inst.UniqueId, typeId = inst.GetTypeId().IntegerValue });
+            return ResultUtil.Ok(new { elementId = inst.Id.IntValue(), uniqueId = inst.UniqueId, typeId = inst.GetTypeId().IntValue() });
         }
     }
 }
+
+

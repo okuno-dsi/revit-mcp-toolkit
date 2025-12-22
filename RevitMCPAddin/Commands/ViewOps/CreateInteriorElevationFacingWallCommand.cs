@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File: Commands/ViewOps/CreateInteriorElevationFacingWallCommand.cs
 // Purpose : 部屋と壁を指定して、壁に正対した Interior Elevation を作成
 // Target  : .NET Framework 4.8 / Revit 2023 API
@@ -233,7 +233,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // ---- Resolve room ----
             Autodesk.Revit.DB.Architecture.Room room = null;
             if (p.TryGetValue("roomId", out var rIdTok))
-                room = doc.GetElement(new ElementId(rIdTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
+                room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(rIdTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
             else if (p.TryGetValue("roomUniqueId", out var rUidTok))
                 room = doc.GetElement(rUidTok.Value<string>()) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return new { ok = false, msg = "Room not found (roomId/roomUniqueId)." };
@@ -241,7 +241,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // ---- Resolve wall ----
             Wall wall = null;
             if (p.TryGetValue("wallId", out var wIdTok))
-                wall = doc.GetElement(new ElementId(wIdTok.Value<int>())) as Wall;
+                wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wIdTok.Value<int>())) as Wall;
             else if (p.TryGetValue("wallUniqueId", out var wUidTok))
                 wall = doc.GetElement(wUidTok.Value<string>()) as Wall;
             if (wall == null) return new { ok = false, msg = "Wall not found (wallId/wallUniqueId)." };
@@ -250,15 +250,15 @@ namespace RevitMCPAddin.Commands.ViewOps
             ViewPlan hostPlan = null;
             int hostViewId = p.Value<int?>("hostViewId") ?? 0;
             if (hostViewId > 0)
-                hostPlan = doc.GetElement(new ElementId(hostViewId)) as ViewPlan;
+                hostPlan = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(hostViewId)) as ViewPlan;
 
             if (hostPlan == null)
             {
-                int levelId = p.Value<int?>("levelId") ?? room.LevelId.IntegerValue;
+                int levelId = p.Value<int?>("levelId") ?? room.LevelId.IntValue();
                 string levelName = p.Value<string>("levelName");
                 ElementId lid = ElementId.InvalidElementId;
 
-                if (levelId > 0) lid = new ElementId(levelId);
+                if (levelId > 0) lid = Autodesk.Revit.DB.ElementIdCompat.From(levelId);
                 else if (!string.IsNullOrWhiteSpace(levelName))
                 {
                     var lv = new FilteredElementCollector(doc).OfClass(typeof(Level))
@@ -278,7 +278,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             ViewFamilyType vft = null;
             int vftId = p.Value<int?>("viewTypeId") ?? 0;
             if (vftId > 0)
-                vft = doc.GetElement(new ElementId(vftId)) as ViewFamilyType;
+                vft = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vftId)) as ViewFamilyType;
             if (vft == null)
             {
                 vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
@@ -319,7 +319,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var desiredDir = -inward;                                       // 壁へ向く
 
             int scale = p.Value<int?>("scale") ?? 100;
-            string name = p.Value<string>("name") ?? $"IntElev-{wall.Id.IntegerValue}";
+            string name = p.Value<string>("name") ?? $"IntElev-{wall.Id.IntValue()}";
 
             ViewSection elevView = null;
             using (var tx = new Transaction(doc, "Create Interior Elevation (Facing Wall)"))
@@ -363,9 +363,9 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = elevView?.Id.IntegerValue ?? 0,
-                roomId = room.Id.IntegerValue,
-                wallId = wall.Id.IntegerValue,
+                viewId = elevView?.Id.IntValue() ?? 0,
+                roomId = room.Id.IntValue(),
+                wallId = wall.Id.IntValue(),
                 origin = new
                 {
                     x = Math.Round(FacingWallUtil.FtToMm(origin.X), 3),
@@ -380,3 +380,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

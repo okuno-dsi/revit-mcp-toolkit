@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 var pts = p["pointsMm"]?.ToObject<List<Point3>>() ?? new List<Point3>();
                 if (pts.Count == 0) return new { ok = false, msg = "pointsMm is empty." };
 
-                var topo = doc.GetElement(new ElementId(topoId)) as TopographySurface;
+                var topo = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(topoId)) as TopographySurface;
                 if (topo == null) return new { ok = false, msg = $"TopographySurface not found: {topoId}" };
 
                 var xyzs = pts.Select(q => UnitHelper.MmToXyz(q.x, q.y, q.z)).ToList();
@@ -48,23 +48,29 @@ namespace RevitMCPAddin.Commands.SiteOps
                         {
                             var existing = topo.GetPoints();
                             if (existing != null && existing.Count > 0)
+#pragma warning disable 0618 // TopographySurface point edit APIs are deprecated in Revit 2024+ (Toposolid).
                                 topo.DeletePoints(existing);
+#pragma warning restore 0618
                         }
                         catch (Exception exDel)
                         {
                             LoggerProxy.Warn("[Site] DeletePoints failed (ignore): " + exDel.Message);
                         }
 
+#pragma warning disable 0618 // TopographySurface point edit APIs are deprecated in Revit 2024+ (Toposolid).
                         topo.AddPoints(xyzs);
+#pragma warning restore 0618
                         t.Commit();
-                        LoggerProxy.Info($"[Site] Replaced topo points: id={topo.Id.IntegerValue}, count={xyzs.Count}");
+                        LoggerProxy.Info($"[Site] Replaced topo points: id={topo.Id.IntValue()}, count={xyzs.Count}");
                         return new { ok = true, count = xyzs.Count };
                     }
                     else
                     {
+#pragma warning disable 0618 // TopographySurface point edit APIs are deprecated in Revit 2024+ (Toposolid).
                         topo.AddPoints(xyzs);
+#pragma warning restore 0618
                         t.Commit();
-                        LoggerProxy.Info($"[Site] Appended topo points: id={topo.Id.IntegerValue}, countAdded={xyzs.Count}");
+                        LoggerProxy.Info($"[Site] Appended topo points: id={topo.Id.IntValue()}, countAdded={xyzs.Count}");
                         return new { ok = true, countAdded = xyzs.Count };
                     }
                 }
@@ -95,3 +101,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

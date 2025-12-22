@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/GetWallParameterCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/GetWallParameterCommand.cs
 // UnitHelper化: ResolveUnitsMode + MapParameter で統一
 using System;
 using System.Linq;
@@ -21,12 +21,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             var p = (JObject)(cmd.Params ?? new JObject());
             Autodesk.Revit.DB.Wall wall = null;
             int elementId = p.Value<int?>("elementId") ?? p.Value<int?>("wallId") ?? 0;
-            if (elementId > 0) wall = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Wall;
+            if (elementId > 0) wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Wall;
             else
             {
                 var uid = p.Value<string>("uniqueId");
                 if (!string.IsNullOrWhiteSpace(uid)) wall = doc.GetElement(uid) as Autodesk.Revit.DB.Wall;
-                if (wall != null) elementId = wall.Id.IntegerValue;
+                if (wall != null) elementId = wall.Id.IntValue();
             }
             if (wall == null) return new { ok = false, msg = "Wall not found. Provide elementId/wallId or uniqueId." };
 
@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             {
                 foreach (Parameter pa in wall.Parameters)
                 {
-                    if (pa?.Id?.IntegerValue == paramId) { param = pa; break; }
+                    if (pa?.Id?.IntValue() == paramId) { param = pa; break; }
                 }
                 if (param == null) return new { ok = false, elementId, msg = $"Parameter id {paramId} not found." };
             }
@@ -64,3 +64,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/VisualizationOps/GetVisualOverridesInViewCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 指定ビューで「要素にグラフィックオーバーライドが適用されている」ものを列挙
@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             // 候補
             IEnumerable<ElementId> candidates =
                 (inp.elementIds != null && inp.elementIds.Count > 0)
-                ? inp.elementIds.Select(x => new ElementId(x))
+                ? inp.elementIds.Select(x => Autodesk.Revit.DB.ElementIdCompat.From(x))
                 : new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType().ToElementIds();
 
             var overridden = new List<JObject>();
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
                     var item = new JObject
                     {
-                        ["elementId"] = eid.IntegerValue,
+                        ["elementId"] = eid.IntValue(),
                         ["hasAny"] = true
                     };
 
@@ -122,14 +122,14 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 }
                 catch (Exception ex)
                 {
-                    RevitLogger.Warn($"get_visual_overrides_in_view: elementId={eid.IntegerValue} {ex.Message}");
+                    RevitLogger.Warn($"get_visual_overrides_in_view: elementId={eid.IntValue()} {ex.Message}");
                 }
             }
 
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 count = overridden.Count,
                 overridden
             };
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         {
             if (viewId.HasValue && viewId.Value > 0)
             {
-                var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                 if (v != null) return v;
             }
             return doc.ActiveView;
@@ -185,7 +185,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 var pi = typeof(OverrideGraphicSettings).GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
                 if (pi == null) return 0;
                 var id = pi.GetValue(ogs) as ElementId;
-                return id?.IntegerValue ?? 0;
+                return id?.IntValue() ?? 0;
             }
             catch { return 0; }
         }
@@ -202,3 +202,5 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+

@@ -23,6 +23,7 @@
 // ============================================================================
 
 using Autodesk.Revit.UI;
+using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
 using System;
@@ -51,7 +52,7 @@ namespace RevitMCPAddin.Commands.Export
             if (viewIdInt <= 0) return new { ok = false, msg = "viewId is required.", code = "ARG_VIEWID" };
             if (string.IsNullOrWhiteSpace(outPath)) return new { ok = false, msg = "outPath is required.", code = "ARG_OUTPATH" };
 
-            var view = doc.GetElement(new Rvt.ElementId(viewIdInt)) as Rvt.View3D;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as Rvt.View3D;
             if (view == null || view.ViewType != Rvt.ViewType.ThreeD || view.IsTemplate)
                 return new { ok = false, msg = "View not found or not a 3D view.", code = "INVALID_VIEW" };
 
@@ -199,7 +200,7 @@ namespace RevitMCPAddin.Commands.Export
 
             public Rvt.RenderNodeAction OnElementBegin(Rvt.ElementId elementId)
             {
-                if (_filterIds != null && !_filterIds.Contains(elementId.IntegerValue))
+                if (_filterIds != null && !_filterIds.Contains(elementId.IntValue()))
                 {
                     _ownerStack.Push(Rvt.ElementId.InvalidElementId); // mark as filtered
                     return Rvt.RenderNodeAction.Proceed;
@@ -248,7 +249,7 @@ namespace RevitMCPAddin.Commands.Export
             {
                 if (_ownerStack.Count > 0 && _ownerStack.Peek() == Rvt.ElementId.InvalidElementId) return;
 
-                int eid = _ownerStack.Count > 0 ? _ownerStack.Peek().IntegerValue : -1;
+                int eid = _ownerStack.Count > 0 ? _ownerStack.Peek().IntValue() : -1;
                 if (eid <= 0) return;
 
                 Rvt.Transform t = _tStack.Peek();
@@ -256,7 +257,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 if (!_elements.TryGetValue(eid, out var pe))
                 {
-                    var e = _doc.GetElement(new Rvt.ElementId(eid));
+                    var e = _doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                     pe = new PerElement
                     {
                         ElementId = eid,
@@ -279,7 +280,7 @@ namespace RevitMCPAddin.Commands.Export
                     world[i] = new Rvt.XYZ(w.X * _scale, w.Y * _scale, w.Z * _scale);
                 }
 
-                int matKey = (matId != null && matId.IntegerValue > 0) ? matId.IntegerValue : -1;
+                int matKey = (matId != null && matId.IntValue() > 0) ? matId.IntValue() : -1;
                 if (!pe.Sets.TryGetValue(matKey, out var set))
                 {
                     set = new WeldSet(_weld, _tol);
@@ -382,7 +383,7 @@ namespace RevitMCPAddin.Commands.Export
                 try
                 {
                     var tid = e?.GetTypeId();
-                    if (tid != null && tid.IntegerValue > 0)
+                    if (tid != null && tid.IntValue() > 0)
                     {
                         var t = e.Document.GetElement(tid) as Rvt.ElementType;
                         return t?.Name ?? "";
@@ -472,4 +473,6 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+
+
 

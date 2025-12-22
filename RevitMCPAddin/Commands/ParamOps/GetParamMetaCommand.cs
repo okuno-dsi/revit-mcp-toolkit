@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         {
                             int id = valueToken?.Value<int>() ?? -1;
                             if (id <= 0) return ResultUtil.Err("target.value に正の elementId (int) を指定して下さい。");
-                            targetElem = doc.GetElement(new ElementId(id));
+                            targetElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                             if (targetElem == null) return ResultUtil.Err($"要素が見つかりません: elementId={id}");
                             canonicalElementId = targetElem.Id;
                             targetKind = "element";
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         {
                             int id = valueToken?.Value<int>() ?? -1;
                             if (id <= 0) return ResultUtil.Err("target.value に正の typeId (int) を指定して下さい。");
-                            targetTypeElem = doc.GetElement(new ElementId(id));
+                            targetTypeElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                             if (targetTypeElem == null) return ResultUtil.Err($"タイプ要素が見つかりません: typeId={id}");
                             canonicalElementId = targetTypeElem.Id;
                             targetKind = "type";
@@ -83,7 +83,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         {
                             int id = valueToken?.Value<int>() ?? -1;
                             if (id <= 0) return ResultUtil.Err("target.value に正の roomId (int) を指定して下さい。");
-                            var e = doc.GetElement(new ElementId(id));
+                            var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                             if (e == null) return ResultUtil.Err($"部屋が見つかりません: roomId={id}");
                             targetElem = e; // Room も Element
                             canonicalElementId = e.Id;
@@ -137,7 +137,7 @@ namespace RevitMCPAddin.Commands.ParamOps
 
             // ---- 返却
             var tgtObj = new JObject { ["kind"] = targetKind };
-            if (canonicalElementId != null) tgtObj["id"] = canonicalElementId.IntegerValue;
+            if (canonicalElementId != null) tgtObj["id"] = canonicalElementId.IntValue();
             if (targetElem != null) tgtObj["uniqueId"] = targetElem.UniqueId;
 
             return ResultUtil.Ok(new
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.ParamOps
 
                 // v2 enrich: origin, projectGroup, guid canonical, spf join
                 string origin = null;
-                int pid = prm.Id?.IntegerValue ?? 0;
+                int pid = prm.Id?.IntValue() ?? 0;
                 bool isBuiltIn = pid < 0;
                 bool isShared = SafeIsShared(prm);
                 origin = isBuiltIn ? "builtIn" : (isShared ? "shared" : "project");
@@ -191,9 +191,10 @@ namespace RevitMCPAddin.Commands.ParamOps
                 string projectGroupEnum = null, projectGroupUi = null;
                 try
                 {
-                    var grp = prm.Definition?.ParameterGroup ?? BuiltInParameterGroup.INVALID;
-                    projectGroupEnum = grp.ToString();
-                    try { projectGroupUi = LabelUtils.GetLabelFor(grp); } catch { projectGroupUi = null; }
+                    var def = prm.Definition;
+                    Autodesk.Revit.DB.ForgeTypeId groupTypeId = def != null ? def.GetGroupTypeId() : null;
+                    projectGroupEnum = groupTypeId != null ? groupTypeId.TypeId : null;
+                    try { projectGroupUi = groupTypeId != null ? LabelUtils.GetLabelForGroup(groupTypeId) : null; } catch { projectGroupUi = null; }
                 }
                 catch { }
 
@@ -365,7 +366,8 @@ namespace RevitMCPAddin.Commands.ParamOps
                 var def = prm.Definition;
                 if (def is ExternalDefinition ext)
                 {
-                    var grp = ext.ParameterGroup.ToString().ToUpperInvariant();
+                    var gt = ext.GetGroupTypeId();
+                    var grp = (gt != null ? gt.TypeId : "").ToUpperInvariant();
                     if (grp.Contains("MECHANICAL")) return "Mechanical";
                     if (grp.Contains("ELECTRICAL")) return "Electrical";
                     if (grp.Contains("PLUMBING")) return "Plumbing";
@@ -379,3 +381,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
+

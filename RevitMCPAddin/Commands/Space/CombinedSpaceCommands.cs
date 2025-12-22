@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/SpaceInfoCommands.cs (UnitHelper完全統一版)
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // 目的: Spaceの境界・壁一覧・セントロイド・メトリクス・形状取得を提供
@@ -51,7 +51,7 @@ namespace RevitMCPAddin.Commands.Space
                 bool includeElementInfo = p.Value<bool?>("includeElementInfo") ?? false;
                 string boundaryLocation = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish"; // Finish(default) / Center / CoreCenter / CoreBoundary
 
-                var space = doc.GetElement(new ElementId(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
+                var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
                 if (space == null) return new { ok = false, msg = $"Space not found: {spaceId}" };
 
                 var opts = new SpatialElementBoundaryOptions
@@ -91,7 +91,7 @@ namespace RevitMCPAddin.Commands.Space
                                 seg.lengthMm,
                                 boundaryElement = new
                                 {
-                                    elementId = bs.ElementId.IntegerValue,
+                                    elementId = bs.ElementId.IntValue(),
                                     category = be?.Category?.Name ?? string.Empty,
                                     name = be?.Name ?? (be as ElementType)?.Name ?? string.Empty
                                 }
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.Space
                 int spaceId = idToken.Value<int>();
 
                 string boundaryLocation = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
-                var space = doc.GetElement(new ElementId(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
+                var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
                 if (space == null) return new { ok = false, msg = $"Space not found: {spaceId}" };
 
                 var opts = new SpatialElementBoundaryOptions
@@ -149,7 +149,7 @@ namespace RevitMCPAddin.Commands.Space
                             var e = doc.GetElement(bs.ElementId);
                             if (e is Wall)
                             {
-                                int idv = e.Id.IntegerValue;
+                                int idv = e.Id.IntValue();
                                 if (!wallIds.Contains(idv)) wallIds.Add(idv);
                             }
                         }
@@ -182,7 +182,7 @@ namespace RevitMCPAddin.Commands.Space
                 int spaceId = idToken.Value<int>();
                 bool includeBoundingBox = p.Value<bool?>("includeBoundingBox") ?? false;
 
-                var space = doc.GetElement(new ElementId(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
+                var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
                 if (space == null) return new { ok = false, msg = $"Space not found: {spaceId}" };
 
                 var calc = new SpatialElementGeometryCalculator(doc);
@@ -242,7 +242,7 @@ namespace RevitMCPAddin.Commands.Space
 
                 string boundaryLocation = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
 
-                var space = doc.GetElement(new ElementId(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
+                var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
                 if (space == null) return new { ok = false, msg = $"Space not found: {spaceId}" };
 
                 // Area / Volume（Revit設定によって0の場合あり）
@@ -305,7 +305,7 @@ namespace RevitMCPAddin.Commands.Space
 
                 string boundaryLocation = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
 
-                var space = doc.GetElement(new ElementId(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
+                var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(spaceId)) as Autodesk.Revit.DB.Mechanical.Space;
                 if (space == null) return new { ok = false, msg = $"Space not found: {spaceId}" };
 
                 var opts = new SpatialElementBoundaryOptions
@@ -371,3 +371,5 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/VisualizationOps/ColorFillCommands.cs
 // Revit 2023+ / .NET Framework 4.8
 // 概要:
@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
         public static BuiltInCategory? AsBic(ElementId catId)
         {
-            try { return (BuiltInCategory)catId.IntegerValue; }
+            try { return (BuiltInCategory)catId.IntValue(); }
             catch { return null; }
         }
 
@@ -155,13 +155,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             ElementId id = ElementId.InvalidElementId;
 
             if (p.TryGetValue("paramDefinitionId", out var pdTok))
-                id = new ElementId(pdTok.Value<int>());
+                id = Autodesk.Revit.DB.ElementIdCompat.From(pdTok.Value<int>());
             else if (p.TryGetValue("builtInParamId", out var bipTok))
-                id = new ElementId(bipTok.Value<int>());
+                id = Autodesk.Revit.DB.ElementIdCompat.From(bipTok.Value<int>());
             else if (p.TryGetValue("builtInParamName", out var bipNameTok))
             {
                 if (TryParseBuiltInParamName(bipNameTok.Value<string>(), out var bipEnum))
-                    id = new ElementId((int)bipEnum);
+                    id = Autodesk.Revit.DB.ElementIdCompat.From((int)bipEnum);
                 else
                     return (false, id, "Unknown builtInParamName. Use list_colorfill_builtin_param_suggestions.");
             }
@@ -171,7 +171,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
             // 軽い妥当性チェック：推奨集合に含まれているか（含まれていなくても Revit 側で有効ならOKなので強制はしない）
             var sug = SuggestionsFor(bic);
-            if (sug.Count > 0 && !sug.Any(x => x.id == id.IntegerValue))
+            if (sug.Count > 0 && !sug.Any(x => x.id == id.IntValue()))
             {
                 // 参考メッセージだけ与える（ブロックはしない）
                 return (true, id, "Note: parameter is not in the suggested list for this category.");
@@ -191,8 +191,8 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)(cmd.Params ?? new JObject());
-            int viewIdInt = p.TryGetValue("viewId", out var v) ? v.Value<int>() : uiapp.ActiveUIDocument.ActiveView.Id.IntegerValue;
-            var view = doc.GetElement(new ElementId(viewIdInt)) as View;
+            int viewIdInt = p.TryGetValue("viewId", out var v) ? v.Value<int>() : uiapp.ActiveUIDocument.ActiveView.Id.IntValue();
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View;
             if (view == null) return new { ok = false, message = $"View not found: {viewIdInt}" };
 
             var cats = view.SupportedColorFillCategoryIds();
@@ -202,13 +202,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 string name = null;
                 try
                 {
-                    var bic = (BuiltInCategory)id.IntegerValue;
+                    var bic = (BuiltInCategory)id.IntValue();
                     name = doc.Settings.Categories.get_Item(bic)?.Name;
                 }
                 catch { }
-                result.Add(new { categoryId = id.IntegerValue, name });
+                result.Add(new { categoryId = id.IntValue(), name });
             }
-            return new { ok = true, viewId = view.Id.IntegerValue, categories = result };
+            return new { ok = true, viewId = view.Id.IntValue(), categories = result };
         }
     }
 
@@ -225,7 +225,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var p = (JObject)cmd.Params;
             if (p == null || !p.TryGetValue("categoryId", out var catTok))
                 return new { ok = false, message = "Parameter 'categoryId' is required." };
-            var catId = new ElementId(catTok.Value<int>());
+            var catId = Autodesk.Revit.DB.ElementIdCompat.From(catTok.Value<int>());
 
             var baseScheme = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ColorFillSchema)
@@ -234,10 +234,10 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 .FirstOrDefault(s => s.CategoryId == catId);
 
             if (baseScheme == null)
-                return new { ok = true, categoryId = catId.IntegerValue, paramDefinitionIds = new int[0], note = "No existing scheme for this category. Empty is normal." };
+                return new { ok = true, categoryId = catId.IntValue(), paramDefinitionIds = new int[0], note = "No existing scheme for this category. Empty is normal." };
 
-            var ids = baseScheme.GetSupportedParameterIds()?.Select(eid => eid.IntegerValue).ToArray() ?? new int[0];
-            return new { ok = true, categoryId = catId.IntegerValue, paramDefinitionIds = ids };
+            var ids = baseScheme.GetSupportedParameterIds()?.Select(eid => eid.IntValue()).ToArray() ?? new int[0];
+            return new { ok = true, categoryId = catId.IntValue(), paramDefinitionIds = ids };
         }
     }
 
@@ -254,11 +254,11 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var p = (JObject)cmd.Params;
             if (p == null || !p.TryGetValue("categoryId", out var catTok))
                 return new { ok = false, message = "Parameter 'categoryId' is required." };
-            var catId = new ElementId(catTok.Value<int>());
+            var catId = Autodesk.Revit.DB.ElementIdCompat.From(catTok.Value<int>());
 
             ElementId areaSchemeId = ElementId.InvalidElementId;
             if (p.TryGetValue("areaSchemeId", out var aTok))
-                areaSchemeId = new ElementId(aTok.Value<int>());
+                areaSchemeId = Autodesk.Revit.DB.ElementIdCompat.From(aTok.Value<int>());
 
             var schemes = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ColorFillSchema)
@@ -267,9 +267,9 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 .Where(s => s.CategoryId == catId && (areaSchemeId == ElementId.InvalidElementId || s.AreaSchemeId == areaSchemeId))
                 .Select(s => new
                 {
-                    schemeId = s.Id.IntegerValue,
+                    schemeId = s.Id.IntValue(),
                     name = s.Name,
-                    paramDefinitionId = s.ParameterDefinition?.IntegerValue ?? -1,
+                    paramDefinitionId = s.ParameterDefinition?.IntValue() ?? -1,
                     isByRange = s.IsByRange,
                     entryCount = s.GetEntries()?.Count ?? 0
                 })
@@ -320,17 +320,17 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             try
             {
                 // View 解決（Graphical優先）
-                int viewId = p.TryGetValue("viewId", out var v) ? v.Value<int>() : (uidoc.ActiveGraphicalView?.Id.IntegerValue ?? uidoc.ActiveView.Id.IntegerValue);
-                var view = doc.GetElement(new ElementId(viewId)) as View
+                int viewId = p.TryGetValue("viewId", out var v) ? v.Value<int>() : (uidoc.ActiveGraphicalView?.Id.IntValue() ?? uidoc.ActiveView.Id.IntValue());
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View
                            ?? (uidoc.ActiveGraphicalView as View)
                            ?? (uidoc.ActiveView as View);
                 if (view == null) return new { ok = false, message = $"View not found: {viewId}" };
 
-                var catId = new ElementId(p.Value<int>("categoryId"));
-                if (!view.SupportedColorFillCategoryIds().Any(x => x.IntegerValue == catId.IntegerValue))
+                var catId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("categoryId"));
+                if (!view.SupportedColorFillCategoryIds().Any(x => x.IntValue() == catId.IntValue()))
                     return new { ok = false, message = "This view does not support the specified color fill category." };
 
-                var bic = (BuiltInCategory)catId.IntegerValue;
+                var bic = (BuiltInCategory)catId.IntValue();
 
                 // テンプレート対応：detachViewTemplate / 自動複製（plan系想定）
                 bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? false;
@@ -355,7 +355,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                                 dup.ViewTemplateId = ElementId.InvalidElementId;
                                 try { dup.Name = (view.Name ?? "View") + " (ColorFill)"; } catch { }
                                 txd.Commit();
-                                view = dup; viewId = dup.Id.IntegerValue;
+                                view = dup; viewId = dup.Id.IntValue();
                             }
                         }
                         catch (Exception ex)
@@ -376,7 +376,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 {
                     if (!p.TryGetValue("areaSchemeId", out var aTok))
                         return new { ok = false, message = "Area Plan requires 'areaSchemeId' for color scheme application." };
-                    areaSchemeId = new ElementId(aTok.Value<int>());
+                    areaSchemeId = Autodesk.Revit.DB.ElementIdCompat.From(aTok.Value<int>());
                 }
 
                 var mode = (p.Value<string>("mode") ?? "qualitative").ToLowerInvariant(); // qualitative | sequential | diverging
@@ -396,19 +396,19 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     .OfCategory(BuiltInCategory.OST_ColorFillSchema)
                     .OfClass(typeof(ColorFillScheme))
                     .Cast<ColorFillScheme>()
-                    .Where(s => s.CategoryId.IntegerValue == catId.IntegerValue);
+                    .Where(s => s.CategoryId.IntValue() == catId.IntValue());
 
                 if (isAreas)
-                    query = query.Where(s => s.AreaSchemeId != null && s.AreaSchemeId.IntegerValue == areaSchemeId.IntegerValue);
+                    query = query.Where(s => s.AreaSchemeId != null && s.AreaSchemeId.IntValue() == areaSchemeId.IntValue());
 
                 var baseScheme = query.FirstOrDefault();
                 if (baseScheme == null)
                 {
-                    var need = isAreas ? $"(AreaSchemeId={areaSchemeId.IntegerValue}) " : "";
+                    var need = isAreas ? $"(AreaSchemeId={areaSchemeId.IntValue()}) " : "";
                     return new
                     {
                         ok = false,
-                        message = $"No base color scheme found for category {catId.IntegerValue} {need}." +
+                        message = $"No base color scheme found for category {catId.IntValue()} {need}." +
                                   " Create one manually once (for the desired Area Scheme if Areas) or duplicate an existing matching scheme, then re-run.",
                         hint = "AreaSchemeId on ColorFillScheme is read-only; it must match the base scheme."
                     };
@@ -436,7 +436,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     t.Start();
 
                     if (!scheme.IsValidParameterDefinitionId(paramDefId))
-                        return new { ok = false, message = $"ParameterDefinition {paramDefId.IntegerValue} is not supported by this scheme." };
+                        return new { ok = false, message = $"ParameterDefinition {paramDefId.IntValue()} is not supported by this scheme." };
                     scheme.ParameterDefinition = paramDefId;
 
                     var colors = CfUtil.Brewer.ContainsKey(paletteName) ? CfUtil.Brewer[paletteName] : CfUtil.Brewer["Set3"];
@@ -506,7 +506,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     {
                         t.Start();
                         var legend = ColorFillLegend.Create(doc, view.Id, catId, legendOrigin);
-                        legendId = legend.Id.IntegerValue;
+                        legendId = legend.Id.IntValue();
                         t.Commit();
                     }
                 }
@@ -517,10 +517,10 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
-                    schemeId = newSchemeId.IntegerValue,
+                    viewId = view.Id.IntValue(),
+                    schemeId = newSchemeId.IntValue(),
                     legendId = legendId > 0 ? (int?)legendId : null,
-                    appliedTo = new { categoryId = catId.IntegerValue },
+                    appliedTo = new { categoryId = catId.IntValue() },
                     note
                 };
             }
@@ -531,3 +531,5 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+

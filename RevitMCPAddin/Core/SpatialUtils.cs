@@ -328,7 +328,7 @@ namespace RevitMCPAddin.Core
                 var spaces = new FilteredElementCollector(doc)
                     .OfClass(typeof(SpatialElement))
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_MEPSpaces)
+                    .Where(e => e.Category != null && e.Category.Id.IntValue() == (int)BuiltInCategory.OST_MEPSpaces)
                     .Cast<SpatialElement>()
                     .OfType<Space>();
 
@@ -409,7 +409,7 @@ namespace RevitMCPAddin.Core
                 var areasSameLevel = new FilteredElementCollector(doc)
                     .OfClass(typeof(SpatialElement))
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Areas)
+                    .Where(e => e.Category != null && e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Areas)
                     .Cast<SpatialElement>()
                     .OfType<Area>()
                     .Where(a => a != null && a.LevelId == levelId)
@@ -451,3 +451,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

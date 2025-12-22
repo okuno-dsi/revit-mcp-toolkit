@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/GetStructuralFoundationParameterCommand.cs (UnitHelper対応)
+// File: Commands/ElementOps/Foundation/GetStructuralFoundationParameterCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -46,15 +46,15 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                     case StorageType.Double: value = FoundationUnits.ToUser(param.AsDouble(), spec); break;
                     case StorageType.Integer: value = param.AsInteger(); break;
                     case StorageType.String: value = param.AsString() ?? ""; break;
-                    case StorageType.ElementId: value = param.AsElementId()?.IntegerValue ?? -1; break;
+                    case StorageType.ElementId: value = param.AsElementId()?.IntValue() ?? -1; break;
                 }
             }
             catch { value = null; }
 
-            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntegerValue : null;
-            int? typeIdOut = scope == "type" ? target.Id.IntegerValue
+            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntValue() : null;
+            int? typeIdOut = scope == "type" ? target.Id.IntValue()
                                : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId
-                                  ? (int?)target.GetTypeId().IntegerValue : null);
+                                  ? (int?)target.GetTypeId().IntValue() : null);
 
             return new
             {
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 typeId = typeIdOut,
                 uniqueId = target.UniqueId,
                 name = param.Definition?.Name ?? "",
-                id = param.Id.IntegerValue,
+                id = param.Id.IntValue(),
                 storageType = param.StorageType.ToString(),
                 isReadOnly = param.IsReadOnly,
                 dataType,
@@ -75,3 +75,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+

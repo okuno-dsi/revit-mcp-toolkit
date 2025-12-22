@@ -83,7 +83,7 @@ namespace RevitMCPAddin.Commands.LookupOps
 
             if (element == null && elementIdInt.HasValue)
             {
-                var id = new ElementId(elementIdInt.Value);
+                var id = Autodesk.Revit.DB.ElementIdCompat.From(elementIdInt.Value);
                 element = doc.GetElement(id);
             }
 
@@ -133,10 +133,10 @@ namespace RevitMCPAddin.Commands.LookupOps
 
             var elemJson = new JObject
             {
-                ["id"] = element.Id.IntegerValue,
+                ["id"] = element.Id.IntValue(),
                 ["uniqueId"] = element.UniqueId,
                 ["category"] = cat?.Name,
-                ["categoryId"] = cat?.Id.IntegerValue,
+                ["categoryId"] = cat?.Id.IntValue(),
                 ["familyName"] = elemType?.FamilyName,
                 ["typeName"] = elemType?.Name,
                 ["isElementType"] = isElementType,
@@ -177,7 +177,7 @@ namespace RevitMCPAddin.Commands.LookupOps
                 Level? level = doc.GetElement(levelId) as Level;
                 return new JObject
                 {
-                    ["id"] = levelId.IntegerValue,
+                    ["id"] = levelId.IntValue(),
                     ["name"] = level?.Name
                 };
             }
@@ -204,7 +204,7 @@ namespace RevitMCPAddin.Commands.LookupOps
                 Workset? ws = doc.GetWorksetTable().GetWorkset(wsId);
                 return new JObject
                 {
-                    ["id"] = wsId.IntegerValue,
+                    ["id"] = wsId.IntValue(),
                     ["name"] = ws?.Name
                 };
             }
@@ -235,7 +235,7 @@ namespace RevitMCPAddin.Commands.LookupOps
 
                 return new JObject
                 {
-                    ["id"] = opt.Id.IntegerValue,
+                    ["id"] = opt.Id.IntValue(),
                     ["name"] = opt.Name
                 };
             }
@@ -418,14 +418,23 @@ namespace RevitMCPAddin.Commands.LookupOps
                     string? builtinName = null;
                     try
                     {
-                        var bip = (BuiltInParameter)p.Id.IntegerValue;
+                        var bip = (BuiltInParameter)p.Id.IntValue();
                         builtinName = Enum.GetName(typeof(BuiltInParameter), bip);
                     }
                     catch { }
 
                     bool isShared = p.IsShared;
-                    var grp = def.ParameterGroup;
-                    string? grpName = LabelUtils.GetLabelFor(grp);
+
+                    Autodesk.Revit.DB.ForgeTypeId grpId = null;
+                    string grpTypeId = null;
+                    string grpLabel = null;
+                    try
+                    {
+                        grpId = def.GetGroupTypeId();
+                        grpTypeId = grpId != null ? grpId.TypeId : null;
+                        grpLabel = grpId != null ? LabelUtils.GetLabelForGroup(grpId) : null;
+                    }
+                    catch { }
 
                     string valueStr = GetParameterValueString(p);
                     string displayStr = p.AsValueString() ?? valueStr;
@@ -447,8 +456,8 @@ namespace RevitMCPAddin.Commands.LookupOps
                         ["name"] = name,
                         ["builtin"] = builtinName,
                         ["storageType"] = st.ToString(),
-                        ["parameterGroup"] = grp.ToString(),
-                        ["parameterGroupLabel"] = grpName,
+                        ["parameterGroup"] = grpTypeId,
+                        ["parameterGroupLabel"] = grpLabel,
                         ["isReadOnly"] = p.IsReadOnly,
                         ["isShared"] = isShared,
                         ["isInstance"] = isInstance,
@@ -487,9 +496,9 @@ namespace RevitMCPAddin.Commands.LookupOps
 
                 return new JObject
                 {
-                    ["hostId"] = hostId != ElementId.InvalidElementId ? hostId.IntegerValue : (int?)null,
-                    ["superComponentId"] = superId != ElementId.InvalidElementId ? superId.IntegerValue : (int?)null,
-                    ["groupId"] = groupId != ElementId.InvalidElementId ? groupId.IntegerValue : (int?)null
+                    ["hostId"] = hostId != ElementId.InvalidElementId ? hostId.IntValue() : (int?)null,
+                    ["superComponentId"] = superId != ElementId.InvalidElementId ? superId.IntValue() : (int?)null,
+                    ["groupId"] = groupId != ElementId.InvalidElementId ? groupId.IntValue() : (int?)null
                 };
             }
             catch
@@ -522,7 +531,7 @@ namespace RevitMCPAddin.Commands.LookupOps
                         return p.AsString() ?? string.Empty;
                     case StorageType.ElementId:
                         var id = p.AsElementId();
-                        return id != null && id != ElementId.InvalidElementId ? id.IntegerValue.ToString() : string.Empty;
+                        return id != null && id != ElementId.InvalidElementId ? id.IntValue().ToString() : string.Empty;
                     default:
                         return string.Empty;
                 }
@@ -534,3 +543,5 @@ namespace RevitMCPAddin.Commands.LookupOps
         }
     }
 }
+
+

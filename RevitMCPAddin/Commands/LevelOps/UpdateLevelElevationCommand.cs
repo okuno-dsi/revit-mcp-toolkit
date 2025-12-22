@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/UpdateLevelElevationCommand.cs (UnitHelper統一版)
 // ================================================================
 using System;
@@ -17,7 +17,7 @@ namespace RevitMCPAddin.Commands.DatumOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)(cmd.Params ?? new JObject());
-            var id = new ElementId(p.Value<int>("levelId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             double elevMm = p.Value<double>("elevation");
             double elevFt = UnitHelper.MmToInternal(elevMm, doc);
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.DatumOps
             {
                 tx.Start();
                 var lvl = doc.GetElement(id) as Level
-                          ?? throw new InvalidOperationException($"Level not found: {id.IntegerValue}");
+                          ?? throw new InvalidOperationException($"Level not found: {id.IntValue()}");
                 lvl.Elevation = elevFt;
                 tx.Commit();
 
@@ -40,3 +40,5 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+
+

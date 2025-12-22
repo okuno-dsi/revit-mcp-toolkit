@@ -139,7 +139,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         familyName = sym.FamilyName ?? string.Empty,
                         typeName = sym.Name ?? string.Empty,
                         mark,
-                        typeId = sym.Id.IntegerValue,
+                        typeId = sym.Id.IntValue(),
                         width_mm = widthMm,
                         height_mm = heightMm,
                         instanceCount = count
@@ -407,7 +407,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         return new
                         {
                             ok = true,
-                            viewId = legend.Id.IntegerValue,
+                            viewId = legend.Id.IntValue(),
                             placedCount = 0,
                             msg = "ドア/窓タイプが見つかりませんでした。"
                         };
@@ -519,7 +519,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         return new
                         {
                             ok = false,
-                            viewId = legend.Id.IntegerValue,
+                            viewId = legend.Id.IntValue(),
                             viewName = legend.Name,
                             placedCount = 0,
                             msg = "LegendComponent API がこの Revit バージョンで利用できないため、凡例シンボルを配置できませんでした。"
@@ -529,7 +529,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     return new
                     {
                         ok = true,
-                        viewId = legend.Id.IntegerValue,
+                        viewId = legend.Id.IntValue(),
                         viewName = legend.Name,
                         placedCount = placed
                     };
@@ -546,3 +546,4 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+

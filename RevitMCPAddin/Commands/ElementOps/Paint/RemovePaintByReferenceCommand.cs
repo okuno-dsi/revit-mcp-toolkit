@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
                 string faceStableReference = p.Value<string>("faceStableReference");
 
                 var faceRef = Reference.ParseFromStableRepresentation(doc, faceStableReference);
-                var face = doc.GetElement(new ElementId(elementId))
+                var face = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId))
                               .GetGeometryObjectFromReference(faceRef) as Autodesk.Revit.DB.Face;
 
                 if (face == null) return new { ok = false, msg = "Face が取得できませんでした。" };
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
                 using (var tx = new Transaction(doc, "Remove Paint"))
                 {
                     tx.Start();
-                    doc.RemovePaint(new ElementId(elementId), face);
+                    doc.RemovePaint(Autodesk.Revit.DB.ElementIdCompat.From(elementId), face);
                     tx.Commit();
                 }
 
@@ -47,3 +47,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
         }
     }
 }
+

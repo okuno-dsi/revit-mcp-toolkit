@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -56,7 +56,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             FamilySymbol sym = null;
             if (typeId > 0)
             {
-                sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
@@ -73,3 +73,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+

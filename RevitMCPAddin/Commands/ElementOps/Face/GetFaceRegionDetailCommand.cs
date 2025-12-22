@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
                 Element elem = null;
                 int elementIdIn = p.Value<int?>("elementId") ?? 0;
                 string uniqueIdIn = p.Value<string>("uniqueId");
-                if (elementIdIn > 0) elem = doc.GetElement(new ElementId(elementIdIn));
+                if (elementIdIn > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementIdIn));
                 else if (!string.IsNullOrWhiteSpace(uniqueIdIn)) elem = doc.GetElement(uniqueIdIn);
                 if (elem == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
@@ -85,14 +85,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
 
                     return ResultUtil.Ok(new
                     {
-                        elementId = elem.Id.IntegerValue,
+                        elementId = elem.Id.IntValue(),
                         uniqueId = elem.UniqueId,
                         faceIndex,
                         regionIndex,
                         summary = new
                         {
                             isPainted,
-                            material = new { id = matId?.IntegerValue ?? -1, name = matName, className = matClass },
+                            material = new { id = matId?.IntValue() ?? -1, name = matName, className = matClass },
                             area = new { internalValue = areaFt2, m2 = areaM2 },
                             stableRep
                         },
@@ -112,11 +112,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
                     probeCount, probeStrategy, probeOffsetMm, returnProbeHits
                 );
 
-                RevitLogger.Info($"get_face_region_detail: elem={elem.Id.IntegerValue} face={faceIndex} region={regionIndex} probes={probeCount} strategy={probeStrategy}");
+                RevitLogger.Info($"get_face_region_detail: elem={elem.Id.IntValue()} face={faceIndex} region={regionIndex} probes={probeCount} strategy={probeStrategy}");
 
                 return ResultUtil.Ok(new
                 {
-                    elementId = elem.Id.IntegerValue,
+                    elementId = elem.Id.IntValue(),
                     uniqueId = elem.UniqueId,
                     faceIndex,
                     regionIndex,
@@ -266,7 +266,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
             return new
             {
                 isPainted,
-                material = new { id = matId?.IntegerValue ?? -1, name = matName, className = matClass, color = new { hex, r, g, b } },
+                material = new { id = matId?.IntValue() ?? -1, name = matName, className = matClass, color = new { hex, r, g, b } },
                 area = new { internalValue = areaFt2, m2 = areaM2 },
                 centroidMm,
                 plane = planeInfo,
@@ -297,14 +297,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
                 {
                     foreach (var rm in rooms)
                     {
-                        try { if (rm.IsPointInRoom(q)) { roomHits[rm.Id.IntegerValue] = rm; break; } } catch { }
+                        try { if (rm.IsPointInRoom(q)) { roomHits[rm.Id.IntValue()] = rm; break; } } catch { }
                     }
                 }
                 if (spaces != null)
                 {
                     foreach (var sp in spaces)
                     {
-                        try { if (sp.IsPointInSpace(q)) { spaceHits[sp.Id.IntegerValue] = sp; break; } } catch { }
+                        try { if (sp.IsPointInSpace(q)) { spaceHits[sp.Id.IntValue()] = sp; break; } } catch { }
                     }
                 }
             }
@@ -315,7 +315,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
 
             result["primaryRoom"] = primaryRoom != null ? JToken.FromObject(new
             {
-                id = primaryRoom.Id.IntegerValue,
+                id = primaryRoom.Id.IntValue(),
                 uniqueId = primaryRoom.UniqueId,
                 number = SafeStr(() => primaryRoom.Number),
                 name = SafeStr(() => primaryRoom.Name)
@@ -323,7 +323,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
 
             result["primarySpace"] = primarySpace != null ? JToken.FromObject(new
             {
-                id = primarySpace.Id.IntegerValue,
+                id = primarySpace.Id.IntValue(),
                 uniqueId = primarySpace.UniqueId,
                 number = SafeStr(() => primarySpace.Number),
                 name = SafeStr(() => primarySpace.Name)
@@ -334,7 +334,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
                 if (roomHits.Count > 0)
                     result["roomsHit"] = new JArray(roomHits.Values.Select(rm => new JObject
                     {
-                        ["id"] = rm.Id.IntegerValue,
+                        ["id"] = rm.Id.IntValue(),
                         ["uniqueId"] = rm.UniqueId,
                         ["number"] = SafeStr(() => rm.Number),
                         ["name"] = SafeStr(() => rm.Name)
@@ -342,7 +342,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
                 if (spaceHits.Count > 0)
                     result["spacesHit"] = new JArray(spaceHits.Values.Select(sp => new JObject
                     {
-                        ["id"] = sp.Id.IntegerValue,
+                        ["id"] = sp.Id.IntValue(),
                         ["uniqueId"] = sp.UniqueId,
                         ["number"] = SafeStr(() => sp.Number),
                         ["name"] = SafeStr(() => sp.Name)
@@ -503,3 +503,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Face
         private static string SafeStr(Func<string> f) { try { return f() ?? ""; } catch { return ""; } }
     }
 }
+
+

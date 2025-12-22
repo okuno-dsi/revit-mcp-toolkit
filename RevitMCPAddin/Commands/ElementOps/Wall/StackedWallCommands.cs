@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Wall/StackedWallCommands.cs (UnitHelper対応版)
 // Target : Revit 2023 / .NET Framework 4.8
 // Notes  : Stacked Wall Type（子壁タイプ/高さ）の取得・更新と、Basic化の近似生成
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             int instId = p.Value<int?>("elementId") ?? p.Value<int?>("wallId") ?? 0;
             if (instId > 0)
             {
-                var w = doc.GetElement(new ElementId(instId)) as Autodesk.Revit.DB.Wall;
+                var w = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(instId)) as Autodesk.Revit.DB.Wall;
                 if (w == null) return (null, $"Wall not found: {instId}");
                 var wt = doc.GetElement(w.GetTypeId()) as WallType;
                 if (wt == null) return (null, "WallType not found from instance.");
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             int tid = p.Value<int?>("typeId") ?? 0;
             if (tid > 0)
             {
-                var wt = doc.GetElement(new ElementId(tid)) as WallType;
+                var wt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as WallType;
                 if (wt == null) return (null, $"WallType not found: {tid}");
                 return (wt, null);
             }
@@ -209,7 +209,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     parts.Add(new
                     {
                         index = i,
-                        childTypeId = ctId.IntegerValue,
+                        childTypeId = ctId.IntValue(),
                         childTypeName = ctName,
                         heightMm = Math.Round(StackedWallUtil.FtToMm(hFt), 3)
                     });
@@ -219,7 +219,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     parts.Add(new
                     {
                         index = i,
-                        childTypeId = ctId.IntegerValue,
+                        childTypeId = ctId.IntValue(),
                         childTypeName = ctName,
                         heightMm = (double?)null,
                         note = hMsg
@@ -230,7 +230,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             return new
             {
                 ok = true,
-                typeId = wt.Id.IntegerValue,
+                typeId = wt.Id.IntValue(),
                 typeName = wt.Name,
                 parts,
                 totalHeightMm = Math.Round(StackedWallUtil.FtToMm(totalFt), 3),
@@ -282,7 +282,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 ElementId newChildId = ElementId.InvalidElementId;
                 if (p.TryGetValue("childTypeId", out var ctIdTok))
                 {
-                    newChildId = new ElementId(ctIdTok.Value<int>());
+                    newChildId = Autodesk.Revit.DB.ElementIdCompat.From(ctIdTok.Value<int>());
                 }
                 else if (p.TryGetValue("childTypeName", out var ctNameTok))
                 {
@@ -307,7 +307,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 tx.Commit();
             }
 
-            return new { ok = didAny, typeId = wt.Id.IntegerValue, partIndex = index, note };
+            return new { ok = didAny, typeId = wt.Id.IntValue(), partIndex = index, note };
         }
 
         private static string AppendNote(string a, string b)
@@ -341,7 +341,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             ElementId newChildId = ElementId.InvalidElementId;
             if (p.TryGetValue("childTypeId", out var ctIdTok))
             {
-                newChildId = new ElementId(ctIdTok.Value<int>());
+                newChildId = Autodesk.Revit.DB.ElementIdCompat.From(ctIdTok.Value<int>());
             }
             else if (p.TryGetValue("childTypeName", out var ctNameTok))
             {
@@ -369,7 +369,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             }
 
             var newName = doc.GetElement(newChildId)?.Name ?? "";
-            return new { ok = true, typeId = wt.Id.IntegerValue, partIndex = index, childTypeId = newChildId.IntegerValue, childTypeName = newName };
+            return new { ok = true, typeId = wt.Id.IntValue(), partIndex = index, childTypeId = newChildId.IntValue(), childTypeName = newName };
         }
     }
 
@@ -392,7 +392,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
             string newName = p.Value<string>("newTypeName");
             if (string.IsNullOrWhiteSpace(newName))
-                newName = $"Flattened from {wt.Name} ({wt.Id.IntegerValue})";
+                newName = $"Flattened from {wt.Name} ({wt.Id.IntValue()})";
 
             int n = api.GetCount();
             var childBasicTypes = new List<WallType>();
@@ -459,7 +459,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 tx.Commit();
             }
 
-            return new { ok = true, newBasicTypeId = newBasic.Id.IntegerValue, note = "Approximation of materials/width only." };
+            return new { ok = true, newBasicTypeId = newBasic.Id.IntValue(), note = "Approximation of materials/width only." };
         }
     }
 }
+
+

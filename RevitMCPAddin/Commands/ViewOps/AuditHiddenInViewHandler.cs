@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File   : Commands/ViewOps/AuditHiddenInViewHandler.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 「非表示要素の一時表示（電球ボタン）」相当の監査を最小構成で返す。
@@ -35,13 +35,13 @@ namespace RevitMCPAddin.Commands.ViewOps
                 View view = null; int viewId = 0;
                 if (TryGetInt(p, "viewId", out var vId) && vId > 0)
                 {
-                    view = doc.GetElement(new ElementId(vId)) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vId)) as View;
                     viewId = vId;
                 }
                 else
                 {
                     view = doc.ActiveView;
-                    viewId = view?.Id?.IntegerValue ?? 0;
+                    viewId = view?.Id?.IntValue() ?? 0;
                 }
                 if (view == null) return Fail("NOT_FOUND_VIEW", "ビューが見つかりません。");
 
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         bool elemHidden = false; try { elemHidden = e.IsHidden(view); } catch { }
                         if (elemHidden && ReasonAllowed(filter.ReasonFilter, "hidden_in_view"))
                         {
-                            int id = e.Id.IntegerValue;
+                            int id = e.Id.IntValue();
                             if (seenExplicit.Add(id))
                             {
                                 rows.Add(BuildRow(e, "hidden_in_view", TemplateApplied(view)));
@@ -103,7 +103,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             bool catHidden = false; try { catHidden = view.GetCategoryHidden(cat.Id); } catch { }
                             if (catHidden && ReasonAllowed(filter.ReasonFilter, "category_hidden"))
                             {
-                                int id = e.Id.IntegerValue;
+                                int id = e.Id.IntValue();
                                 if (seenCategory.Add(id))
                                 {
                                     // explicit で既に rows に載っていれば ResultShaper の dedupe に任せて二重登録OK。
@@ -138,14 +138,14 @@ namespace RevitMCPAddin.Commands.ViewOps
         private static JObject BuildRow(Element e, string reason, bool templateApplied)
         {
             int catId = 0; string catName = null;
-            try { var c = e.Category; if (c != null) { catId = c.Id.IntegerValue; catName = c.Name; } } catch { }
+            try { var c = e.Category; if (c != null) { catId = c.Id.IntValue(); catName = c.Name; } } catch { }
 
             bool canUnhideNow = (reason == "hidden_in_view" && !templateApplied);
             string suggestedFix = (reason == "hidden_in_view") ? "unhide_element" : "set_category_visibility:true";
 
             return new JObject
             {
-                ["elementId"] = e.Id.IntegerValue,
+                ["elementId"] = e.Id.IntValue(),
                 ["uniqueId"] = e.UniqueId != null ? (JToken)new JValue(e.UniqueId) : JValue.CreateNull(),
                 ["categoryId"] = (catId != 0) ? (JToken)new JValue(catId) : JValue.CreateNull(),
                 ["categoryName"] = (catName != null) ? (JToken)new JValue(catName) : JValue.CreateNull(),
@@ -169,7 +169,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 if (c == null) continue;
                 bool isHidden; try { isHidden = view.GetCategoryHidden(c.Id); } catch { continue; }
-                arr.Add(new JObject { ["categoryId"] = c.Id.IntegerValue, ["name"] = c.Name, ["visible"] = !isHidden });
+                arr.Add(new JObject { ["categoryId"] = c.Id.IntValue(), ["name"] = c.Name, ["visible"] = !isHidden });
             }
             return arr;
         }
@@ -188,3 +188,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

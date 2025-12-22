@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/DeleteWallCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/DeleteWallCommand.cs
 // UnitHelper化: レスポンスに units メタ追加
 using System;
 using Autodesk.Revit.DB;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
             var p = (JObject)(cmd.Params ?? new JObject());
             int elementId = p.Value<int>("elementId");
-            var id = new ElementId(elementId);
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(elementId);
 
             var wall = doc.GetElement(id) as Autodesk.Revit.DB.Wall;
             if (wall == null)
@@ -49,3 +49,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+

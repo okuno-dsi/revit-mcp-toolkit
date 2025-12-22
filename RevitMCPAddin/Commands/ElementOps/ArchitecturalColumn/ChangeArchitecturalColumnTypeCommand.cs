@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/ChangeArchitecturalColumnTypeCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/ChangeArchitecturalColumnTypeCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,13 +18,13 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
             int newType = p.Value<int>("typeId");
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var fi = doc.GetElement(new ElementId(id)) as FamilyInstance
+            var fi = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilyInstance
                        ?? throw new InvalidOperationException($"要素が見つかりません: {id}");
 
             using (var tx = new Transaction(doc, "Change Column Type"))
             {
                 tx.Start();
-                fi.ChangeTypeId(new ElementId(newType));
+                fi.ChangeTypeId(Autodesk.Revit.DB.ElementIdCompat.From(newType));
                 tx.Commit();
             }
 
@@ -32,3 +32,4 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+

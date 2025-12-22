@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Method : get_lighting_power_summary
 // ================================================================
 #nullable enable
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.LightingOps
                     var items = new JArray();
                     foreach (var id in ids)
                     {
-                        var se = LightingCommon.GetSpatialElement(doc, new Autodesk.Revit.DB.ElementId(id));
+                        var se = LightingCommon.GetSpatialElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id));
                         if (se == null)
                         {
                             items.Add(new JObject { ["id"] = id, ["ok"] = false, ["msg"] = "Not a Room/Space" });
@@ -83,3 +83,4 @@ namespace RevitMCPAddin.Commands.LightingOps
         }
     }
 }
+

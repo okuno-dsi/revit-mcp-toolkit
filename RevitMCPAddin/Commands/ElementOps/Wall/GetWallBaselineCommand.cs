@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -44,7 +44,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 var result = new JObject
                 {
                     ["ok"] = true,
-                    ["elementId"] = wall.Id.IntegerValue,
+                    ["elementId"] = wall.Id.IntValue(),
                     ["baseline"] = baseline
                 };
                 return result;
@@ -56,3 +56,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/FloorOps/FloorLayerCommands.cs
 // Target : .NET Framework 4.8 / Revit 2023+
 // Purpose: FloorType の CompoundStructure レイヤ取得/編集
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.FloorOps
             // typeId
             if (p.TryGetValue("typeId", out var jTypeId) && jTypeId.Type == JTokenType.Integer)
             {
-                var t = doc.GetElement(new ElementId((int)jTypeId)) as FloorType;
+                var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From((int)jTypeId)) as FloorType;
                 if (t != null) return t;
                 message = $"FloorType not found by typeId={(int)jTypeId}";
             }
@@ -56,12 +56,12 @@ namespace RevitMCPAddin.Commands.FloorOps
             // elementId -> type
             if (p.TryGetValue("elementId", out var jEid) && jEid.Type == JTokenType.Integer)
             {
-                var el = doc.GetElement(new ElementId((int)jEid));
+                var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From((int)jEid));
                 if (el != null)
                 {
                     var ft = doc.GetElement(el.GetTypeId()) as FloorType;
                     if (ft != null) { fromInstanceId = el.Id; return ft; }
-                    message = $"FloorType not found: instance typeId={el.GetTypeId().IntegerValue}";
+                    message = $"FloorType not found: instance typeId={el.GetTypeId().IntValue()}";
                 }
                 else message = $"Element not found by elementId={(int)jEid}";
             }
@@ -74,7 +74,7 @@ namespace RevitMCPAddin.Commands.FloorOps
                 {
                     var ft = doc.GetElement(el.GetTypeId()) as FloorType;
                     if (ft != null) { fromInstanceId = el.Id; return ft; }
-                    message = $"FloorType not found: instance typeId={el.GetTypeId().IntegerValue}";
+                    message = $"FloorType not found: instance typeId={el.GetTypeId().IntValue()}";
                 }
                 else message = $"Element not found by uniqueId={(string)jUid}";
             }
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.FloorOps
             err = null;
             if (p.TryGetValue("materialId", out var jMid) && jMid.Type == JTokenType.Integer)
             {
-                var m = doc.GetElement(new ElementId((int)jMid)) as Material;
+                var m = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From((int)jMid)) as Material;
                 if (m != null) return m;
                 err = $"Material not found by materialId={(int)jMid}";
                 return null;
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.Commands.FloorOps
                 return new
                 {
                     ok = true,
-                    typeId = ft.Id.IntegerValue,
+                    typeId = ft.Id.IntValue(),
                     typeName = ft.Name,
                     kind = "CompoundStructure",
                     thicknessMm = Math.Round(UnitHelper.FtToMm(totalFt), 3),
@@ -200,7 +200,7 @@ namespace RevitMCPAddin.Commands.FloorOps
                     var mid = L.MaterialId;
                     if (mid != null && mid != ElementId.InvalidElementId)
                     {
-                        jo["materialId"] = mid.IntegerValue;
+                        jo["materialId"] = mid.IntValue();
                         var m = doc.GetElement(mid) as Material;
                         if (m != null) jo["materialName"] = m.Name;
                     }
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.FloorOps
 
                 var result = new JObject();
                 result["ok"] = true;
-                result["typeId"] = ft.Id.IntegerValue;
+                result["typeId"] = ft.Id.IntValue();
                 result["typeName"] = ft.Name;
                 result["layers"] = arr;
                 result["totalThicknessMm"] = Math.Round(UnitHelper.FtToMm(totalFt), 3);
@@ -234,7 +234,7 @@ namespace RevitMCPAddin.Commands.FloorOps
                 }
                 result["core"] = core;
 
-                if (fromInstId != null) result["resolvedFromInstanceId"] = fromInstId.IntegerValue;
+                if (fromInstId != null) result["resolvedFromInstanceId"] = fromInstId.IntValue();
 
                 var units = new JObject();
                 units["Length"] = "mm";
@@ -327,12 +327,12 @@ namespace RevitMCPAddin.Commands.FloorOps
                     var edited = new JObject();
                     edited["layerIndex"] = layerIndex;
                     if (thkMm.HasValue) edited["thicknessMm"] = Math.Round(thkMm.Value, 3);
-                    if (mat != null) { edited["materialId"] = mat.Id.IntegerValue; edited["materialName"] = mat.Name; }
+                    if (mat != null) { edited["materialId"] = mat.Id.IntValue(); edited["materialName"] = mat.Name; }
                     if (!string.IsNullOrWhiteSpace(fnStr)) edited["function"] = fnStr;
 
                     var res = new JObject();
                     res["ok"] = true;
-                    res["typeId"] = ft.Id.IntegerValue;
+                    res["typeId"] = ft.Id.IntValue();
                     res["note"] = (duplicateIfInUse ? "Original type duplicated and edited." : "Type edited.");
                     res["edited"] = edited;
                     return res;
@@ -442,7 +442,7 @@ namespace RevitMCPAddin.Commands.FloorOps
 
                     var res = new JObject();
                     res["ok"] = true;
-                    res["typeId"] = ft.Id.IntegerValue;
+                    res["typeId"] = ft.Id.IntValue();
                     res["newLayerIndex"] = insertAt;
                     res["totalThicknessMm"] = Math.Round(UnitHelper.FtToMm(totalFt), 3);
                     res["note"] = (duplicateIfInUse ? "Original type duplicated and edited." : "Type edited.");
@@ -531,7 +531,7 @@ namespace RevitMCPAddin.Commands.FloorOps
 
                     var res = new JObject();
                     res["ok"] = true;
-                    res["typeId"] = ft.Id.IntegerValue;
+                    res["typeId"] = ft.Id.IntValue();
                     res["removedIndex"] = layerIndex;
                     res["totalThicknessMm"] = Math.Round(UnitHelper.FtToMm(totalFt), 3);
                     res["note"] = (duplicateIfInUse ? "Original type duplicated and edited." : "Type edited.");
@@ -612,7 +612,7 @@ namespace RevitMCPAddin.Commands.FloorOps
                     return new
                     {
                         ok = true,
-                        typeId = ft.Id.IntegerValue,
+                        typeId = ft.Id.IntValue(),
                         layerIndex = layerIndex,
                         isVariable = isVariable,
                         note = (duplicateIfInUse ? "Original type duplicated and edited." : "Type edited.")
@@ -737,3 +737,5 @@ namespace RevitMCPAddin.Commands.FloorOps
     }
 
 }
+
+

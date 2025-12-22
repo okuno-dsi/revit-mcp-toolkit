@@ -23,14 +23,14 @@ namespace RevitMCPAddin.Commands.Misc
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
 
             if (target == null) return new { ok = false, msg = "elementId または uniqueId で要素が見つかりません。" };
 
             if (!target.Pinned)
             {
-                return new { ok = true, elementId = target.Id.IntegerValue, uniqueId = target.UniqueId, changed = false, wasPinned = false };
+                return new { ok = true, elementId = target.Id.IntValue(), uniqueId = target.UniqueId, changed = false, wasPinned = false };
             }
 
             using (var tx = new Transaction(doc, "Unpin Element"))
@@ -41,7 +41,7 @@ namespace RevitMCPAddin.Commands.Misc
                 {
                     target.Pinned = false;
                     tx.Commit();
-                    return new { ok = true, elementId = target.Id.IntegerValue, uniqueId = target.UniqueId, changed = true, wasPinned = true };
+                    return new { ok = true, elementId = target.Id.IntValue(), uniqueId = target.UniqueId, changed = true, wasPinned = true };
                 }
                 catch (Exception ex)
                 {
@@ -71,7 +71,7 @@ namespace RevitMCPAddin.Commands.Misc
             foreach (var t in idArr)
             {
                 if (t.Type == JTokenType.Integer)
-                    ids.Add(new ElementId(t.Value<int>()));
+                    ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>()));
             }
             if (ids.Count == 0)
                 return new { ok = false, msg = "有効な elementIds がありません。" };
@@ -89,7 +89,7 @@ namespace RevitMCPAddin.Commands.Misc
                     foreach (var id in ids)
                     {
                         var e = doc.GetElement(id);
-                        if (e == null) { failed.Add(id.IntegerValue); continue; }
+                        if (e == null) { failed.Add(id.IntValue()); continue; }
                         processed++;
                         if (e.Pinned)
                         {
@@ -100,7 +100,7 @@ namespace RevitMCPAddin.Commands.Misc
                             }
                             catch
                             {
-                                failed.Add(id.IntegerValue);
+                                failed.Add(id.IntValue());
                             }
                         }
                     }
@@ -124,4 +124,6 @@ namespace RevitMCPAddin.Commands.Misc
         }
     }
 }
+
+
 

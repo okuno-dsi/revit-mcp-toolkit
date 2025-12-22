@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CeilingParametersCommand.cs  (UnitHelper化)
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CeilingParametersCommand.cs  (UnitHelper化)
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -16,7 +16,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var elemId = new ElementId(p.Value<int>("elementId"));
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             var ceil = doc.GetElement(elemId) as Autodesk.Revit.DB.Ceiling;
             if (ceil == null) return ResultUtil.Err("Ceiling not found.", "NOT_FOUND");
 
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var elemId = new ElementId(p.Value<int>("elementId"));
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             var ceil = doc.GetElement(elemId) as Autodesk.Revit.DB.Ceiling;
             if (ceil == null) return ResultUtil.Err("Ceiling not found.", "NOT_FOUND");
 
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var typeId = new ElementId(p.Value<int>("typeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("typeId"));
             var ct = doc.GetElement(typeId) as CeilingType;
             if (ct == null) return ResultUtil.Err("CeilingType not found.", "NOT_FOUND");
 
@@ -91,7 +91,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var typeId = new ElementId(p.Value<int>("typeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("typeId"));
             var ct = doc.GetElement(typeId) as CeilingType;
             if (ct == null) return ResultUtil.Err("CeilingType not found.", "NOT_FOUND");
 
@@ -115,3 +115,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File   : Commands/ViewOps/ViewRefreshHandlers.cs
 // Purpose: Force UI redraw and/or document regenerate.
 // Target : .NET Framework 4.8 / Revit 2023+
@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 foreach (var uv in uidoc.GetOpenUIViews())
                 {
-                    if (uv.ViewId.IntegerValue == viewIdOpt.Value)
+                    if (uv.ViewId.IntValue() == viewIdOpt.Value)
                     {
                         uiv = uv;
                         v = uidoc.Document.GetElement(uv.ViewId) as View;
@@ -117,3 +117,4 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+

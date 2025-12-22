@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/GetOrientedBoundingBoxHandler.cs
 // Purpose : JSON-RPC "get_oriented_bbox" の実体（返却を mm へ統一）
 // Depends : RevitMCPAddin.Core (IRevitCommandHandler, RequestCommand, UnitHelper)
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands
                 if (!p.TryGetValue("elementId", out var eidTok))
                     return new { ok = false, msg = "elementId が必要です。" };
 
-                var elementId = new ElementId(eidTok.Value<int>());
+                var elementId = Autodesk.Revit.DB.ElementIdCompat.From(eidTok.Value<int>());
 
                 // 任意
                 string strategy = (p.Value<string>("strategy") ?? "auto").Trim();
@@ -128,3 +128,4 @@ namespace RevitMCPAddin.Commands
         }
     }
 }
+

@@ -27,9 +27,9 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             var p = (JObject)(cmd.Params ?? new JObject());
             int viewIdInt = p.Value<int?>("viewId") ?? 0;
             int revIdInt = p.Value<int?>("revisionId") ?? 0;
-            var view = doc.GetElement(new ElementId(viewIdInt)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewIdInt}" };
-            var revElem = doc.GetElement(new ElementId(revIdInt)) as Autodesk.Revit.DB.Revision;
+            var revElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(revIdInt)) as Autodesk.Revit.DB.Revision;
             if (revElem == null) return new { ok = false, msg = $"Revision not found: {revIdInt}" };
 
             var centerTok = p["center"] as JObject;
@@ -55,8 +55,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 tx.Start();
                 // Resolve overloads by reflection: (doc, view, ElementId, IList<Curve>) or (doc, view, IList<Curve>, ElementId) or (doc, view, IList<Curve>)
                 var t = typeof(Autodesk.Revit.DB.RevisionCloud);
-                var args1 = new object[] { doc, view, new ElementId(revIdInt), arcs };
-                var args2 = new object[] { doc, view, arcs, new ElementId(revIdInt) };
+                var args1 = new object[] { doc, view, Autodesk.Revit.DB.ElementIdCompat.From(revIdInt), arcs };
+                var args2 = new object[] { doc, view, arcs, Autodesk.Revit.DB.ElementIdCompat.From(revIdInt) };
                 var args3 = new object[] { doc, view, arcs };
                 MethodInfo m;
                 m = t.GetMethod("Create", new[] { typeof(Document), typeof(View), typeof(ElementId), typeof(IList<Curve>) });
@@ -73,7 +73,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         try
                         {
                             var par = rc?.get_Parameter(BuiltInParameter.REVISION_CLOUD_REVISION);
-                            if (par != null && !par.IsReadOnly) par.Set(new ElementId(revIdInt));
+                            if (par != null && !par.IsReadOnly) par.Set(Autodesk.Revit.DB.ElementIdCompat.From(revIdInt));
                         }
                         catch { /* ignore */ }
                     }
@@ -81,7 +81,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = rc?.Id.IntegerValue ?? 0 };
+            return new { ok = true, elementId = rc?.Id.IntValue() ?? 0 };
         }
 
         private static IList<Curve> BuildCircleArcs(XYZ center, double radius, int segments)
@@ -121,3 +121,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

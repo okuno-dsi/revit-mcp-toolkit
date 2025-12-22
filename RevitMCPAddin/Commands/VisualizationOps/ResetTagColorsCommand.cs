@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     reset = 0,
                     message = "No valid tag categories to reset."
                 };
@@ -47,7 +47,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     reset = 0,
                     message = "No tag elements found in active view (or selection)."
                 };
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 reset = resetCount,
                 categories = targetCatIds.ToArray()
             };
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     {
                         var cat = Category.GetCategory(doc, bic);
                         if (cat != null)
-                            ids.Add(cat.Id.IntegerValue);
+                            ids.Add(cat.Id.IntValue());
                     }
                 }
                 catch
@@ -159,7 +159,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             {
                 var cat = el.Category;
                 if (cat == null) continue;
-                if (targetCatIds.Contains(cat.Id.IntegerValue))
+                if (targetCatIds.Contains(cat.Id.IntValue()))
                 {
                     result.Add(el);
                 }
@@ -169,3 +169,4 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/DeleteTextNoteCommand.cs
 // Purpose : Delete a TextNote
 // Params  : { elementId:int }
@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int elementId = p.Value<int?>("elementId") ?? 0;
             if (elementId <= 0) return new { ok = false, msg = "elementId required." };
 
-            var tn = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var tn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (tn == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             using (var t = new Transaction(doc, "delete_text_note"))
@@ -38,3 +38,4 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+

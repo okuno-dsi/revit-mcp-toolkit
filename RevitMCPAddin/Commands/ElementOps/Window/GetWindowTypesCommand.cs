@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Window/GetWindowTypesCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Window/GetWindowTypesCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -50,15 +50,15 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             {
                 FamilyInstance inst = null;
                 if (targetElementId > 0)
-                    inst = doc.GetElement(new ElementId(targetElementId)) as FamilyInstance;
+                    inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetElementId)) as FamilyInstance;
                 else
                     inst = doc.GetElement(targetUniqueId) as FamilyInstance;
 
                 if (inst == null)
                     return new { ok = false, msg = "Window インスタンスが見つかりません（elementId/windowId/uniqueId を確認）。" };
 
-                if (inst.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Windows)
-                    return new { ok = false, msg = $"要素 {inst.Id.IntegerValue} は Window ではありません。" };
+                if (inst.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Windows)
+                    return new { ok = false, msg = $"要素 {inst.Id.IntValue()} は Window ではありません。" };
 
                 var sym = doc.GetElement(inst.GetTypeId()) as FamilySymbol
                           ?? throw new System.InvalidOperationException("インスタンスのタイプ（FamilySymbol）が取得できませんでした。");
@@ -67,10 +67,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             }
             else if (filterTypeId > 0)
             {
-                var sym = doc.GetElement(new ElementId(filterTypeId)) as FamilySymbol;
+                var sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(filterTypeId)) as FamilySymbol;
                 if (sym == null)
                     return new { ok = false, msg = $"FamilySymbol(typeId={filterTypeId}) が見つかりません。" };
-                if (sym.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Windows)
+                if (sym.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Windows)
                     return new { ok = false, msg = $"typeId={filterTypeId} は Window タイプではありません。" };
 
                 q = new[] { sym };
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             }
 
             if (filterFamilyId > 0)
-                q = q.Where(s => s.Family != null && s.Family.Id.IntegerValue == filterFamilyId);
+                q = q.Where(s => s.Family != null && s.Family.Id.IntValue() == filterFamilyId);
 
             if (!string.IsNullOrWhiteSpace(filterFamilyName))
                 q = q.Where(s => string.Equals(s.Family?.Name, filterFamilyName, System.StringComparison.OrdinalIgnoreCase));
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     s,
                     famName = s.Family != null ? (s.Family.Name ?? "") : "",
                     typeName = s.Name ?? "",
-                    typeId = s.Id.IntegerValue
+                    typeId = s.Id.IntValue()
                 })
                 .OrderBy(x => x.famName).ThenBy(x => x.typeName).ThenBy(x => x.typeId)
                 .Select(x => x.s)
@@ -141,16 +141,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             if (idsOnly)
             {
-                var typeIds = seq.Select(s => s.Id.IntegerValue).ToList();
+                var typeIds = seq.Select(s => s.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds, inputUnits = new { Length = "mm", Area = "mm2", Volume = "mm3", Angle = "deg" }, internalUnits = new { Length = "ft", Area = "ft2", Volume = "ft3", Angle = "rad" } };
             }
 
             var types = seq.Select(s => new
             {
-                typeId = s.Id.IntegerValue,
+                typeId = s.Id.IntValue(),
                 uniqueId = s.UniqueId,
                 typeName = s.Name ?? string.Empty,
-                familyId = s.Family != null ? s.Family.Id.IntegerValue : (int?)null,
+                familyId = s.Family != null ? s.Family.Id.IntValue() : (int?)null,
                 familyName = s.Family != null ? (s.Family.Name ?? string.Empty) : string.Empty
             }).ToList();
 
@@ -165,3 +165,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+
+

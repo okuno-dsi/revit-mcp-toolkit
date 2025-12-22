@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             var p = (JObject?)cmd.Params ?? new JObject();
             int viewId = p.Value<int?>("viewId") ?? 0;
-            View? view = viewId > 0 ? doc.GetElement(new ElementId(viewId)) as View : uidoc?.ActiveView;
+            View? view = viewId > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View : uidoc?.ActiveView;
             if (view == null) return new { ok = false, msg = "対象ビューが見つかりません。" };
 
             var f = p["filter"] as JObject ?? new JObject();
@@ -113,7 +113,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 total++;
 
                 var cat = e.Category;
-                int catId = cat?.Id.IntegerValue ?? -1;
+                int catId = cat?.Id.IntValue() ?? -1;
                 var catType = cat != null ? cat.CategoryType : CategoryType.Model;
                 bool isModel = (catType == CategoryType.Model);
 
@@ -175,7 +175,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     foreach (Category c in doc.Settings.Categories)
                     {
-                        if (c != null && c.Id.IntegerValue == cid) { name = c.Name ?? "(Unknown)"; break; }
+                        if (c != null && c.Id.IntValue() == cid) { name = c.Name ?? "(Unknown)"; break; }
                     }
                 }
                 catch { }
@@ -196,7 +196,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 total,
                 kept,
                 hidden,
@@ -229,7 +229,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         if (includeCatNames.Contains(c?.Name ?? string.Empty))
                         {
                             includeCatIds ??= new HashSet<int>();
-                            includeCatIds.Add(c.Id.IntegerValue);
+                            includeCatIds.Add(c.Id.IntValue());
                         }
                     }
                 }
@@ -240,7 +240,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         if (excludeCatNames.Contains(c?.Name ?? string.Empty))
                         {
                             excludeCatIds ??= new HashSet<int>();
-                            excludeCatIds.Add(c.Id.IntegerValue);
+                            excludeCatIds.Add(c.Id.IntValue());
                         }
                     }
                 }
@@ -408,7 +408,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             var id = p.AsElementId();
                             if (id != null && id != ElementId.InvalidElementId)
-                                return (id.IntegerValue.ToString(CultureInfo.InvariantCulture), (double)id.IntegerValue);
+                                return (id.IntValue().ToString(CultureInfo.InvariantCulture), (double)id.IntValue());
                             return (string.Empty, null);
                         }
 
@@ -506,3 +506,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

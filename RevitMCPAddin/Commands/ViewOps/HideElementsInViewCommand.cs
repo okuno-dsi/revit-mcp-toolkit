@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/HideElementsInViewCommand.cs
 // Purpose : JSON-RPC "hide_elements_in_view" の実体
 // Notes   : UI の「Hide in View」相当。View Template 適用時は安全スキップ。
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             View? view = null;
             var viewId = p.Value<int?>("viewId");
             if (viewId.HasValue && viewId.Value > 0)
-                view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             else
                 view = uidoc?.ActiveGraphicalView ?? uidoc?.ActiveView;
 
@@ -43,12 +43,12 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 return ResultUtil.Ok(new JObject
                 {
-                    ["viewId"] = view.Id.IntegerValue,
+                    ["viewId"] = view.Id.IntValue(),
                     ["hiddenCount"] = 0,
                     ["skipped"] = new JArray(),
                     ["errors"] = new JArray(),
                     ["templateApplied"] = true,
-                    ["templateViewId"] = view.ViewTemplateId.IntegerValue,
+                    ["templateViewId"] = view.ViewTemplateId.IntValue(),
                     ["msg"] = "View has a template; set detachViewTemplate:true to detach before operation."
                 });
             }
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     if (string.IsNullOrWhiteSpace(u)) continue;
                     var e = doc.GetElement(u!);
-                    if (e != null) targetIds.Add(e.Id.IntegerValue);
+                    if (e != null) targetIds.Add(e.Id.IntValue());
                 }
             }
 
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             foreach (var id in targetIds.OrderBy(x => x))
             {
-                var e = doc.GetElement(new ElementId(id));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 if (e == null)
                 {
                     errors.Add(new JObject { ["elementId"] = id, ["reason"] = "element not found" });
@@ -154,7 +154,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                     try { view.HideElements(new List<ElementId> { id }); hiddenCount++; }
                                     catch (Exception ex1)
                                     {
-                                        errors.Add(new JObject { ["elementId"] = id.IntegerValue, ["reason"] = ex1.Message });
+                                        errors.Add(new JObject { ["elementId"] = id.IntValue(), ["reason"] = ex1.Message });
                                     }
                                 }
                                 RevitLogger.Error($"HideElements batch failed; per-item fallback. reason={ex.Message}");
@@ -186,12 +186,12 @@ namespace RevitMCPAddin.Commands.ViewOps
             // ---- 4) 返却
             return ResultUtil.Ok(new JObject
             {
-                ["viewId"] = view.Id.IntegerValue,
+                ["viewId"] = view.Id.IntValue(),
                 ["hiddenCount"] = hiddenCount,
                 ["skipped"] = skipped,
                 ["errors"] = errors,
                 ["templateApplied"] = view.ViewTemplateId != ElementId.InvalidElementId,
-                ["templateViewId"] = view.ViewTemplateId != ElementId.InvalidElementId ? view.ViewTemplateId.IntegerValue : (int?)null,
+                ["templateViewId"] = view.ViewTemplateId != ElementId.InvalidElementId ? view.ViewTemplateId.IntValue() : (int?)null,
                 ["completed"] = completed,
                 ["nextIndex"] = completed ? (int?)null : nextIndex,
                 ["batchSize"] = batchSize,
@@ -200,3 +200,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

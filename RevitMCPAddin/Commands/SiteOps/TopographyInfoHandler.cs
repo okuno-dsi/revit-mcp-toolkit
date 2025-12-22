@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             int topoId = p.Value<int>("topographyId");
             if (topoId <= 0) return new { ok = false, msg = "topographyId is required." };
 
-            var topo = doc.GetElement(new ElementId(topoId)) as TopographySurface;
+            var topo = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(topoId)) as TopographySurface;
             if (topo == null) return new { ok = false, msg = $"TopographySurface not found: {topoId}" };
 
             string name = SafeGetName(topo);
@@ -71,7 +71,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             return new
             {
                 ok = true,
-                elementId = topo.Id.IntegerValue,
+                elementId = topo.Id.IntValue(),
                 name,
                 pointCount = ptsMm.Count,
                 pointsMm = ptsMm,
@@ -90,7 +90,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             {
                 int count = 0;
                 try { count = t.GetPoints()?.Count ?? 0; } catch { /* ignore */ }
-                list.Add(new { id = t.Id.IntegerValue, name = SafeGetName(t), pointCount = count });
+                list.Add(new { id = t.Id.IntValue(), name = SafeGetName(t), pointCount = count });
             }
             return new { ok = true, count = list.Count, items = list };
         }
@@ -119,7 +119,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                         var prop = e.GetType().GetProperty("TopographySurface", BindingFlags.Instance | BindingFlags.Public);
                         if (prop == null) return false;
                         var topoObj = prop.GetValue(e, null) as Element;
-                        return topoObj != null && topoObj.Id.IntegerValue == topoIdFilter;
+                        return topoObj != null && topoObj.Id.IntValue() == topoIdFilter;
                     }
                     catch { return false; }
                 });
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.SiteOps
 
                 items.Add(new
                 {
-                    id = sr.Id.IntegerValue,
+                    id = sr.Id.IntValue(),
                     material = string.IsNullOrEmpty(mname) ? null : mname,
                     loopsMm
                 });
@@ -234,7 +234,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             if (topoId <= 0) return new { ok = false, msg = "topographyId is required." };
             if (string.IsNullOrWhiteSpace(materialName)) return new { ok = false, msg = "materialName is required." };
 
-            var topo = doc.GetElement(new ElementId(topoId));
+            var topo = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(topoId));
             if (topo == null) return new { ok = false, msg = $"TopographySurface not found: {topoId}" };
 
             var mat = FindMaterialByName(doc, materialName);
@@ -261,7 +261,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             if (subId <= 0) return new { ok = false, msg = "subregionId is required." };
             if (string.IsNullOrWhiteSpace(materialName)) return new { ok = false, msg = "materialName is required." };
 
-            var sr = doc.GetElement(new ElementId(subId));
+            var sr = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(subId));
             if (sr == null) return new { ok = false, msg = $"SiteSubRegion not found: {subId}" };
 
             var mat = FindMaterialByName(doc, materialName);
@@ -301,7 +301,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 if (prm != null && prm.StorageType == StorageType.ElementId)
                 {
                     var id = prm.AsElementId();
-                    if (id != null && id.IntegerValue > 0)
+                    if (id != null && id.IntValue() > 0)
                     {
                         var mat = e.Document.GetElement(id) as Material;
                         if (mat != null) return mat.Name;
@@ -317,7 +317,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 if (prop != null && prop.CanRead)
                 {
                     var eid = prop.GetValue(e, null) as ElementId;
-                    if (eid != null && eid.IntegerValue > 0)
+                    if (eid != null && eid.IntValue() > 0)
                     {
                         var mat = e.Document.GetElement(eid) as Material;
                         if (mat != null) return mat.Name;
@@ -374,3 +374,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

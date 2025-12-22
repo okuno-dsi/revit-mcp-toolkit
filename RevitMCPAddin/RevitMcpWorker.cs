@@ -75,8 +75,6 @@ using RevitMCPAddin.Commands.VisualizationOps;
 using RevitMCPAddin.Commands.WindowOps;
 using RevitMCPAddin.Commands.WorksetOps;
 using RevitMCPAddin.Commands.ZoneOps;
-using RevitMCPAddin.Commands.RoofOps;
-using RevitMCPAddin.Commands.AnnotationOps;
 using RevitMCPAddin.Core;
 using RevitMCPAddin.ExternalEvents;
 using RevitMCPAddin.RevitUI;
@@ -213,9 +211,13 @@ namespace RevitMCPAddin
 
 
             // --- コマンドハンドラ登録（元の一覧を維持） ---
+            var batchHandler = new RevitBatchCommand();
             var handlerList = new List<IRevitCommandHandler>
             {
                 new SearchCommandsHandler(),
+                new DescribeCommandHandler(),
+                new GetContextCommand(),
+                batchHandler,
 
                 // 記録開始/停止
                 new StartCommandLoggingCommand(),
@@ -370,10 +372,13 @@ namespace RevitMCPAddin
                 new GetSheetsCommand(),
                 new DeleteSheetCommand(),
                 new PlaceViewOnSheetCommand(),
+                new PlaceViewOnSheetAutoCommand(),
                 new RemoveViewFromSheetCommand(),
                 new ReplaceViewOnSheetCommand(),
 
                 new GetViewPlacementsCommand(),
+                new RemoveTitleblocksAutoCommand(),
+                new ViewportMoveToSheetCenterCommand(),
 
                 // 展開図ツール群
                 new GetElevationViewTypesCommand(),
@@ -1108,8 +1113,11 @@ namespace RevitMCPAddin
 
 
             handlerList.Insert(0, new RevitMCPAddin.Commands.MetaOps.ListCommandsHandler(handlerList));
+            // Step 2: build command metadata registry from the actual registered handlers (best-effort; non-fatal)
+            try { RevitMCPAddin.Core.CommandMetadataRegistry.InitializeFromHandlers(handlerList); } catch { }
 
             var router = new CommandRouter(handlerList);
+            try { batchHandler.BindRouter(router); } catch { /* best-effort */ }
             _executor = new RevitMCPAddin.ExternalEvents.RevitCommandExecutor(router, _client, RevitMCPAddin.Core.RevitLogger.LogPath);
             _executor.StopHeartbeatCallback = this.StopHeartbeat;
             _extEvent = ExternalEvent.Create(_executor);

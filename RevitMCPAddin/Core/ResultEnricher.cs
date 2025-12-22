@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Core/ResultEnricher.cs  (配列アイテムまで uniqueId/elementId を自動補完する版)
 // ================================================================
 #nullable enable
@@ -55,7 +55,7 @@ namespace RevitMCPAddin.Core
                 }
                 if (p.TryGetValue("elementId", out var eidTok) && eidTok.Type == JTokenType.Integer)
                 {
-                    var e = doc.GetElement(new ElementId(eidTok.Value<int>()));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eidTok.Value<int>()));
                     if (e != null) return e;
                 }
                 if (p.TryGetValue("uniqueIds", out var uidsTok) && uidsTok is JArray uarr)
@@ -72,7 +72,7 @@ namespace RevitMCPAddin.Core
                     var first = earr.Values<int?>().FirstOrDefault();
                     if (first.HasValue)
                     {
-                        var e = doc.GetElement(new ElementId(first.Value));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(first.Value));
                         if (e != null) return e;
                     }
                 }
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Core
                 {
                     if (p.TryGetValue(key, out var altTok) && altTok.Type == JTokenType.Integer)
                     {
-                        var e = doc.GetElement(new ElementId(altTok.Value<int>()));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(altTok.Value<int>()));
                         if (e != null) return e;
                     }
                     // *_UniqueId にも将来対応（例: viewUniqueId など）
@@ -156,7 +156,7 @@ namespace RevitMCPAddin.Core
             {
                 if (!container.ContainsKey("uniqueId"))
                 {
-                    var e = doc.GetElement(new ElementId(eidTok.Value<int>()));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eidTok.Value<int>()));
                     if (e != null) container["uniqueId"] = e.UniqueId;
                 }
             }
@@ -167,7 +167,7 @@ namespace RevitMCPAddin.Core
                 if (!container.ContainsKey("elementId"))
                 {
                     var e = doc.GetElement(uidTok.Value<string>());
-                    if (e != null) container["elementId"] = e.Id.IntegerValue;
+                    if (e != null) container["elementId"] = e.Id.IntValue();
                 }
             }
 
@@ -179,7 +179,7 @@ namespace RevitMCPAddin.Core
                     var uids = new JArray();
                     foreach (var id in eidsArr.Values<int>())
                     {
-                        var e = doc.GetElement(new ElementId(id));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                         if (e != null) uids.Add(e.UniqueId);
                     }
                     if (uids.Count > 0) container["uniqueIds"] = uids;
@@ -196,7 +196,7 @@ namespace RevitMCPAddin.Core
                     {
                         if (string.IsNullOrWhiteSpace(uid)) continue;
                         var e = doc.GetElement(uid);
-                        if (e != null) ids.Add(e.Id.IntegerValue);
+                        if (e != null) ids.Add(e.Id.IntValue());
                     }
                     if (ids.Count > 0) container["elementIds"] = ids;
                 }
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Core
 
                     if (!container.ContainsKey("uniqueId"))
                     {
-                        var e = doc.GetElement(new ElementId(sidTok.Value<int>()));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sidTok.Value<int>()));
                         if (e != null) container["uniqueId"] = e.UniqueId;
                     }
                 }
@@ -236,7 +236,7 @@ namespace RevitMCPAddin.Core
                     if (!container.ContainsKey("elementId"))
                     {
                         var e = doc.GetElement(suidTok.Value<string>());
-                        if (e != null) container["elementId"] = e.Id.IntegerValue;
+                        if (e != null) container["elementId"] = e.Id.IntValue();
                     }
                 }
             }
@@ -254,7 +254,7 @@ namespace RevitMCPAddin.Core
             }
             if (obj.TryGetValue("elementId", out var eidTok) && eidTok.Type == JTokenType.Integer)
             {
-                var e = doc.GetElement(new ElementId(eidTok.Value<int>()));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eidTok.Value<int>()));
                 if (e != null) return e;
             }
 
@@ -270,7 +270,7 @@ namespace RevitMCPAddin.Core
                 var idKey = altIdKeys[i];
                 if (obj.TryGetValue(idKey, out var sidTok) && sidTok.Type == JTokenType.Integer)
                 {
-                    var e = doc.GetElement(new ElementId(sidTok.Value<int>()));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sidTok.Value<int>()));
                     if (e != null) return e;
                 }
                 var uidKey = idKey.Replace("Id", "UniqueId");
@@ -285,3 +285,5 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+
+

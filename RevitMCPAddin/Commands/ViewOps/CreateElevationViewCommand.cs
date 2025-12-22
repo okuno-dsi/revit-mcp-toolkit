@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
@@ -49,8 +49,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                 view.Name = p.Value<string>("name") ?? "新しい軸組図";
                 tx.Commit();
 
-                return new { ok = true, viewId = view.Id.IntegerValue, name = view.Name };
+                return new { ok = true, viewId = view.Id.IntValue(), name = view.Name };
             }
         }
     }
 }
+

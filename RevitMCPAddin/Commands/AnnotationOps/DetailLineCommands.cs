@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
     {
         public static View ResolveView(Document doc, int viewId)
         {
-            var v = doc.GetElement(new ElementId(viewId)) as View;
+            var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (v == null)
                 throw new InvalidOperationException("View not found: " + viewId);
             return v;
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
         public static CurveElement ResolveDetailCurve(Document doc, int elementId)
         {
-            var ce = doc.GetElement(new ElementId(elementId)) as CurveElement;
+            var ce = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as CurveElement;
             if (ce == null || !ce.ViewSpecific)
                 throw new InvalidOperationException("Detail Line not found or not view-specific: " + elementId);
             return ce;
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             // by styleId
             if (p.TryGetValue("styleId", out var tid))
             {
-                var gs = doc.GetElement(new ElementId(tid.Value<int>())) as GraphicsStyle;
+                var gs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as GraphicsStyle;
                 if (gs != null) return gs;
             }
 
@@ -131,7 +131,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     {
                         styles.Add(new
                         {
-                            styleId = gs.Id.IntegerValue,
+                            styleId = gs.Id.IntValue(),
                             styleName = sub.Name,
                             graphicsStyleType = gs.GraphicsStyleType.ToString()
                         });
@@ -171,8 +171,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             var coll = new FilteredElementCollector(doc, view.Id) 
                 .OfClass(typeof(CurveElement)) 
                 .Cast<CurveElement>() 
-                .Where(ce => ce.ViewSpecific && ce.Category != null && ce.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Lines); 
-            if (typeIdsFilter.Count > 0) coll = coll.Where(ce => typeIdsFilter.Contains(ce.GetTypeId().IntegerValue)); 
+                .Where(ce => ce.ViewSpecific && ce.Category != null && ce.Category.Id.IntValue() == (int)BuiltInCategory.OST_Lines); 
+            if (typeIdsFilter.Count > 0) coll = coll.Where(ce => typeIdsFilter.Contains(ce.GetTypeId().IntValue())); 
             if (!string.IsNullOrWhiteSpace(styleNameContains)) coll = coll.Where(ce => (ce.LineStyle?.Name ?? string.Empty).IndexOf(styleNameContains, StringComparison.OrdinalIgnoreCase) >= 0); 
             var all = coll.ToList(); 
             int totalCount = all.Count; 
@@ -182,7 +182,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (limit > 0 && limit != int.MaxValue) paged = paged.Take(limit); 
             if (idsOnly) 
             { 
-                var ids = paged.Select(ce => ce.Id.IntegerValue).ToList(); 
+                var ids = paged.Select(ce => ce.Id.IntValue()).ToList(); 
                 return new { ok = true, viewId, totalCount, elementIds = ids }; 
             } 
             var items = paged.Select(ce => 
@@ -199,9 +199,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 } 
                 return new 
                 { 
-                    elementId = ce.Id.IntegerValue, 
+                    elementId = ce.Id.IntValue(), 
                     curveKind = (c != null ? DLHelpers.CurveKind(c) : ""), 
-                    styleId = style != null ? style.Id.IntegerValue : 0, 
+                    styleId = style != null ? style.Id.IntValue() : 0, 
                     styleName = style != null ? style.GraphicsStyleCategory?.Name ?? string.Empty : string.Empty, 
                     start, 
                     end 
@@ -237,7 +237,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     var ce = doc.Create.NewDetailCurve(v, line);
                     if (gs != null) ce.LineStyle = gs;
                     tx.Commit();
-                    return new { ok = true, elementId = ce.Id.IntegerValue };
+                    return new { ok = true, elementId = ce.Id.IntValue() };
                 }
                 catch (Exception ex)
                 {
@@ -306,7 +306,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     if (gs != null) ce.LineStyle = gs;
 
                     tx.Commit();
-                    return new { ok = true, elementId = ce.Id.IntegerValue };
+                    return new { ok = true, elementId = ce.Id.IntValue() };
                 }
                 catch (Exception ex)
                 {
@@ -336,7 +336,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 try
                 {
                     tx.Start();
-                    ElementTransformUtils.MoveElement(doc, new ElementId(id), new XYZ(dx, dy, dz));
+                    ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id), new XYZ(dx, dy, dz));
                     tx.Commit();
                     return new { ok = true };
                 }
@@ -404,7 +404,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 try
                 {
                     tx.Start();
-                    doc.Delete(new ElementId(id));
+                    doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     tx.Commit();
                     return new { ok = true };
                 }
@@ -433,7 +433,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 var gs = sub.GetGraphicsStyle(GraphicsStyleType.Projection);
                 if (gs != null)
                 {
-                    styles.Add(new { styleId = gs.Id.IntegerValue, name = sub.Name });
+                    styles.Add(new { styleId = gs.Id.IntValue(), name = sub.Name });
                 }
             }
             return new { ok = true, styles = styles };
@@ -503,7 +503,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     tx.Start();
                     foreach (var iid in ids)
                     {
-                        var ce = doc.GetElement(new ElementId(iid)) as CurveElement;
+                        var ce = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(iid)) as CurveElement;
                         if (ce != null && ce.ViewSpecific)
                         {
                             ce.LineStyle = gs;
@@ -537,11 +537,11 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 var ids = new List<ElementId>();
                 if (p.TryGetValue("elementIds", out var arrTok) && arrTok is JArray arr && arr.Count > 0)
                 {
-                    foreach (var t in arr) ids.Add(new ElementId(t.Value<int>()));
+                    foreach (var t in arr) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>()));
                 }
                 else
                 {
-                    ids.Add(new ElementId(p.Value<int>("elementId")));
+                    ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
                 }
 
                 using (var tx = new Transaction(doc, "Delete Detail Lines"))
@@ -599,7 +599,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                     foreach (var sid in ids)
                     {
-                        var e = doc.GetElement(new ElementId(sid)) as CurveElement;
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sid)) as CurveElement;
                         if (e == null)
                         {
                             failed.Add(new { sourceId = sid, msg = "Element not found or not a CurveElement." });
@@ -689,7 +689,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 var line = Line.CreateBound(w0, w1);
                 var ce = doc.Create.NewDetailCurve(view, line);
                 if (outGs != null) ce.LineStyle = outGs;
-                createdIds.Add(ce.Id.IntegerValue);
+                createdIds.Add(ce.Id.IntValue());
                 return;
             }
 
@@ -724,7 +724,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     var arcProj = Arc.Create(w0, w1, wm);
                     var ce = doc.Create.NewDetailCurve(view, arcProj);
                     if (outGs != null) ce.LineStyle = outGs;
-                    createdIds.Add(ce.Id.IntegerValue);
+                    createdIds.Add(ce.Id.IntValue());
                     return;
                 }
                 // それ以外は Tessellate へ
@@ -746,10 +746,12 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     var seg = Line.CreateBound(prevW, w);
                     var ce = doc.Create.NewDetailCurve(view, seg);
                     if (outGs != null) ce.LineStyle = outGs;
-                    createdIds.Add(ce.Id.IntegerValue);
+                    createdIds.Add(ce.Id.IntValue());
                 }
                 prevW = w;
             }
         }
     }
 }
+
+

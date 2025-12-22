@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.Room
                     {
                         itemErrors.Add(new
                         {
-                            roomId = room.Id.IntegerValue,
+                            roomId = room.Id.IntValue(),
                             message = "Room 境界が取得できませんでした。（Not enclosed / Unplaced の可能性）"
                         });
                         continue;
@@ -139,7 +139,7 @@ namespace RevitMCPAddin.Commands.Room
 
                     roomsOut.Add(new
                     {
-                        roomId = room.Id.IntegerValue,
+                        roomId = room.Id.IntValue(),
                         uniqueId = room.UniqueId ?? string.Empty,
                         level = levelName,
                         loops
@@ -149,7 +149,7 @@ namespace RevitMCPAddin.Commands.Room
                 {
                     itemErrors.Add(new
                     {
-                        roomId = room.Id.IntegerValue,
+                        roomId = room.Id.IntValue(),
                         message = ex.Message
                     });
                 }
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.Room
                 {
                     try
                     {
-                        var e = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Architecture.Room;
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Architecture.Room;
                         if (e == null)
                         {
                             errors.Add(new { roomId = id, message = "Room が見つかりません。" });
@@ -203,7 +203,7 @@ namespace RevitMCPAddin.Commands.Room
             // viewId があればそのビューに可視な Room を対象、それ以外はドキュメント内の全 Room。
             if (viewId > 0)
             {
-                var viewElem = doc.GetElement(new ElementId(viewId)) as View;
+                var viewElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                 if (viewElem == null)
                 {
                     errors.Add(new { viewId, message = "指定された viewId のビューが見つかりません。" });
@@ -235,3 +235,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

@@ -73,7 +73,7 @@ namespace RevitMCPAddin.Commands.DocumentOps
                             break;
 
                         case StorageType.ElementId:
-                            valueObj = p.AsElementId()?.IntegerValue ?? 0;
+                            valueObj = p.AsElementId()?.IntValue() ?? 0;
                             break;
 
                         case StorageType.Double:
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Commands.DocumentOps
                     paramItems.Add(new
                     {
                         name = p.Definition?.Name ?? "(Unnamed)",
-                        id = p.Id.IntegerValue,
+                        id = p.Id.IntValue(),
                         storageType = storage.ToString(),
                         isReadOnly,
                         units,
@@ -114,7 +114,7 @@ namespace RevitMCPAddin.Commands.DocumentOps
                 return new
                 {
                     ok = true,
-                    elementId = pi.Id.IntegerValue,
+                    elementId = pi.Id.IntValue(),
                     uniqueId = pi.UniqueId,
                     projectName,
                     projectNumber,
@@ -205,3 +205,4 @@ namespace RevitMCPAddin.Commands.DocumentOps
         }
     }
 }
+

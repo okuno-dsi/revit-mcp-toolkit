@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/GetInstanceGeometryCommand.cs
 // Purpose:
 //   Return polygon mesh (GLTF/OBJ friendly) of a single element.
@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             Element elem = null;
             if (p.TryGetValue("elementId", out var jId) && int.TryParse(jId.ToString(), out var eid))
             {
-                elem = doc.GetElement(new ElementId(eid));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             }
             else if (p.TryGetValue("uniqueId", out var jUid))
             {
@@ -92,7 +92,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             var response = new
             {
                 ok = true,
-                elementId = elem.Id.IntegerValue,
+                elementId = elem.Id.IntValue(),
                 uniqueId = elem.UniqueId,
                 category = elem.Category?.Name,
                 typeName = elem.Document.GetElement(elem.GetTypeId())?.Name,
@@ -179,7 +179,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (m == null || m.NumTriangles == 0) continue;
 
                 var matId =
-                    (f.MaterialElementId != null && f.MaterialElementId.IntegerValue > 0)
+                    (f.MaterialElementId != null && f.MaterialElementId.IntValue() > 0)
                     ? f.MaterialElementId
                     : Autodesk.Revit.DB.ElementId.InvalidElementId;
 
@@ -268,7 +268,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             public void AddTriangle(ElementId matId, XYZ p0, XYZ p1, XYZ p2)
             {
-                int matKey = (matId != null && matId.IntegerValue > 0) ? matId.IntegerValue : -1;
+                int matKey = (matId != null && matId.IntValue() > 0) ? matId.IntValue() : -1;
                 if (!_matToIndices.TryGetValue(matKey, out var list))
                 {
                     list = new List<int>(4096);
@@ -396,7 +396,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         continue;
                     }
 
-                    var m = doc.GetElement(new Autodesk.Revit.DB.ElementId(mid)) as Autodesk.Revit.DB.Material;
+                    var m = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(mid)) as Autodesk.Revit.DB.Material;
                     if (m == null)
                     {
                         list.Add(new
@@ -463,3 +463,6 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+
+

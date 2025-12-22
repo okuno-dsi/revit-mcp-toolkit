@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -19,13 +19,13 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             int typeId = (int)p["typeId"]!;
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var wall = doc.GetElement(new ElementId(id))
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id))
                        ?? throw new InvalidOperationException("Curtain wall not found");
 
             using (var tx = new Transaction(doc, "Change Curtain Wall Type"))
             {
                 tx.Start();
-                wall.ChangeTypeId(new ElementId(typeId));
+                wall.ChangeTypeId(Autodesk.Revit.DB.ElementIdCompat.From(typeId));
                 tx.Commit();
             }
 
@@ -37,3 +37,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

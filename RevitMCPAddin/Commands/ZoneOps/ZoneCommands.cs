@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ZoneOps/ZoneCommands.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: Revit MEP Zone 操作 一式（9コマンドを1ファイルに集約）
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
         {
             if (levelId.HasValue)
             {
-                if (doc.GetElement(new ElementId(levelId.Value)) is Level l1) return l1;
+                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId.Value)) is Level l1) return l1;
             }
             if (!string.IsNullOrWhiteSpace(levelName))
             {
@@ -45,7 +45,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
             {
                 var av = doc.ActiveView;
                 var pid = av?.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId();
-                if (pid != null && pid.IntegerValue > 0)
+                if (pid != null && pid.IntValue() > 0)
                     return doc.GetElement(pid) as Phase;
             }
             catch { /* ignore */ }
@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
         {
             if (zoneId.HasValue)
             {
-                if (doc.GetElement(new ElementId(zoneId.Value)) is Zone z1) return z1;
+                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(zoneId.Value)) is Zone z1) return z1;
             }
             if (!string.IsNullOrWhiteSpace(zoneUniqueId))
             {
@@ -73,7 +73,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
             foreach (var i in spaceIds)
             {
                 if (!seen.Add(i)) continue;
-                if (doc.GetElement(new ElementId(i)) is Autodesk.Revit.DB.Mechanical.Space sp) yield return sp;
+                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(i)) is Autodesk.Revit.DB.Mechanical.Space sp) yield return sp;
             }
         }
 
@@ -157,7 +157,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     case StorageType.ElementId:
                         {
                             if (valueToken == null) return (false, "ElementId 値が空です。");
-                            p.Set(new ElementId(valueToken.ToObject<int>()));
+                            p.Set(Autodesk.Revit.DB.ElementIdCompat.From(valueToken.ToObject<int>()));
                             return (true, null);
                         }
 
@@ -208,7 +208,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
             try
             {
                 ElementId? filterLevelId = null;
-                if (levelId.HasValue) filterLevelId = new ElementId(levelId.Value);
+                if (levelId.HasValue) filterLevelId = Autodesk.Revit.DB.ElementIdCompat.From(levelId.Value);
                 else if (!string.IsNullOrWhiteSpace(levelName))
                 {
                     var lvl = ZoneUtil.ResolveLevel(doc, null, levelName);
@@ -276,17 +276,17 @@ namespace RevitMCPAddin.Commands.ZoneOps
 
                     if (namesOnly)
                     {
-                        items.Add(new { zoneId = z.Id.IntegerValue, name = z.Name });
+                        items.Add(new { zoneId = z.Id.IntValue(), name = z.Name });
                     }
                     else
                     {
                         items.Add(new
                         {
-                            zoneId = z.Id.IntegerValue,
+                            zoneId = z.Id.IntValue(),
                             uniqueId = z.UniqueId,
                             name = z.Name,
                             number = ZoneUtil.GetZoneNumber(z),
-                            levelId = firstLevelId?.IntegerValue,
+                            levelId = firstLevelId?.IntValue(),
                             levelName = firstLevelName,
                             spaceCount,
                             areaM2,
@@ -367,9 +367,9 @@ namespace RevitMCPAddin.Commands.ZoneOps
                 return new
                 {
                     ok = true,
-                    zoneId = created?.Id.IntegerValue,
+                    zoneId = created?.Id.IntValue(),
                     uniqueId = created?.UniqueId,
-                    levelId = lvl.Id.IntegerValue,
+                    levelId = lvl.Id.IntValue(),
                     name = created?.Name,
                     number = created != null ? ZoneUtil.GetZoneNumber(created) : "",
                     addedSpaces = addedCount
@@ -422,7 +422,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     t.Commit();
                 }
 
-                return new { ok = true, zoneId = zone.Id.IntegerValue, added, skipped };
+                return new { ok = true, zoneId = zone.Id.IntValue(), added, skipped };
             }
             catch (Exception ex)
             {
@@ -471,7 +471,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     t.Commit();
                 }
 
-                return new { ok = true, zoneId = zone.Id.IntegerValue, removed, skipped };
+                return new { ok = true, zoneId = zone.Id.IntValue(), removed, skipped };
             }
             catch (Exception ex)
             {
@@ -511,7 +511,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                 {
                     ok = true,
                     deletedCount = deleted?.Count ?? 0,
-                    deletedElementIds = (deleted ?? Array.Empty<ElementId>()).Select(x => x.IntegerValue).ToList()
+                    deletedElementIds = (deleted ?? Array.Empty<ElementId>()).Select(x => x.IntValue()).ToList()
                 };
             }
             catch (Exception ex)
@@ -550,11 +550,11 @@ namespace RevitMCPAddin.Commands.ZoneOps
                         var center = ZoneUtil.CenterMmByBBox(sp);
                         items.Add(new
                         {
-                            elementId = sp.Id.IntegerValue,
+                            elementId = sp.Id.IntValue(),
                             uniqueId = sp.UniqueId,
                             number = sp.Number,
                             name = sp.Name,
-                            levelId = sp.LevelId?.IntegerValue,
+                            levelId = sp.LevelId?.IntValue(),
                             levelName = sp.Level?.Name,
                             areaM2 = ZoneUtil.Ft2ToM2(sp.Area),
                             volumeM3 = ZoneUtil.Ft3ToM3(sp.Volume),
@@ -563,7 +563,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     }
                 }
 
-                return new { ok = true, zoneId = zone.Id.IntegerValue, count = items.Count, spaces = items };
+                return new { ok = true, zoneId = zone.Id.IntValue(), count = items.Count, spaces = items };
             }
             catch (Exception ex)
             {
@@ -652,7 +652,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                             break;
 
                         case StorageType.ElementId:
-                            value = includeRaw ? (object?)(ap.AsElementId()?.IntegerValue ?? 0) : null;
+                            value = includeRaw ? (object?)(ap.AsElementId()?.IntValue() ?? 0) : null;
                             display = includeDisplay ? ap.AsValueString() : null;
                             break;
 
@@ -675,7 +675,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     result.Add(one);
                 }
 
-                return new { ok = true, zoneId = zone.Id.IntegerValue, totalCount = total, parameters = result };
+                return new { ok = true, zoneId = zone.Id.IntValue(), totalCount = total, parameters = result };
             }
             catch (Exception ex)
             {
@@ -719,7 +719,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                         if (pName == null || pName.IsReadOnly) { t.RollBack(); return new { ok = false, msg = "ゾーン名を設定できません（読み取り専用）。" }; }
                         pName.Set((string?)valueToken?.ToObject<string>() ?? "");
                         t.Commit();
-                        return new { ok = true, zoneId = zone.Id.IntegerValue, paramName = "Name" };
+                        return new { ok = true, zoneId = zone.Id.IntValue(), paramName = "Name" };
                     }
                     if (string.Equals(paramName, "Number", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(paramName, "Zone Number", StringComparison.OrdinalIgnoreCase))
@@ -728,7 +728,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                         if (pNum == null || pNum.IsReadOnly) { t.RollBack(); return new { ok = false, msg = "ゾーン番号を設定できません（読み取り専用）。" }; }
                         pNum.Set((string?)valueToken?.ToObject<string>() ?? "");
                         t.Commit();
-                        return new { ok = true, zoneId = zone.Id.IntegerValue, paramName = pNum.Definition?.Name ?? "Number" };
+                        return new { ok = true, zoneId = zone.Id.IntValue(), paramName = pNum.Definition?.Name ?? "Number" };
                     }
 
                     var target = zone.LookupParameter(paramName);
@@ -740,7 +740,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                     t.Commit();
                 }
 
-                return new { ok = true, zoneId = zone.Id.IntegerValue, paramName, value = valueToken };
+                return new { ok = true, zoneId = zone.Id.IntValue(), paramName, value = valueToken };
             }
             catch (Exception ex)
             {
@@ -781,7 +781,7 @@ namespace RevitMCPAddin.Commands.ZoneOps
                         count++;
                         areaM2 += ZoneUtil.Ft2ToM2(sp.Area);
                         volM3 += ZoneUtil.Ft3ToM3(sp.Volume);
-                        var lid = sp.LevelId?.IntegerValue ?? -1;
+                        var lid = sp.LevelId?.IntValue() ?? -1;
                         if (lid > 0) perLevel[lid] = perLevel.TryGetValue(lid, out var c) ? c + 1 : 1;
                     }
                 }
@@ -789,14 +789,14 @@ namespace RevitMCPAddin.Commands.ZoneOps
                 var levels = perLevel.Select(kv => new
                 {
                     levelId = kv.Key,
-                    levelName = (doc.GetElement(new ElementId(kv.Key)) as Level)?.Name,
+                    levelName = (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(kv.Key)) as Level)?.Name,
                     count = kv.Value
                 }).ToList();
 
                 return new
                 {
                     ok = true,
-                    zoneId = zone.Id.IntegerValue,
+                    zoneId = zone.Id.IntValue(),
                     spaceCount = count,
                     areaM2,
                     volumeM3 = volM3,
@@ -810,3 +810,5 @@ namespace RevitMCPAddin.Commands.ZoneOps
         }
     }
 }
+
+

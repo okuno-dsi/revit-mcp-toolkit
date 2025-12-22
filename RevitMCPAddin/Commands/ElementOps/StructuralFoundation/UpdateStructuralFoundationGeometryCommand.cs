@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Foundation/UpdateStructuralFoundationGeometryCommand.cs (UnitHelper対応版)
 // - offset: mm → ft
 // - rotation: deg → rad（Z軸回り）
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             if (!p.TryGetValue("elementId", out var eidToken))
                 return ResultUtil.Err("Parameter 'elementId' is required.");
             int elementId = eidToken.Value<int>();
-            var element = doc.GetElement(new ElementId(elementId));
+            var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (element == null) return ResultUtil.Err($"Element not found: {elementId}");
 
             var lp = element.Location as LocationPoint;
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             return ResultUtil.Ok(new
             {
-                elementId = element.Id.IntegerValue,
+                elementId = element.Id.IntValue(),
                 uniqueId = element.UniqueId,
                 inputUnits = new { Length = "mm", Angle = "deg" },
                 internalUnits = new { Length = "ft", Angle = "rad" }
@@ -77,3 +77,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+
+

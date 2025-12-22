@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/UpdateSpaceCommand.cs
 // (UnitHelper完全統一 + DataType対応 / Revit 2023 / .NET 4.8 / C# 8)
 // 変更点:
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.Space
                 return ResultUtil.Err("Parameter 'elementId' is required.");
             int elementId = eidToken.Value<int>();
 
-            var space = doc.GetElement(new ElementId(elementId)) as SpaceElem;
+            var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as SpaceElem;
             if (space == null) return ResultUtil.Err($"Space not found: {elementId}");
 
             if (!p.TryGetValue("paramName", out var pnameToken))
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.Space
                         break;
 
                     case StorageType.ElementId:
-                        setValue = new ElementId(valToken.Value<int>());
+                        setValue = Autodesk.Revit.DB.ElementIdCompat.From(valToken.Value<int>());
                         break;
 
                     case StorageType.Double:
@@ -143,3 +143,4 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+

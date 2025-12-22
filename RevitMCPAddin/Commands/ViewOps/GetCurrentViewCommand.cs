@@ -1,4 +1,5 @@
-﻿// RevitMCPAddin/Commands/ViewOps/GetCurrentViewCommand.cs
+// RevitMCPAddin/Commands/ViewOps/GetCurrentViewCommand.cs
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;
 
@@ -17,7 +18,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 uniqueId = view.UniqueId,
                 name = view.Name,
                 viewType = view.ViewType.ToString()
@@ -25,3 +26,4 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+

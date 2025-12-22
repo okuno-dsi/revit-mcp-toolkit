@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/GetScheduleDataCommand.cs (Safe+Fixed版)
+// RevitMCPAddin/Commands/ScheduleOps/GetScheduleDataCommand.cs (Safe+Fixed版)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 if (doc == null)
                     return ResultUtil.Err("No active document.");
 
-                var vs = doc.GetElement(new ElementId(id)) as ViewSchedule;
+                var vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewSchedule;
                 if (vs == null)
                     return new { ok = false, message = $"ScheduleView {id} not found.", units = UnitHelper.DefaultUnitsMeta() };
 
@@ -132,3 +132,4 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+

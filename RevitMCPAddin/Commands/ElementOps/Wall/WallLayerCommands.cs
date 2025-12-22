@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Wall/WallLayerCommands.cs  (UnitHelper対応版 / Revit 2023 / .NET Fx 4.8)
 // 修正要点: すべての単位変換を UnitHelper に統一（Ft⇄Mm）
 //          CompoundStructure.VariableLayerIndex を反射含めて安全管理
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         public WallType WallType { get; set; }
         public int? ElementId { get; set; }
         public string UniqueId { get; set; }
-        public int TypeId => WallType?.Id.IntegerValue ?? 0;
+        public int TypeId => WallType?.Id.IntValue() ?? 0;
         public string TypeName => WallType?.Name ?? string.Empty;
     }
 
@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
             WallType found = null;
             if (p.TryGetValue("typeId", out var tidTok))
-                found = doc.GetElement(new ElementId(tidTok.Value<int>())) as WallType;
+                found = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tidTok.Value<int>())) as WallType;
             else if (p.TryGetValue("typeName", out var tnTok))
             {
                 var name = tnTok.Value<string>() ?? string.Empty;
@@ -203,7 +203,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     ok = true,
                     elementId = res.ElementId,
                     uniqueId = res.UniqueId,
-                    typeId = wt.Id.IntegerValue,
+                    typeId = wt.Id.IntValue(),
                     typeName = wt.Name,
                     kind = CompoundHelpers.KindString(wt),
                     width = Math.Round(widthMm, 3),
@@ -250,7 +250,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     {
                         index = i,
                         function = l.Function.ToString(),
-                        materialId = l.MaterialId.IntegerValue,
+                        materialId = l.MaterialId.IntValue(),
                         materialName = mat?.Name ?? string.Empty,
                         thicknessMm = Math.Round(UnitHelper.FtToMm(l.Width), 3),
                         isCore = (firstCore >= 0 && lastCore >= 0 && i >= firstCore && i <= lastCore),
@@ -281,7 +281,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         ok = true,
                         elementId = res.ElementId,
                         uniqueId = res.UniqueId,
-                        typeId = wt.Id.IntegerValue,
+                        typeId = wt.Id.IntValue(),
                         typeName = wt.Name,
                         totalCount,
                         inputUnits = new { Length = "mm" },
@@ -296,7 +296,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     ok = true,
                     elementId = res.ElementId,
                     uniqueId = res.UniqueId,
-                    typeId = wt.Id.IntegerValue,
+                    typeId = wt.Id.IntValue(),
                     typeName = wt.Name,
                     layers = page,
                     totalThicknessMm
@@ -351,7 +351,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     if (newThkMm.HasValue) l.Width = UnitHelper.MmToFt(newThkMm.Value);
 
                     if (newMatId.HasValue)
-                        l.MaterialId = new ElementId(newMatId.Value);
+                        l.MaterialId = Autodesk.Revit.DB.ElementIdCompat.From(newMatId.Value);
                     else if (!string.IsNullOrWhiteSpace(newMatName))
                     {
                         var mat = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Material))
@@ -373,7 +373,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     return new
                     {
                         ok = true,
-                        typeId = editType.Id.IntegerValue,
+                        typeId = editType.Id.IntValue(),
                         note,
                         edited = new { layerIndex, thicknessMm = newThkMm, materialName = newMatName, materialId = newMatId }
                     };
@@ -413,7 +413,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 int matId = p.Value<int?>("materialId") ?? 0;
                 string matName = p.Value<string>("materialName");
                 Autodesk.Revit.DB.Material mat = null;
-                if (matId > 0) mat = doc.GetElement(new ElementId(matId)) as Autodesk.Revit.DB.Material;
+                if (matId > 0) mat = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(matId)) as Autodesk.Revit.DB.Material;
                 if (mat == null && !string.IsNullOrWhiteSpace(matName))
                     mat = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Material))
                           .Cast<Autodesk.Revit.DB.Material>()
@@ -471,7 +471,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     return new
                     {
                         ok = true,
-                        typeId = editType.Id.IntegerValue,
+                        typeId = editType.Id.IntValue(),
                         newLayerIndex = insertAt,
                         totalThicknessMm = Math.Round(UnitHelper.FtToMm(editType.Width), 3),
                         note
@@ -546,7 +546,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     return new
                     {
                         ok = true,
-                        typeId = editType.Id.IntegerValue,
+                        typeId = editType.Id.IntValue(),
                         removedIndex = layerIndex,
                         totalThicknessMm = Math.Round(UnitHelper.FtToMm(editType.Width), 3),
                         note
@@ -641,7 +641,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 string repName = p["replace"]?["materialName"]?.Value<string>();
 
                 Autodesk.Revit.DB.Material repMat = null;
-                if (repId.HasValue) repMat = doc.GetElement(new ElementId(repId.Value)) as Autodesk.Revit.DB.Material;
+                if (repId.HasValue) repMat = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(repId.Value)) as Autodesk.Revit.DB.Material;
                 if (repMat == null && !string.IsNullOrWhiteSpace(repName))
                     repMat = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Material))
                              .Cast<Autodesk.Revit.DB.Material>()
@@ -665,7 +665,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         var l = layers[i];
                         var cur = doc.GetElement(l.MaterialId) as Autodesk.Revit.DB.Material;
                         bool match =
-                            (findId.HasValue && l.MaterialId.IntegerValue == findId.Value) ||
+                            (findId.HasValue && l.MaterialId.IntValue() == findId.Value) ||
                             (!string.IsNullOrEmpty(contains) && cur != null &&
                              cur.Name.IndexOf(contains, StringComparison.OrdinalIgnoreCase) >= 0);
 
@@ -699,3 +699,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

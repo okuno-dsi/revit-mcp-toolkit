@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         // accept both int and long
                         var v = t.Type == JTokenType.Integer ? t.Value<long>() : 0L;
                         if (v != 0)
-                            wallIds.Add(new ElementId(unchecked((int)v)));
+                            wallIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(unchecked((int)v)));
                     }
                     catch { }
                 }
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 {
                     var v = preferTok.Value<long>();
                     if (v != 0)
-                        preferId = new ElementId(unchecked((int)v));
+                        preferId = Autodesk.Revit.DB.ElementIdCompat.From(unchecked((int)v));
                 }
             }
             catch { }
@@ -95,7 +95,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         if (wall == null)
                         {
                             notWall++;
-                            perWall.Add(new { elementId = id.IntegerValue, status = "skip", reason = "not Wall" });
+                            perWall.Add(new { elementId = id.IntValue(), status = "skip", reason = "not Wall" });
                             continue;
                         }
 
@@ -103,7 +103,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         if (lc == null)
                         {
                             noLocation++;
-                            perWall.Add(new { elementId = id.IntegerValue, status = "skip", reason = "no LocationCurve" });
+                            perWall.Add(new { elementId = id.IntValue(), status = "skip", reason = "no LocationCurve" });
                             continue;
                         }
 
@@ -140,7 +140,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
                         perWall.Add(new
                         {
-                            elementId = id.IntegerValue,
+                            elementId = id.IntValue(),
                             status = "ok",
                             joinTypeSetAtEnds = localJoinTypeSet,
                             reorderedEnds = localReorder,
@@ -150,7 +150,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     catch (Exception ex)
                     {
                         failed++;
-                        perWall.Add(new { elementId = id.IntegerValue, status = "error", reason = ex.Message });
+                        perWall.Add(new { elementId = id.IntValue(), status = "error", reason = ex.Message });
                     }
                 }
 
@@ -176,7 +176,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 noLocation,
                 failed,
                 joinType = joinType.ToString(),
-                preferWallId = preferId != ElementId.InvalidElementId ? preferId.IntegerValue : (int?)null,
+                preferWallId = preferId != ElementId.InvalidElementId ? preferId.IntValue() : (int?)null,
                 alsoJoinGeometry,
                 joinTypeSetCount,
                 reorderCount,
@@ -288,3 +288,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

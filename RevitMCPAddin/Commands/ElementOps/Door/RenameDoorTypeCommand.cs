@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/RenameDoorTypeCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/RenameDoorTypeCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -15,11 +15,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var typeId = new ElementId(p.Value<int>("typeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("typeId"));
             var newName = p.Value<string>("newTypeName");
 
             var symbol = doc.GetElement(typeId) as FamilySymbol
-                         ?? throw new InvalidOperationException($"Door type not found: {typeId.IntegerValue}");
+                         ?? throw new InvalidOperationException($"Door type not found: {typeId.IntValue()}");
 
             using (var tx = new Transaction(doc, "Rename Door Type"))
             {
@@ -28,7 +28,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 tx.Commit();
             }
 
-            return new { ok = true, typeId = typeId.IntegerValue, newName };
+            return new { ok = true, typeId = typeId.IntValue(), newName };
         }
     }
 }
+
+

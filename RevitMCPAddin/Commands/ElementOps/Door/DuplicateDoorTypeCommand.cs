@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -14,11 +14,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var typeId = new ElementId(p.Value<int>("typeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("typeId"));
             var newName = p.Value<string>("newTypeName");
 
             var symbol = doc.GetElement(typeId) as FamilySymbol
-                         ?? throw new global::System.InvalidOperationException($"Door type not found: {typeId.IntegerValue}");
+                         ?? throw new global::System.InvalidOperationException($"Door type not found: {typeId.IntValue()}");
 
             using var tx = new Transaction(doc, "Duplicate Door Type");
             tx.Start();
@@ -29,9 +29,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             return new
             {
                 ok = true,
-                newTypeId = newSymbol.Id.IntegerValue,
+                newTypeId = newSymbol.Id.IntValue(),
                 newName
             };
         }
     }
 }
+
+

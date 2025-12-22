@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File: RevitMCPAddin/Commands/Area/CombinedAreaCommands.cs
 // Target : Revit 2023 / .NET Framework 4.8 / C# 8
 // Policy : すべての単位変換・座標変換・パラメータ整形を RevitMCPAddin.Core.UnitHelper に統一
@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.Area
             level = null;
             View v = null;
             if (p.TryGetValue("viewId", out var vidTok))
-                v = doc.GetElement(new ElementId(vidTok.Value<int>())) as View;
+                v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vidTok.Value<int>())) as View;
             if (v == null && p.TryGetValue("viewUniqueId", out var vuidTok))
                 v = doc.GetElement(vuidTok.Value<string>()) as View;
 
@@ -45,14 +45,14 @@ namespace RevitMCPAddin.Commands.Area
 
         public static bool IsAreaBoundaryLine(Element e)
             => e is CurveElement ce && ce.Category != null
-               && ce.Category.Id.IntegerValue == (int)BuiltInCategory.OST_AreaSchemeLines;
+               && ce.Category.Id.IntValue() == (int)BuiltInCategory.OST_AreaSchemeLines;
 
         public static IEnumerable<CurveElement> GetAreaBoundaryLinesInView(Document doc, View view)
             => new FilteredElementCollector(doc, view.Id)
                 .OfClass(typeof(CurveElement))
                 .Cast<CurveElement>()
                 .Where(ce => ce.Category != null &&
-                             ce.Category.Id.IntegerValue == (int)BuiltInCategory.OST_AreaSchemeLines);
+                             ce.Category.Id.IntValue() == (int)BuiltInCategory.OST_AreaSchemeLines);
 
         public static bool CurveEquals(Curve a, Curve b, double tolFt)
         {
@@ -128,7 +128,7 @@ namespace RevitMCPAddin.Commands.Area
                 if (viewIdTok != null || viewUidTok != null)
                 {
                     View v = null;
-                    if (viewIdTok != null) v = doc.GetElement(new ElementId(viewIdTok.Value<int>())) as View;
+                    if (viewIdTok != null) v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdTok.Value<int>())) as View;
                     if (v == null && viewUidTok != null) v = doc.GetElement(viewUidTok.Value<string>()) as View;
                     fixedAreaPlan = v as ViewPlan;
                     if (fixedAreaPlan == null || fixedAreaPlan.ViewType != ViewType.AreaPlan)
@@ -170,7 +170,7 @@ namespace RevitMCPAddin.Commands.Area
                         if (itVidTok != null || itVuidTok != null)
                         {
                             View v2 = null;
-                            if (itVidTok != null) v2 = doc.GetElement(new ElementId(itVidTok.Value<int>())) as View;
+                            if (itVidTok != null) v2 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(itVidTok.Value<int>())) as View;
                             if (v2 == null && itVuidTok != null) v2 = doc.GetElement(itVuidTok.Value<string>()) as View;
                             var vp2 = v2 as ViewPlan;
                             if (vp2 != null && vp2.ViewType == ViewType.AreaPlan) viewPlanItem = vp2;
@@ -181,7 +181,7 @@ namespace RevitMCPAddin.Commands.Area
                         int levelIdItem = 0;
                         if (viewPlanItem != null)
                         {
-                            levelIdItem = viewPlanItem.GenLevel?.Id.IntegerValue ?? 0;
+                            levelIdItem = viewPlanItem.GenLevel?.Id.IntValue() ?? 0;
                         }
                         else
                         {
@@ -191,7 +191,7 @@ namespace RevitMCPAddin.Commands.Area
 
                             var viewPlanByLevel = new FilteredElementCollector(doc)
                                 .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                                .FirstOrDefault(vp => vp.ViewType == ViewType.AreaPlan && vp.GenLevel?.Id.IntegerValue == levelIdItem);
+                                .FirstOrDefault(vp => vp.ViewType == ViewType.AreaPlan && vp.GenLevel?.Id.IntValue() == levelIdItem);
                             if (viewPlanByLevel == null) { processed++; nextIndex = i + 1; continue; }
                             viewPlanItem = viewPlanByLevel;
                         }
@@ -203,9 +203,9 @@ namespace RevitMCPAddin.Commands.Area
 
                         created.Add(new
                         {
-                            areaId = areaEl.Id.IntegerValue,
+                            areaId = areaEl.Id.IntValue(),
                             levelId = levelIdItem,
-                            viewId = viewPlanItem.Id.IntegerValue
+                            viewId = viewPlanItem.Id.IntValue()
                         });
 
                         processed++; nextIndex = i + 1;
@@ -224,7 +224,7 @@ namespace RevitMCPAddin.Commands.Area
             int levelId = 0;
             if (viewPlan != null)
             {
-                levelId = viewPlan.GenLevel?.Id.IntegerValue ?? 0;
+                levelId = viewPlan.GenLevel?.Id.IntValue() ?? 0;
                 if (levelId <= 0) return new { ok = false, msg = "AreaPlan view has no GenLevel." };
             }
             else
@@ -232,12 +232,12 @@ namespace RevitMCPAddin.Commands.Area
                 levelId = p.Value<int?>("levelId") ?? 0;
                 if (levelId <= 0) return new { ok = false, msg = "levelId (or viewId/viewUniqueId) is required." };
 
-                var level = doc.GetElement(new ElementId(levelId)) as Level
+                var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level
                             ?? throw new InvalidOperationException($"Level not found: {levelId}");
 
                 viewPlan = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                    .FirstOrDefault(vp => vp.ViewType == ViewType.AreaPlan && vp.GenLevel?.Id.IntegerValue == levelId)
+                    .FirstOrDefault(vp => vp.ViewType == ViewType.AreaPlan && vp.GenLevel?.Id.IntValue() == levelId)
                     ?? throw new InvalidOperationException($"AreaPlan view not found for level {level.Name}");
             }
 
@@ -254,7 +254,7 @@ namespace RevitMCPAddin.Commands.Area
                 var area = doc.Create.NewArea(viewPlan, uv);
                 tx.Commit();
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
-                return new { ok = true, areaId = area.Id.IntegerValue, viewId = viewPlan.Id.IntegerValue, levelId, units = UnitHelper.DefaultUnitsMeta() };
+                return new { ok = true, areaId = area.Id.IntValue(), viewId = viewPlan.Id.IntValue(), levelId, units = UnitHelper.DefaultUnitsMeta() };
             }
         }
     }
@@ -282,7 +282,7 @@ namespace RevitMCPAddin.Commands.Area
                     for (int i = startIndex; i < idsArr.Count; i++)
                     {
                         var it = idsArr[i] as JObject ?? new JObject();
-                        var areaEl = doc.GetElement(new ElementId(it.Value<int>("areaId"))) as ArchArea;
+                        var areaEl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("areaId"))) as ArchArea;
                         if (areaEl != null)
                         {
                             var dxFt = UnitHelper.MmToFt(it.Value<double>("dx"));
@@ -305,7 +305,7 @@ namespace RevitMCPAddin.Commands.Area
             using (var tx = new Transaction(doc, "Delete Area"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(id));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 tx.Commit();
             }
             if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
@@ -336,7 +336,7 @@ namespace RevitMCPAddin.Commands.Area
                     for (int i = startIndex; i < itemsArr.Count; i++)
                     {
                         var it = itemsArr[i] as JObject ?? new JObject();
-                        var areaEl = doc.GetElement(new ElementId(it.Value<int>("areaId"))) as ArchArea;
+                        var areaEl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("areaId"))) as ArchArea;
                         if (areaEl != null)
                         {
                             var dxFt = UnitHelper.MmToFt(it.Value<double>("dx"));
@@ -355,7 +355,7 @@ namespace RevitMCPAddin.Commands.Area
                 return new { ok = true, processed, completed, nextIndex = completed ? (int?)null : nextIndex };
             }
 
-            var area = doc.GetElement(new ElementId(p.Value<int>("areaId"))) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("areaId"))) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             var dx = UnitHelper.MmToFt(p.Value<double>("dx"));
@@ -400,7 +400,7 @@ namespace RevitMCPAddin.Commands.Area
                         var it = itemsArr[i] as JObject ?? new JObject();
                         try
                         {
-                            var areaElItem = doc.GetElement(new ElementId(it.Value<int>("areaId"))) as ArchArea;
+                            var areaElItem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("areaId"))) as ArchArea;
                             if (areaElItem == null) { processed++; nextIndex = i + 1; continue; }
 
                             string paramNameItem = it.Value<string>("paramName");
@@ -424,7 +424,7 @@ namespace RevitMCPAddin.Commands.Area
                                 case StorageType.ElementId:
                                     {
                                         if (UnitHelper.TryParseInt(tokenItem?.ToObject<object>(), out var iv2))
-                                            prmItem.Set(new ElementId(iv2));
+                                            prmItem.Set(Autodesk.Revit.DB.ElementIdCompat.From(iv2));
                                         break;
                                     }
                                 case StorageType.Double:
@@ -449,7 +449,7 @@ namespace RevitMCPAddin.Commands.Area
                 return new { ok = true, processed, completed, nextIndex = completed ? (int?)null : nextIndex };
             }
 
-            var area = doc.GetElement(new ElementId(p.Value<int>("areaId"))) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("areaId"))) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             string paramName = p.Value<string>("paramName");
@@ -483,7 +483,7 @@ namespace RevitMCPAddin.Commands.Area
                         {
                             if (!UnitHelper.TryParseInt(token?.ToObject<object>(), out var iv))
                                 throw new InvalidOperationException("value を ElementId (int) に変換できません。");
-                            ok = prm.Set(new ElementId(iv));
+                            ok = prm.Set(Autodesk.Revit.DB.ElementIdCompat.From(iv));
                             break;
                         }
 
@@ -551,7 +551,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 IEnumerable<ArchArea> q = all;
 
-                if (levelId.HasValue) q = q.Where(a => a.LevelId.IntegerValue == levelId.Value);
+                if (levelId.HasValue) q = q.Where(a => a.LevelId.IntValue() == levelId.Value);
                 if (!string.IsNullOrEmpty(nameContains)) q = q.Where(a => (a.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (!string.IsNullOrEmpty(numberContains)) q = q.Where(a => (a.Number ?? "").IndexOf(numberContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
@@ -567,11 +567,11 @@ namespace RevitMCPAddin.Commands.Area
                         "number" => a => (object)(a.Number ?? ""),
                         "area" => a => (object)areaSi(a),
                         "level" => a => (object)((doc.GetElement(a.LevelId) as Level)?.Name ?? ""),
-                        _ => a => (object)a.Id.IntegerValue
+                        _ => a => (object)a.Id.IntValue()
                     };
 
-                q = desc ? q.OrderByDescending(keySel).ThenBy(a => a.Id.IntegerValue)
-                         : q.OrderBy(keySel).ThenBy(a => a.Id.IntegerValue);
+                q = desc ? q.OrderByDescending(keySel).ThenBy(a => a.Id.IntValue())
+                         : q.OrderBy(keySel).ThenBy(a => a.Id.IntValue());
 
                 int totalCount = q.Count();
 
@@ -612,8 +612,8 @@ namespace RevitMCPAddin.Commands.Area
 
                     var item = new Dictionary<string, object>
                     {
-                        ["id"] = a.Id.IntegerValue,
-                        ["elementId"] = a.Id.IntegerValue,
+                        ["id"] = a.Id.IntValue(),
+                        ["elementId"] = a.Id.IntValue(),
                         ["uniqueId"] = a.UniqueId,
                         ["number"] = a.Number ?? "",
                         ["name"] = a.Name ?? "",
@@ -671,7 +671,7 @@ namespace RevitMCPAddin.Commands.Area
                     throw new InvalidOperationException("Parameter 'areaId' is required.");
                 int areaId = idToken.Value<int>();
 
-                var area = doc.GetElement(new ElementId(areaId)) as ArchArea
+                var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                            ?? throw new InvalidOperationException($"Area not found: {areaId}");
 
                 var mode = UnitHelper.ResolveUnitsMode(doc, p);
@@ -762,7 +762,7 @@ namespace RevitMCPAddin.Commands.Area
                             var p1 = AreaGeom.MmToXyz(e);
                             var line = Line.CreateBound(p0, p1);
                             var ce = doc.Create.NewAreaBoundaryLine(vpi.SketchPlane, line, vpi);
-                            created.Add(new { elementId = ce.Id.IntegerValue, viewId = vpi.Id.IntegerValue });
+                            created.Add(new { elementId = ce.Id.IntValue(), viewId = vpi.Id.IntValue() });
                         }
                         catch { }
                         processed++; nextIndex = i + 1;
@@ -786,7 +786,7 @@ namespace RevitMCPAddin.Commands.Area
                 var ce = doc.Create.NewAreaBoundaryLine(vp.SketchPlane, line1, vp);
                 tx.Commit();
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
-                return new { ok = true, elementId = ce.Id.IntegerValue, units = UnitHelper.DefaultUnitsMeta() };
+                return new { ok = true, elementId = ce.Id.IntValue(), units = UnitHelper.DefaultUnitsMeta() };
             }
         }
     }
@@ -814,7 +814,7 @@ namespace RevitMCPAddin.Commands.Area
                     for (int i = startIndex; i < idsArr.Count; i++)
                     {
                         int id = idsArr[i].Type == JTokenType.Object ? ((JObject)idsArr[i]).Value<int>("elementId") : idsArr[i].Value<int>();
-                        var e = doc.GetElement(new ElementId(id));
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                         if (e != null && AreaCommon.IsAreaBoundaryLine(e)) { try { doc.Delete(e.Id); deleted++; } catch { } }
                         processed++; nextIndex = i + 1;
                         if (processed >= batchSize) break;
@@ -834,7 +834,7 @@ namespace RevitMCPAddin.Commands.Area
                 tx.Start();
                 foreach (var id in ids)
                 {
-                    var e = doc.GetElement(new ElementId(id));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     if (e != null && AreaCommon.IsAreaBoundaryLine(e))
                     {
                         doc.Delete(e.Id);
@@ -877,7 +877,7 @@ namespace RevitMCPAddin.Commands.Area
                             double dx = UnitHelper.MmToFt(it.Value<double?>("dx") ?? 0);
                             double dy = UnitHelper.MmToFt(it.Value<double?>("dy") ?? 0);
                             double dz = UnitHelper.MmToFt(it.Value<double?>("dz") ?? 0);
-                            ElementTransformUtils.MoveElement(doc, new ElementId(id), new XYZ(dx, dy, dz));
+                            ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id), new XYZ(dx, dy, dz));
                         }
                         catch { }
                         processed++; nextIndex = i + 1;
@@ -899,7 +899,7 @@ namespace RevitMCPAddin.Commands.Area
             using (var tx = new Transaction(doc, "Move Area Boundary Line"))
             {
                 tx.Start();
-                ElementTransformUtils.MoveElement(doc, new ElementId(idS), new XYZ(dxS, dyS, dzS));
+                ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(idS), new XYZ(dxS, dyS, dzS));
                 tx.Commit();
             }
             if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
@@ -935,8 +935,8 @@ namespace RevitMCPAddin.Commands.Area
                         var it = itemsArr[i] as JObject ?? new JObject();
                         try
                         {
-                            var ce1 = doc.GetElement(new ElementId(it.Value<int>("lineId"))) as CurveElement;
-                            var ce2 = doc.GetElement(new ElementId(it.Value<int>("targetLineId"))) as CurveElement;
+                            var ce1 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("lineId"))) as CurveElement;
+                            var ce2 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("targetLineId"))) as CurveElement;
                             if (ce1 == null || ce2 == null || !AreaCommon.IsAreaBoundaryLine(ce1) || !AreaCommon.IsAreaBoundaryLine(ce2))
                             { results.Add(new { ok = false, msg = "boundary line(s) not found." }); processed++; nextIndex = i + 1; continue; }
                             var lc1 = ce1.Location as LocationCurve; var c1 = lc1?.Curve;
@@ -949,7 +949,7 @@ namespace RevitMCPAddin.Commands.Area
                             bool cutStart = (a0.DistanceTo(ip) <= a1.DistanceTo(ip));
                             var newLine = cutStart ? Line.CreateBound(ip, a1) : Line.CreateBound(a0, ip);
                             lc1.Curve = newLine;
-                            results.Add(new { ok = true, lineId = ce1.Id.IntegerValue, newStart = AreaGeom.XyzToMm(newLine.GetEndPoint(0)), newEnd = AreaGeom.XyzToMm(newLine.GetEndPoint(1)) });
+                            results.Add(new { ok = true, lineId = ce1.Id.IntValue(), newStart = AreaGeom.XyzToMm(newLine.GetEndPoint(0)), newEnd = AreaGeom.XyzToMm(newLine.GetEndPoint(1)) });
                         }
                         catch (Exception ex) { results.Add(new { ok = false, msg = ex.Message }); }
                         processed++; nextIndex = i + 1;
@@ -963,8 +963,8 @@ namespace RevitMCPAddin.Commands.Area
                 return new { ok = true, processed, results, completed, nextIndex = completed ? (int?)null : nextIndex, units = UnitHelper.DefaultUnitsMeta() };
             }
 
-            var ce1s = doc.GetElement(new ElementId(p.Value<int>("lineId"))) as CurveElement;
-            var ce2s = doc.GetElement(new ElementId(p.Value<int>("targetLineId"))) as CurveElement;
+            var ce1s = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("lineId"))) as CurveElement;
+            var ce2s = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("targetLineId"))) as CurveElement;
             if (ce1s == null || ce2s == null || !AreaCommon.IsAreaBoundaryLine(ce1s) || !AreaCommon.IsAreaBoundaryLine(ce2s))
                 return new { ok = false, msg = "boundary line(s) not found." };
 
@@ -991,7 +991,7 @@ namespace RevitMCPAddin.Commands.Area
             return new
             {
                 ok = true,
-                lineId = ce1s.Id.IntegerValue,
+                lineId = ce1s.Id.IntValue(),
                 newStart = AreaGeom.XyzToMm(newLine1.GetEndPoint(0)),
                 newEnd = AreaGeom.XyzToMm(newLine1.GetEndPoint(1)),
                 units = UnitHelper.DefaultUnitsMeta()
@@ -1027,8 +1027,8 @@ namespace RevitMCPAddin.Commands.Area
                         var it = itemsArr[i] as JObject ?? new JObject();
                         try
                         {
-                            var ce1 = doc.GetElement(new ElementId(it.Value<int>("lineId"))) as CurveElement;
-                            var ce2 = doc.GetElement(new ElementId(it.Value<int>("targetLineId"))) as CurveElement;
+                            var ce1 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("lineId"))) as CurveElement;
+                            var ce2 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("targetLineId"))) as CurveElement;
                             if (ce1 == null || ce2 == null || !AreaCommon.IsAreaBoundaryLine(ce1) || !AreaCommon.IsAreaBoundaryLine(ce2))
                             { results.Add(new { ok = false, msg = "boundary line(s) not found." }); processed++; nextIndex = i + 1; continue; }
                             var lc1 = ce1.Location as LocationCurve; var c1 = lc1?.Curve;
@@ -1046,7 +1046,7 @@ namespace RevitMCPAddin.Commands.Area
                             bool extendStart = (s1.DistanceTo(ip) > e1.DistanceTo(ip));
                             var newLine = extendStart ? Line.CreateBound(ip, e1) : Line.CreateBound(s1, ip);
                             lc1.Curve = newLine;
-                            results.Add(new { ok = true, lineId = ce1.Id.IntegerValue, newStart = AreaGeom.XyzToMm(newLine.GetEndPoint(0)), newEnd = AreaGeom.XyzToMm(newLine.GetEndPoint(1)) });
+                            results.Add(new { ok = true, lineId = ce1.Id.IntValue(), newStart = AreaGeom.XyzToMm(newLine.GetEndPoint(0)), newEnd = AreaGeom.XyzToMm(newLine.GetEndPoint(1)) });
                         }
                         catch (Exception ex) { results.Add(new { ok = false, msg = ex.Message }); }
                         processed++; nextIndex = i + 1;
@@ -1060,8 +1060,8 @@ namespace RevitMCPAddin.Commands.Area
                 return new { ok = true, processed, results, completed, nextIndex = completed ? (int?)null : nextIndex, units = UnitHelper.DefaultUnitsMeta() };
             }
 
-            var ce1s = doc.GetElement(new ElementId(p.Value<int>("lineId"))) as CurveElement;
-            var ce2s = doc.GetElement(new ElementId(p.Value<int>("targetLineId"))) as CurveElement;
+            var ce1s = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("lineId"))) as CurveElement;
+            var ce2s = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("targetLineId"))) as CurveElement;
             if (ce1s == null || ce2s == null || !AreaCommon.IsAreaBoundaryLine(ce1s) || !AreaCommon.IsAreaBoundaryLine(ce2s))
                 return new { ok = false, msg = "boundary line(s) not found." };
 
@@ -1092,7 +1092,7 @@ namespace RevitMCPAddin.Commands.Area
             return new
             {
                 ok = true,
-                lineId = ce1s.Id.IntegerValue,
+                lineId = ce1s.Id.IntValue(),
                 newStart = AreaGeom.XyzToMm(newLine2.GetEndPoint(0)),
                 newEnd = AreaGeom.XyzToMm(newLine2.GetEndPoint(1)),
                 units = UnitHelper.DefaultUnitsMeta()
@@ -1265,8 +1265,8 @@ namespace RevitMCPAddin.Commands.Area
             return new
             {
                 ok = true,
-                viewId = vp.Id.IntegerValue,
-                levelId = level.Id.IntegerValue,
+                viewId = vp.Id.IntValue(),
+                levelId = level.Id.IntValue(),
                 adjusted,
                 merged,
                 deleted,
@@ -1296,7 +1296,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 list.Add(new
                 {
-                    elementId = ce.Id.IntegerValue,
+                    elementId = ce.Id.IntValue(),
                     kind = c.GetType().Name,
                     start = AreaGeom.XyzToMm(c.GetEndPoint(0)),
                     end = AreaGeom.XyzToMm(c.GetEndPoint(1)),
@@ -1304,7 +1304,7 @@ namespace RevitMCPAddin.Commands.Area
                 });
             }
 
-            return new { ok = true, viewId = vp.Id.IntegerValue, levelId = level.Id.IntegerValue, total = list.Count, lines = list, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, viewId = vp.Id.IntValue(), levelId = level.Id.IntValue(), total = list.Count, lines = list, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1337,11 +1337,11 @@ namespace RevitMCPAddin.Commands.Area
                     var pi = ci.Project(pnt); var pj = cj.Project(pnt);
                     if (pi == null || pj == null || pi.Distance > tolFt || pj.Distance > tolFt) continue;
 
-                    res.Add(new { a = li.Id.IntegerValue, b = lj.Id.IntegerValue, point = AreaGeom.XyzToMm(pnt) });
+                    res.Add(new { a = li.Id.IntValue(), b = lj.Id.IntValue(), point = AreaGeom.XyzToMm(pnt) });
                 }
             }
 
-            return new { ok = true, viewId = vp.Id.IntegerValue, levelId = level.Id.IntegerValue, count = res.Count, intersections = res, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, viewId = vp.Id.IntValue(), levelId = level.Id.IntValue(), count = res.Count, intersections = res, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1373,15 +1373,15 @@ namespace RevitMCPAddin.Commands.Area
 
                         var proj = cj.Project(ep);
                         if (proj == null) continue;
-                        if (proj.Distance < best) { best = proj.Distance; hitId = lj.Id.IntegerValue; }
+                        if (proj.Distance < best) { best = proj.Distance; hitId = lj.Id.IntValue(); }
                     }
 
                     if (best <= tolFt && best > 1e-9)
-                        gaps.Add(new { lineId = li.Id.IntegerValue, nearTo = hitId, gapMm = Math.Round(UnitHelper.FtToMm(best), 3), endpoint = AreaGeom.XyzToMm(ep) });
+                        gaps.Add(new { lineId = li.Id.IntValue(), nearTo = hitId, gapMm = Math.Round(UnitHelper.FtToMm(best), 3), endpoint = AreaGeom.XyzToMm(ep) });
                 }
             }
 
-            return new { ok = true, viewId = vp.Id.IntegerValue, levelId = level.Id.IntegerValue, count = gaps.Count, gaps, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, viewId = vp.Id.IntValue(), levelId = level.Id.IntValue(), count = gaps.Count, gaps, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1407,11 +1407,11 @@ namespace RevitMCPAddin.Commands.Area
                     var lj = lines[j]; var lcj = (lj.Location as LocationCurve); var cj = lcj?.Curve; if (cj == null) continue;
 
                     if (AreaCommon.CurveEquals(ci, cj, tolFt))
-                        dups.Add(new { a = li.Id.IntegerValue, b = lj.Id.IntegerValue });
+                        dups.Add(new { a = li.Id.IntValue(), b = lj.Id.IntValue() });
                 }
             }
 
-            return new { ok = true, viewId = vp.Id.IntegerValue, levelId = level.Id.IntegerValue, count = dups.Count, duplicates = dups, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, viewId = vp.Id.IntValue(), levelId = level.Id.IntValue(), count = dups.Count, duplicates = dups, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1429,7 +1429,7 @@ namespace RevitMCPAddin.Commands.Area
             int areaId = p.Value<int?>("areaId") ?? p.Value<int?>("elementId") ?? 0;
             if (areaId <= 0) throw new InvalidOperationException("Parameter 'areaId' is required.");
 
-            var area = doc.GetElement(new ElementId(areaId)) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
@@ -1475,7 +1475,7 @@ namespace RevitMCPAddin.Commands.Area
             int areaId = p.Value<int?>("areaId") ?? p.Value<int?>("elementId") ?? 0;
             if (areaId <= 0) throw new InvalidOperationException("Parameter 'areaId' is required.");
 
-            var area = doc.GetElement(new ElementId(areaId)) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
@@ -1490,7 +1490,7 @@ namespace RevitMCPAddin.Commands.Area
                 .Select(bs => bs.ElementId)
                 .Where(id => doc.GetElement(id) is Wall)
                 .Distinct()
-                .Select(id => id.IntegerValue)
+                .Select(id => id.IntValue())
                 .ToList();
 
             return new { ok = true, boundaryLocation = opts.SpatialElementBoundaryLocation.ToString(), wallIds, units = UnitHelper.DefaultUnitsMeta() };
@@ -1508,7 +1508,7 @@ namespace RevitMCPAddin.Commands.Area
             int areaId = p.Value<int?>("areaId") ?? p.Value<int?>("elementId") ?? 0;
             if (areaId <= 0) throw new InvalidOperationException("Parameter 'areaId' is required.");
 
-            var area = doc.GetElement(new ElementId(areaId)) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
@@ -1586,7 +1586,7 @@ namespace RevitMCPAddin.Commands.Area
                 for (int i = startIndex; i < areaIdsArr.Count; i++)
                 {
                     int id = areaIdsArr[i];
-                    var area = doc.GetElement(new ElementId(id)) as ArchArea;
+                    var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ArchArea;
                     if (area != null)
                     {
                         double areaM2 = Math.Round(UnitHelper.ToExternal(area.Area, SpecTypeId.Area) ?? 0.0, 3);
@@ -1603,7 +1603,7 @@ namespace RevitMCPAddin.Commands.Area
                         double perimeterMm = Math.Round(UnitHelper.FtToMm(perFt), 3);
                         var levelName = (doc.GetElement(area.LevelId) as Level)?.Name ?? "";
 
-                        items.Add(new { elementId = area.Id.IntegerValue, areaM2, perimeterMm, level = levelName });
+                        items.Add(new { elementId = area.Id.IntValue(), areaM2, perimeterMm, level = levelName });
                     }
 
                     processed++;
@@ -1630,7 +1630,7 @@ namespace RevitMCPAddin.Commands.Area
             int areaId = p.Value<int?>("areaId") ?? p.Value<int?>("elementId") ?? 0;
             if (areaId <= 0) throw new InvalidOperationException("Parameter 'areaId' is required.");
 
-            var areaSingle = doc.GetElement(new ElementId(areaId)) as ArchArea
+            var areaSingle = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                              ?? throw new InvalidOperationException("Area not found.");
 
             double areaM2Single = Math.Round(UnitHelper.ToExternal(areaSingle.Area, SpecTypeId.Area) ?? 0.0, 3);
@@ -1644,7 +1644,7 @@ namespace RevitMCPAddin.Commands.Area
 
             var levelNameSingle = (doc.GetElement(areaSingle.LevelId) as Level)?.Name ?? "";
 
-            return new { ok = true, elementId = areaSingle.Id.IntegerValue, areaM2 = areaM2Single, perimeterMm = perimeterMmSingle, level = levelNameSingle, boundaryLocation = optsSingle.SpatialElementBoundaryLocation.ToString(), units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, elementId = areaSingle.Id.IntValue(), areaM2 = areaM2Single, perimeterMm = perimeterMmSingle, level = levelNameSingle, boundaryLocation = optsSingle.SpatialElementBoundaryLocation.ToString(), units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1659,7 +1659,7 @@ namespace RevitMCPAddin.Commands.Area
             int areaId = p.Value<int?>("areaId") ?? p.Value<int?>("elementId") ?? 0;
             if (areaId <= 0) throw new InvalidOperationException("Parameter 'areaId' is required.");
 
-            var area = doc.GetElement(new ElementId(areaId)) as ArchArea
+            var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(areaId)) as ArchArea
                        ?? throw new InvalidOperationException("Area not found.");
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
@@ -1687,7 +1687,7 @@ namespace RevitMCPAddin.Commands.Area
                 geometry.Add(segments);
             }
 
-            return new { ok = true, elementId = area.Id.IntegerValue, boundaryLocation = opts.SpatialElementBoundaryLocation.ToString(), geometry, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, elementId = area.Id.IntValue(), boundaryLocation = opts.SpatialElementBoundaryLocation.ToString(), geometry, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 
@@ -1731,20 +1731,20 @@ namespace RevitMCPAddin.Commands.Area
                         .OfClass(typeof(SpatialElement))
                         .WhereElementIsNotElementType()
                         .Where(e => e.Category != null &&
-                                    e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Areas)
+                                    e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Areas)
                         .Cast<SpatialElement>()
                         .OfType<ArchArea>()
                         .ToList();
 
                     counts = allAreas
-                        .GroupBy(a => a.AreaScheme != null ? a.AreaScheme.Id.IntegerValue : -1)
+                        .GroupBy(a => a.AreaScheme != null ? a.AreaScheme.Id.IntValue() : -1)
                         .ToDictionary(g => g.Key, g => g.Count());
                 }
 
                 var list = new List<object>();
                 foreach (var s in schemes)
                 {
-                    int id = s.Id.IntegerValue;
+                    int id = s.Id.IntValue();
                     int? areaCount = null;
                     if (includeCounts && counts != null && counts.TryGetValue(id, out var c))
                         areaCount = c;
@@ -1793,7 +1793,7 @@ namespace RevitMCPAddin.Commands.Area
                     all = all.Where(s => (s.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
 
                 var ordered = all
-                    .Select(s => new { s, name = s.Name ?? "", id = s.Id.IntegerValue })
+                    .Select(s => new { s, name = s.Name ?? "", id = s.Id.IntValue() })
                     .OrderBy(x => x.name).ThenBy(x => x.id)
                     .Select(x => x.s).ToList();
 
@@ -1810,7 +1810,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 var list = ordered.Skip(skip).Take(count).Select(s => new
                 {
-                    schemeId = s.Id.IntegerValue,
+                    schemeId = s.Id.IntValue(),
                     uniqueId = s.UniqueId,
                     name = s.Name ?? ""
                 }).ToList();
@@ -1852,7 +1852,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 if (schemeIdInt.HasValue && schemeIdInt.Value > 0)
                 {
-                    var asId = new ElementId(schemeIdInt.Value);
+                    var asId = Autodesk.Revit.DB.ElementIdCompat.From(schemeIdInt.Value);
                     scheme = doc.GetElement(asId) as AreaScheme;
                     if (scheme == null)
                     {
@@ -1881,7 +1881,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 var schemeObj = new
                 {
-                    id = scheme.Id.IntegerValue,
+                    id = scheme.Id.IntValue(),
                     name = scheme.Name ?? string.Empty
                 };
 
@@ -1916,7 +1916,7 @@ namespace RevitMCPAddin.Commands.Area
                     .OfClass(typeof(SpatialElement))
                     .WhereElementIsNotElementType()
                     .Where(e => e.Category != null &&
-                                e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Areas)
+                                e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Areas)
                     .Cast<SpatialElement>()
                     .OfType<ArchArea>()
                     .Where(a => a.AreaScheme != null && a.AreaScheme.Id == scheme.Id)
@@ -1963,7 +1963,7 @@ namespace RevitMCPAddin.Commands.Area
 
                     areasOut.Add(new
                     {
-                        id = a.Id.IntegerValue,
+                        id = a.Id.IntValue(),
                         number = a.Number ?? string.Empty,
                         name = a.Name ?? string.Empty,
                         levelName,
@@ -2019,16 +2019,16 @@ namespace RevitMCPAddin.Commands.Area
             if (!p.TryGetValue("levelId", out var levelIdTok))
                 return new { ok = false, msg = "levelId が必要です。" };
 
-            var levelId = new ElementId(levelIdTok.Value<int>());
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(levelIdTok.Value<int>());
             var level = doc.GetElement(levelId) as Level;
-            if (level == null) return new { ok = false, msg = $"Level not found: {levelId.IntegerValue}" };
+            if (level == null) return new { ok = false, msg = $"Level not found: {levelId.IntValue()}" };
 
             AreaScheme scheme = null;
             if (p.TryGetValue("areaSchemeId", out var schemeIdTok))
             {
-                var asId = new ElementId(schemeIdTok.Value<int>());
+                var asId = Autodesk.Revit.DB.ElementIdCompat.From(schemeIdTok.Value<int>());
                 scheme = doc.GetElement(asId) as AreaScheme;
-                if (scheme == null) return new { ok = false, msg = $"AreaScheme not found: {asId.IntegerValue}" };
+                if (scheme == null) return new { ok = false, msg = $"AreaScheme not found: {asId.IntValue()}" };
             }
             else
             {
@@ -2063,10 +2063,10 @@ namespace RevitMCPAddin.Commands.Area
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 name = view.Name,
-                levelId = level.Id.IntegerValue,
-                areaSchemeId = scheme.Id.IntegerValue,
+                levelId = level.Id.IntValue(),
+                areaSchemeId = scheme.Id.IntValue(),
                 units = UnitHelper.DefaultUnitsMeta()
             };
         }
@@ -2127,7 +2127,7 @@ namespace RevitMCPAddin.Commands.Area
                         .WherePasses(bicFilter)
                         .WhereElementIsNotElementType()
                         .ToElements()
-                        .Where(e => { try { return (e as Wall)?.LevelId.IntegerValue == level.Id.IntegerValue; } catch { return false; } })
+                        .Where(e => { try { return (e as Wall)?.LevelId.IntValue() == level.Id.IntValue(); } catch { return false; } })
                         .ToList();
                 }
 
@@ -2142,9 +2142,9 @@ namespace RevitMCPAddin.Commands.Area
                             try
                             {
                                 int id = itemsArr[i].Type == JTokenType.Object ? ((JObject)itemsArr[i]).Value<int>("elementId") : itemsArr[i].Value<int>();
-                                var e = doc.GetElement(new ElementId(id));
+                                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                                 Curve c = null;
-                                if (e is Wall w && w.LevelId.IntegerValue == level.Id.IntegerValue && w.Location is LocationCurve lc && lc.Curve != null) c = lc.Curve;
+                                if (e is Wall w && w.LevelId.IntValue() == level.Id.IntValue() && w.Location is LocationCurve lc && lc.Curve != null) c = lc.Curve;
                                 else { var lc1 = e?.Location as LocationCurve; if (lc1?.Curve != null) c = lc1.Curve; }
                                 if (c == null) { skipped++; }
                                 else {
@@ -2183,7 +2183,7 @@ namespace RevitMCPAddin.Commands.Area
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
                 bool completed = (itemsArr != null ? nextIndex >= itemsArr.Count : elems == null || nextIndex >= elems.Count);
 
-                return new { ok = true, viewId = vp.Id.IntegerValue, levelId = level.Id.IntegerValue, created, skipped, failed, processed, completed, nextIndex = completed ? (int?)null : nextIndex, units = UnitHelper.DefaultUnitsMeta() };
+                return new { ok = true, viewId = vp.Id.IntValue(), levelId = level.Id.IntValue(), created, skipped, failed, processed, completed, nextIndex = completed ? (int?)null : nextIndex, units = UnitHelper.DefaultUnitsMeta() };
             }
             catch (Exception ex) { return new { ok = false, msg = ex.Message }; }
         }
@@ -2287,8 +2287,8 @@ namespace RevitMCPAddin.Commands.Area
                         .OfCategory(BuiltInCategory.OST_Rooms)
                         .WhereElementIsNotElementType()
                         .Cast<Autodesk.Revit.DB.Architecture.Room>()
-                        .Where(r => r.LevelId.IntegerValue == level.Id.IntegerValue)
-                        .Where(r => roomIdsFilter.Count == 0 || roomIdsFilter.Contains(r.Id.IntegerValue))
+                        .Where(r => r.LevelId.IntValue() == level.Id.IntValue())
+                        .Where(r => roomIdsFilter.Count == 0 || roomIdsFilter.Contains(r.Id.IntValue()))
                         .ToList();
                 }
 
@@ -2303,8 +2303,8 @@ namespace RevitMCPAddin.Commands.Area
                             try
                             {
                                 int rid = itemsArr[i].Type == JTokenType.Object ? ((JObject)itemsArr[i]).Value<int>("roomId") : itemsArr[i].Value<int>();
-                                var room = doc.GetElement(new ElementId(rid)) as Autodesk.Revit.DB.Architecture.Room;
-                                if (room == null || room.LevelId.IntegerValue != level.Id.IntegerValue) { processed++; nextIndex = i + 1; continue; }
+                                var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(rid)) as Autodesk.Revit.DB.Architecture.Room;
+                                if (room == null || room.LevelId.IntValue() != level.Id.IntValue()) { processed++; nextIndex = i + 1; continue; }
                                 roomsProcessed++;
                                 var loops = room.GetBoundarySegments(opts);
                                 if (loops != null)
@@ -2392,8 +2392,8 @@ namespace RevitMCPAddin.Commands.Area
                 return new
                 {
                     ok = true,
-                    viewId = vp.Id.IntegerValue,
-                    levelId = level.Id.IntegerValue,
+                    viewId = vp.Id.IntValue(),
+                    levelId = level.Id.IntValue(),
                     boundaryLocation = opts.SpatialElementBoundaryLocation.ToString(),
                     boundaryCurveSource = boundaryCurveSource.ToString(),
                     roomsProcessed,
@@ -2427,7 +2427,7 @@ namespace RevitMCPAddin.Commands.Area
                 if (ids.Count < 2) return new { ok = false, msg = "areaIds を2つ以上指定してください。" };
 
                 double tolFt = UnitHelper.MmToFt(p.Value<double?>("toleranceMm") ?? 2.0);
-                var areas = ids.Select(id => doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Area)
+                var areas = ids.Select(id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Area)
                                .Where(a => a != null).ToList();
                 if (areas.Count < 2) return new { ok = false, msg = "有効な Area が見つかりません。" };
 
@@ -2488,8 +2488,8 @@ namespace RevitMCPAddin.Commands.Area
                 return new
                 {
                     ok = true,
-                    viewId = vp.Id.IntegerValue,
-                    levelId = level.Id.IntegerValue,
+                    viewId = vp.Id.IntValue(),
+                    levelId = level.Id.IntValue(),
                     requestedAreaCount = areas.Count,
                     sharedBoundaryDeleted = deleted,
                     units = UnitHelper.DefaultUnitsMeta()
@@ -2499,3 +2499,5 @@ namespace RevitMCPAddin.Commands.Area
         }
     }
 }
+
+

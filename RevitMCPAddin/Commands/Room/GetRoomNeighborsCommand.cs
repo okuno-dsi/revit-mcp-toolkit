@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomNeighborsCommand.cs
 // Purpose : Roomの外周から隣接する他Roomを列挙（共有長さmmも集計）
 // Strategy: BoundarySegment（start/end）→ 中点・法線方向に微小オフセットして
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.Room
 
             var p = (JObject)(cmd.Params ?? new JObject());
             if (!p.TryGetValue("roomId", out var idTok)) return ResultUtil.Err("roomId を指定してください。");
-            var room = doc.GetElement(new ElementId(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return ResultUtil.Err("Room が見つかりません。");
 
             // すべてのRoom（判定用）— 多数でもOK
@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.Room
                 .ToList();
 
             // 自分自身は除外
-            allRooms.RemoveAll(r => r.Id.IntegerValue == room.Id.IntegerValue);
+            allRooms.RemoveAll(r => r.Id.IntValue() == room.Id.IntValue());
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
             var opts = new SpatialElementBoundaryOptions
@@ -93,11 +93,11 @@ namespace RevitMCPAddin.Commands.Room
                     if (rA != null && rB == null) neighbor = rA;
                     else if (rB != null && rA == null) neighbor = rB;
                     else if (rA != null && rB != null) // 両側に別室ヒット→“より遠い側”は壁外のこともあるので優先度なし。片方を採用
-                        neighbor = rA.Id.IntegerValue != room.Id.IntegerValue ? rA : rB;
+                        neighbor = rA.Id.IntValue() != room.Id.IntValue() ? rA : rB;
 
                     if (neighbor != null)
                     {
-                        var nid = neighbor.Id.IntegerValue;
+                        var nid = neighbor.Id.IntValue();
                         var lengthMm = UnitUtils.ConvertFromInternalUnits(c.Length, UnitTypeId.Millimeters);
 
                         if (agg.TryGetValue(nid, out var cur))
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.Room
 
             return ResultUtil.Ok(new
             {
-                target = new { roomId = room.Id.IntegerValue, name = room.Name ?? "" },
+                target = new { roomId = room.Id.IntValue(), name = room.Name ?? "" },
                 neighbors = items,
                 boundaryLocation = opts.SpatialElementBoundaryLocation.ToString(),
                 units = new { Length = "mm" }
@@ -128,3 +128,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

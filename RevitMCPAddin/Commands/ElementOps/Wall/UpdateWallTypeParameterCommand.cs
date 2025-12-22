@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 throw new ArgumentException("Parameter 'typeId' is required.");
             int typeId = tidToken.Value<int>();
 
-            var wallType = doc.GetElement(new ElementId(typeId)) as WallType;
+            var wallType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as WallType;
             if (wallType == null) return new { ok = false, msg = $"WallType not found: {typeId}" };
 
             // Resolve parameter by builtInId/builtInName/guid/name (fallback)
@@ -49,3 +49,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+

@@ -1,54 +1,47 @@
 // ================================================================
 // File: RevitMCPAddin/Commands/MetaOps/SearchCommandsHandler.cs
-// Desc: JSON-RPC "search_commands" (Add-in local) —
-//       commands_lex.jsonl を読み込み、英日混在キーワードでコマンド検索
+// Desc: JSON-RPC "search_commands" / "help.search_commands"
+//       CommandMetadataRegistry を使ってコマンド検索（外部 lex ファイル依存なし）
 // Target: .NET Framework 4.8 / C# 8.0
 // Notes: 依存を最小化（Microsoft.Extensions.* 不要 / ILogger<> 不要）
 // ================================================================
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using Autodesk.Revit.UI;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using RevitMCPAddin.Core; // RequestCommand / IRevitCommandHandler / RevitLogger がある前提
+using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.Commands.MetaOps
 {
-    internal sealed class LexEntry
-    {
-        public string name { get; set; } = "";
-        public string category { get; set; } = "Other";
-        public string kind { get; set; } = "read";         // read|write
-        public string importance { get; set; } = "normal"; // high|normal|low
-        public List<string> tokens { get; set; } = new List<string>();
-        public string hint { get; set; } = "";
-    }
-
     internal sealed class SearchParams
     {
-        public string q { get; set; } = "";
+        // Step 3 spec: query/tags/riskMax/limit
+        public string? query { get; set; }
+        // Backward compat
+        public string? q { get; set; }
+
+        public string[]? tags { get; set; }
+
+        public int? limit { get; set; }
         public int? top { get; set; }
         public string? category { get; set; }
         public string? kind { get; set; }           // read|write
         public string? importance { get; set; }     // high|normal|low
+        public string? riskMax { get; set; }        // low|medium|high
         public bool? prefixOnly { get; set; }
     }
 
+    [RpcCommand("search_commands",
+        Aliases = new[] { "help.search_commands" },
+        Category = "MetaOps",
+        Tags = new[] { "help", "discovery" },
+        Risk = RiskLevel.Low,
+        Summary = "Search available commands by keyword (name/category/tags/summary).")]
     public sealed class SearchCommandsHandler : IRevitCommandHandler
     {
         public string CommandName => "search_commands";
-
-        // キャッシュ（C#8/NET4.8向けに volatile 不使用。ロックで守る）
-        private static readonly object _gate = new object();
-        private static List<LexEntry>? _lex;               // スナップショット
-        private static DateTime _loadedAtUtc = DateTime.MinValue;
-        private static string _lexPath = ResolveLexPath();
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
@@ -58,50 +51,45 @@ namespace RevitMCPAddin.Commands.MetaOps
                     ? ((JObject)cmd.Params!).ToObject<SearchParams>() ?? new SearchParams()
                     : new SearchParams();
 
-                if (p == null || string.IsNullOrWhiteSpace(p.q))
-                    return new { ok = false, msg = "Missing 'q'." };
+                var query = (p.query ?? p.q ?? string.Empty).Trim();
+                var reqTags = (p.tags ?? Array.Empty<string>())
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => Normalize(t!))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
 
-                var lex = EnsureLexLoaded();
-                if (lex == null || lex.Count == 0)
-                    return new { ok = false, msg = "Lexicon not found or empty.", lexPath = _lexPath };
+                if (string.IsNullOrWhiteSpace(query) && (reqTags == null || reqTags.Length == 0))
+                    return RpcResultEnvelope.Fail(code: "INVALID_PARAMS", msg: "Missing 'query' (or 'q') and 'tags'. Provide at least one.");
 
-                string nq = Normalize(p.q);
-                string[] qtokens = nq.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var all = CommandMetadataRegistry.GetAll();
+                if (all == null || all.Count == 0)
+                    return RpcResultEnvelope.Fail(code: "NOT_READY", msg: "Command metadata is not available yet.");
 
-                // オプション絞り込み
-                IEnumerable<LexEntry> pool = lex;
+                string[] qtokens = Array.Empty<string>();
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    string nq = Normalize(query);
+                    qtokens = nq.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                }
+
+                IEnumerable<RpcCommandMeta> pool = all;
                 if (!string.IsNullOrWhiteSpace(p.category))
                     pool = pool.Where(r => ContainsIgnoreCase(r.category, p.category!));
                 if (!string.IsNullOrWhiteSpace(p.kind))
                     pool = pool.Where(r => string.Equals(r.kind, p.kind, StringComparison.OrdinalIgnoreCase));
                 if (!string.IsNullOrWhiteSpace(p.importance))
                     pool = pool.Where(r => string.Equals(r.importance, p.importance, StringComparison.OrdinalIgnoreCase));
+                var riskMax = !string.IsNullOrWhiteSpace(p.riskMax) ? NormalizeRisk(p.riskMax) : null;
 
-                // スコアリング
-                List<Tuple<double, LexEntry>> scored = new List<Tuple<double, LexEntry>>(256);
+                bool prefixOnly = p.prefixOnly == true;
+                var scored = new List<Tuple<double, RpcCommandMeta>>(256);
                 foreach (var r in pool)
                 {
-                    double s = 0.0;
-                    string nameLower = r.name.ToLowerInvariant();
-                    // tokens はすでに小文字想定ではないため都度 lower
-                    List<string> toks = (r.tokens ?? new List<string>()).Select(t => t.ToLowerInvariant()).ToList();
-
-                    for (int i = 0; i < qtokens.Length; i++)
-                    {
-                        string qt = qtokens[i];
-                        bool exact = toks.Contains(qt);
-                        bool partial = toks.Any(t => TokenMatch(t, qt, p.prefixOnly == true));
-                        if (exact) s += 3.0;
-                        else if (partial) s += 1.0;
-                        if (nameLower.IndexOf(qt, StringComparison.Ordinal) >= 0) s += 2.0;
-                    }
-                    if (string.Equals(r.importance, "high", StringComparison.OrdinalIgnoreCase)) s *= 1.1;
-                    if (string.Equals(r.kind, "read", StringComparison.OrdinalIgnoreCase)) s *= 1.02;
-
+                    double s = Score(r, qtokens, reqTags, prefixOnly, riskMax);
                     if (s > 0.0) scored.Add(Tuple.Create(s, r));
                 }
 
-                int top = Math.Max(1, Math.Min(200, p.top.HasValue ? p.top.Value : 15));
+                int top = Math.Max(1, Math.Min(200, p.limit ?? p.top ?? 10));
                 var items = scored
                     .OrderByDescending(x => x.Item1)
                     .ThenBy(x => x.Item2.name, StringComparer.OrdinalIgnoreCase)
@@ -109,116 +97,146 @@ namespace RevitMCPAddin.Commands.MetaOps
                     .Select(x => new JObject
                     {
                         ["name"] = x.Item2.name,
+                        ["score"] = Math.Round(Score01(x.Item1), 3),
+                        ["scoreRaw"] = Math.Round(x.Item1, 3),
+                        ["summary"] = x.Item2.summary ?? "",
+                        ["risk"] = x.Item2.risk,
+                        ["tags"] = new JArray((x.Item2.tags ?? Array.Empty<string>()).ToArray()),
+
+                        // extra fields (non-breaking; useful for agents)
                         ["category"] = x.Item2.category,
                         ["kind"] = x.Item2.kind,
                         ["importance"] = x.Item2.importance,
-                        ["hint"] = x.Item2.hint,
-                        ["tokens"] = new JArray((x.Item2.tokens ?? new List<string>()).ToArray()),
-                        ["score"] = Math.Round(x.Item1, 3)
+                        ["aliases"] = new JArray((x.Item2.aliases ?? Array.Empty<string>()).ToArray())
                     })
                     .ToList();
 
+                var data = new JObject
+                {
+                    ["items"] = new JArray(items.ToArray())
+                };
+
+                // Step 3 spec shape (+ backward compatible keys)
                 return new JObject
                 {
                     ["ok"] = true,
+                    ["code"] = "OK",
+                    ["msg"] = "Top matches",
+                    ["data"] = data,
+
+                    // backward compat keys
                     ["total"] = scored.Count,
-                    ["items"] = new JArray(items.ToArray()),
-                    ["loadedAtUtc"] = _loadedAtUtc.ToString("o"),
-                    ["lexPath"] = _lexPath
+                    ["items"] = data["items"],
+                    ["source"] = "registry",
+                    ["query"] = query,
+                    ["tags"] = new JArray(reqTags)
                 };
             }
             catch (Exception ex)
             {
                 RevitLogger.Error("search_commands failed: " + ex);
-                return new { ok = false, msg = ex.Message };
+                return RpcResultEnvelope.Fail(code: "INTERNAL_ERROR", msg: ex.Message);
             }
         }
 
-        // ------------------------------------------------------------
-        // 読み込み & キャッシュ
-        // ------------------------------------------------------------
-        private static List<LexEntry>? EnsureLexLoaded()
+        private static double Score(RpcCommandMeta meta, string[] qtokens, string[] reqTags, bool prefixOnly, string? riskMax)
         {
-            lock (_gate)
+            if (meta == null) return 0.0;
+
+            var nameLower = (meta.name ?? "").ToLowerInvariant();
+            var catLower = (meta.category ?? "").ToLowerInvariant();
+            var sumLower = (meta.summary ?? "").ToLowerInvariant();
+            var tagsLower = (meta.tags ?? Array.Empty<string>()).Select(t => (t ?? "").ToLowerInvariant()).ToArray();
+            var aliasLower = (meta.aliases ?? Array.Empty<string>()).Select(a => (a ?? "").ToLowerInvariant()).ToArray();
+            var nameTokens = nameLower.Split(new[] { '_', '.', '-', '/', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var aliasTokens = aliasLower
+                .SelectMany(a => a.Split(new[] { '_', '.', '-', '/', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            double s = 0.0;
+
+            // Query token overlap
+            if (qtokens != null && qtokens.Length > 0)
             {
-                try
+                for (int i = 0; i < qtokens.Length; i++)
                 {
-                    if (!File.Exists(_lexPath))
-                        return null;
+                    var q = (qtokens[i] ?? "").Trim().ToLowerInvariant();
+                    if (q.Length == 0) continue;
 
-                    // 単純な「毎回ロード」でも十分速いが、必要なら更新時刻で軽キャッシュ化
-                    DateTime now = DateTime.UtcNow;
-                    if (_lex != null && (now - _loadedAtUtc).TotalSeconds < 2.0)
-                        return _lex;
+                    bool exactTag = tagsLower.Contains(q);
+                    bool partialTag = tagsLower.Any(t => TokenMatch(t, q, prefixOnly));
+                    if (exactTag) s += 3.0;
+                    else if (partialTag) s += 1.0;
 
-                    List<LexEntry> list = new List<LexEntry>(2048);
-                    foreach (var line in File.ReadLines(_lexPath, Encoding.UTF8))
-                    {
-                        string s = (line ?? "").Trim();
-                        if (s.Length == 0) continue;
-                        try
-                        {
-                            LexEntry obj = JsonConvert.DeserializeObject<LexEntry>(s);
-                            if (obj != null && !string.IsNullOrWhiteSpace(obj.name))
-                                list.Add(obj);
-                        }
-                        catch
-                        {
-                            // 壊れ行はスキップ（ログは控えめ）
-                        }
-                    }
-                    _lex = list;
-                    _loadedAtUtc = now;
-                    return _lex;
-                }
-                catch (Exception ex)
-                {
-                    RevitLogger.Warn("EnsureLexLoaded failed: " + ex.Message);
-                    return null;
+                    bool exactNameTok = nameTokens.Contains(q);
+                    bool partialNameTok = nameTokens.Any(t => TokenMatch(t, q, prefixOnly));
+                    if (exactNameTok) s += 3.0;
+                    else if (partialNameTok) s += 1.0;
+
+                    bool exactAliasTok = aliasTokens.Contains(q);
+                    bool partialAliasTok = aliasTokens.Any(t => TokenMatch(t, q, prefixOnly));
+                    if (exactAliasTok) s += 2.0;
+                    else if (partialAliasTok) s += 0.75;
+
+                    if (TokenMatch(nameLower, q, prefixOnly)) s += 2.0;
+                    if (TokenMatch(catLower, q, prefixOnly)) s += 0.5;
+                    if (TokenMatch(sumLower, q, prefixOnly)) s += 0.5;
+                    if (aliasLower.Any(a => TokenMatch(a, q, prefixOnly))) s += 0.5;
                 }
             }
+
+            // Requested tags boost (Step 3 heuristic)
+            if (reqTags != null && reqTags.Length > 0)
+            {
+                int matchCount = 0;
+                for (int i = 0; i < reqTags.Length; i++)
+                {
+                    var rt = (reqTags[i] ?? "").Trim().ToLowerInvariant();
+                    if (rt.Length == 0) continue;
+                    if (tagsLower.Contains(rt) || tagsLower.Any(t => TokenMatch(t, rt, prefixOnly)))
+                        matchCount++;
+                }
+
+                if (matchCount == reqTags.Length) s += 6.0;
+                else if (matchCount > 0) s += matchCount * 2.0;
+            }
+
+            // Risk penalty when exceeding riskMax (Step 3 heuristic: penalize, don't hard-filter)
+            if (!string.IsNullOrWhiteSpace(riskMax))
+            {
+                int mr = RiskRank(meta.risk);
+                int mx = RiskRank(riskMax);
+                if (mr > mx)
+                {
+                    int diff = mr - mx;
+                    if (diff == 1) s *= 0.6;
+                    else s *= 0.3;
+                }
+            }
+
+            if (string.Equals(meta.risk, "low", StringComparison.OrdinalIgnoreCase)) s *= 1.02;
+            if (string.Equals(meta.kind, "read", StringComparison.OrdinalIgnoreCase)) s *= 1.01;
+            return s;
         }
 
-        // ------------------------------------------------------------
-        // Path 解決（Add-inフォルダ / wwwroot / 同階層 / %LOCALAPPDATA% フォールバック）
-        // ------------------------------------------------------------
-        private static string ResolveLexPath()
-        {
-            try
-            {
-                string baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? AppDomain.CurrentDomain.BaseDirectory;
-                string p1 = Path.Combine(baseDir, "wwwroot", "commands_lex.jsonl");
-                if (File.Exists(p1)) return p1;
-
-                string p2 = Path.Combine(baseDir, "commands_lex.jsonl");
-                if (File.Exists(p2)) return p2;
-
-                string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string p3 = Path.Combine(local, "RevitMCP", "server", "wwwroot", "commands_lex.jsonl");
-                if (File.Exists(p3)) return p3;
-
-                // 最後の手段：baseDirの親も探す
-                string p4 = Path.Combine(Directory.GetParent(baseDir)?.FullName ?? baseDir, "wwwroot", "commands_lex.jsonl");
-                if (File.Exists(p4)) return p4;
-
-                return p1; // 見つからなくても既定は wwwroot 配下
-            }
-            catch
-            {
-                return "commands_lex.jsonl";
-            }
-        }
-
-        // ------------------------------------------------------------
-        // Utils
-        // ------------------------------------------------------------
         private static string Normalize(string s)
         {
             string lower = (s ?? "").Trim().ToLowerInvariant();
-            // 半角/全角などの本格正規化は不要なら省略。必要なら NFKC を導入する
-            // .NET Framework 4.8 でも簡単な空白圧縮で十分
-            string one = System.Text.RegularExpressions.Regex.Replace(lower, @"\s+", " ");
+            string one = System.Text.RegularExpressions.Regex.Replace(lower, @"\\s+", " ");
             return one.Trim();
+        }
+
+        // Convert raw score to [0..1] for agent-friendly ranking.
+        private static double Score01(double raw)
+        {
+            if (raw <= 0.0) return 0.0;
+            // tuned: raw 10 -> ~0.71, raw 20 -> ~0.92
+            var v = 1.0 - Math.Exp(-raw / 8.0);
+            if (v < 0.0) return 0.0;
+            if (v > 1.0) return 1.0;
+            return v;
         }
 
         private static bool ContainsIgnoreCase(string hay, string needle)
@@ -233,6 +251,31 @@ namespace RevitMCPAddin.Commands.MetaOps
             if (prefixOnly)
                 return token.StartsWith(q, StringComparison.OrdinalIgnoreCase);
             return token.IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string NormalizeRisk(string s)
+        {
+            var v = (s ?? "").Trim().ToLowerInvariant();
+            if (v == "high") return "high";
+            if (v == "medium") return "medium";
+            return "low";
+        }
+
+        private static int CompareRisk(string a, string b)
+        {
+            int ra = RiskRank(NormalizeRisk(a));
+            int rb = RiskRank(NormalizeRisk(b));
+            return ra.CompareTo(rb);
+        }
+
+        private static int RiskRank(string r)
+        {
+            switch ((r ?? "").Trim().ToLowerInvariant())
+            {
+                case "high": return 2;
+                case "medium": return 1;
+                default: return 0;
+            }
         }
     }
 }

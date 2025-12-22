@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/UpdateLevelParameterCommand.cs (UnitHelper統一版)
 // - Name は直接 level.Name を変更
 // - それ以外は UnitHelper.TrySetParameterByExternalValue に一元化
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.DatumOps
             var p = (JObject)(cmd.Params ?? new JObject());
 
             int lid = p.Value<int>("levelId");
-            var level = doc.GetElement(new ElementId(lid)) as Level
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lid)) as Level
                         ?? throw new InvalidOperationException($"Level not found: {lid}");
 
             string paramName = p.Value<string>("paramName") ?? string.Empty;
@@ -71,3 +71,4 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+

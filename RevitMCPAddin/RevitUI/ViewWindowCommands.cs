@@ -30,7 +30,7 @@ namespace RevitMCPAddin.RevitUI
 
             var doc = uidoc.Document;
             var uivs = uidoc.GetOpenUIViews();
-            var activeId = doc.ActiveView?.Id?.IntegerValue ?? -1;
+            var activeId = doc.ActiveView?.Id?.IntValue() ?? -1;
 
             var items = new List<object>();
             foreach (var uiv in uivs)
@@ -42,11 +42,11 @@ namespace RevitMCPAddin.RevitUI
                     {
                         items.Add(new
                         {
-                            viewId = vid.IntegerValue,
+                            viewId = vid.IntValue(),
                             uniqueId = v.UniqueId,
                             name = v.Name,
                             viewType = v.ViewType.ToString(),
-                            isActive = (vid.IntegerValue == activeId),
+                            isActive = (vid.IntValue() == activeId),
                             canBePrinted = v.CanBePrinted
                         });
                     }
@@ -76,7 +76,7 @@ namespace RevitMCPAddin.RevitUI
             JToken jVid;
             if (p.TryGetValue("viewId", out jVid))
             {
-                target = doc.GetElement(new ElementId((int)jVid)) as View;
+                target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From((int)jVid)) as View;
             }
             else if (p.TryGetValue("uniqueId", out var jUid))
             {
@@ -94,7 +94,7 @@ namespace RevitMCPAddin.RevitUI
             if (target == null) return new { ok = false, msg = "Target view not found." };
 
             var ok = UiHelpers.TryRequestViewChange(uidoc, target);
-            return new { ok = ok, viewId = target.Id.IntegerValue, name = target.Name };
+            return new { ok = ok, viewId = target.Id.IntValue(), name = target.Name };
         }
     }
 
@@ -123,7 +123,7 @@ namespace RevitMCPAddin.RevitUI
             {
                 foreach (var i in byIds)
                 {
-                    var v1 = doc.GetElement(new ElementId(i)) as View;
+                    var v1 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(i)) as View;
                     if (v1 != null && !v1.IsTemplate) yield return v1;
                 }
 
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.RevitUI
             foreach (var v in Resolve())
             {
                 var ok = UiHelpers.TryRequestViewChange(uidoc, v);
-                opened.Add(new { ok = ok, viewId = v.Id.IntegerValue, name = v.Name });
+                opened.Add(new { ok = ok, viewId = v.Id.IntValue(), name = v.Name });
                 if (ok) last = v;
             }
 
@@ -153,7 +153,7 @@ namespace RevitMCPAddin.RevitUI
             {
                 ok = true,
                 opened = opened,
-                activated = last != null ? new { viewId = last.Id.IntegerValue, name = last.Name } : null
+                activated = last != null ? new { viewId = last.Id.IntValue(), name = last.Name } : null
             };
         }
     }
@@ -184,7 +184,7 @@ namespace RevitMCPAddin.RevitUI
             var p = cmd.Params as JObject ?? new JObject();
 
             var open = uidoc.GetOpenUIViews() ?? new List<UIView>();
-            var openIds = new HashSet<int>(open.Select(u => u.ViewId.IntegerValue));
+            var openIds = new HashSet<int>(open.Select(u => u.ViewId.IntValue()));
 
             // Build target set to close
             var toClose = new HashSet<int>();
@@ -208,7 +208,7 @@ namespace RevitMCPAddin.RevitUI
             var openMap = new Dictionary<int, View>();
             foreach (var u in open)
             {
-                try { if (doc.GetElement(u.ViewId) is View v) openMap[u.ViewId.IntegerValue] = v; } catch { }
+                try { if (doc.GetElement(u.ViewId) is View v) openMap[u.ViewId.IntValue()] = v; } catch { }
             }
 
             // By uniqueIds
@@ -249,7 +249,7 @@ namespace RevitMCPAddin.RevitUI
 
             // Ensure we keep at least one view (Revit cannot leave zero open)
             bool keptActiveDueToLimit = false;
-            int activeId = doc.ActiveView?.Id?.IntegerValue ?? -1;
+            int activeId = doc.ActiveView?.Id?.IntValue() ?? -1;
             if (keepIds.Count == 0)
             {
                 // Prefer keeping the current active view even if requested to close
@@ -273,7 +273,7 @@ namespace RevitMCPAddin.RevitUI
             int baselineId = keepIds.Contains(activeId) && activeId > 0 ? activeId : keepIds.First();
             try
             {
-                var v0 = doc.GetElement(new ElementId(baselineId)) as View;
+                var v0 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(baselineId)) as View;
                 if (v0 != null)
                 {
                     UiCommandHelpers.RequestViewChangeSmart(uiapp, uidoc, v0, 150);
@@ -290,7 +290,7 @@ namespace RevitMCPAddin.RevitUI
                 if (id == baselineId) continue;
                 try
                 {
-                    var v = doc.GetElement(new ElementId(id)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as View;
                     if (v != null)
                         UiCommandHelpers.RequestViewChangeSmart(uiapp, uidoc, v, 120);
                 }
@@ -299,7 +299,7 @@ namespace RevitMCPAddin.RevitUI
 
             // 4) Summarize
             var afterOpen = uidoc.GetOpenUIViews() ?? new List<UIView>();
-            var afterIds = new HashSet<int>(afterOpen.Select(u => u.ViewId.IntegerValue));
+            var afterIds = new HashSet<int>(afterOpen.Select(u => u.ViewId.IntValue()));
             var actuallyClosed = openIds.Where(id => !afterIds.Contains(id)).ToArray();
 
             return new
@@ -342,13 +342,13 @@ namespace RevitMCPAddin.RevitUI
                     var another = new FilteredElementCollector(doc)
                         .OfClass(typeof(View))
                         .Cast<View>()
-                        .FirstOrDefault(v => !v.IsTemplate && v.Id.IntegerValue != doc.ActiveView.Id.IntegerValue);
+                        .FirstOrDefault(v => !v.IsTemplate && v.Id.IntValue() != doc.ActiveView.Id.IntValue());
 
                     if (another != null)
                     {
                         // UIスレッドで開く
                         bool opened = UiCommandHelpers.RequestViewChangeSmart(uiapp, uidoc, another, 200);
-                        steps.Add(new { step = "open-another-view", ok = opened, viewId = another.Id.IntegerValue, name = another.Name });
+                        steps.Add(new { step = "open-another-view", ok = opened, viewId = another.Id.IntValue(), name = another.Name });
 
                     }
                     else
@@ -465,7 +465,7 @@ namespace RevitMCPAddin.RevitUI
             var p = cmd.Params as JObject ?? new JObject();
 
             var open = uidoc.GetOpenUIViews() ?? new List<UIView>();
-            var openIds = new HashSet<int>(open.Select(u => u.ViewId.IntegerValue));
+            var openIds = new HashSet<int>(open.Select(u => u.ViewId.IntValue()));
 
             // Keep set (views to remain open)
             var keepIds = new HashSet<int>();
@@ -489,7 +489,7 @@ namespace RevitMCPAddin.RevitUI
             var openMap = new Dictionary<int, View>();
             foreach (var u in open)
             {
-                try { if (doc.GetElement(u.ViewId) is View v) openMap[u.ViewId.IntegerValue] = v; } catch { }
+                try { if (doc.GetElement(u.ViewId) is View v) openMap[u.ViewId.IntValue()] = v; } catch { }
             }
 
             // UniqueIds
@@ -520,7 +520,7 @@ namespace RevitMCPAddin.RevitUI
 
             // If keepIds empty, enforce at least one (active or first)
             bool keptActiveDueToLimit = false;
-            int activeId = doc.ActiveView?.Id?.IntegerValue ?? -1;
+            int activeId = doc.ActiveView?.Id?.IntValue() ?? -1;
             if (keepIds.Count == 0)
             {
                 if (openIds.Contains(activeId))
@@ -543,7 +543,7 @@ namespace RevitMCPAddin.RevitUI
             int baselineId = keepIds.Contains(activeId) && activeId > 0 ? activeId : keepIds.First();
             try
             {
-                var v0 = doc.GetElement(new ElementId(baselineId)) as View;
+                var v0 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(baselineId)) as View;
                 if (v0 != null)
                 {
                     UiCommandHelpers.RequestViewChangeSmart(uiapp, uidoc, v0, 150);
@@ -560,7 +560,7 @@ namespace RevitMCPAddin.RevitUI
                 if (id == baselineId) continue;
                 try
                 {
-                    var v = doc.GetElement(new ElementId(id)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as View;
                     if (v != null)
                         UiCommandHelpers.RequestViewChangeSmart(uiapp, uidoc, v, 120);
                 }
@@ -569,7 +569,7 @@ namespace RevitMCPAddin.RevitUI
 
             // Summarize
             var afterOpen = uidoc.GetOpenUIViews() ?? new List<UIView>();
-            var afterIds = new HashSet<int>(afterOpen.Select(u => u.ViewId.IntegerValue));
+            var afterIds = new HashSet<int>(afterOpen.Select(u => u.ViewId.IntValue()));
             var actuallyClosed = openIds.Where(id => !afterIds.Contains(id)).ToArray();
 
             return new
@@ -584,3 +584,5 @@ namespace RevitMCPAddin.RevitUI
         }
     }
 }
+
+

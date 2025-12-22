@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/RevisionCloud/GetRevisionCloudGeometryCommand.cs
 // Purpose: Return revision cloud geometry as loops of segments in mm
 // Target: .NET Framework 4.8 / C# 7.3 / Revit 2023+
@@ -27,7 +27,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             Element elem = null;
             JToken tok;
             if (p.TryGetValue("elementId", out tok))
-                elem = doc.GetElement(new ElementId(tok.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tok.Value<int>()));
             else if (p.TryGetValue("uniqueId", out tok))
                 elem = doc.GetElement(tok.Value<string>());
 
@@ -220,7 +220,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             return new
             {
                 ok = true,
-                elementId = rc.Id.IntegerValue,
+                elementId = rc.Id.IntValue(),
                 totalLoops = outLoops.Count,
                 loops = outLoops,
                 units = new { Length = "mm" }
@@ -258,3 +258,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

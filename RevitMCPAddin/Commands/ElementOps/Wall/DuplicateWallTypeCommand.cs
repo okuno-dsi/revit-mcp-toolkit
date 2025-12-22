@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/DuplicateWallTypeCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/DuplicateWallTypeCommand.cs
 // UnitHelper化: エラー整形 & units 付加
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             }
             else if (p.TryGetValue("sourceTypeId", out var sid))
             {
-                sourceType = doc.GetElement(new ElementId(sid.Value<int>())) as WallType;
+                sourceType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sid.Value<int>())) as WallType;
             }
             if (sourceType == null)
                 return new { ok = false, msg = "Source WallType not found." };
@@ -51,7 +51,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             return new
             {
                 ok = true,
-                newTypeId = dup.Id.IntegerValue,
+                newTypeId = dup.Id.IntValue(),
                 newTypeName = dup.Name,
                 inputUnits = UnitHelper.InputUnitsMeta(),
                 internalUnits = UnitHelper.InternalUnitsMeta()
@@ -59,3 +59,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

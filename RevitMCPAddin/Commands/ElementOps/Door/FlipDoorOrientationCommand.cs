@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DoorOps/FlipDoorOrientationCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: ドアの Hand/Facing 反転・任意ミラー・任意回転を安全に適用
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.DoorOps
             Element? elem = null;
             if (p.TryGetValue("elementId", out var vId) && vId.Type == JTokenType.Integer)
             {
-                elem = doc.GetElement(new ElementId(vId.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vId.Value<int>()));
             }
             else if (p.TryGetValue("uniqueId", out var vUid) && vUid.Type == JTokenType.String)
             {
@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.DoorOps
             if (elem == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId を確認）。" };
 
             // ドア判定
-            if (elem.Category == null || elem.Category.Id.IntegerValue != (int)BuiltInCategory.OST_Doors)
+            if (elem.Category == null || elem.Category.Id.IntValue() != (int)BuiltInCategory.OST_Doors)
                 return new { ok = false, msg = "対象がドアではありません（categoryId != OST_Doors）。" };
 
             if (!(elem is FamilyInstance fi))
@@ -184,7 +184,7 @@ namespace RevitMCPAddin.Commands.DoorOps
             return new
             {
                 ok = true,
-                elementId = fi.Id.IntegerValue,
+                elementId = fi.Id.IntValue(),
                 applied,
                 before,
                 after = new { handFlipped = afterHand, facingFlipped = afterFacing, mirrored = afterMirrored, yawDeg = afterYawDeg },
@@ -266,3 +266,5 @@ namespace RevitMCPAddin.Commands.DoorOps
         }
     }
 }
+
+

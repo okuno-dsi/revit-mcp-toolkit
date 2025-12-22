@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/MoveArchitecturalColumnCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/MoveArchitecturalColumnCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -22,10 +22,11 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
             using var tx = new Transaction(doc, "Move Architectural Column");
             tx.Start();
-            ElementTransformUtils.MoveElement(doc, new ElementId(id), new XYZ(dx, dy, dz));
+            ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id), new XYZ(dx, dy, dz));
             tx.Commit();
 
             return new { ok = true, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 }
+

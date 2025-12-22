@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     if (t.Type == JTokenType.Integer)
                     {
                         var v = t.Value<int>();
-                        if (v > 0) ids.Add(new ElementId(v));
+                        if (v > 0) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(v));
                     }
                 }
             }
@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 Autodesk.Revit.DB.Wall target = null;
                 var eid = p.Value<int?>("elementId") ?? 0;
                 var uid = p.Value<string>("uniqueId");
-                if (eid > 0) target = doc.GetElement(new ElementId(eid)) as Autodesk.Revit.DB.Wall;
+                if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as Autodesk.Revit.DB.Wall;
                 else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid) as Autodesk.Revit.DB.Wall;
 
                 if (target != null)
@@ -163,4 +163,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
 

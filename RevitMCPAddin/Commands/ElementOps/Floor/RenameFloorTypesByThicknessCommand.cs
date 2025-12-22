@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                         double mm = GetThicknessMillimeters(ft);
                         if (mm <= 0)
                         {
-                            skipped++; items.Add(new { typeId = ft.Id.IntegerValue, oldName = ft.Name, reason = "no_thickness" });
+                            skipped++; items.Add(new { typeId = ft.Id.IntValue(), oldName = ft.Name, reason = "no_thickness" });
                             continue;
                         }
                         string mmInt = Math.Round(mm).ToString(CultureInfo.InvariantCulture);
@@ -66,12 +66,12 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                         string newName = prefix + baseName;
                         if (string.Equals(newName, ft.Name, StringComparison.Ordinal))
                         {
-                            skipped++; items.Add(new { typeId = ft.Id.IntegerValue, oldName = ft.Name, reason = "already_up_to_date" });
+                            skipped++; items.Add(new { typeId = ft.Id.IntValue(), oldName = ft.Name, reason = "already_up_to_date" });
                             continue;
                         }
                         if (nameSet.Contains(newName))
                         {
-                            skipped++; items.Add(new { typeId = ft.Id.IntegerValue, oldName = ft.Name, newName, reason = "name_conflict" });
+                            skipped++; items.Add(new { typeId = ft.Id.IntValue(), oldName = ft.Name, newName, reason = "name_conflict" });
                             continue;
                         }
 
@@ -81,11 +81,11 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                             nameSet.Add(newName);
                         }
                         renamed++;
-                        items.Add(new { typeId = ft.Id.IntegerValue, oldName = ft.Name, newName });
+                        items.Add(new { typeId = ft.Id.IntValue(), oldName = ft.Name, newName });
                     }
                     catch (Exception ex)
                     {
-                        skipped++; items.Add(new { typeId = ft.Id.IntegerValue, oldName = ft.Name, reason = ex.Message });
+                        skipped++; items.Add(new { typeId = ft.Id.IntValue(), oldName = ft.Name, reason = ex.Message });
                     }
                 }
 
@@ -138,4 +138,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
 

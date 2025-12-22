@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.DatumOps
                 .OfClass(typeof(Level))
                 .Cast<Level>()
                 .Select(l => new {
-                    id = l.Id.IntegerValue,
+                    id = l.Id.IntValue(),
                     name = l.Name,
                     elevation = Math.Round(UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Meters), 6)
                 })
@@ -32,4 +32,5 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+
 

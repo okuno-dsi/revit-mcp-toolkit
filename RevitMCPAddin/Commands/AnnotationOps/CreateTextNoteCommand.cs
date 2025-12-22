@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/CreateTextNoteCommand.cs
 // Purpose : Create a TextNote at given position (project units aware)
 // Params  :
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (string.IsNullOrEmpty(text)) return (false, "text required.", 0, 0, 0);
 
             int? viewIdOpt = p.Value<int?>("viewId");
-            var view = viewIdOpt.HasValue ? doc.GetElement(new ElementId(viewIdOpt.Value)) as View : doc.ActiveView;
+            var view = viewIdOpt.HasValue ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdOpt.Value)) as View : doc.ActiveView;
             if (view == null) return (false, "View not found.", 0, 0, 0);
 
             string? unitOpt = p.Value<string>("unit");
@@ -119,7 +119,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 tn = TextNote.Create(doc, view.Id, pos, text, opts);
                 t.Commit();
             }
-            return (true, string.Empty, tn.Id.IntegerValue, view.Id.IntegerValue, tnt.Id.IntegerValue);
+            return (true, string.Empty, tn.Id.IntValue(), view.Id.IntValue(), tnt.Id.IntValue());
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File   : Core/Common/ElementFilterUtil.cs
 // Purpose: 共通の要素フィルタ（カテゴリ/クラス/レベル/インポート/理由/ビュー種別）
 // ============================================================================
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Core.Common
             if (excludeImports && IsImport(e)) return false;
             if (modelOnly && cat.CategoryType != CategoryType.Model) return false;
 
-            int cid = cat.Id.IntegerValue;
+            int cid = cat.Id.IntValue();
             if (incCat != null && incCat.Count > 0 && !incCat.Contains(cid)) return false;
             if (excCat != null && excCat.Contains(cid)) return false;
             return true;
@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Core.Common
                 Parameter p = e.get_Parameter(BuiltInParameter.LEVEL_PARAM);
                 if (p != null && p.StorageType == StorageType.ElementId)
                 {
-                    int lid = p.AsElementId().IntegerValue;
+                    int lid = p.AsElementId().IntValue();
                     return incLevelIds.Contains(lid);
                 }
             }
@@ -61,3 +61,4 @@ namespace RevitMCPAddin.Core.Common
         }
     }
 }
+

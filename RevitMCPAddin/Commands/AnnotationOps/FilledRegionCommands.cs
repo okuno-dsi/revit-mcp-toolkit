@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             var vid = p.Value<int?>("viewId") ?? 0;
             if (vid > 0)
-                v = doc.GetElement(new ElementId(vid)) as View;
+                v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
             if (v == null)
                 v = uidoc?.ActiveView;
 
@@ -303,14 +303,14 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                     items.Add(new
                     {
-                        typeId = t.Id.IntegerValue,
+                        typeId = t.Id.IntValue(),
                         uniqueId = t.UniqueId,
                         name = t.Name,
                         isMasking = t.IsMasking,
-                        foregroundPatternId = fgId?.IntegerValue,
+                        foregroundPatternId = fgId?.IntValue(),
                         foregroundPatternName = fgName,
                         foregroundColor = fgColor != null ? new { r = (int)fgColor.Red, g = (int)fgColor.Green, b = (int)fgColor.Blue } : null,
-                        backgroundPatternId = bgId?.IntegerValue,
+                        backgroundPatternId = bgId?.IntValue(),
                         backgroundPatternName = bgName,
                         backgroundColor = bgColor != null ? new { r = (int)bgColor.Red, g = (int)bgColor.Green, b = (int)bgColor.Blue } : null
                     });
@@ -355,17 +355,17 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                 var items = col.Select(fr => new
                 {
-                    elementId = fr.Id.IntegerValue,
+                    elementId = fr.Id.IntValue(),
                     uniqueId = fr.UniqueId,
-                    typeId = fr.GetTypeId().IntegerValue,
-                    viewId = view.Id.IntegerValue,
+                    typeId = fr.GetTypeId().IntValue(),
+                    viewId = view.Id.IntValue(),
                     isMasking = fr.IsMasking
                 }).ToList();
 
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     totalCount = items.Count,
                     items
                 };
@@ -406,7 +406,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 FilledRegionType? baseType = null;
                 if (typeId > 0)
                 {
-                    typeEid = new ElementId(typeId);
+                    typeEid = Autodesk.Revit.DB.ElementIdCompat.From(typeId);
                     baseType = doc.GetElement(typeEid) as FilledRegionType;
                     if (baseType == null)
                         throw new InvalidOperationException($"FilledRegionType が見つかりません: typeId={typeId}");
@@ -448,7 +448,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                             FillPatternElement? fp = null;
                             if (idOpt.HasValue && idOpt.Value > 0)
                             {
-                                fp = doc.GetElement(new ElementId(idOpt.Value)) as FillPatternElement;
+                                fp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idOpt.Value)) as FillPatternElement;
                             }
                             if (fp == null && !string.IsNullOrWhiteSpace(nameOpt))
                             {
@@ -503,10 +503,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 return new
                 {
                     ok = true,
-                    elementId = fr.Id.IntegerValue,
+                    elementId = fr.Id.IntValue(),
                     uniqueId = fr.UniqueId,
-                    typeId = fr.GetTypeId().IntegerValue,
-                    viewId = view.Id.IntegerValue
+                    typeId = fr.GetTypeId().IntValue(),
+                    viewId = view.Id.IntValue()
                 };
             }
             catch (Exception ex)
@@ -541,7 +541,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (typeId <= 0)
                 return new { ok = false, msg = "typeId が必要です。" };
 
-            var typeEid = new ElementId(typeId);
+            var typeEid = Autodesk.Revit.DB.ElementIdCompat.From(typeId);
             var typeElem = doc.GetElement(typeEid) as FilledRegionType;
             if (typeElem == null)
                 return new { ok = false, msg = $"FilledRegionType が見つかりません: typeId={typeId}" };
@@ -563,7 +563,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 {
                     try
                     {
-                        var fr = doc.GetElement(new ElementId(id)) as FilledRegion;
+                        var fr = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FilledRegion;
                         if (fr == null)
                         {
                             failed++;
@@ -622,7 +622,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int eid = p.Value<int?>("elementId") ?? 0;
             if (eid <= 0) return new { ok = false, msg = "elementId が必要です。" };
 
-            var frOld = doc.GetElement(new ElementId(eid)) as FilledRegion;
+            var frOld = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as FilledRegion;
             if (frOld == null) return new { ok = false, msg = "FilledRegion が見つかりません。" };
 
             var loopsTok = p["loops"] as JArray;
@@ -651,9 +651,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 {
                     ok = true,
                     oldElementId = eid,
-                    newElementId = frNew.Id.IntegerValue,
+                    newElementId = frNew.Id.IntValue(),
                     newUniqueId = frNew.UniqueId,
-                    viewId = view.Id.IntegerValue
+                    viewId = view.Id.IntValue()
                 };
             }
             catch (Exception ex)
@@ -702,7 +702,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 {
                     try
                     {
-                        var fr = doc.GetElement(new ElementId(id)) as FilledRegion;
+                        var fr = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FilledRegion;
                         if (fr == null) continue;
                         var deleted = doc.Delete(fr.Id);
                         if (deleted != null && deleted.Count > 0)
@@ -730,3 +730,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

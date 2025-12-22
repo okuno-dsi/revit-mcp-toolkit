@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (p.TryGetValue("elementIds", out var arrTok) && arrTok is JArray arr)
             {
-                foreach (var t in arr) { try { ids.Add(new ElementId(t.Value<int>())); } catch { } }
+                foreach (var t in arr) { try { ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>())); } catch { } }
             }
 
             if (p.TryGetValue("uniqueIds", out var uArrTok) && uArrTok is JArray uarr)
@@ -90,7 +90,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     var e = doc.GetElement(id);
                     if (e == null)
                     {
-                        items.Add(new { ok = false, elementId = id.IntegerValue, error = "not_found" });
+                        items.Add(new { ok = false, elementId = id.IntValue(), error = "not_found" });
                         continue;
                     }
 
@@ -110,7 +110,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         items.Add(new
                         {
                             ok = true,
-                            elementId = e.Id.IntegerValue,
+                            elementId = e.Id.IntValue(),
                             uniqueId = e.UniqueId,
                             category = e.Category?.Name,
                             typeName = et0?.Name,
@@ -126,7 +126,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     }
                     if (!hasGeom)
                     {
-                        items.Add(new { ok = false, elementId = id.IntegerValue, error = "no_geometry" });
+                        items.Add(new { ok = false, elementId = id.IntValue(), error = "no_geometry" });
                         continue;
                     }
 
@@ -135,13 +135,13 @@ namespace RevitMCPAddin.Commands.ElementOps
                     try { TraverseGeometry(ge, rootT, doc, collector); }
                     catch (Exception ex)
                     {
-                        items.Add(new { ok = false, elementId = id.IntegerValue, error = "traverse_failed: " + ex.Message });
+                        items.Add(new { ok = false, elementId = id.IntValue(), error = "traverse_failed: " + ex.Message });
                         continue;
                     }
 
                     if (collector.TotalTriangleCount == 0 && collector.TotalVertexCount == 0)
                     {
-                        items.Add(new { ok = false, elementId = id.IntegerValue, error = "empty" });
+                        items.Add(new { ok = false, elementId = id.IntValue(), error = "empty" });
                         continue;
                     }
 
@@ -149,7 +149,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     items.Add(new
                     {
                         ok = true,
-                        elementId = e.Id.IntegerValue,
+                        elementId = e.Id.IntValue(),
                         uniqueId = e.UniqueId,
                         category = e.Category?.Name,
                         typeName = et?.Name,
@@ -165,7 +165,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 }
                 catch (Exception ex)
                 {
-                    items.Add(new { ok = false, elementId = id?.IntegerValue ?? -1, error = ex.Message });
+                    items.Add(new { ok = false, elementId = id?.IntValue() ?? -1, error = ex.Message });
                 }
             }
 
@@ -318,7 +318,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 Mesh m = null;
                 try { m = f.Triangulate(); } catch { continue; }
                 if (m == null || m.NumTriangles == 0) continue;
-                var matId = (f.MaterialElementId != null && f.MaterialElementId.IntegerValue > 0) ? f.MaterialElementId : ElementId.InvalidElementId;
+                var matId = (f.MaterialElementId != null && f.MaterialElementId.IntValue() > 0) ? f.MaterialElementId : ElementId.InvalidElementId;
                 AddMesh(m, t, matId, collector);
             }
         }
@@ -351,8 +351,8 @@ namespace RevitMCPAddin.Commands.ElementOps
 
         private class ElementIdComparer : IEqualityComparer<ElementId>
         {
-            public bool Equals(ElementId x, ElementId y) => (x?.IntegerValue ?? -1) == (y?.IntegerValue ?? -1);
-            public int GetHashCode(ElementId obj) => obj?.IntegerValue.GetHashCode() ?? 0;
+            public bool Equals(ElementId x, ElementId y) => (x?.IntValue() ?? -1) == (y?.IntValue() ?? -1);
+            public int GetHashCode(ElementId obj) => obj?.IntValue().GetHashCode() ?? 0;
         }
 
         private class MeshCollector
@@ -377,7 +377,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             public void AddTriangle(ElementId matId, XYZ p0, XYZ p1, XYZ p2)
             {
-                int matKey = (matId != null && matId.IntegerValue > 0) ? matId.IntegerValue : -1;
+                int matKey = (matId != null && matId.IntValue() > 0) ? matId.IntValue() : -1;
                 if (!_matToIndices.TryGetValue(matKey, out var list)) { list = new List<int>(4096); _matToIndices[matKey] = list; }
                 _materialIds.Add(matKey);
 
@@ -467,7 +467,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     if (mid <= 0) { list.Add(new { materialId = -1, name = "" }); continue; }
                     try
                     {
-                        var m = doc.GetElement(new ElementId(mid)) as Autodesk.Revit.DB.Material;
+                        var m = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(mid)) as Autodesk.Revit.DB.Material;
                         list.Add(new { materialId = mid, name = m?.Name ?? "" });
                     }
                     catch { list.Add(new { materialId = mid, name = "" }); }
@@ -492,3 +492,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+

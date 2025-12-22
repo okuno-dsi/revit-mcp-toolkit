@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 var p = (JObject)(cmd.Params ?? new JObject());
 
                 // --- View ---
-                var viewId = new ElementId(p.Value<int>("viewId"));
+                var viewId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("viewId"));
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return new { ok = false, msg = "view not found" };
 
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 JToken rTok;
                 if (p.TryGetValue("revisionId", out rTok))
                 {
-                    var rid = new ElementId(rTok.Value<int>());
+                    var rid = Autodesk.Revit.DB.ElementIdCompat.From(rTok.Value<int>());
                     if (doc.GetElement(rid) is Autodesk.Revit.DB.Revision) revisionId = rid;
                 }
                 if (revisionId == ElementId.InvalidElementId)
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         }
                     }
 
-                    // ‰Â”\‚È‚ç–¾¦“I‚É•Â‚¶‚éiRevit‚Í•Âƒ‹[ƒv‚ğŠú‘Òj
+                    // ï¿½Â”\ï¿½È‚ç–¾ï¿½ï¿½ï¿½Iï¿½É•Â‚ï¿½ï¿½ï¿½iRevitï¿½Í•Âƒï¿½ï¿½[ï¿½vï¿½ï¿½ï¿½ï¿½ï¿½Òj
                     if (firstStart != null && lastEnd != null && !firstStart.IsAlmostEqualTo(lastEnd))
                     {
                         loop.Append(Line.CreateBound(lastEnd, firstStart));
@@ -112,8 +112,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 {
                     tx.Start();
 
-                    // 1) ‚Ü‚¸ Revit 2023 ‚É‘¶İ‚·‚é‰Â”\«‚ª‚ ‚é CurveLoop ƒI[ƒo[ƒ[ƒh‚ğ”½Ë‚Å’Tõ
-                    //    (ƒo[ƒWƒ‡ƒ“‚É‚æ‚è‘¶İ‚µ‚È‚¢ƒP[ƒX‚ª‚ ‚é)
+                    // 1) ï¿½Ü‚ï¿½ Revit 2023 ï¿½É‘ï¿½ï¿½İ‚ï¿½ï¿½ï¿½Â”\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ CurveLoop ï¿½Iï¿½[ï¿½oï¿½[ï¿½ï¿½ï¿½[ï¿½hï¿½ğ”½Ë‚Å’Tï¿½ï¿½
+                    //    (ï¿½oï¿½[ï¿½Wï¿½ï¿½ï¿½ï¿½ï¿½É‚ï¿½è‘¶ï¿½İ‚ï¿½ï¿½È‚ï¿½ï¿½Pï¿½[ï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
                     var t = typeof(Autodesk.Revit.DB.RevisionCloud);
                     MethodInfo mCurveLoop = t.GetMethod(
                         "Create",
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     }
                     else
                     {
-                        // 2) CurveLoop”Å‚ª–³‚¢ê‡‚ÍAÅ‰‚Ìƒ‹[ƒv‚ğ Curve[] ‚É—‚Æ‚µ‚Ä•ÊƒI[ƒo[ƒ[ƒh‚ğg—p
+                        // 2) CurveLoopï¿½Å‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê‡ï¿½ÍAï¿½Åï¿½ï¿½Ìƒï¿½ï¿½[ï¿½vï¿½ï¿½ Curve[] ï¿½É—ï¿½ï¿½Æ‚ï¿½ï¿½Ä•ÊƒIï¿½[ï¿½oï¿½[ï¿½ï¿½ï¿½[ï¿½hï¿½ï¿½ï¿½gï¿½p
                         var flat = new List<Curve>();
                         foreach (var c in curveLoops.First()) flat.Add(c);
 
@@ -153,7 +153,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                             }
                             else
                             {
-                                // (Document, View, IList<Curve>) ¨ Œã‚©‚çƒpƒ‰ƒ[ƒ^‚Å Revision İ’è
+                                // (Document, View, IList<Curve>) ï¿½ï¿½ ï¿½ã‚©ï¿½ï¿½pï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½^ï¿½ï¿½ Revision ï¿½İ’ï¿½
                                 var m3 = t.GetMethod("Create",
                                     new[] { typeof(Document), typeof(View), typeof(IList<Curve>) });
 
@@ -177,7 +177,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 }
 
                 if (rc == null) return new { ok = false, msg = "create failed (no suitable overload found)" };
-                return new { ok = true, cloudId = rc.Id.IntegerValue, usedRevisionId = revisionId.IntegerValue };
+                return new { ok = true, cloudId = rc.Id.IntValue(), usedRevisionId = revisionId.IntValue() };
             }
             catch (Exception ex)
             {
@@ -186,3 +186,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

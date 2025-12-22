@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.Misc
             if (doc == null) return new { ok = false, code = "NO_DOC", msg = "No active document." };
 
             var ids = SelectionStash.GetIds();
-            var elemIds = new HashSet<ElementId>(ids.Select(i => new ElementId(i)));
+            var elemIds = new HashSet<ElementId>(ids.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)));
 
             try
             {
@@ -32,3 +32,4 @@ namespace RevitMCPAddin.Commands.Misc
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorBoundaryCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorBoundaryCommand.cs
 #nullable enable
 using System;
 using System.Linq;
@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             Element elem = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) elem = doc.GetElement(new ElementId(eid));
+            if (eid > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) elem = doc.GetElement(uid);
 
             var floor = elem as Autodesk.Revit.DB.Floor;
@@ -114,7 +114,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             return new
             {
                 ok = true,
-                elementId = floor.Id.IntegerValue,
+                elementId = floor.Id.IntValue(),
                 uniqueId = floor.UniqueId,
                 faceSelection = faceSel,
                 totalCount = outLoops.Count,
@@ -217,3 +217,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

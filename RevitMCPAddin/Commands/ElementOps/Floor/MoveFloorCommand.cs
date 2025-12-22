@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/MoveFloorCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/MoveFloorCommand.cs
 using ARDB = Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            var id = new ARDB.ElementId(p.Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             var floorElem = doc.GetElement(id) as ARDB.Floor
                             ?? throw new System.InvalidOperationException("Floor not found.");
 
@@ -36,3 +36,4 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -116,8 +116,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                 }
 
                 t.Commit();
-                LoggerProxy.Info($"[Site] Site component placed id={fi.Id.IntegerValue} cat='{category}' type='{symbol.Name}'");
-                return new { ok = true, elementId = fi.Id.IntegerValue, type = symbol.Name, family = symbol.FamilyName, level = level.Name };
+                LoggerProxy.Info($"[Site] Site component placed id={fi.Id.IntValue()} cat='{category}' type='{symbol.Name}'");
+                return new { ok = true, elementId = fi.Id.IntValue(), type = symbol.Name, family = symbol.FamilyName, level = level.Name };
             }
         }
 
@@ -137,7 +137,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 var pt = (lp != null) ? lp.Point : null;
                 list.Add(new
                 {
-                    id = fi.Id.IntegerValue,
+                    id = fi.Id.IntValue(),
                     category = fi.Category?.Name,
                     family = fi.Symbol?.Family?.Name,
                     type = fi.Symbol?.Name,
@@ -164,7 +164,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 int okCount = 0, ngCount = 0;
                 foreach (var id in list)
                 {
-                    try { var d = doc.Delete(new ElementId(id)); okCount += d.Count; }
+                    try { var d = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id)); okCount += d.Count; }
                     catch { ngCount++; }
                 }
                 t.Commit();
@@ -190,7 +190,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 { "Site", BuiltInCategory.OST_Site }
             };
             if (map.TryGetValue(name, out var bic))
-                return cat.Id.IntegerValue == (int)bic;
+                return cat.Id.IntValue() == (int)bic;
 
             return false;
         }
@@ -253,3 +253,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

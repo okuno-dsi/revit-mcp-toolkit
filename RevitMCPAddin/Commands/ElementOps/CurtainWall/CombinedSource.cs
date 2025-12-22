@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             var ids = wall.CurtainGrid.GetPanelIds().ToList();
             int total = ids.Count;
 
-            if (count == 0) return new { ok = true, elementId = wall.Id.IntegerValue, uniqueId = wall.UniqueId, totalCount = total, units = CurtainWallUtil.UnitsSched() };
+            if (count == 0) return new { ok = true, elementId = wall.Id.IntValue(), uniqueId = wall.UniqueId, totalCount = total, units = CurtainWallUtil.UnitsSched() };
 
             var pageIds = ids.Skip(skip).Take(count).ToList();
             var list = new List<object>(pageIds.Count);
@@ -61,16 +61,16 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 list.Add(new
                 {
                     panelIndex = ids.IndexOf(id),
-                    elementId = id.IntegerValue,
+                    elementId = id.IntValue(),
                     uniqueId = panel.UniqueId,
-                    typeId = panel.GetTypeId()?.IntegerValue,
+                    typeId = panel.GetTypeId()?.IntValue(),
                     typeName,
                     sizeMm = new { dx, dy, dz },
                     areaM2
                 });
             }
 
-            return new { ok = true, elementId = wall.Id.IntegerValue, uniqueId = wall.UniqueId, totalCount = total, panels = list, units = CurtainWallUtil.UnitsSched() };
+            return new { ok = true, elementId = wall.Id.IntValue(), uniqueId = wall.UniqueId, totalCount = total, panels = list, units = CurtainWallUtil.UnitsSched() };
         }
     }
     // --------------------------------------------------
@@ -112,7 +112,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 z = Math.Round(CurtainUtil.FtToMm((bb.Max.Z + bb.Min.Z) / 2), 3)
             };
 
-            return new { ok = true, elementId = wall.Id.IntegerValue, uniqueId = wall.UniqueId, panelIndex, panelId = panel.Id.IntegerValue, min, max, center, size, units = CurtainWallUtil.UnitsGeom() };
+            return new { ok = true, elementId = wall.Id.IntValue(), uniqueId = wall.UniqueId, panelIndex, panelId = panel.Id.IntValue(), min, max, center, size, units = CurtainWallUtil.UnitsGeom() };
         }
     }
 
@@ -158,7 +158,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 tx.Commit();
             }
 
-            return new { ok = true, panelIndex, panelId = panel.Id.IntegerValue, typeId = newType.Id.IntegerValue, typeName = newType.Name };
+            return new { ok = true, panelIndex, panelId = panel.Id.IntValue(), typeId = newType.Id.IntValue(), typeName = newType.Name };
         }
     }
 
@@ -204,7 +204,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 tx.Commit();
             }
 
-            return new { ok = true, panelIndex, panelId = panel.Id.IntegerValue, typeId = targetType.Id.IntegerValue, typeName = targetType.Name };
+            return new { ok = true, panelIndex, panelId = panel.Id.IntValue(), typeId = targetType.Id.IntValue(), typeName = targetType.Name };
         }
     }
 
@@ -247,7 +247,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 tx.Commit();
             }
 
-            return new { ok = true, panelIndex, panelId = panel.Id.IntegerValue, typeId = empty.Id.IntegerValue, typeName = empty.Name };
+            return new { ok = true, panelIndex, panelId = panel.Id.IntValue(), typeId = empty.Id.IntValue(), typeName = empty.Name };
         }
     }
 
@@ -273,7 +273,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
 
             var mids = wall.CurtainGrid.GetMullionIds().ToList();
             int total = mids.Count;
-            if (count == 0) return new { ok = true, elementId = wall.Id.IntegerValue, uniqueId = wall.UniqueId, totalCount = total, units = CurtainWallUtil.UnitsSched() };
+            if (count == 0) return new { ok = true, elementId = wall.Id.IntValue(), uniqueId = wall.UniqueId, totalCount = total, units = CurtainWallUtil.UnitsSched() };
 
             var page = mids.Skip(skip).Take(count).Select((eid, idx) =>
             {
@@ -284,15 +284,15 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 return new
                 {
                     mullionIndex = idx,
-                    elementId = eid.IntegerValue,
+                    elementId = eid.IntValue(),
                     uniqueId = m?.UniqueId,
-                    typeId = m?.GetTypeId()?.IntegerValue,
+                    typeId = m?.GetTypeId()?.IntValue(),
                     typeName = mType,
                     lengthM = lenM
                 };
             }).ToList();
 
-            return new { ok = true, elementId = wall.Id.IntegerValue, uniqueId = wall.UniqueId, totalCount = total, mullions = page, units = CurtainWallUtil.UnitsSched() };
+            return new { ok = true, elementId = wall.Id.IntValue(), uniqueId = wall.UniqueId, totalCount = total, mullions = page, units = CurtainWallUtil.UnitsSched() };
         }
     }
 
@@ -374,9 +374,9 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             {
                 ok = true,
                 newMullionIndex = newIndex,
-                elementId = newId?.IntegerValue,
+                elementId = newId?.IntValue(),
                 uniqueId = mull?.UniqueId,
-                typeId = (mull?.GetTypeId())?.IntegerValue
+                typeId = (mull?.GetTypeId())?.IntValue()
             };
         }
     }
@@ -416,7 +416,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 tx.Commit();
             }
 
-            return new { ok = true, mullionIndex, elementId = mullion.Id.IntegerValue, typeId = mType.Id.IntegerValue, typeName = mType.Name };
+            return new { ok = true, mullionIndex, elementId = mullion.Id.IntValue(), typeId = mType.Id.IntValue(), typeName = mType.Name };
         }
     }
 
@@ -452,3 +452,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

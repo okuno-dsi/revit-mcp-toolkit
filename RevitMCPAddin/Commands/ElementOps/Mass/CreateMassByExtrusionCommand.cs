@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/CreateMassByExtrusionCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/CreateMassByExtrusionCommand.cs
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
@@ -30,8 +30,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
 
             bool useMassCat = p.Value<bool?>("useMassCategory") ?? true;
             var catId = useMassCat
-                        ? new ElementId(BuiltInCategory.OST_Mass)
-                        : new ElementId(BuiltInCategory.OST_GenericModel);
+                        ? Autodesk.Revit.DB.ElementIdCompat.From(BuiltInCategory.OST_Mass)
+                        : Autodesk.Revit.DB.ElementIdCompat.From(BuiltInCategory.OST_GenericModel);
 
             // mm → ft
             double heightFt = UnitHelper.MmToFt(heightMm);
@@ -91,7 +91,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = ds.Id.IntegerValue };
+            return new { ok = true, elementId = ds.Id.IntValue() };
         }
     }
 }
+
+

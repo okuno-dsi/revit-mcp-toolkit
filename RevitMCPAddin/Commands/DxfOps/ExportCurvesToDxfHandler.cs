@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using netDxf;
 using netDxf.Tables;
@@ -173,7 +173,7 @@ namespace RevitMCPAddin.Commands.DxfOps
                 var basePoint = curve.GetEndPoint(0);
                 list.Add(new
                 {
-                    gridId = g.Id.IntegerValue,
+                    gridId = g.Id.IntValue(),
                     name = g.Name,
                     geometry = geomObj,
                     position = new { x = UnitHelper.FtToMm(basePoint.X), y = UnitHelper.FtToMm(basePoint.Y), z = UnitHelper.FtToMm(basePoint.Z) },
@@ -350,3 +350,4 @@ namespace RevitMCPAddin.Commands.DxfOps
         }
     }
 }
+

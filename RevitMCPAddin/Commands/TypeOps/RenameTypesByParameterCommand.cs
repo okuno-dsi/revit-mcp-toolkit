@@ -106,11 +106,11 @@ namespace RevitMCPAddin.Commands.TypeOps
             {
                 var et = doc.GetElement(id) as ElementType;
                 if (et?.Category == null) continue;
-                int catId = et.Category.Id.IntegerValue;
+                int catId = et.Category.Id.IntValue();
                 if (!nameSetByCat.TryGetValue(catId, out var set))
                 {
                     set = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var t in new FilteredElementCollector(doc).WhereElementIsElementType().Where(e => e.Category != null && e.Category.Id.IntegerValue == catId))
+                    foreach (var t in new FilteredElementCollector(doc).WhereElementIsElementType().Where(e => e.Category != null && e.Category.Id.IntValue() == catId))
                     {
                         try { set.Add(((ElementType)t).Name); } catch { }
                     }
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         var et = doc.GetElement(id) as ElementType;
                         if (et == null)
                         {
-                            skipped++; items.Add(new { typeId = id.IntegerValue, reason = "not_found" }); continue;
+                            skipped++; items.Add(new { typeId = id.IntValue(), reason = "not_found" }); continue;
                         }
 
                         var (val, shown) = TryGetParamValue(et, key);
@@ -150,7 +150,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         }
                         if (!matched)
                         {
-                            skipped++; items.Add(new { typeId = et.Id.IntegerValue, oldName = et.Name, reason = "no_rule_match" }); continue;
+                            skipped++; items.Add(new { typeId = et.Id.IntValue(), oldName = et.Name, reason = "no_rule_match" }); continue;
                         }
 
                         var baseName = StripPrefix(et.Name ?? string.Empty, stripList);
@@ -159,13 +159,13 @@ namespace RevitMCPAddin.Commands.TypeOps
                         var newName = pre + baseName + suf;
                         if (string.Equals(newName, et.Name, StringComparison.Ordinal))
                         {
-                            skipped++; items.Add(new { typeId = et.Id.IntegerValue, oldName = et.Name, reason = "already_up_to_date" }); continue;
+                            skipped++; items.Add(new { typeId = et.Id.IntValue(), oldName = et.Name, reason = "already_up_to_date" }); continue;
                         }
 
-                        int catId = et.Category?.Id?.IntegerValue ?? 0;
+                        int catId = et.Category?.Id?.IntValue() ?? 0;
                         if (catId != 0 && nameSetByCat.TryGetValue(catId, out var set2) && set2.Contains(newName))
                         {
-                            skipped++; items.Add(new { typeId = et.Id.IntegerValue, oldName = et.Name, newName, reason = "name_conflict" }); continue;
+                            skipped++; items.Add(new { typeId = et.Id.IntValue(), oldName = et.Name, newName, reason = "name_conflict" }); continue;
                         }
 
                         if (!dryRun)
@@ -175,11 +175,11 @@ namespace RevitMCPAddin.Commands.TypeOps
                         }
 
                         renamed++;
-                        items.Add(new { typeId = et.Id.IntegerValue, oldName = et.Name, newName });
+                        items.Add(new { typeId = et.Id.IntValue(), oldName = et.Name, newName });
                     }
                     catch (Exception ex)
                     {
-                        skipped++; items.Add(new { typeId = id.IntegerValue, reason = ex.Message });
+                        skipped++; items.Add(new { typeId = id.IntValue(), reason = ex.Message });
                     }
                 }
 
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Commands.TypeOps
             var typeIdsTok = p["typeIds"] as JArray;
             if (typeIdsTok != null && typeIdsTok.Count > 0)
             {
-                foreach (var t in typeIdsTok) { try { typeIds.Add(new ElementId(Convert.ToInt32(t))); } catch { } }
+                foreach (var t in typeIdsTok) { try { typeIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(Convert.ToInt32(t))); } catch { } }
                 return typeIds.Distinct(new ElementIdComparer()).ToList();
             }
 
@@ -238,11 +238,11 @@ namespace RevitMCPAddin.Commands.TypeOps
             {
                 try
                 {
-                    var ids = new FilteredElementCollector(doc, new ElementId(viewId))
+                    var ids = new FilteredElementCollector(doc, Autodesk.Revit.DB.ElementIdCompat.From(viewId))
                         .WhereElementIsNotElementType()
                         .ToElements()
                         .Select(e => e.GetTypeId())
-                        .Where(id => id != null && id.IntegerValue > 0)
+                        .Where(id => id != null && id.IntValue() > 0)
                         .Distinct(new ElementIdComparer());
                     typeIds.AddRange(ids);
                     return typeIds.Distinct(new ElementIdComparer()).ToList();
@@ -301,7 +301,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                     case StorageType.String: val = param.AsString(); break;
                     case StorageType.Integer: val = param.AsInteger().ToString(CultureInfo.InvariantCulture); break;
                     case StorageType.Double: val = param.AsDouble().ToString(CultureInfo.InvariantCulture); break;
-                    case StorageType.ElementId: val = param.AsElementId()?.IntegerValue.ToString(CultureInfo.InvariantCulture); break;
+                    case StorageType.ElementId: val = param.AsElementId()?.IntValue().ToString(CultureInfo.InvariantCulture); break;
                     default: val = shown; break;
                 }
             }
@@ -407,8 +407,10 @@ namespace RevitMCPAddin.Commands.TypeOps
 
         private class ElementIdComparer : IEqualityComparer<ElementId>
         {
-            public bool Equals(ElementId x, ElementId y) => (x?.IntegerValue ?? 0) == (y?.IntegerValue ?? 0);
-            public int GetHashCode(ElementId obj) => obj?.IntegerValue ?? 0;
+            public bool Equals(ElementId x, ElementId y) => (x?.IntValue() ?? 0) == (y?.IntValue() ?? 0);
+            public int GetHashCode(ElementId obj) => obj?.IntValue() ?? 0;
         }
     }
 }
+
+

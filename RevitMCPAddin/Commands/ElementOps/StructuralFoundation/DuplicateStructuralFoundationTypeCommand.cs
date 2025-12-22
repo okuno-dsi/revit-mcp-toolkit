@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/DuplicateStructuralFoundationTypeCommand.cs (UnitHelper対応)
+// File: Commands/ElementOps/Foundation/DuplicateStructuralFoundationTypeCommand.cs (UnitHelper対応)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             string newName = nameToken.Value<string>();
 
             int typeId = p.Value<int>("typeId");
-            var origSymbol = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            var origSymbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             if (origSymbol == null) return ResultUtil.Err($"Structural Foundation タイプが見つかりません: {typeId}");
 
             ElementType dupType;
@@ -32,7 +32,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 tx.Commit();
             }
 
-            return new { ok = true, typeId = dupType.Id.IntegerValue, typeName = newName };
+            return new { ok = true, typeId = dupType.Id.IntValue(), typeName = newName };
         }
     }
 }
+
+

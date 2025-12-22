@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Core/Geometry/OrientedBoundingBoxUtil.cs  (robust, Fx 4.8)
 // Purpose:
 //   - Oriented Bounding Box 計算（∞初期化の廃止 / 最初の頂点で初期化）
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Core.Geometry
             var resp = new ObbResponse { Ok = false, Msg = "" };
             if (doc == null) { resp.Msg = "Document is null."; return resp; }
             var e = doc.GetElement(id);
-            if (e == null) { resp.Msg = $"Element not found: {id.IntegerValue}"; return resp; }
+            if (e == null) { resp.Msg = $"Element not found: {id.IntValue()}"; return resp; }
 
             // 1) 基底推定（堅牢）
             var basis = BuildLocalBasisTransformRobust(e, strategy ?? "auto", out string basisNote);
@@ -380,3 +380,4 @@ namespace RevitMCPAddin.Core.Geometry
         private static bool IsFinite(XYZ p) => IsFiniteNumber(p.X) && IsFiniteNumber(p.Y) && IsFiniteNumber(p.Z);
     }
 }
+

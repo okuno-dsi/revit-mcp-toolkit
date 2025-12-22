@@ -123,7 +123,7 @@ namespace RevitMCPAddin.Core
             {
                 ok = true,
                 schemaGuid = LedgerSchemaGuid.ToString(),
-                dataStorageId = storage.Id.IntegerValue,
+                dataStorageId = storage.Id.IntValue(),
                 projectToken = projectToken,
                 sequence = sequence,
                 lastCommand = last,
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Core
                         code = "LEDGER_PROJECT_TOKEN_MISMATCH",
                         msg = "ProjectToken mismatch. Wrong project may be open.",
                         details = new { expected = expectProjectToken, actual = actualProjectToken, ledgerCreated = created },
-                        ledger = BuildLedgerEcho(actualProjectToken, actualSequence, storage.Id.IntegerValue)
+                        ledger = BuildLedgerEcho(actualProjectToken, actualSequence, storage.Id.IntValue())
                     });
                     return res;
                 }
@@ -225,7 +225,7 @@ namespace RevitMCPAddin.Core
                         code = "LEDGER_SEQUENCE_MISMATCH",
                         msg = "Sequence mismatch. Project state may have changed since last command.",
                         details = new { expected = expectSequence.Value, actual = actualSequence },
-                        ledger = BuildLedgerEcho(actualProjectToken, actualSequence, storage.Id.IntegerValue)
+                        ledger = BuildLedgerEcho(actualProjectToken, actualSequence, storage.Id.IntValue())
                     });
                     return res;
                 }
@@ -235,7 +235,19 @@ namespace RevitMCPAddin.Core
             // Sequence is treated as "next expected seq" (1-based).
             int assignedSeq = actualSequence;
             string commandId = Guid.NewGuid().ToString();
-            string commandName = cmd != null ? (cmd.Command ?? string.Empty) : string.Empty;
+            string commandName = string.Empty;
+            try
+            {
+                if (cmd != null && cmd.MetaRaw is JObject meta)
+                {
+                    var invoked = meta.Value<string>("invokedMethod");
+                    if (!string.IsNullOrWhiteSpace(invoked))
+                        commandName = invoked.Trim();
+                }
+            }
+            catch { /* ignore */ }
+            if (string.IsNullOrWhiteSpace(commandName))
+                commandName = cmd != null ? (cmd.Command ?? string.Empty) : string.Empty;
             string executedUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
             string paramsHash = ComputeParamsHash(cmd);
 
@@ -246,6 +258,34 @@ namespace RevitMCPAddin.Core
 
             try
             {
+                // Some orchestrator commands (e.g., revit.batch) manage their own TransactionGroup(s).
+                // Avoid wrapping them in an outer TransactionGroup here to prevent nesting failures.
+                bool skipOuterGroup = false;
+                try
+                {
+                    var nameProbe = cmd != null ? (cmd.Command ?? string.Empty) : string.Empty;
+                    if (cmd != null && cmd.MetaRaw is JObject meta)
+                    {
+                        var invoked = meta.Value<string>("invokedMethod");
+                        if (!string.IsNullOrWhiteSpace(invoked))
+                            nameProbe = invoked.Trim();
+                    }
+                    nameProbe = (nameProbe ?? string.Empty).Trim().ToLowerInvariant();
+                    if (nameProbe == "revit.batch" || nameProbe == "revit_batch")
+                        skipOuterGroup = true;
+                }
+                catch { /* ignore */ }
+
+                if (skipOuterGroup)
+                {
+                    raw = ExecuteWithoutOuterGroupAndUpdateLedger(doc, uiapp, cmd, handler, schema, storage, entity, actualProjectToken, assignedSeq, commandId, commandName, executedUtc, paramsHash);
+                    // NOTE: No outer TransactionGroup to dispose in this path.
+                    tgStarted = false;
+                    tgAssimilated = false;
+                    tg = null;
+                    goto AfterLedgerExec;
+                }
+
                 // Try atomic mode: wrap command and ledger update in a TransactionGroup.
                 tg = new TransactionGroup(doc, "MCP Ledger Command");
                 tg.Start();
@@ -305,6 +345,7 @@ namespace RevitMCPAddin.Core
                 try { tg?.Dispose(); } catch { /* ignore */ }
             }
 
+        AfterLedgerExec:
             // ---- Prepare ledger info for router wrapper ----
             res.RawResult = raw;
             res.LedgerInfo = new JObject
@@ -312,7 +353,7 @@ namespace RevitMCPAddin.Core
                 ["projectToken"] = actualProjectToken,
                 ["assignedSeq"] = assignedSeq,
                 ["nextSequence"] = assignedSeq + 1,
-                ["dataStorageId"] = storage.Id.IntegerValue,
+                ["dataStorageId"] = storage.Id.IntValue(),
                 ["schemaGuid"] = LedgerSchemaGuid.ToString(),
                 ["createdThisCall"] = created
             };
@@ -497,7 +538,7 @@ namespace RevitMCPAddin.Core
                     {
                         code = "LEDGER_DUPLICATE",
                         msg = "Multiple ledger DataStorage elements found. Aborting for safety.",
-                        details = new { count = matches.Count, elementIds = matches.ConvertAll(x => x.Id.IntegerValue).ToArray() }
+                        details = new { count = matches.Count, elementIds = matches.ConvertAll(x => x.Id.IntValue()).ToArray() }
                     };
                 }
 
@@ -572,7 +613,7 @@ namespace RevitMCPAddin.Core
                     {
                         code = "LEDGER_DUPLICATE",
                         msg = "Multiple ledger DataStorage elements found. Aborting for safety.",
-                        details = new { count = matches.Count, elementIds = matches.ConvertAll(x => x.Id.IntegerValue).ToArray() }
+                        details = new { count = matches.Count, elementIds = matches.ConvertAll(x => x.Id.IntValue()).ToArray() }
                     };
                 }
 
@@ -862,3 +903,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

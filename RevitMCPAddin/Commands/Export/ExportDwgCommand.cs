@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Export/ExportDwgCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 2Dビューに「表示されているそのまま」をDWGへ書き出す
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 if (viewIdIn.HasValue && viewIdIn.Value > 0)
                 {
-                    var v = doc.GetElement(new ElementId(viewIdIn.Value)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdIn.Value)) as View;
                     if (v == null) return new { ok = false, msg = $"viewId={viewIdIn} のビューが見つかりません。" };
                     baseView = v;
                 }
@@ -93,7 +93,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 var fileNameIn = p.Value<string>("fileName");           // 拡張子付き/無しどちらでも可
                 var categoriesIn = p["categories"]?.Values<string>()?.ToArray() ?? Array.Empty<string>();
-                var elemIdsIn = p["elementIds"]?.Values<int>()?.Select(i => new ElementId(i)).ToList() ?? new List<ElementId>();
+                var elemIdsIn = p["elementIds"]?.Values<int>()?.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList() ?? new List<ElementId>();
                 var dwgVerIn = p.Value<string>("dwgVersion");         // 例: "ACAD2018"
                 var setupNameIn = p.Value<string>("useExportSetup");     // Revit側の「DWG出力設定」名
                 var keepTempView = p.Value<bool?>("keepTempView") ?? false;
@@ -284,7 +284,7 @@ namespace RevitMCPAddin.Commands.Export
                 if (!exportOk)
                 {
                     // フォールバック：export_<viewId>_<n>.dwg
-                    var fallbackPath = MakeFallbackDwgPath(outputFolder, baseView.Id.IntegerValue, 1);
+                    var fallbackPath = MakeFallbackDwgPath(outputFolder, baseView.Id.IntValue(), 1);
                     bool retryOk = TryExport(doc, workingView.Id, opt, fallbackPath, outputFolder, out var fallbackError);
 
                     CleanupTempView(doc, workingView, keepTempView);
@@ -303,8 +303,8 @@ namespace RevitMCPAddin.Commands.Export
                     {
                         ok = true,
                         path = fallbackPath,
-                        viewId = baseView.Id.IntegerValue,
-                        workingViewId = keepTempView && workingView != null ? (int?)workingView.Id.IntegerValue : null,
+                        viewId = baseView.Id.IntValue(),
+                        workingViewId = keepTempView && workingView != null ? (int?)workingView.Id.IntValue() : null,
                         workingViewName = keepTempView && workingView != null ? workingView.Name : null,
                         exportedElementCount = exportedElemCount,
                         hiddenCount,
@@ -318,8 +318,8 @@ namespace RevitMCPAddin.Commands.Export
                 {
                     ok = true,
                     path = outPath,
-                    viewId = baseView.Id.IntegerValue,
-                    workingViewId = keepTempView && workingView != null ? (int?)workingView.Id.IntegerValue : null,
+                    viewId = baseView.Id.IntValue(),
+                    workingViewId = keepTempView && workingView != null ? (int?)workingView.Id.IntValue() : null,
                     workingViewName = keepTempView && workingView != null ? workingView.Name : null,
                     exportedElementCount = exportedElemCount,
                     hiddenCount,
@@ -534,7 +534,7 @@ namespace RevitMCPAddin.Commands.Export
                 string viewUidIn = p.Value<string>("viewUniqueId");
                 if (viewIdIn.HasValue && viewIdIn.Value > 0)
                 {
-                    baseView = doc.GetElement(new ElementId(viewIdIn.Value)) as View;
+                    baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdIn.Value)) as View;
                     if (baseView == null) return new { ok = false, msg = $"viewId={viewIdIn} のビューが見つかりません。" };
                 }
                 else if (!string.IsNullOrWhiteSpace(viewUidIn))
@@ -554,7 +554,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 var fileNameIn = p.Value<string>("fileName");
                 var categoriesIn = p["categories"]?.Values<string>()?.ToArray() ?? Array.Empty<string>();
-                var elemIdsIn = p["elementIds"]?.Values<int>()?.Select(i => new ElementId(i)).ToList() ?? new List<ElementId>();
+                var elemIdsIn = p["elementIds"]?.Values<int>()?.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList() ?? new List<ElementId>();
                 var dwgVerIn = p.Value<string>("dwgVersion");
                 var setupNameIn = p.Value<string>("useExportSetup");
                 var keepTempView = p.Value<bool?>("keepTempView") ?? false;
@@ -734,3 +734,5 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+
+

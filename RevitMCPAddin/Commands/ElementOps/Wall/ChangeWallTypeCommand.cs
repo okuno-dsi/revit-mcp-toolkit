@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/ChangeWallTypeCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/ChangeWallTypeCommand.cs
 // UnitHelper化: 例外時は {ok:false,msg}、成功時は input/internal units を付加
 using System;
 using System.Linq;
@@ -24,13 +24,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 return new { ok = false, msg = "Parameter 'elementId' is required." };
 
             int elementId = eidToken.Value<int>();
-            var wall = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Wall;
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Wall;
             if (wall == null)
                 return new { ok = false, msg = $"Wall not found: {elementId}" };
 
             WallType newType = null;
             if (p.TryGetValue("typeId", out var tidToken))
-                newType = doc.GetElement(new ElementId(tidToken.Value<int>())) as WallType;
+                newType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tidToken.Value<int>())) as WallType;
             else if (p.TryGetValue("typeName", out var tnameToken))
                 newType = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
                            .FirstOrDefault(wt => string.Equals(wt.Name, tnameToken.Value<string>(), StringComparison.OrdinalIgnoreCase));
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 {
                     ok = true,
                     elementId,
-                    newTypeId = newType.Id.IntegerValue,
+                    newTypeId = newType.Id.IntValue(),
                     inputUnits = UnitHelper.InputUnitsMeta(),
                     internalUnits = UnitHelper.InternalUnitsMeta()
                 };
@@ -61,3 +61,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

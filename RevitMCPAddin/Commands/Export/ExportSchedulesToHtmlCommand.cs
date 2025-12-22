@@ -47,7 +47,7 @@ namespace RevitMCPAddin.Commands.Export
             if (idList.Count > 0)
             {
                 var idset = new HashSet<int>(idList);
-                targets = targets.Where(vs => idset.Contains(vs.Id.IntegerValue));
+                targets = targets.Where(vs => idset.Contains(vs.Id.IntValue()));
             }
             else if (nameList.Count > 0)
             {
@@ -68,11 +68,11 @@ namespace RevitMCPAddin.Commands.Export
                     var fname = SanitizeFileName(vs.Name);
                     var path = Path.Combine(outDir, $"schedule_{fname}.html");
                     File.WriteAllText(path, html, Encoding.UTF8);
-                    files.Add(new { id = vs.Id.IntegerValue, name = vs.Name, path });
+                    files.Add(new { id = vs.Id.IntValue(), name = vs.Name, path });
                 }
                 catch (Exception ex)
                 {
-                    files.Add(new { id = vs.Id.IntegerValue, name = vs.Name, error = ex.Message });
+                    files.Add(new { id = vs.Id.IntValue(), name = vs.Name, error = ex.Message });
                 }
             }
 
@@ -194,3 +194,4 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+

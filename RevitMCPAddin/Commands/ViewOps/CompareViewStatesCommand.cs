@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (baselineId <= 0)
             {
                 if (viewIdList.Count > 0) baselineId = viewIdList[0];
-                else baselineId = uidoc?.ActiveView?.Id?.IntegerValue ?? 0;
+                else baselineId = uidoc?.ActiveView?.Id?.IntValue() ?? 0;
             }
 
             if (baselineId <= 0) return new { ok = false, msg = "No baselineViewId and no viewIds/active view available." };
@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     foreach (var uiv in uidoc.GetOpenUIViews())
                     {
-                        int id = uiv.ViewId.IntegerValue;
+                        int id = uiv.ViewId.IntValue();
                         if (id > 0 && id != baselineId) targetIds.Add(id);
                     }
                 }
@@ -72,7 +72,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             bool includeFilters = p.Value<bool?>("includeFilters") ?? true;
             bool includeWorksets = p.Value<bool?>("includeWorksets") ?? true;
 
-            var baseView = doc.GetElement(new ElementId(baselineId)) as View;
+            var baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(baselineId)) as View;
             if (baseView == null) return new { ok = false, msg = $"Baseline view {baselineId} not found." };
 
             var baseSnap = CaptureSnapshot(doc, baseView, includeHiddenElements, includeCategories, includeFilters, includeWorksets);
@@ -80,7 +80,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var results = new List<object>();
             foreach (var tid in targetIds.Distinct())
             {
-                var tv = doc.GetElement(new ElementId(tid)) as View;
+                var tv = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as View;
                 if (tv == null)
                 {
                     results.Add(new { viewId = tid, error = "View not found" });
@@ -111,7 +111,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             try { props["scale"] = v.Scale; } catch { }
             try { props["discipline"] = v.Discipline.ToString(); } catch { }
             try { props["detailLevel"] = v.DetailLevel.ToString(); } catch { }
-            try { props["templateViewId"] = v.ViewTemplateId != null ? v.ViewTemplateId.IntegerValue : -1; } catch { }
+            try { props["templateViewId"] = v.ViewTemplateId != null ? v.ViewTemplateId.IntValue() : -1; } catch { }
 
             var categories = new Dictionary<int, bool>();
             if (includeCategories)
@@ -124,7 +124,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         bool canHide = false; try { canHide = v.CanCategoryBeHidden(c.Id); } catch { canHide = false; }
                         if (!canHide) continue;
                         bool hidden = false; try { hidden = v.GetCategoryHidden(c.Id); } catch { hidden = false; }
-                        categories[c.Id.IntegerValue] = hidden;
+                        categories[c.Id.IntValue()] = hidden;
                     }
                 }
                 catch { }
@@ -141,7 +141,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         foreach (var fid in fids)
                         {
                             bool vis = true; try { vis = v.GetFilterVisibility(fid); } catch { vis = true; }
-                            filters[fid.IntegerValue] = vis;
+                            filters[fid.IntValue()] = vis;
                         }
                     }
                 }
@@ -158,7 +158,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         WorksetVisibility vis = WorksetVisibility.UseGlobalSetting;
                         try { vis = v.GetWorksetVisibility(ws.Id); } catch { vis = WorksetVisibility.UseGlobalSetting; }
-                        worksets[ws.Id.IntegerValue] = vis.ToString();
+                        worksets[ws.Id.IntValue()] = vis.ToString();
                     }
                 }
                 catch { }
@@ -178,7 +178,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         bool canHide = false; try { canHide = e.CanBeHidden(v); } catch { canHide = false; }
                         if (!canHide) continue;
                         bool isHidden = false; try { isHidden = e.IsHidden(v); } catch { isHidden = false; }
-                        if (isHidden) hiddenElements.Add(id.IntegerValue);
+                        if (isHidden) hiddenElements.Add(id.IntValue());
                     }
                 }
                 catch { }
@@ -186,7 +186,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["viewId"] = v.Id.IntegerValue,
+                ["viewId"] = v.Id.IntValue(),
                 ["name"] = v.Name ?? string.Empty,
                 ["properties"] = props,
                 ["categories"] = categories,
@@ -280,4 +280,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

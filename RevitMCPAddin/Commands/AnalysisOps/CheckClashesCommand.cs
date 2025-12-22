@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnalysisOps/CheckClashesCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: Clash detection - fast AABB(bbox) and precise Solid intersection
@@ -41,7 +41,7 @@ namespace RevitMCPAddin.Commands.AnalysisOps
             View view = null;
             if (viewIdOpt.HasValue)
             {
-                var v = doc.GetElement(new ElementId(viewIdOpt.Value)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdOpt.Value)) as View;
                 if (v != null) view = v;
             }
 
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.AnalysisOps
             var arr = p["elementIds"] as JArray;
             if (arr != null && arr.Count > 0)
             {
-                foreach (var t in arr) ids.Add(new ElementId(t.Value<int>()));
+                foreach (var t in arr) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>()));
             }
             else
             {
@@ -86,7 +86,7 @@ namespace RevitMCPAddin.Commands.AnalysisOps
                 entries.Add(new Tgt
                 {
                     Id = e.Id,
-                    CatId = e.Category?.Id?.IntegerValue ?? 0,
+                    CatId = e.Category?.Id?.IntValue() ?? 0,
                     CatName = e.Category?.Name,
                     AabbMin = min,
                     AabbMax = max,
@@ -267,8 +267,8 @@ namespace RevitMCPAddin.Commands.AnalysisOps
 
         // ---- payload builders ----
         private static object BuildIdCat(Tgt t, bool namesOnly) =>
-            namesOnly ? (object)new { elementId = t.Id.IntegerValue }
-                      : (object)new { elementId = t.Id.IntegerValue, categoryId = t.CatId, category = t.CatName };
+            namesOnly ? (object)new { elementId = t.Id.IntValue() }
+                      : (object)new { elementId = t.Id.IntValue(), categoryId = t.CatId, category = t.CatName };
 
         private static object BuildClashPayloadBbox(
             Tgt a, Tgt b, XYZ interMin, XYZ interMax,
@@ -301,3 +301,5 @@ namespace RevitMCPAddin.Commands.AnalysisOps
             new { x = UnitHelper.FtToMm(pFt.X), y = UnitHelper.FtToMm(pFt.Y), z = UnitHelper.FtToMm(pFt.Z) };
     }
 }
+
+

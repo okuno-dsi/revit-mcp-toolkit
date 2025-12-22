@@ -200,11 +200,10 @@ namespace RevitMCPAddin.Commands.ParamOps
                     binding = isInstance ? (Binding)app.Create.NewInstanceBinding(finalSet) : (Binding)app.Create.NewTypeBinding(finalSet);
                 }
 
-                // Parameter group (prefer preserving existing when not specified)
+                // Parameter group (Revit 2024+): use ForgeTypeId (GroupTypeId.*)
                 Autodesk.Revit.DB.ForgeTypeId groupTypeId = null;
-                Autodesk.Revit.DB.BuiltInParameterGroup pg = Autodesk.Revit.DB.BuiltInParameterGroup.PG_TEXT;
-                string parameterGroupUsed = null;
-                string parameterGroupSource = null;
+                string parameterGroupUsed = null;   // ForgeTypeId.TypeId
+                string parameterGroupSource = null; // diagnostic string
 
                 if (parameterGroupProvided && !string.IsNullOrWhiteSpace(parameterGroupStr))
                 {
@@ -216,31 +215,35 @@ namespace RevitMCPAddin.Commands.ParamOps
                     }
                     else
                     {
-                        pg = ParseParameterGroup(parameterGroupStr);
-                        parameterGroupUsed = pg.ToString();
-                        parameterGroupSource = "payload(builtInParameterGroup)";
+                        // Unknown payload value -> fallback
+                        groupTypeId = Autodesk.Revit.DB.GroupTypeId.Text;
+                        parameterGroupUsed = groupTypeId.TypeId;
+                        parameterGroupSource = "payload(unknown)->default(GroupTypeId.Text)";
                     }
                 }
                 else
                 {
+                    // Preserve existing group when possible
                     try
                     {
                         var defForGroup = hasExistingBinding && existingDefInMap != null ? existingDefInMap : def;
-                        var g0 = defForGroup != null ? defForGroup.ParameterGroup : Autodesk.Revit.DB.BuiltInParameterGroup.INVALID;
-                        if (g0 != Autodesk.Revit.DB.BuiltInParameterGroup.INVALID)
+                        if (defForGroup != null)
                         {
-                            pg = g0;
-                            parameterGroupUsed = pg.ToString();
-                            parameterGroupSource = "existingBinding(def.ParameterGroup)";
+                            groupTypeId = defForGroup.GetGroupTypeId();
+                            if (groupTypeId != null)
+                            {
+                                parameterGroupUsed = groupTypeId.TypeId;
+                                parameterGroupSource = "existingBinding(def.GetGroupTypeId())";
+                            }
                         }
                     }
                     catch { }
 
-                    if (string.IsNullOrWhiteSpace(parameterGroupUsed))
+                    if (groupTypeId == null)
                     {
-                        pg = Autodesk.Revit.DB.BuiltInParameterGroup.PG_TEXT;
-                        parameterGroupUsed = pg.ToString();
-                        parameterGroupSource = "default(PG_TEXT)";
+                        groupTypeId = Autodesk.Revit.DB.GroupTypeId.Text;
+                        parameterGroupUsed = groupTypeId.TypeId;
+                        parameterGroupSource = "default(GroupTypeId.Text)";
                     }
                 }
 
@@ -252,16 +255,8 @@ namespace RevitMCPAddin.Commands.ParamOps
                 {
                     tx.Start();
                     bool ok;
-                    if (groupTypeId != null)
-                    {
-                        ok = map.Insert(defForMap, binding, groupTypeId);
-                        if (!ok) ok = map.ReInsert(defForMap, binding, groupTypeId);
-                    }
-                    else
-                    {
-                        ok = map.Insert(defForMap, binding, pg);
-                        if (!ok) ok = map.ReInsert(defForMap, binding, pg);
-                    }
+                    ok = map.Insert(defForMap, binding, groupTypeId);
+                    if (!ok) ok = map.ReInsert(defForMap, binding, groupTypeId);
                     if (!ok)
                     {
                         tx.RollBack();
@@ -445,12 +440,6 @@ namespace RevitMCPAddin.Commands.ParamOps
             {
                 return null;
             }
-        }
-
-        private static Autodesk.Revit.DB.BuiltInParameterGroup ParseParameterGroup(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return Autodesk.Revit.DB.BuiltInParameterGroup.PG_TEXT;
-            try { return (Autodesk.Revit.DB.BuiltInParameterGroup)Enum.Parse(typeof(Autodesk.Revit.DB.BuiltInParameterGroup), s, true); } catch { return Autodesk.Revit.DB.BuiltInParameterGroup.PG_TEXT; }
         }
 
         private static bool TryFindExistingBinding(BindingMap map, Definition def, out Definition existingDef, out ElementBinding existingBinding)

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/GetWallFacesAndFinishCommands.cs
+// RevitMCPAddin/Commands/ElementOps/GetWallFacesAndFinishCommands.cs
 // 4コマンドを UnitHelper 化（面積= m2 への変換は UnitHelper.InternalToSqm）＆ units 付加
 using System;
 using System.Collections.Generic;
@@ -79,7 +79,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             int materialId = 0;
             if (pf.MaterialElementId != ElementId.InvalidElementId)
             {
-                materialId = pf.MaterialElementId.IntegerValue;
+                materialId = pf.MaterialElementId.IntValue();
                 matName = (doc.GetElement(pf.MaterialElementId) as Autodesk.Revit.DB.Material)?.Name ?? "<Unknown>";
             }
 
@@ -131,7 +131,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         try { paintAreaM2 = Math.Round(UnitHelper.InternalToSqm(pf.Area), 4); } catch { }
                         paints.Add(new
                         {
-                            materialId = pmId.IntegerValue,
+                            materialId = pmId.IntValue(),
                             materialName = (paintMat?.Name ?? "<Unknown>"),
                             area = paintAreaM2
                         });
@@ -265,3 +265,4 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+

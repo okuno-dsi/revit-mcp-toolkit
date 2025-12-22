@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomBoundaryCommand.cs  (UnitHelper統一版)
 // Revit 2023 / .NET Framework 4.8
 // ================================================================
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.Room
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
             int elementId = eidToken.Value<int>();
 
-            var room = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return new { ok = false, message = $"Room not found: {elementId}" };
 
             int skip = p.Value<int?>("skip") ?? 0;
@@ -77,3 +77,4 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+

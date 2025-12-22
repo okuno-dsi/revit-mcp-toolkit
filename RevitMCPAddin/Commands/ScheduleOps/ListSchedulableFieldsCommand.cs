@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             ViewSchedule vs = null;
             if (scheduleViewId > 0)
             {
-                vs = doc.GetElement(new ElementId(scheduleViewId)) as ViewSchedule;
+                vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scheduleViewId)) as ViewSchedule;
             }
             else if (!string.IsNullOrWhiteSpace(categoryName))
             {
@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             var items = new List<object>(avail.Count);
             foreach (var f in avail)
             {
-                int pid = -1; try { pid = f.ParameterId?.IntegerValue ?? -1; } catch { pid = -1; }
+                int pid = -1; try { pid = f.ParameterId?.IntValue() ?? -1; } catch { pid = -1; }
                 string name = ""; try { name = f.GetName(doc); } catch { }
                 items.Add(new { name, parameterId = pid, type = f.FieldType.ToString() });
             }
@@ -49,4 +49,6 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+
 

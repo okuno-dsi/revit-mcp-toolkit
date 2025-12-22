@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CurtainUtil.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CurtainUtil.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -50,4 +50,5 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+
 

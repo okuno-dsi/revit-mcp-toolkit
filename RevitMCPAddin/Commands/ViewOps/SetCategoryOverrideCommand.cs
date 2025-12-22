@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/SetCategoryOverrideCommand.cs (2023/2024 safe)
 // カテゴリに色（線色＋任意で塗りつぶし）を適用。利用可能な API だけ使う。
 // ビューテンプレートが適用されているビューは安全にスキップ（既定）。
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             ElementId viewId = ElementId.InvalidElementId;
             if (reqViewId > 0)
             {
-                viewId = new ElementId(reqViewId);
+                viewId = Autodesk.Revit.DB.ElementIdCompat.From(reqViewId);
                 view = doc.GetElement(viewId) as View;
             }
             if (view == null)
@@ -102,11 +102,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                         catch (Exception ex)
                         {
                             tx.RollBack();
-                            var tmplId = view.ViewTemplateId.IntegerValue;
+                            var tmplId = view.ViewTemplateId.IntValue();
                             return new
                             {
                                 ok = true,
-                                viewId = viewId.IntegerValue,
+                                viewId = viewId.IntValue(),
                                 requested = 0,
                                 overridden = 0,
                                 skipped = 0,
@@ -121,11 +121,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                 }
                 else
                 {
-                    var tmplId = view.ViewTemplateId.IntegerValue;
+                    var tmplId = view.ViewTemplateId.IntValue();
                     return new
                     {
                         ok = true,
-                        viewId = viewId.IntegerValue,
+                        viewId = viewId.IntValue(),
                         requested = 0,
                         overridden = 0,
                         skipped = 0,
@@ -157,7 +157,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (catIdsToken != null)
             {
                 foreach (var t in catIdsToken)
-                    catIds.Add(new ElementId((int)t));
+                    catIds.Add(Autodesk.Revit.DB.ElementIdCompat.From((int)t));
             }
             if (catIds.Count == 0) return new { ok = false, msg = "categoryIds が空です。" };
 
@@ -197,7 +197,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             var cid = catIds[i];
                             try
                             {
-                                bool canHide = false; try { canHide = view.CanCategoryBeHidden(cid); } catch (Exception ex) { RevitLogger.Info($"CanCategoryBeHidden failed for {cid.IntegerValue}: {ex.Message}"); }
+                                bool canHide = false; try { canHide = view.CanCategoryBeHidden(cid); } catch (Exception ex) { RevitLogger.Info($"CanCategoryBeHidden failed for {cid.IntValue()}: {ex.Message}"); }
                                 if (!canHide) { skipped++; continue; }
                                 view.SetCategoryOverrides(cid, ogs);
                                 overridden++;
@@ -205,7 +205,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             catch (Exception ex)
                             {
                                 skipped++;
-                                RevitLogger.Error($"SetCategoryOverrides failed: cid={cid.IntegerValue}", ex);
+                                RevitLogger.Error($"SetCategoryOverrides failed: cid={cid.IntValue()}", ex);
                             }
                         }
                         tx.Commit();
@@ -229,7 +229,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = viewId.IntegerValue,
+                viewId = viewId.IntValue(),
                 overridden,
                 skipped,
                 templateApplied = false,
@@ -254,3 +254,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

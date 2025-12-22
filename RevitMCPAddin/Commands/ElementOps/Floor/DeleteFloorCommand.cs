@@ -1,4 +1,4 @@
-﻿// DeleteFloorCommand.cs
+// DeleteFloorCommand.cs
 using ARDB = Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -14,7 +14,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         {
             ARDB.Document doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var id = new ARDB.ElementId(p.Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
 
             if (doc.GetElement(id) == null)
                 return new { ok = false, msg = "Floor not found." };
@@ -30,3 +30,4 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+

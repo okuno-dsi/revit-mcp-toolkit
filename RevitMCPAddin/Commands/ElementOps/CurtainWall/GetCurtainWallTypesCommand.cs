@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallTypesCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallTypesCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             if (summaryOnly || limit == 0)
                 return new { ok = true, totalCount };
 
-            var ordered = filtered.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntegerValue })
+            var ordered = filtered.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntValue() })
                                   .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.t).ToList();
 
             if (namesOnly)
@@ -68,13 +68,13 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
 
             if (idsOnly)
             {
-                var ids = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntegerValue).ToList();
+                var ids = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds = ids };
             }
 
             var types = ordered.Skip(skip).Take(limit).Select(t => new
             {
-                typeId = t.Id.IntegerValue,
+                typeId = t.Id.IntValue(),
                 uniqueId = t.UniqueId,
                 typeName = t.Name ?? ""
             }).ToList();
@@ -83,3 +83,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

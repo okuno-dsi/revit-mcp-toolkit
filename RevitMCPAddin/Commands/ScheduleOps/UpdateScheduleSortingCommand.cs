@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleSortingCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleSortingCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             var sortBy = p["sortBy"]?.ToObject<List<JObject>>() ?? new List<JObject>();
 
             Document doc = uiapp.ActiveUIDocument.Document;
-            var vs = doc.GetElement(new ElementId(id)) as ViewSchedule;
+            var vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewSchedule;
             if (vs == null)
                 return new { ok = false, message = $"ScheduleView {id} not found.", units = UnitHelper.DefaultUnitsMeta() };
 
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 var fid = fieldIds.FirstOrDefault(fid2 =>
                 {
                     var f = def.GetField(fid2);
-                    try { return f.ParameterId != null && f.ParameterId.IntegerValue == pid; } catch { return false; }
+                    try { return f.ParameterId != null && f.ParameterId.IntValue() == pid; } catch { return false; }
                 });
                 if (!fid.Equals(default(ScheduleFieldId)))
                 {
@@ -67,7 +67,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 {
                     var f = def.GetField(fid2);
                     try { if (!string.IsNullOrWhiteSpace(name) && f.GetName() == name) return true; } catch { }
-                    try { if (pid != int.MinValue && f.ParameterId != null && f.ParameterId.IntegerValue == pid) return true; } catch { }
+                    try { if (pid != int.MinValue && f.ParameterId != null && f.ParameterId.IntValue() == pid) return true; } catch { }
                     return false;
                 });
                 if (fid.Equals(default(ScheduleFieldId))) continue;
@@ -81,3 +81,5 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+

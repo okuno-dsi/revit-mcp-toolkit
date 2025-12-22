@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/CreateArchitecturalColumnCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/CreateArchitecturalColumnCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
@@ -24,8 +24,8 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
                 // --- 1) Base Level 解決（Id/Name/最下レベル）
                 ElementId baseLevelId = ElementId.InvalidElementId;
-                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = new ElementId(blid.Value<int>());
-                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = new ElementId(lid.Value<int>());
+                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(blid.Value<int>());
+                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(lid.Value<int>());
 
                 Level baseLevel = null;
                 if (baseLevelId != ElementId.InvalidElementId)
@@ -80,9 +80,9 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
                 if (symbol == null && p.TryGetValue("typeId", out var tid))
                 {
-                    var cand = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                    var cand = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
                     if (cand != null && cand.Category != null &&
-                        cand.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Columns)
+                        cand.Category.Id.IntValue() == (int)BuiltInCategory.OST_Columns)
                     {
                         symbol = cand;
                     }
@@ -121,7 +121,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
                 if (hasTopLevelParam || isLevelToLevel)
                 {
                     if (p.TryGetValue("topLevelId", out var tlid))
-                        topLevel = doc.GetElement(new ElementId(tlid.Value<int>())) as Level;
+                        topLevel = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tlid.Value<int>())) as Level;
 
                     if (topLevel == null && p.TryGetValue("topLevelName", out var tlname))
                     {
@@ -181,10 +181,10 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
                     return new
                     {
                         ok = true,
-                        elementId = col.Id.IntegerValue,
-                        typeId = col.GetTypeId().IntegerValue,
-                        baseLevelId = baseLevel.Id.IntegerValue,
-                        topLevelId = useTopConstraint ? topLevel.Id.IntegerValue : baseLevel.Id.IntegerValue,
+                        elementId = col.Id.IntValue(),
+                        typeId = col.GetTypeId().IntValue(),
+                        baseLevelId = baseLevel.Id.IntValue(),
+                        topLevelId = useTopConstraint ? topLevel.Id.IntValue() : baseLevel.Id.IntValue(),
                         mode = useTopConstraint ? "top-constrained" : "base+offset",
                         units = UnitHelper.DefaultUnitsMeta()
                     };
@@ -197,3 +197,5 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+
+

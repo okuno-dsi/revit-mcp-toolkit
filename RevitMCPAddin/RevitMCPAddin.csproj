@@ -21,10 +21,15 @@
     <Prefer32Bit>false</Prefer32Bit>
     <!-- C# 8.0 を明示 -->
     <LangVersion>8.0</LangVersion>
+    <!-- Nullable 参照型は段階導入中（#nullable enable が点在）で警告が大量になりやすいので、まずは主要な Nullable 警告を抑制してビルド出力を健全化する -->
+    <NoWarn>$(NoWarn);8600;8601;8602;8603;8604;8618;8619;8620;8625;8632;0649</NoWarn>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
-    <!-- Revit 2024 の既定インストールパス（必要に応じて切替用にプロパティ化） -->
-    <RevitInstallDir>$(ProgramW6432)\Autodesk\Revit 2024</RevitInstallDir>
+    <!-- Revit API の参照ルート（.NET Framework 4.8 向け）。必要なら MSBuild プロパティ `RevitInstallDir` で上書き。 -->
+    <!-- NOTE: Revit 2025 は .NET 8 (.NETCoreApp) なので、この csproj では参照しない（別プロジェクトで対応する）。 -->
+    <RevitInstallDir Condition=" '$(RevitInstallDir)'=='' and Exists('$(ProgramW6432)\\Autodesk\\Revit 2024\\RevitAPI.dll')">$(ProgramW6432)\Autodesk\Revit 2024</RevitInstallDir>
+    <RevitInstallDir Condition=" '$(RevitInstallDir)'=='' and Exists('$(ProgramW6432)\\Autodesk\\Revit 2023\\RevitAPI.dll')">$(ProgramW6432)\Autodesk\Revit 2023</RevitInstallDir>
+    <RevitInstallDir Condition=" '$(RevitInstallDir)'=='' ">$(ProgramW6432)\Autodesk\Revit 2024</RevitInstallDir>
     <!-- RevitMCP.Abstractions.csproj: このリポジトリは「Codex 配下（Junction）」と「実体フォルダ」両方でビルドされ得るため、両方の相対パスに対応する -->
     <RevitMcpAbstractionsProject>..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
     <RevitMcpAbstractionsProject Condition="!Exists('..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj') and Exists('..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj')">..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
@@ -231,6 +236,7 @@
     <Compile Include="Commands\Room\SummarizeRoomsByLevelCommand.cs" />
     <Compile Include="Commands\Room\ValidateCreateRoomCommand.cs" />
     <Compile Include="Commands\MetaOps\SearchCommandsHandler.cs" />
+    <Compile Include="Commands\MetaOps\DescribeCommandHandler.cs" />
     <Compile Include="Commands\ScheduleOps\ExportScheduleToExcelCommand.cs" />
     <Compile Include="Commands\ScheduleOps\InspectScheduleFieldsCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ListSchedulableFieldsCommand.cs" />
@@ -344,6 +350,8 @@
     <Compile Include="Commands\Spatial\FindSimilarByFactorsCommand.cs" />
     <Compile Include="Commands\SurfaceOps\GetSurfaceRegionsHandler.cs" />
     <Compile Include="Commands\System\ListCommandsHandler.cs" />
+    <Compile Include="Commands\System\GetContextCommand.cs" />
+    <Compile Include="Commands\System\RevitBatchCommand.cs" />
     <Compile Include="Commands\System\OpenSettingsCommand.cs" />
     <Compile Include="Commands\System\ReloadServerSettingsCommand.cs" />
     <Compile Include="Commands\TypeOps\DeleteTypeIfUnusedCommand.cs" />
@@ -371,6 +379,8 @@
     <Compile Include="Commands\ViewOps\SetCategoryVisibilityCommand.cs" />
     <Compile Include="Commands\ViewOps\SetSectionBoxByElementsCommand.cs" />
     <Compile Include="Commands\ViewOps\SheetCommands.cs" />
+    <Compile Include="Commands\ViewOps\SheetAutoCommands.cs" />
+    <Compile Include="Commands\ViewOps\ViewportAutoCommands.cs" />
     <Compile Include="Commands\ViewOps\ShowAllInViewCommand.cs" />
     <Compile Include="Commands\ViewOps\SyncViewStateCommand.cs" />
     <Compile Include="Commands\ViewOps\LegendTemplateCommands.cs" />
@@ -403,6 +413,7 @@
     <Compile Include="Core\CommandRegistry.cs" />
     <Compile Include="Core\CommandRunner.cs" />
     <Compile Include="Core\Compat\RequestShim.cs" />
+    <Compile Include="Core\Compat\ElementIdCompat.cs" />
     <Compile Include="Core\Dto\ObbDtos.cs" />
     <Compile Include="Core\Dto\PaintAndRegionScanModels.cs" />
     <Compile Include="Core\Dto\WallFaceClassificationModels.cs" />
@@ -437,6 +448,7 @@
     <Compile Include="Core\Paths.cs" />
     <Compile Include="Core\PortLocator.cs" />
     <Compile Include="Core\ExpectedContextGuard.cs" />
+    <Compile Include="Core\ContextTokenService.cs" />
     <Compile Include="Core\ProceedWithWarningsFailuresPreprocessor.cs" />
     <Compile Include="Core\RequestMeta.cs" />
     <Compile Include="Core\ResponseAutoFixer.cs" />
@@ -445,6 +457,7 @@
     <Compile Include="Core\ResultShaper.cs" />
     <Compile Include="Core\ResultStore.cs" />
     <Compile Include="Core\ResultUtil.cs" />
+    <Compile Include="Core\RpcResultEnvelope.cs" />
     <Compile Include="Core\RevitLogger.cs" />
     <Compile Include="Core\SettingsHelper.cs" />
     <Compile Include="Core\Ledger\LedgerDocKeyProvider.cs" />
@@ -671,6 +684,9 @@
     <Compile Include="RevitMcpWorker.cs" />
     <Compile Include="Core\RequestCommand.cs" />
     <Compile Include="Core\CommandRouter.cs" />
+    <Compile Include="Core\CommandNaming.cs" />
+    <Compile Include="Core\RpcCommandAttribute.cs" />
+    <Compile Include="Core\CommandMetadataRegistry.cs" />
     <Compile Include="ExternalEvents\RevitCommandExecutor.cs" />
     <Compile Include="Commands\Room\GetRoomsCommand.cs" />
     <Compile Include="Commands\Room\GetRoomParamsCommand.cs" />
@@ -678,7 +694,6 @@
     <Compile Include="Commands\Room\CreateRoomMassesCommand.cs" />
     <Compile Include="Commands\Room\SetRoomParamCommand.cs" />
     <Compile Include="Core\SpatialUtils.cs" />
-    <Compile Include="Commands\Spatial\GetSpatialContextForElementCommand.cs" />
     <Compile Include="Commands\Spatial\GetSpatialContextForElementsCommand.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -690,12 +705,6 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- WPF/XAML (Page) compile support for class library -->
-  <Import Project="$(MSBuildToolsPath)\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets')" />
-  <Import Project="$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets"
-          Condition="!Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets') and Exists('$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets')" />
-  <Import Project="$(windir)\Microsoft.NET\Framework64\v4.0.30319\Microsoft.WinFX.targets"
-          Condition="!Exists('$(MSBuildToolsPath)\Microsoft.WinFX.targets') and !Exists('$(windir)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets') and Exists('$(windir)\Microsoft.NET\Framework64\v4.0.30319\Microsoft.WinFX.targets')" />
   <Import Project="packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
   <!-- NuGet パッケージ存在チェック -->
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

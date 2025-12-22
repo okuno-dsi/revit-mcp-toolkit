@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/MoveSpaceCommand.cs (UnitHelper完全統一版)
 // ================================================================
 using Autodesk.Revit.DB;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.Space
             var p = (JObject)(cmd.Params ?? new JObject());
 
             int id = p.Value<int>("elementId");
-            var space = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Mechanical.Space
+            var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Mechanical.Space
                         ?? throw new System.InvalidOperationException($"Space not found: {id}");
 
             var dx = UnitHelper.MmToInternal(p.Value<double>("dx"), doc);
@@ -35,3 +35,4 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+

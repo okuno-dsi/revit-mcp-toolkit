@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallsCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallsCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -62,19 +62,19 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 Autodesk.Revit.DB.Wall target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as Autodesk.Revit.DB.Wall;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as Autodesk.Revit.DB.Wall;
                 else target = doc.GetElement(targetUid) as Autodesk.Revit.DB.Wall;
                 q = (target != null && target.CurtainGrid != null) ? new[] { target } : Enumerable.Empty<Autodesk.Revit.DB.Wall>();
             }
 
             if (typeId > 0)
-                q = q.Where(w => w.GetTypeId().IntegerValue == typeId);
+                q = q.Where(w => w.GetTypeId().IntValue() == typeId);
 
             if (!string.IsNullOrWhiteSpace(typeName))
                 q = q.Where(w => string.Equals((doc.GetElement(w.GetTypeId()) as ElementType)?.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
 
             if (levelId > 0)
-                q = q.Where(w => w.LevelId.IntegerValue == levelId);
+                q = q.Where(w => w.LevelId.IntValue() == levelId);
 
             if (!string.IsNullOrWhiteSpace(levelName))
                 q = q.Where(w =>
@@ -91,16 +91,16 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             var filtered = q.ToList();
             var typeNameMap = new Dictionary<int, string>();
             var familyNameMap = new Dictionary<int, string>();
-            foreach (var tid in filtered.Select(w => w.GetTypeId().IntegerValue).Distinct())
+            foreach (var tid in filtered.Select(w => w.GetTypeId().IntValue()).Distinct())
             {
-                var et = doc.GetElement(new ElementId(tid)) as ElementType;
+                var et = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as ElementType;
                 typeNameMap[tid] = et?.Name ?? string.Empty;
                 familyNameMap[tid] = (et as WallType)?.FamilyName ?? string.Empty;
             }
 
             var ordered = filtered
-                .OrderBy(w => typeNameMap.TryGetValue(w.GetTypeId().IntegerValue, out var n) ? n : string.Empty)
-                .ThenBy(w => w.Id.IntegerValue)
+                .OrderBy(w => typeNameMap.TryGetValue(w.GetTypeId().IntValue(), out var n) ? n : string.Empty)
+                .ThenBy(w => w.Id.IntValue())
                 .ToList();
 
             int totalCount = ordered.Count;
@@ -114,7 +114,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 {
                     var n = w.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    var tid2 = w.GetTypeId().IntegerValue;
+                    var tid2 = w.GetTypeId().IntValue();
                     return typeNameMap.TryGetValue(tid2, out var n2) ? n2 : string.Empty;
                 }).ToList();
 
@@ -128,7 +128,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
 
             if (idsOnly)
             {
-                var ids = paged.Select(w => w.Id.IntegerValue).ToList();
+                var ids = paged.Select(w => w.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids, inputUnits = CurtainUtil.UnitsIn(), internalUnits = CurtainUtil.UnitsInt() };
             }
 
@@ -159,8 +159,8 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                     z = Math.Round(CurtainUtil.FtToMm(center.Z), 3),
                 };
 
-                var tid = w.GetTypeId().IntegerValue;
-                var wt = doc.GetElement(new ElementId(tid)) as WallType;
+                var tid = w.GetTypeId().IntValue();
+                var wt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as WallType;
                 var lv = doc.GetElement(w.LevelId) as Level;
 
                 // 高さ（Unconnected Height）mm（接続時は0の可能性）
@@ -169,12 +169,12 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
 
                 return new
                 {
-                    elementId = w.Id.IntegerValue,
+                    elementId = w.Id.IntValue(),
                     uniqueId = w.UniqueId,
                     typeId = tid,
                     typeName = (typeNameMap.TryGetValue(tid, out var tnm) ? tnm : wt?.Name) ?? "",
                     familyName = (familyNameMap.TryGetValue(tid, out var fnm) ? fnm : wt?.FamilyName) ?? "",
-                    levelId = w.LevelId.IntegerValue,
+                    levelId = w.LevelId.IntValue(),
                     levelName = lv?.Name ?? "",
                     lengthMm,
                     heightMm,
@@ -187,3 +187,5 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+
+

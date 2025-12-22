@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             bool ensureVisible = p.Value<bool?>("ensureCloudVisible") ?? true;
 
             // Resolve selection (active or stashed)
-            var selIds = uidoc.Selection.GetElementIds().Select(x => x.IntegerValue).ToList();
+            var selIds = uidoc.Selection.GetElementIds().Select(x => x.IntValue()).ToList();
             if (selIds.Count == 0)
             {
                 var stashed = SelectionStash.GetIds();
@@ -77,3 +77,4 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+

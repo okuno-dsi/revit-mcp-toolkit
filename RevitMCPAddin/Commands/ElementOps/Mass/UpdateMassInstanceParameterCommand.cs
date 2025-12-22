@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/UpdateMassInstanceParameterCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/UpdateMassInstanceParameterCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             if (!p.TryGetValue("elementId", out var idTok))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
             int elementId = idTok.Value<int>();
-            var element = doc.GetElement(new ElementId(elementId));
+            var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (element == null)
                 return new { ok = false, message = $"Element not found: {elementId}" };
 
@@ -85,7 +85,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
                         }
 
                     case StorageType.ElementId:
-                        param.Set(new ElementId(valTok.Value<int>()));
+                        param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valTok.Value<int>()));
                         break;
 
                     default:
@@ -103,7 +103,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_mass_instance_parameter: move by offset failed for element {inst.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_mass_instance_parameter: move by offset failed for element {inst.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
@@ -118,3 +118,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
         }
     }
 }
+
+

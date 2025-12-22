@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/GetDoorsCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/GetDoorsCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -53,12 +53,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 FamilyInstance target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as FamilyInstance;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance;
                 else target = doc.GetElement(targetUid) as FamilyInstance;
                 q = target == null ? Enumerable.Empty<FamilyInstance>() : new[] { target };
             }
 
-            if (typeId > 0) q = q.Where(d => d.GetTypeId().IntegerValue == typeId);
+            if (typeId > 0) q = q.Where(d => d.GetTypeId().IntValue() == typeId);
             if (!string.IsNullOrWhiteSpace(typeName) || !string.IsNullOrWhiteSpace(familyName))
                 q = q.Where(d =>
                 {
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                     return true;
                 });
 
-            if (levelId > 0) q = q.Where(d => d.LevelId.IntegerValue == levelId);
+            if (levelId > 0) q = q.Where(d => d.LevelId.IntValue() == levelId);
             if (!string.IsNullOrWhiteSpace(levelName))
                 q = q.Where(d =>
                 {
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 {
                     var host = d.Host as Autodesk.Revit.DB.Wall;
                     if (host == null) return false;
-                    if (hostId > 0 && host.Id.IntegerValue != hostId) return false;
+                    if (hostId > 0 && host.Id.IntValue() != hostId) return false;
                     if (!string.IsNullOrWhiteSpace(hostUid) && !string.Equals(host.UniqueId, hostUid, System.StringComparison.OrdinalIgnoreCase)) return false;
                     return true;
                 });
@@ -106,16 +106,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             // Precompute type/family name maps to avoid repeated GetElement per instance
             var typeNameMap = new Dictionary<int, string>();
             var familyNameMap = new Dictionary<int, string>();
-            foreach (var tid in filtered.Select(d => d.GetTypeId().IntegerValue).Distinct())
+            foreach (var tid in filtered.Select(d => d.GetTypeId().IntValue()).Distinct())
             {
-                var sym = doc.GetElement(new ElementId(tid)) as FamilySymbol;
+                var sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as FamilySymbol;
                 typeNameMap[tid] = sym?.Name ?? string.Empty;
                 familyNameMap[tid] = sym?.Family?.Name ?? string.Empty;
             }
 
             var ordered = filtered
-                .OrderBy(d => typeNameMap.TryGetValue(d.GetTypeId().IntegerValue, out var tn) ? tn : string.Empty)
-                .ThenBy(d => d.Id.IntegerValue)
+                .OrderBy(d => typeNameMap.TryGetValue(d.GetTypeId().IntValue(), out var tn) ? tn : string.Empty)
+                .ThenBy(d => d.Id.IntValue())
                 .ToList();
 
             if (namesOnly)
@@ -124,7 +124,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 {
                     var n = d.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    var tid2 = d.GetTypeId().IntegerValue;
+                    var tid2 = d.GetTypeId().IntValue();
                     return typeNameMap.TryGetValue(tid2, out var tn2) ? tn2 : string.Empty;
                 }).ToList();
 
@@ -138,7 +138,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             if (idsOnly)
             {
-                var ids = paged.Select(d => d.Id.IntegerValue).ToList();
+                var ids = paged.Select(d => d.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids };
             }
 
@@ -160,21 +160,21 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 }
 
                 int? hostWallId = null; string levelName2 = "";
-                if (d.Host is Autodesk.Revit.DB.Wall hw) hostWallId = hw.Id.IntegerValue;
+                if (d.Host is Autodesk.Revit.DB.Wall hw) hostWallId = hw.Id.IntValue();
                 var lv = doc.GetElement(d.LevelId) as Level;
                 if (lv != null) levelName2 = lv.Name ?? "";
 
-                var tid = d.GetTypeId().IntegerValue;
+                var tid = d.GetTypeId().IntValue();
                 var tName = typeNameMap.TryGetValue(tid, out var tnm) ? tnm : string.Empty;
                 var fName = familyNameMap.TryGetValue(tid, out var fnm) ? fnm : string.Empty;
                 return new
                 {
-                    elementId = d.Id.IntegerValue,
+                    elementId = d.Id.IntValue(),
                     uniqueId = d.UniqueId,
                     typeId = tid,
                     typeName = tName,
                     familyName = fName,
-                    levelId = d.LevelId.IntegerValue,
+                    levelId = d.LevelId.IntValue(),
                     levelName = levelName2,
                     hostWallId,
                     location
@@ -185,3 +185,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+
+

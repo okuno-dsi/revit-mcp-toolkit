@@ -139,7 +139,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null)
@@ -232,7 +232,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                     return new
                     {
                         ok = true,
-                        materialId = material.Id.IntegerValue,
+                        materialId = material.Id.IntValue(),
                         uniqueId = material.UniqueId,
                         updated = new
                         {
@@ -268,7 +268,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             Element elem = null;
             int elementId = p.Value<int?>("elementId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (elementId > 0) elem = doc.GetElement(new ElementId(elementId));
+            if (elementId > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             else if (!string.IsNullOrWhiteSpace(uniqueId)) elem = doc.GetElement(uniqueId);
 
             if (elem == null)
@@ -329,7 +329,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                             param.Set(valToken.Value<string>() ?? string.Empty);
                             break;
                         case StorageType.ElementId:
-                            param.Set(new ElementId(valToken.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valToken.Value<int>()));
                             break;
                         default:
                             throw new InvalidOperationException("Unsupported StorageType for update.");
@@ -347,7 +347,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                elementId = elem.Id.IntegerValue,
+                elementId = elem.Id.IntValue(),
                 uniqueId = elem.UniqueId,
                 parameterName = param.Definition?.Name,
                 resolvedBy,
@@ -357,3 +357,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
         }
     }
 }
+
+

@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                 foreach (var id in req.ElementIds)
                 {
-                    var eid = new ElementId(id);
+                    var eid = Autodesk.Revit.DB.ElementIdCompat.From(id);
                     var wall = doc.GetElement(eid) as Autodesk.Revit.DB.Wall;
                     if (wall == null)
                     {
@@ -314,4 +314,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
 

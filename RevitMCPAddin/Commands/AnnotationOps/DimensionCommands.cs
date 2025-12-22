@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/DimensionCommands.cs
 // 機能: 寸法注記の取得・作成・削除・移動・スタイル/フォーマット操作・アラインメント
 // 単位: 入出力は mm（内部は ft/rad）。表示文字列は Revit 書式に従う。
@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             var p = (JObject)cmd.Params;
             int viewId = p.Value<int>("viewId");
 
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null)
                 return new { ok = false, msg = $"View not found: {viewId}" };
 
@@ -51,7 +51,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 .Cast<Dimension>();
 
             if (typeIdsFilter.Count > 0)
-                collector = collector.Where(d => typeIdsFilter.Contains(d.GetTypeId().IntegerValue));
+                collector = collector.Where(d => typeIdsFilter.Contains(d.GetTypeId().IntValue()));
 
             if (!string.IsNullOrWhiteSpace(nameContains))
                 collector = collector.Where(d => (d.Name ?? string.Empty).IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             var all = collector.Select(d => d).ToList();
             int totalCount = all.Count;
             if (summaryOnly)
-                return new { ok = true, viewId = view.Id.IntegerValue, totalCount };
+                return new { ok = true, viewId = view.Id.IntValue(), totalCount };
 
             IEnumerable<Dimension> paged = all;
             if (skip > 0) paged = paged.Skip(skip);
@@ -67,16 +67,16 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             if (idsOnly)
             {
-                var ids = paged.Select(d => d.Id.IntegerValue).ToList();
-                return new { ok = true, viewId = view.Id.IntegerValue, totalCount, elementIds = ids };
+                var ids = paged.Select(d => d.Id.IntValue()).ToList();
+                return new { ok = true, viewId = view.Id.IntValue(), totalCount, elementIds = ids };
             }
 
             var dims = paged.Select(dim => new
             {
-                elementId = dim.Id.IntegerValue,
+                elementId = dim.Id.IntValue(),
                 name = dim.Name,
-                typeId = dim.GetTypeId().IntegerValue,
-                references = includeRefs ? dim.References?.Cast<Reference>().Select(r => r.ElementId.IntegerValue).ToList() : null,
+                typeId = dim.GetTypeId().IntValue(),
+                references = includeRefs ? dim.References?.Cast<Reference>().Select(r => r.ElementId.IntValue()).ToList() : null,
                 value = includeValue ? dim.ValueString : null, // Revit書式済み
                 origin = includeOrigin ? new
                 {
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 style = doc.GetElement(dim.GetTypeId())?.Name ?? ""
             }).ToList();
 
-            return new { ok = true, viewId = view.Id.IntegerValue, totalCount, items = dims };
+            return new { ok = true, viewId = view.Id.IntValue(), totalCount, items = dims };
         }
     }
 
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int viewId = p.Value<int>("viewId");
             int typeId = p.Value<int?>("typeId") ?? 0;
 
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
             var refsArr = p["refs"] as JArray;
@@ -122,7 +122,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             foreach (var jt in refsArr)
             {
                 int eid = jt.Value<int>();
-                var elem = doc.GetElement(new ElementId(eid));
+                var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 if (elem == null)
                 {
                     problems.Add(new { elementId = eid, reason = "Element not found." });
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                     if (typeId > 0)
                     {
-                        var typeElem = doc.GetElement(new ElementId(typeId)) as DimensionType;
+                        var typeElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as DimensionType;
                         if (typeElem != null) dim.ChangeTypeId(typeElem.Id);
                     }
 
@@ -196,7 +196,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 }
             }
 
-            return new { ok = true, elementId = dim.Id.IntegerValue };
+            return new { ok = true, elementId = dim.Id.IntValue() };
         }
 
         // --- 参照取得の拡張 ---
@@ -288,7 +288,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             using (var tx = new Transaction(doc, "Delete Dimension"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(dimId));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(dimId));
                 tx.Commit();
             }
             return new { ok = true };
@@ -313,7 +313,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             double dy = p.Value<double?>("dy") ?? 0;
             double dz = p.Value<double?>("dz") ?? 0;
 
-            var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
+            var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
             if (dim == null)
                 return new { ok = false, msg = "Dimension not found." };
 
@@ -344,8 +344,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int dimId = p.Value<int>("elementId");
             int targetElemId = p.Value<int>("targetElementId");
 
-            var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
-            var tgtElem = doc.GetElement(new ElementId(targetElemId));
+            var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
+            var tgtElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetElemId));
             if (dim == null || tgtElem == null)
                 return new { ok = false, msg = "Dimension or target not found." };
 
@@ -370,7 +370,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     doc.Delete(dim.Id);
                     tx.Commit();
 
-                    return new { ok = true, elementId = newDim.Id.IntegerValue };
+                    return new { ok = true, elementId = newDim.Id.IntValue() };
                 }
                 catch (Exception ex)
                 {
@@ -400,7 +400,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             string unitSymbol = p.Value<string>("unitSymbol"); // 省略可: "mm","cm","m"
             int? newTypeId = p.Value<int?>("typeId");          // 省略可
 
-            var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
+            var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
             if (dim == null)
                 return new { ok = false, msg = $"Dimension {dimId} not found." };
 
@@ -411,7 +411,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 // ① タイプ変更（任意）
                 if (newTypeId.HasValue)
                 {
-                    var tp = doc.GetElement(new ElementId(newTypeId.Value)) as DimensionType;
+                    var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newTypeId.Value)) as DimensionType;
                     if (tp != null) dim.ChangeTypeId(tp.Id);
                 }
 
@@ -480,7 +480,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 coll = coll.Where(t => (t.Name ?? string.Empty).IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
             var ordered = coll
-                .Select(t => new { t, name = t.Name ?? string.Empty, id = t.Id.IntegerValue })
+                .Select(t => new { t, name = t.Name ?? string.Empty, id = t.Id.IntValue() })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.t)
                 .ToList();
@@ -495,14 +495,14 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             if (idsOnly)
             {
-                var ids = paged.Select(t => t.Id.IntegerValue).ToList();
+                var ids = paged.Select(t => t.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds = ids };
             }
 
             var types = paged
                 .Select(t => new
                 {
-                    typeId = t.Id.IntegerValue,
+                    typeId = t.Id.IntValue(),
                     name = t.Name,
                     style = t.StyleType.ToString()
                 })
@@ -512,3 +512,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

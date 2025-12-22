@@ -32,11 +32,11 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             try
             {
-                // š C³: –¢’è‹`‚Ì ParamsAsJObject() ‚ğg‚í‚¸A‘f’¼‚É JObject ‰»
+                // ï¿½ï¿½ ï¿½Cï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½`ï¿½ï¿½ ParamsAsJObject() ï¿½ï¿½ï¿½gï¿½í‚¸ï¿½Aï¿½fï¿½ï¿½ï¿½ï¿½ JObject ï¿½ï¿½
                 var p = (JObject)(cmd.Params ?? new JObject());
 
-                var srcId = new ElementId(p.Value<int>("srcViewId"));
-                var dstId = new ElementId(p.Value<int>("dstViewId"));
+                var srcId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("srcViewId"));
+                var dstId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("dstViewId"));
                 var src = doc.GetElement(srcId) as View;
                 var dst = doc.GetElement(dstId) as View;
                 if (src == null || dst == null)
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
                     catch { }
 
-                    // š C³: Phase / Phase Filter ‚Ì BuiltInParameter –¼‚ğ³‚µ‚­
+                    // ï¿½ï¿½ ï¿½Cï¿½ï¿½: Phase / Phase Filter ï¿½ï¿½ BuiltInParameter ï¿½ï¿½ï¿½ğ³‚ï¿½ï¿½ï¿½
                     try
                     {
                         var ph = src.get_Parameter(BuiltInParameter.VIEW_PHASE);
@@ -134,3 +134,4 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+

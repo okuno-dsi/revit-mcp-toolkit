@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/CreateConduitCommand.cs
+// RevitMCPAddin/Commands/MEPOps/CreateConduitCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
@@ -22,8 +22,8 @@ namespace RevitMCPAddin.Commands.MEPOps
             var start = UnitHelper.MmToXyz(s.Value<double>("x"), s.Value<double>("y"), s.Value<double>("z"));
             var end = UnitHelper.MmToXyz(e.Value<double>("x"), e.Value<double>("y"), e.Value<double>("z"));
 
-            var conduitTypeId = new ElementId(p.Value<int>("conduitTypeId"));
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var conduitTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("conduitTypeId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             using (var tx = new Transaction(doc, "Create Conduit"))
             {
@@ -42,8 +42,8 @@ namespace RevitMCPAddin.Commands.MEPOps
                     return new
                     {
                         ok = true,
-                        elementId = conduit.Id.IntegerValue,
-                        typeId = conduitTypeId.IntegerValue,
+                        elementId = conduit.Id.IntValue(),
+                        typeId = conduitTypeId.IntValue(),
                         units = UnitHelper.DefaultUnitsMeta()
                     };
                 }
@@ -56,3 +56,5 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+
+

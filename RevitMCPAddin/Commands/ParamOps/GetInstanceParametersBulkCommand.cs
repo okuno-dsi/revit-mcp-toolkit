@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             var eidTok = p["elementIds"] as JArray;
             if (eidTok != null && eidTok.Count > 0)
             {
-                foreach (var t in eidTok) { try { elemIds.Add(new ElementId(Convert.ToInt32(t))); } catch { } }
+                foreach (var t in eidTok) { try { elemIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(Convert.ToInt32(t))); } catch { } }
             }
             else
             {
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                     var e = doc.GetElement(id);
                     if (e == null)
                     {
-                        items.Add(new { ok = false, elementId = id.IntegerValue, errors = new[] { "not_found" } });
+                        items.Add(new { ok = false, elementId = id.IntValue(), errors = new[] { "not_found" } });
                         continue;
                     }
 
@@ -94,9 +94,9 @@ namespace RevitMCPAddin.Commands.ParamOps
                     }
 
                     int? catId = null;
-                    try { catId = e.Category != null ? (int?)e.Category.Id.IntegerValue : null; } catch { }
+                    try { catId = e.Category != null ? (int?)e.Category.Id.IntValue() : null; } catch { }
                     int? typeId = null;
-                    try { typeId = e.GetTypeId() != null ? (int?)e.GetTypeId().IntegerValue : null; } catch { }
+                    try { typeId = e.GetTypeId() != null ? (int?)e.GetTypeId().IntValue() : null; } catch { }
 
                     string familyName = "";
                     try { familyName = (e is FamilyInstance fi && fi.Symbol?.Family != null) ? (fi.Symbol.Family.Name ?? "") : ""; } catch { }
@@ -104,7 +104,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                     items.Add(new
                     {
                         ok = true,
-                        elementId = e.Id.IntegerValue,
+                        elementId = e.Id.IntValue(),
                         categoryId = catId,
                         familyName = string.IsNullOrEmpty(familyName) ? null : familyName,
                         typeId = typeId,
@@ -115,7 +115,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                 }
                 catch (Exception ex)
                 {
-                    items.Add(new { ok = false, elementId = id.IntegerValue, errors = new[] { ex.Message } });
+                    items.Add(new { ok = false, elementId = id.IntValue(), errors = new[] { ex.Message } });
                 }
             }
 
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         case StorageType.String:
                             v = p.AsString(); break;
                         case StorageType.ElementId:
-                            v = p.AsElementId()?.IntegerValue; break;
+                            v = p.AsElementId()?.IntValue(); break;
                         default:
                             v = p.AsValueString() ?? p.ToString(); break;
                     }
@@ -296,7 +296,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         case StorageType.String:
                             v = p.AsString(); break;
                         case StorageType.ElementId:
-                            v = p.AsElementId()?.IntegerValue; break;
+                            v = p.AsElementId()?.IntValue(); break;
                         default:
                             v = p.AsValueString() ?? p.ToString(); break;
                     }
@@ -345,3 +345,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
+

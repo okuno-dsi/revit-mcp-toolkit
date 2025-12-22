@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;      // IRevitCommandHandler の定義を参照 
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var p = (JObject)cmd.Params;
             int viewId = p.Value<int>("viewId");
             var doc = uiapp.ActiveUIDocument.Document;
-            var viewEl = doc.GetElement(new ElementId(viewId)) as View;
+            var viewEl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (viewEl == null)
             {
                 return new { ok = false, msg = $"ビュー {viewId} が見つかりません" };
@@ -31,3 +31,4 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+

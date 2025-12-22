@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/DuplicateArchitecturalColumnTypeCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/DuplicateArchitecturalColumnTypeCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -20,12 +20,14 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
             using var tx = new Transaction(doc, "Duplicate Column Type");
             tx.Start();
-            var original = doc.GetElement(new ElementId(typeId)) as FamilySymbol
+            var original = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol
                            ?? throw new InvalidOperationException($"タイプが見つかりません: {typeId}");
             var dup = original.Duplicate(newName) as FamilySymbol;
             tx.Commit();
 
-            return new { ok = true, newTypeId = dup.Id.IntegerValue, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, newTypeId = dup.Id.IntValue(), units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 }
+
+

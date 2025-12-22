@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: App.cs – RevitMCP Add-in（重複起動ガード + 非同期クリーンアップ + 多重起動安全サーバ）
 // Target: Revit 2023+ / .NET Framework 4.8 / C# 8
 // ================================================================
@@ -228,6 +228,8 @@ namespace RevitMCPAddin
                 // SelectionChanged event is not always available from UIControlledApplication.
                 // Idling-based polling is low-risk and works across versions.
                 application.Idling += OnIdlingUpdateSelectionStash;
+                try { application.ViewActivated += OnViewActivatedBumpContextToken; } catch { /* best-effort */ }
+                try { application.ControlledApplication.DocumentChanged += OnDocumentChangedBumpContextToken; } catch { /* best-effort */ }
                 RevitLogger.Info("Selection monitor started (Idling polling).");
             }
             catch (Exception ex)
@@ -241,6 +243,8 @@ namespace RevitMCPAddin
             try
             {
                 application.Idling -= OnIdlingUpdateSelectionStash;
+                try { application.ViewActivated -= OnViewActivatedBumpContextToken; } catch { /* ignore */ }
+                try { application.ControlledApplication.DocumentChanged -= OnDocumentChangedBumpContextToken; } catch { /* ignore */ }
                 RevitLogger.Info("Selection monitor stopped.");
             }
             catch { /* ignore */ }
@@ -290,7 +294,7 @@ namespace RevitMCPAddin
                     foreach (var id in sel)
                     {
                         if (id == null) continue;
-                        int v = id.IntegerValue;
+                        int v = id.IntValue();
                         if (v != 0) ids.Add(v);
                     }
                 }
@@ -303,7 +307,7 @@ namespace RevitMCPAddin
                 int viewId = 0;
                 try { docPath = doc.PathName ?? string.Empty; } catch { }
                 try { docTitle = doc.Title ?? string.Empty; } catch { }
-                try { viewId = uidoc.ActiveView?.Id?.IntegerValue ?? 0; } catch { }
+                try { viewId = uidoc.ActiveView?.Id?.IntValue() ?? 0; } catch { }
 
                 bool sameIds = SameSortedIds(idsArr, _lastSelIdsSorted);
                 bool sameDoc = string.Equals(docPath, _lastSelDocPath, StringComparison.OrdinalIgnoreCase);
@@ -315,10 +319,44 @@ namespace RevitMCPAddin
                 _lastSelViewId = viewId;
 
                 SelectionStash.Set(idsArr, docPath, docTitle, viewId);
+
+                // Step 7: bump revision on selection changes (doc/view changes are captured via events).
+                if (!sameIds)
+                {
+                    try { RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "SelectionChanged"); } catch { /* ignore */ }
+                }
             }
             catch
             {
                 // keep Idling safe
+            }
+        }
+
+        private static void OnViewActivatedBumpContextToken(object sender, Autodesk.Revit.UI.Events.ViewActivatedEventArgs e)
+        {
+            try
+            {
+                var doc = e != null ? e.Document : null;
+                if (doc == null) return;
+                RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "ViewActivated");
+            }
+            catch
+            {
+                // keep handler safe
+            }
+        }
+
+        private static void OnDocumentChangedBumpContextToken(object sender, Autodesk.Revit.DB.Events.DocumentChangedEventArgs e)
+        {
+            try
+            {
+                var doc = e != null ? e.GetDocument() : null;
+                if (doc == null) return;
+                RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "DocumentChanged");
+            }
+            catch
+            {
+                // keep handler safe
             }
         }
 
@@ -428,3 +466,4 @@ namespace RevitMCPAddin
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/ChangeMepElementTypeCommand.cs
+// RevitMCPAddin/Commands/MEPOps/ChangeMepElementTypeCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -15,11 +15,11 @@ namespace RevitMCPAddin.Commands.MEPOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            var elemId = new ElementId(p.Value<int>("elementId"));
-            var newTypeId = new ElementId(p.Value<int>("newTypeId"));
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
+            var newTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("newTypeId"));
 
             var el = doc.GetElement(elemId);
-            if (el == null) return new { ok = false, msg = $"Element not found: {elemId.IntegerValue}" };
+            if (el == null) return new { ok = false, msg = $"Element not found: {elemId.IntValue()}" };
 
             using (var tx = new Transaction(doc, "Change MEP Element Type"))
             {
@@ -30,10 +30,12 @@ namespace RevitMCPAddin.Commands.MEPOps
             return new
             {
                 ok = true,
-                elementId = el.Id.IntegerValue,
-                typeId = el.GetTypeId().IntegerValue,
+                elementId = el.Id.IntValue(),
+                typeId = el.GetTypeId().IntValue(),
                 units = UnitHelper.DefaultUnitsMeta()
             };
         }
     }
 }
+
+

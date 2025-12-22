@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File   : Commands/ViewOps/ViewCameraHandlers.cs
 // Purpose: Unified handlers for view operations (zoom, orbit, pan, reset, fit, zoom_to_element)
 // Target : .NET Framework 4.8 / Revit 2023+
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 foreach (var v in uidoc.GetOpenUIViews())
                 {
-                    if (v.ViewId.IntegerValue == viewIdOpt.Value)
+                    if (v.ViewId.IntValue() == viewIdOpt.Value)
                     {
                         uiv = v;
                         view = uidoc.Document.GetElement(v.ViewId) as View;
@@ -162,7 +162,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         uiv.Zoom(factor);
                     }
                 }
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, $"zoom x{factor:0.###}");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), $"zoom x{factor:0.###}");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
@@ -254,7 +254,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     t.Commit();
                     uiapp.ActiveUIDocument?.RefreshActiveView();
                 }
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, $"orbit yaw={dyaw:0.###}, pitch={dpitch:0.###}, horizonLock={(horizonLock ? "on" : "off")}");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), $"orbit yaw={dyaw:0.###}, pitch={dpitch:0.###}, horizonLock={(horizonLock ? "on" : "off")}");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
@@ -325,7 +325,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         return ViewCommandResult.Fail("pan not supported in this environment");
                     }
                 }
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, $"pan dx={dx},dy={dy}");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), $"pan dx={dx},dy={dy}");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
@@ -371,7 +371,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
                     else uiv.ZoomToFit();
                 }
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, "reset to origin");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), "reset to origin");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
@@ -392,7 +392,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             try
             {
                 uiv.ZoomToFit();
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, "fit to screen");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), "fit to screen");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
@@ -418,7 +418,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             try
             {
-                var elem = v.Document.GetElement(new ElementId(elemId));
+                var elem = v.Document.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elemId));
                 if (elem == null) return ViewCommandResult.Fail($"element not found {elemId}");
                 var bb = elem.get_BoundingBox(v) ?? elem.get_BoundingBox(null);
                 if (bb == null) return ViewCommandResult.Fail("element has no bounding box");
@@ -447,9 +447,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     uiv.ZoomAndCenterRectangle(min, max);
                 }
-                return ViewCommandResult.From(true, uiv.ViewId.IntegerValue, $"zoom to element {elemId}");
+                return ViewCommandResult.From(true, uiv.ViewId.IntValue(), $"zoom to element {elemId}");
             }
             catch (Exception ex) { return ViewCommandResult.Fail(ex.Message); }
         }
     }
 }
+
+

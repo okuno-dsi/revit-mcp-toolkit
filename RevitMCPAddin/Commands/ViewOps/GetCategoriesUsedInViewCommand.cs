@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/GetCategoriesUsedInViewCommand.cs
 // Revit 2023 / .NET Framework 4.8
 // - Revit 2024+ では色も取得（GetProjectionLineColorが存在する場合）
@@ -26,9 +26,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                 if (doc == null) return new { ok = false, msg = "No active document." };
 
                 var p = cmd.Params as JObject ?? new JObject();
-                var viewId = new ElementId((int)p.Value<int?>("viewId"));
+                var viewId = Autodesk.Revit.DB.ElementIdCompat.From((int)p.Value<int?>("viewId"));
                 var view = doc.GetElement(viewId) as View;
-                if (view == null) return new { ok = false, msg = $"View not found: {viewId.IntegerValue}" };
+                if (view == null) return new { ok = false, msg = $"View not found: {viewId.IntValue()}" };
 
                 // ビューに「表示対象として存在する」要素だけ
                 var elems = new FilteredElementCollector(doc, view.Id)
@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var catGroups = elems
                     .Select(e => e.Category)
                     .Where(c => c != null)
-                    .GroupBy(c => c.Id.IntegerValue);
+                    .GroupBy(c => c.Id.IntValue());
 
                 var items = new List<object>();
                 foreach (var g in catGroups)
@@ -72,7 +72,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                     items.Add(new
                     {
-                        categoryId = catId.IntegerValue,
+                        categoryId = catId.IntValue(),
                         name = cat.Name,
                         elementCount = g.Count(),
                         visible,
@@ -85,7 +85,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     categories = items
                 };
             }
@@ -96,3 +96,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

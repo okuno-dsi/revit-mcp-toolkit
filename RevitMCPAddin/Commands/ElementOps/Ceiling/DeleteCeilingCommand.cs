@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Ceiling/DeleteCeilingCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Ceiling/DeleteCeilingCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         {
             Document doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            ElementId id = new ElementId(p.Value<int>("elementId"));
+            ElementId id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
 
             // 存在チェック
             if (doc.GetElement(id) == null)
@@ -36,3 +36,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+

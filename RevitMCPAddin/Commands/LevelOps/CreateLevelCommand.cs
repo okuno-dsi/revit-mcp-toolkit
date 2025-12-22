@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/CreateLevelCommand.cs  (UnitHelper統一版)
 // Revit 2023 / .NET Framework 4.8
 // ================================================================
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.DatumOps
                 return new
                 {
                     ok = true,
-                    levelId = lvl.Id.IntegerValue,
+                    levelId = lvl.Id.IntValue(),
                     elevation = Math.Round(UnitHelper.InternalToMm(lvl.Elevation, doc), 3),
                     name = lvl.Name,
                     units = UnitHelper.DefaultUnitsMeta()
@@ -44,3 +44,4 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+

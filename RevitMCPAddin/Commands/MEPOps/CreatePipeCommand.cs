@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/CreatePipeCommand.cs
+// RevitMCPAddin/Commands/MEPOps/CreatePipeCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
@@ -22,9 +22,9 @@ namespace RevitMCPAddin.Commands.MEPOps
             var start = UnitHelper.MmToXyz(s.Value<double>("x"), s.Value<double>("y"), s.Value<double>("z"));
             var end = UnitHelper.MmToXyz(e.Value<double>("x"), e.Value<double>("y"), e.Value<double>("z"));
 
-            var systemTypeId = new ElementId(p.Value<int>("systemTypeId"));
-            var pipeTypeId = new ElementId(p.Value<int>("pipeTypeId"));
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var systemTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("systemTypeId"));
+            var pipeTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("pipeTypeId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             using (var tx = new Transaction(doc, "Create Pipe"))
             {
@@ -56,8 +56,8 @@ namespace RevitMCPAddin.Commands.MEPOps
                     return new
                     {
                         ok = true,
-                        elementId = pipe.Id.IntegerValue,
-                        typeId = pipeTypeId.IntegerValue,
+                        elementId = pipe.Id.IntValue(),
+                        typeId = pipeTypeId.IntValue(),
                         units = UnitHelper.DefaultUnitsMeta()
                     };
                 }
@@ -70,3 +70,5 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+
+

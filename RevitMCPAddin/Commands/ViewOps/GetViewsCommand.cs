@@ -55,8 +55,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         .Cast<Viewport>();
                     foreach (var vp in vps)
                     {
-                        int vid = vp.ViewId.IntegerValue;
-                        int sid = vp.SheetId.IntegerValue;
+                        int vid = vp.ViewId.IntValue();
+                        int sid = vp.SheetId.IntValue();
                         if (vid <= 0 || sid <= 0) continue;
                         if (!sheetMap.TryGetValue(vid, out var list))
                         {
@@ -74,7 +74,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 var d = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
-                    ["viewId"] = v.Id.IntegerValue,
+                    ["viewId"] = v.Id.IntValue(),
                     ["uniqueId"] = v.UniqueId ?? string.Empty,
                     ["name"] = v.Name ?? string.Empty,
                     ["viewType"] = v.ViewType.ToString(),
@@ -92,7 +92,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         var vft = doc.GetElement(v.GetTypeId()) as ViewFamilyType;
                         if (vft != null)
                         {
-                            d["viewFamilyTypeId"] = vft.Id.IntegerValue;
+                            d["viewFamilyTypeId"] = vft.Id.IntValue();
                             d["viewFamilyTypeName"] = vft.Name ?? string.Empty;
                         }
                     }
@@ -100,7 +100,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                     try
                     {
-                        int tid = v.ViewTemplateId?.IntegerValue ?? -1;
+                        int tid = v.ViewTemplateId?.IntValue() ?? -1;
                         if (tid > 0)
                         {
                             d["templateViewId"] = tid;
@@ -115,7 +115,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                     try
                     {
-                        int vid = v.Id.IntegerValue;
+                        int vid = v.Id.IntValue();
                         if (sheetMap.TryGetValue(vid, out var sids) && sids != null && sids.Count > 0)
                         {
                             d["placedOnSheet"] = true;
@@ -136,4 +136,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
 

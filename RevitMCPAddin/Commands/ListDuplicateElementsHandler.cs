@@ -1,4 +1,4 @@
-﻿// RevitMcpAddin/Commands/ListDuplicateElementsHandler.cs
+// RevitMcpAddin/Commands/ListDuplicateElementsHandler.cs
 // 修正版: Arc.Angle → (EndAngle - StartAngle)
 // #endregion ディレクティブも補完済
 
@@ -61,7 +61,7 @@ namespace RevitMcpAddin.Commands
                     if (loc is LocationPoint lp)
                     {
                         var p = lp.Point;
-                        var key = BuildPointKey(cat.Id.IntegerValue, typeId.IntegerValue, p, tolFeet);
+                        var key = BuildPointKey(cat.Id.IntValue(), typeId.IntValue(), p, tolFeet);
                         var meta = new Item(e.Id, cat.Name, GetElementTypeName(doc, typeId), "LocationPoint", p, null);
                         Append(mapPoint, key, meta);
                     }
@@ -103,7 +103,7 @@ namespace RevitMcpAddin.Commands
                         category = f.CategoryName,
                         typeName = f.TypeName,
                         count = list.Count,
-                        elementIds = list.Select(x => x.Id.IntegerValue).ToList(),
+                        elementIds = list.Select(x => x.Id.IntValue()).ToList(),
                         location = new PointDto(f.Point),
                         mode = f.Mode
                     });
@@ -121,7 +121,7 @@ namespace RevitMcpAddin.Commands
                         category = f.CategoryName,
                         typeName = f.TypeName,
                         count = list.Count,
-                        elementIds = list.Select(x => x.Id.IntegerValue).ToList(),
+                        elementIds = list.Select(x => x.Id.IntValue()).ToList(),
                         location = new PointDto(f.Point ?? f.Sig?.Anchor ?? XYZ.Zero),
                         mode = f.Mode
                     });
@@ -304,3 +304,4 @@ namespace RevitMcpAddin.Commands
         public static string Consume() { var s = _last; _last = null; return s; }
     }
 }
+

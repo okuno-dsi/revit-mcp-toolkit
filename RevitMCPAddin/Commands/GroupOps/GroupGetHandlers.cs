@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/GroupOps/GroupGetHandlers.cs
 // 概要: グループ情報の取得系ハンドラをひとつのファイルに集約
 // 対応: .NET Framework 4.8 / C# 8 / Revit 2023 API
@@ -33,7 +33,7 @@ namespace RevitMCPAddin.Commands.GroupOps
 public static string CategoryKindOf(Group g)
         {
             // Revitのローカライズに依存しないためカテゴリIDで判定
-            var bid = (BuiltInCategory)g.Category.Id.IntegerValue;
+            var bid = (BuiltInCategory)g.Category.Id.IntValue();
             // ModelGroup: OST_IOSModelGroups / DetailGroup: OST_IOSDetailGroups
             if (bid == BuiltInCategory.OST_IOSModelGroups) return "ModelGroup";
             if (bid == BuiltInCategory.OST_IOSDetailGroups) return "DetailGroup";
@@ -44,7 +44,7 @@ public static string CategoryKindOf(Group g)
         {
             if (gt.Category != null)
             {
-                var bid = (BuiltInCategory)gt.Category.Id.IntegerValue;
+                var bid = (BuiltInCategory)gt.Category.Id.IntValue();
                 if (bid == BuiltInCategory.OST_IOSModelGroups) return "ModelGroup";
                 if (bid == BuiltInCategory.OST_IOSDetailGroups) return "DetailGroup";
             }
@@ -177,14 +177,14 @@ public static string CategoryKindOf(Group g)
 
                     return new
                     {
-                        elementId = g.Id.IntegerValue,
-                        groupTypeId = g.GroupType != null ? g.GroupType.Id.IntegerValue : (int?)null,
+                        elementId = g.Id.IntValue(),
+                        groupTypeId = g.GroupType != null ? g.GroupType.Id.IntValue() : (int?)null,
                         groupTypeName = g.GroupType?.Name,
                         category = GroupGetUtils.CategoryKindOf(g),
                         memberCount = members?.Count,
                         origin = (fields.Count == 0 || fields.Contains("origin")) ? GroupGetUtils.ToMm(location?.Point) : null,
-                        levelId = (fields.Count == 0 || fields.Contains("levelId")) ? (levelId?.IntegerValue) : (int?)null,
-                        viewId = (fields.Count == 0 || fields.Contains("viewId")) ? (ownerView?.Id.IntegerValue) : (int?)null,
+                        levelId = (fields.Count == 0 || fields.Contains("levelId")) ? (levelId?.IntValue()) : (int?)null,
+                        viewId = (fields.Count == 0 || fields.Contains("viewId")) ? (ownerView?.Id.IntValue()) : (int?)null,
                         isViewSpecific = (fields.Count == 0 || fields.Contains("isViewSpecific")) ? (ownerView != null) : (bool?)null,
                         isMirrored = (fields.Count == 0 || fields.Contains("isMirrored")) ? GroupGetUtils.GetIsMirrored(g) : (bool?)null,
                         isPinned = (fields.Count == 0 || fields.Contains("isPinned")) ? g.Pinned : (bool?)null,
@@ -243,7 +243,7 @@ public static string CategoryKindOf(Group g)
 
                 var groupTypes = page.Select(gt => new
                 {
-                    typeId = gt.Id.IntegerValue,
+                    typeId = gt.Id.IntValue(),
                     name = gt.Name,
                     category = GroupGetUtils.CategoryKindOf(gt),
                     instanceCount = (gt is ElementType et)
@@ -288,7 +288,7 @@ public static string CategoryKindOf(Group g)
                 bool includeOwnerView = p.Value<bool?>("includeOwnerView") ?? true;
                 var memberFields = GroupGetUtils.GetRequestedFields(p, "memberFields");
 
-                var g = doc.GetElement(new ElementId(elementId)) as Group;
+                var g = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Group;
                 if (g == null) return new { ok = false, msg = $"Group not found: {elementId}" };
 
                 var loc = GroupGetUtils.GetLocationPoint(g);
@@ -306,7 +306,7 @@ public static string CategoryKindOf(Group g)
                         var el = doc.GetElement(id);
                         return new
                         {
-                            elementId = id.IntegerValue,
+                            elementId = id.IntValue(),
                             category = el?.Category?.Name,
                             typeName = GroupGetUtils.GetElementTypeName(doc, id)
                         };
@@ -320,13 +320,13 @@ public static string CategoryKindOf(Group g)
                 return new
                 {
                     ok = true,
-                    elementId = g.Id.IntegerValue,
-                    groupTypeId = g.GroupType != null ? g.GroupType.Id.IntegerValue : (int?)null,
+                    elementId = g.Id.IntValue(),
+                    groupTypeId = g.GroupType != null ? g.GroupType.Id.IntValue() : (int?)null,
                     groupTypeName = g.GroupType?.Name,
                     category = GroupGetUtils.CategoryKindOf(g),
                     origin = GroupGetUtils.ToMm(loc?.Point),
-                    levelId = levelId?.IntegerValue,
-                    viewId = ownerView?.Id.IntegerValue,
+                    levelId = levelId?.IntValue(),
+                    viewId = ownerView?.Id.IntValue(),
                     isViewSpecific = ownerView != null,
                     isMirrored = GroupGetUtils.GetIsMirrored(g),
                     isPinned = g.Pinned,
@@ -358,7 +358,7 @@ public static string CategoryKindOf(Group g)
                 var p = (JObject)cmd.Params;
 
                 int elementId = p.Value<int>("elementId");
-                var targetId = new ElementId(elementId);
+                var targetId = Autodesk.Revit.DB.ElementIdCompat.From(elementId);
                 var target = doc.GetElement(targetId);
                 if (target == null) return new { ok = false, msg = $"Element not found: {elementId}" };
 
@@ -366,17 +366,17 @@ public static string CategoryKindOf(Group g)
                 foreach (var g in GroupGetUtils.CollectGroups(doc))
                 {
                     var mem = GroupGetUtils.GetMemberIdsSafe(g);
-                    if (mem.Any(id => id.IntegerValue == elementId))
+                    if (mem.Any(id => id.IntValue() == elementId))
                     {
                         var ownerView = GroupGetUtils.GetOwnerView(doc, g);
                         memberships.Add(new
                         {
-                            groupId = g.Id.IntegerValue,
-                            groupTypeId = g.GroupType != null ? g.GroupType.Id.IntegerValue : (int?)null,
+                            groupId = g.Id.IntValue(),
+                            groupTypeId = g.GroupType != null ? g.GroupType.Id.IntValue() : (int?)null,
                             groupTypeName = g.GroupType?.Name,
                             category = GroupGetUtils.CategoryKindOf(g),
                             isViewSpecific = ownerView != null,
-                            viewId = ownerView?.Id.IntegerValue
+                            viewId = ownerView?.Id.IntValue()
                         });
                     }
                 }
@@ -414,7 +414,7 @@ public static string CategoryKindOf(Group g)
                 int skip = p.Value<int?>("skip") ?? 0;
                 int count = p.Value<int?>("count") ?? 100;
 
-                var view = doc.GetElement(new ElementId(viewId)) as View;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                 if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
                 var all = new FilteredElementCollector(doc, view.Id)
@@ -429,12 +429,12 @@ public static string CategoryKindOf(Group g)
                     var ownerView = GroupGetUtils.GetOwnerView(doc, g);
                     return new
                     {
-                        elementId = g.Id.IntegerValue,
-                        groupTypeId = g.GroupType != null ? g.GroupType.Id.IntegerValue : (int?)null,
+                        elementId = g.Id.IntValue(),
+                        groupTypeId = g.GroupType != null ? g.GroupType.Id.IntValue() : (int?)null,
                         groupTypeName = g.GroupType?.Name,
                         category = GroupGetUtils.CategoryKindOf(g),
                         memberCount = GroupGetUtils.GetMemberIdsSafe(g).Count,
-                        viewId = ownerView?.Id.IntegerValue,
+                        viewId = ownerView?.Id.IntValue(),
                         isViewSpecific = ownerView != null
                     };
                 }).ToList();
@@ -473,7 +473,7 @@ public static string CategoryKindOf(Group g)
                 int count = p.Value<int?>("count") ?? 200;
                 var catFilter = p["categoryFilter"] as JArray;
 
-                var g = doc.GetElement(new ElementId(groupId)) as Group;
+                var g = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(groupId)) as Group;
                 if (g == null) return new { ok = false, msg = $"Group not found: {groupId}" };
 
                 var ids = GroupGetUtils.GetMemberIdsSafe(g);
@@ -482,10 +482,10 @@ public static string CategoryKindOf(Group g)
                 if (catFilter != null && catFilter.Count > 0)
                 {
                     var set = new HashSet<string>(catFilter.OfType<JValue>().Select(v => v.ToString()), StringComparer.OrdinalIgnoreCase);
-                    elems = elems.Where(e => e.Category != null && (set.Contains(e.Category.Name) || set.Contains(((BuiltInCategory)e.Category.Id.IntegerValue).ToString())));
+                    elems = elems.Where(e => e.Category != null && (set.Contains(e.Category.Name) || set.Contains(((BuiltInCategory)e.Category.Id.IntValue()).ToString())));
                 }
 
-                var list = elems.Select(e => e.Id.IntegerValue).ToList();
+                var list = elems.Select(e => e.Id.IntValue()).ToList();
                 var page = list.Skip(skip).Take(count).ToList();
 
                 return new
@@ -519,7 +519,7 @@ public static string CategoryKindOf(Group g)
                 var p = (JObject)cmd.Params;
 
                 int groupId = p.Value<int>("groupId");
-                var g = doc.GetElement(new ElementId(groupId)) as Group;
+                var g = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(groupId)) as Group;
                 if (g == null) return new { ok = false, msg = $"Group not found: {groupId}" };
 
                 var reasons = new List<string>();
@@ -593,3 +593,5 @@ public static string CategoryKindOf(Group g)
         }
     }
 }
+
+

@@ -30,13 +30,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             if (guard != null) return guard;
             int viewId = p.Value<int?>("viewId") ?? 0;
             var v = (viewId > 0)
-                ? doc.GetElement(new ElementId(viewId)) as View
+                ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View
                 : uidoc.ActiveGraphicalView ?? uidoc.ActiveView as View;
             if (v == null) return new { ok = false, code = "NO_VIEW", msg = "Target view could not be resolved." };
 
             // View Template �K�p�r���[�̏ꍇ�͕`��ύX���s���Ȃ���
             bool templateApplied = v.ViewTemplateId != ElementId.InvalidElementId;
-            int? templateViewId = templateApplied ? (int?)v.ViewTemplateId.IntegerValue : null;
+            int? templateViewId = templateApplied ? (int?)v.ViewTemplateId.IntValue() : null;
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? true;
             if (templateApplied && detachTemplate)
             {
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 {
                     // best-effort; if detach fails we fall through and treat as templateApplied
                     templateApplied = v.ViewTemplateId != ElementId.InvalidElementId;
-                    templateViewId = templateApplied ? (int?)v.ViewTemplateId.IntegerValue : null;
+                    templateViewId = templateApplied ? (int?)v.ViewTemplateId.IntValue() : null;
                 }
             }
             if (templateApplied)
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = v.Id.IntegerValue,
+                    viewId = v.Id.IntValue(),
                     applied = 0,
                     skipped = new[] { new { reason = "View has a template; detach view template before calling batch_set_visual_override." } },
                     errors = new object[0],
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     {
                         try
                         {
-                            var eid = new ElementId(id);
+                            var eid = Autodesk.Revit.DB.ElementIdCompat.From(id);
                             v.SetElementOverrides(eid, ogs);
                             applied++;
                         }
@@ -117,7 +117,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             return new
             {
                 ok = errors.Count == 0,
-                viewId = v.Id.IntegerValue,
+                viewId = v.Id.IntValue(),
                 applied,
                 errors,
                 templateApplied = false,
@@ -127,3 +127,5 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+

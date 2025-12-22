@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleFiltersCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/UpdateScheduleFiltersCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                           ?? throw new ArgumentException("filters is required");
 
             Document doc = uiapp.ActiveUIDocument.Document;
-            var vs = doc.GetElement(new ElementId(id)) as ViewSchedule;
+            var vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewSchedule;
             if (vs == null)
                 return new { ok = false, message = $"ScheduleView {id} not found.", units = UnitHelper.DefaultUnitsMeta() };
 
@@ -52,7 +52,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                        .FirstOrDefault(sf =>
                                        {
                                            try { if (!string.IsNullOrWhiteSpace(fieldName) && sf.GetName() == fieldName) return true; } catch { }
-                                           try { if (fieldParamId != int.MinValue && sf.ParameterId != null && sf.ParameterId.IntegerValue == fieldParamId) return true; } catch { }
+                                           try { if (fieldParamId != int.MinValue && sf.ParameterId != null && sf.ParameterId.IntValue() == fieldParamId) return true; } catch { }
                                            return false;
                                        });
                 if (scheduleField == null) continue;
@@ -65,3 +65,5 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+

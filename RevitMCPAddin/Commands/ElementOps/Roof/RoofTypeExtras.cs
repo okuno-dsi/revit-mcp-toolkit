@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/RoofOps/RoofTypeExtras.cs
 // Target : .NET Framework 4.8 / Revit 2023+
 // Purpose: RoofType 用 追加コマンド
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                 return new JObject
                 {
                     ["ok"] = true,
-                    ["typeId"] = rt.Id.IntegerValue,
+                    ["typeId"] = rt.Id.IntValue(),
                     ["typeName"] = rt.Name,
                     ["kind"] = "CompoundStructure",
                     ["thicknessMm"] = Math.Round(UnitHelper.FtToMm(totalFt), 3),
@@ -125,7 +125,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                 Material? replaceMat = null;
                 if (replaceMatIdInt != null)
                 {
-                    var eid = new ElementId(replaceMatIdInt.Value);
+                    var eid = Autodesk.Revit.DB.ElementIdCompat.From(replaceMatIdInt.Value);
                     replaceMat = doc.GetElement(eid) as Material;
                     if (replaceMat == null)
                         return new { ok = false, msg = $"Material not found by materialId={replaceMatIdInt.Value}" };
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                         return new
                         {
                             ok = true,
-                            typeId = rt.Id.IntegerValue,
+                            typeId = rt.Id.IntValue(),
                             swapped = 0,
                             note = duplicateIfInUse ? "Duplicated but no layers matched." : "No layers matched."
                         };
@@ -195,7 +195,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                     return new
                     {
                         ok = true,
-                        typeId = rt.Id.IntegerValue,
+                        typeId = rt.Id.IntValue(),
                         swapped = swapped,
                         note = duplicateIfInUse ? "Original type duplicated and edited." : "Type edited."
                     };
@@ -209,3 +209,5 @@ namespace RevitMCPAddin.Commands.RoofOps
         }
     }
 }
+
+

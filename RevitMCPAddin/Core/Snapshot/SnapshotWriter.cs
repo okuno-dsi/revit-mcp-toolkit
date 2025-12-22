@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Core/Snapshot/SnapshotWriter.cs
 // Note : JSONLの1行=1要素。mm/m2などSIで正規化（UnitHelper利用前提）。
 // ================================================================
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Core
         private static Dictionary<string, object?> MakeRow(Document doc, Element e, string categoryName, string unitsMode)
         {
             var dict = new Dictionary<string, object?>();
-            dict["elementId"] = e.Id.IntegerValue;
+            dict["elementId"] = e.Id.IntValue();
             dict["uniqueId"] = e.UniqueId;
             dict["category"] = categoryName;
 
@@ -159,3 +159,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

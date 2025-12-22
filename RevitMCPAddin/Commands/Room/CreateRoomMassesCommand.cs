@@ -81,8 +81,8 @@ namespace RevitMCPAddin.Commands.Room
             var itemErrors = new List<object>();
 
             var catId = useMassCategory
-                ? new ElementId(BuiltInCategory.OST_Mass)
-                : new ElementId(BuiltInCategory.OST_GenericModel);
+                ? Autodesk.Revit.DB.ElementIdCompat.From(BuiltInCategory.OST_Mass)
+                : Autodesk.Revit.DB.ElementIdCompat.From(BuiltInCategory.OST_GenericModel);
 
             using (var tx = new Transaction(doc, "Create Room Masses"))
             {
@@ -90,7 +90,7 @@ namespace RevitMCPAddin.Commands.Room
 
                 foreach (var room in rooms)
                 {
-                    int roomId = room.Id.IntegerValue;
+                    int roomId = room.Id.IntValue();
                     try
                     {
                         // Room の外周ループ（内側の最大ループを採用）
@@ -222,7 +222,7 @@ namespace RevitMCPAddin.Commands.Room
                             created.Add(new
                             {
                                 roomId,
-                                massId = ds.Id.IntegerValue
+                                massId = ds.Id.IntValue()
                             });
                         }
                         catch (Exception exDs)
@@ -270,7 +270,7 @@ namespace RevitMCPAddin.Commands.Room
                 {
                     try
                     {
-                        var e = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Architecture.Room;
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Architecture.Room;
                         if (e == null)
                         {
                             errors.Add(new { roomId = id, message = "Room が見つかりません。" });
@@ -288,7 +288,7 @@ namespace RevitMCPAddin.Commands.Room
 
             if (viewId > 0)
             {
-                var viewElem = doc.GetElement(new ElementId(viewId)) as View;
+                var viewElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                 if (viewElem == null)
                 {
                     errors.Add(new { viewId, message = "指定された viewId のビューが見つかりません。" });
@@ -313,4 +313,6 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+
 

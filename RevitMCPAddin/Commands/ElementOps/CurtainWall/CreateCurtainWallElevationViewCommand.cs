@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             string name = (string)p["viewName"]!;
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var wall = doc.GetElement(new ElementId(wallId)) as Autodesk.Revit.DB.Wall
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wallId)) as Autodesk.Revit.DB.Wall
                            ?? throw new InvalidOperationException("Curtain wall not found");
             // ホスティングする平面ビューを取得（現在のビューが ViewPlan でない場合は最初の ViewPlan を使う）
             ViewPlan plan = doc.ActiveView as ViewPlan
@@ -55,8 +55,10 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             return new
             {
                 ok = true,
-                viewId = elevView.Id.IntegerValue
+                viewId = elevView.Id.IntValue()
             };
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CheckPanelSizeCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CheckPanelSizeCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             double maxHeightMm = (double)p["maxHeightMm"]!;
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var wall = doc.GetElement(new ElementId(wallId)) as Autodesk.Revit.DB.Wall
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wallId)) as Autodesk.Revit.DB.Wall
                        ?? throw new InvalidOperationException("Curtain wall not found");
             var grid = wall.CurtainGrid
                        ?? throw new InvalidOperationException("Curtain grid not found");
@@ -53,3 +53,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -48,8 +48,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                         return new { ok = false, msg = "PropertyLine.Create is not available in this environment." };
                     }
                     t.Commit();
-                    LoggerProxy.Info($"[Site] PropertyLine created id={created.Id.IntegerValue}");
-                    return new { ok = true, elementId = created.Id.IntegerValue };
+                    LoggerProxy.Info($"[Site] PropertyLine created id={created.Id.IntValue()}");
+                    return new { ok = true, elementId = created.Id.IntValue() };
                 }
             }
             catch (Exception ex)
@@ -129,3 +129,4 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+

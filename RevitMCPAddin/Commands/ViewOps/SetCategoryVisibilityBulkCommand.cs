@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             Autodesk.Revit.DB.View view = null;
             if (reqViewId > 0)
             {
-                view = doc.GetElement(new ElementId(reqViewId)) as Autodesk.Revit.DB.View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(reqViewId)) as Autodesk.Revit.DB.View;
             }
             if (view == null)
             {
@@ -68,11 +68,11 @@ namespace RevitMCPAddin.Commands.ViewOps
             }
             if (view.ViewTemplateId != ElementId.InvalidElementId)
             {
-                int tmplId = view.ViewTemplateId.IntegerValue;
+                int tmplId = view.ViewTemplateId.IntValue();
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     changed = 0,
                     skipped = 0,
                     templateApplied = true,
@@ -177,7 +177,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                 continue;
                             }
 
-                            int bicInt = cat.Id.IntegerValue;
+                            int bicInt = cat.Id.IntValue();
                             bool targetVisible;
 
                             if (mode == "keep_only")
@@ -205,7 +205,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         catch (Exception exCat)
                         {
                             skipped++;
-                            errors.Add(new { categoryId = cat.Id.IntegerValue, name = cat.Name, error = exCat.Message });
+                            errors.Add(new { categoryId = cat.Id.IntValue(), name = cat.Name, error = exCat.Message });
                         }
                     }
 
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 mode,
                 categoryType = categoryTypeFilter,
                 changed,
@@ -231,4 +231,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

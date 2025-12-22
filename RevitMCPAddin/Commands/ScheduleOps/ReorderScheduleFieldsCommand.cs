@@ -33,12 +33,12 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 ViewSchedule vs = null;
                 if (scheduleViewId > 0)
                 {
-                    vs = doc.GetElement(new ElementId(scheduleViewId)) as ViewSchedule;
+                    vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scheduleViewId)) as ViewSchedule;
                 }
                 if (vs == null)
                 {
                     vs = uiapp.ActiveUIDocument?.ActiveView as ViewSchedule;
-                    if (vs != null) scheduleViewId = vs.Id.IntegerValue;
+                    if (vs != null) scheduleViewId = vs.Id.IntValue();
                 }
                 if (vs == null)
                     return ResultUtil.Err("ScheduleView not found (specify scheduleViewId or activate a schedule view).");
@@ -539,7 +539,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
 
                 try { name = f.GetName() ?? ""; } catch { name = ""; }
                 try { heading = f.ColumnHeading ?? ""; } catch { heading = ""; }
-                try { paramId = f.ParameterId != null ? f.ParameterId.IntegerValue : int.MinValue; } catch { paramId = int.MinValue; }
+                try { paramId = f.ParameterId != null ? f.ParameterId.IntValue() : int.MinValue; } catch { paramId = int.MinValue; }
                 try { hidden = f.IsHidden; } catch { hidden = false; }
 
                 return new FieldInfo
@@ -566,7 +566,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 if (f == null) return new { index = index, name = "", heading = "", paramId = int.MinValue, hidden = false };
                 string name = ""; try { name = f.GetName() ?? ""; } catch { name = ""; }
                 string heading = ""; try { heading = f.ColumnHeading ?? ""; } catch { heading = ""; }
-                int pid = int.MinValue; try { pid = f.ParameterId != null ? f.ParameterId.IntegerValue : int.MinValue; } catch { pid = int.MinValue; }
+                int pid = int.MinValue; try { pid = f.ParameterId != null ? f.ParameterId.IntValue() : int.MinValue; } catch { pid = int.MinValue; }
                 bool hidden = false; try { hidden = f.IsHidden; } catch { hidden = false; }
                 return new { index = index, name = name, heading = heading, paramId = pid, hidden = hidden };
             }
@@ -672,3 +672,5 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+

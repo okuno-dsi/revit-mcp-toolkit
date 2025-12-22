@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             if (includeClouds)
             {
                 var allClouds = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.RevisionCloud)).Cast<Autodesk.Revit.DB.RevisionCloud>().ToList();
-                cloudsByRevId = allClouds.GroupBy(rc => rc.RevisionId?.IntegerValue ?? 0)
+                cloudsByRevId = allClouds.GroupBy(rc => rc.RevisionId?.IntValue() ?? 0)
                                          .ToDictionary(g => g.Key, g => g.ToList());
             }
 
@@ -73,7 +73,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             var items = new List<RevisionInfo>();
             foreach (var r in revs)
             {
-                int rid = r.Id.IntegerValue;
+                int rid = r.Id.IntValue();
 
                 // cloudCount & clouds
                 int cloudCount = 0;
@@ -87,11 +87,11 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         var view = doc.GetElement(c.OwnerViewId) as View;
                         var o = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
-                            ["elementId"] = c.Id.IntegerValue
+                            ["elementId"] = c.Id.IntValue()
                         };
-                        if (Want("ownerViewId")) o["ownerViewId"] = c.OwnerViewId.IntegerValue;
+                        if (Want("ownerViewId")) o["ownerViewId"] = c.OwnerViewId.IntValue();
                         // Provide alias field for clients expecting 'viewId'
-                        if (Want("viewId")) o["viewId"] = c.OwnerViewId.IntegerValue;
+                        if (Want("viewId")) o["viewId"] = c.OwnerViewId.IntValue();
                         if (Want("ownerViewName")) o["ownerViewName"] = view?.Name ?? string.Empty;
                         if (Want("viewName")) o["viewName"] = view?.Name ?? string.Empty;
                         if (Want("bbox")) o["bbox"] = RevUnits.BBoxToMm(c.get_BoundingBox(null));
@@ -106,7 +106,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     cloudCount = new FilteredElementCollector(doc)
                                  .OfClass(typeof(Autodesk.Revit.DB.RevisionCloud))
                                  .Cast<Autodesk.Revit.DB.RevisionCloud>()
-                                 .Count(c => (c.RevisionId?.IntegerValue ?? 0) == rid);
+                                 .Count(c => (c.RevisionId?.IntValue() ?? 0) == rid);
                 }
 
                 items.Add(new RevisionInfo
@@ -121,7 +121,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     issuedBy = r.IssuedBy ?? string.Empty,
                     issuedTo = r.IssuedTo ?? string.Empty,
                     visibility = r.Visibility.ToString(),
-                    numberingSequenceId = r.RevisionNumberingSequenceId?.IntegerValue ?? 0,
+                    numberingSequenceId = r.RevisionNumberingSequenceId?.IntValue() ?? 0,
                     cloudCount = cloudCount,
                     clouds = includeClouds ? cloudsOut : null
                 });
@@ -155,7 +155,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             // 対象シート
             var sheetIdList = p["sheetIds"] is JArray a && a.Count > 0 ? a.Values<int>().ToList() : null;
             var sheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
-                         .Where(vs => sheetIdList == null || sheetIdList.Contains(vs.Id.IntegerValue))
+                         .Where(vs => sheetIdList == null || sheetIdList.Contains(vs.Id.IntValue()))
                          .OrderBy(vs => vs.SheetNumber).ToList();
 
             // 詳細参照用辞書
@@ -163,14 +163,14 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             if (includeDetails)
             {
                 revById = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Revision)).Cast<Autodesk.Revit.DB.Revision>()
-                          .ToDictionary(r => r.Id.IntegerValue, r => r);
+                          .ToDictionary(r => r.Id.IntValue(), r => r);
             }
 
             var list = new List<SheetRevisionItem>();
             foreach (var s in sheets)
             {
                 var revIds = s.GetAllRevisionIds() ?? new List<ElementId>();
-                var ids = revIds.Select(id => id.IntegerValue).ToList();
+                var ids = revIds.Select(id => id.IntValue()).ToList();
 
                 List<RevisionBrief> revDetails = null;
                 if (includeDetails && revById != null)
@@ -194,7 +194,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
 
                 list.Add(new SheetRevisionItem
                 {
-                    sheetId = s.Id.IntegerValue,
+                    sheetId = s.Id.IntValue(),
                     sheetNumber = s.SheetNumber,
                     sheetName = s.Name,
                     revisionIds = ids,
@@ -253,3 +253,4 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+

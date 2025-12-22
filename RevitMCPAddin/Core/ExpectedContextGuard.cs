@@ -91,7 +91,7 @@ namespace RevitMCPAddin.Core
                 var expectViewId = p.Value<int?>("__expectViewId");
                 if (expectViewId.HasValue && expectViewId.Value > 0)
                 {
-                    var v = doc.GetElement(new ElementId(expectViewId.Value)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(expectViewId.Value)) as View;
                     if (v == null)
                     {
                         return new
@@ -107,14 +107,14 @@ namespace RevitMCPAddin.Core
                     if (activeOnly)
                     {
                         var av = uidoc.ActiveView;
-                        if (av == null || av.Id.IntegerValue != expectViewId.Value)
+                        if (av == null || av.Id.IntValue() != expectViewId.Value)
                         {
                             return new
                             {
                                 ok = false,
                                 code = "EXPECT_VIEW_NOT_ACTIVE",
                                 msg = "Expected view is not active.",
-                                details = new { expected = expectViewId.Value, activeViewId = av?.Id.IntegerValue }
+                                details = new { expected = expectViewId.Value, activeViewId = av?.Id.IntValue() }
                             };
                         }
                     }
@@ -129,3 +129,5 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+
+

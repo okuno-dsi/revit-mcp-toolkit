@@ -1,5 +1,5 @@
 // ================================================================
-// File: Commands/Room/GetRoomParamsCommand.cs  (UnitHelper“ˆê”Å)
+// File: Commands/Room/GetRoomParamsCommand.cs  (UnitHelperï¿½ï¿½ï¿½ï¿½ï¿½)
 // ================================================================
 using System;
 using System.Linq;
@@ -25,13 +25,13 @@ namespace RevitMCPAddin.Commands.Room
                 throw new InvalidOperationException("Parameter 'roomId' is required.");
             int roomId = idToken.Value<int>();
 
-            var room = doc.GetElement(new ElementId(roomId)) as RevitRoom
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as RevitRoom
                        ?? throw new InvalidOperationException($"Room not found: {roomId}");
 
             int skip = p.Value<int?>("skip") ?? 0;
             int count = p.Value<int?>("count") ?? int.MaxValue;
 
-            // unitsMode: SI | Project | Raw | Both  i–¢w’è‚Í SIj
+            // unitsMode: SI | Project | Raw | Both  ï¿½iï¿½ï¿½ï¿½wï¿½ï¿½ï¿½ SIï¿½j
             var mode = UnitHelper.ResolveUnitsMode(doc, p);
 
             var allParams = room.Parameters
@@ -49,3 +49,4 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+

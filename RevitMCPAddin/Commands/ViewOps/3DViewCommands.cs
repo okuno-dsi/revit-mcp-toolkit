@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // 3DViewCommands.cs
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // 概要:
@@ -68,7 +68,7 @@ namespace RevitMCPAddin.Commands.ViewOps
         {
             if (templateViewId <= 0) return;
             var doc = view.Document;
-            var tpl = doc.GetElement(new ElementId(templateViewId)) as View;
+            var tpl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(templateViewId)) as View;
             if (tpl == null || !tpl.IsTemplate) throw new InvalidOperationException("templateViewId はテンプレートビューを指している必要があります。");
             view.ViewTemplateId = tpl.Id;
         }
@@ -116,7 +116,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     name = view.Name,
                     isPerspective = false
                 };
@@ -206,7 +206,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     name = view.Name,
                     isPerspective = true,
                     eye = new { x = eyeMm.X, y = eyeMm.Y, z = eyeMm.Z },
@@ -263,3 +263,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

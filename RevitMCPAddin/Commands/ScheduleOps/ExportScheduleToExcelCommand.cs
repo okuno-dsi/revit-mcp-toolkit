@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Schedules/ExportScheduleToXlsxClosedXmlV3Command.cs
 // Purpose: Export a ViewSchedule to .xlsx using ClosedXML (no Excel required)
 // Target : .NET Framework 4.8 (Revit 2023/2024)
@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.Schedules
             var viewId = p.Value<int?>("viewId");
             if (viewId.HasValue && viewId.Value > 0)
             {
-                vs = doc.GetElement(new ElementId(viewId.Value)) as ViewSchedule;
+                vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as ViewSchedule;
             }
             if (vs == null)
             {
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.Schedules
             if (string.IsNullOrWhiteSpace(filePath))
             {
                 var ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                filePath = Path.Combine(Path.GetTempPath(), $"Schedule_{vs.Id.IntegerValue}_{ts}.xlsx");
+                filePath = Path.Combine(Path.GetTempPath(), $"Schedule_{vs.Id.IntValue()}_{ts}.xlsx");
             }
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             bool autoFit = p.Value<bool?>("autoFit") ?? true;
@@ -181,3 +181,5 @@ namespace RevitMCPAddin.Commands.Schedules
         }
     }
 }
+
+

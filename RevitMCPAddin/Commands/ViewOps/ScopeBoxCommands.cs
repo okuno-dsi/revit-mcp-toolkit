@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File   : Commands/ViewOps/ScopeBoxCommands.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: Scope Box（スコープボックス）関連コマンド群を「1ファイル」に集約
@@ -188,7 +188,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var bbox = ScopeBoxUtil.SafeGetBBox(e);
                 items.Add(new
                 {
-                    id = e.Id.IntegerValue,
+                    id = e.Id.IntValue(),
                     uniqueId = e.UniqueId,
                     name = ScopeBoxUtil.SafeName(e),
                     bbox = ScopeBoxUtil.BBoxPayload(bbox)
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null) return ScopeBoxUtil.Fail("No active document.");
 
-            var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+            var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             if (v == null) return ScopeBoxUtil.Fail($"View not found: {viewId.Value}");
 
             var sbId = ScopeBoxUtil.GetAssignedScopeBoxId(v);
@@ -237,7 +237,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 hasScopeBox = true,
                 scopeBox = new
                 {
-                    id = e.Id.IntegerValue,
+                    id = e.Id.IntValue(),
                     uniqueId = e.UniqueId,
                     name = ScopeBoxUtil.SafeName(e),
                     bbox = ScopeBoxUtil.BBoxPayload(bbox)
@@ -264,10 +264,10 @@ namespace RevitMCPAddin.Commands.ViewOps
             var doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null) return ScopeBoxUtil.Fail("No active document.");
 
-            var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+            var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             if (v == null) return ScopeBoxUtil.Fail($"View not found: {viewId.Value}");
 
-            var sb = doc.GetElement(new ElementId(scopeBoxId.Value));
+            var sb = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scopeBoxId.Value));
             if (sb == null) return ScopeBoxUtil.Fail($"ScopeBox not found: {scopeBoxId.Value}");
 
             var param = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
@@ -303,7 +303,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null) return ScopeBoxUtil.Fail("No active document.");
 
-            var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+            var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             if (v == null) return ScopeBoxUtil.Fail($"View not found: {viewId.Value}");
 
             var param = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
@@ -377,3 +377,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

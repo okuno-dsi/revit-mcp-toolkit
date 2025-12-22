@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.Spatial
 
             bool Include(string key) => includeAll || includeSet.Contains(key);
 
-            var elementId = new ElementId(elementIdInt.Value);
+            var elementId = Autodesk.Revit.DB.ElementIdCompat.From(elementIdInt.Value);
             var element = doc.GetElement(elementId);
             if (element == null)
             {
@@ -110,7 +110,7 @@ namespace RevitMCPAddin.Commands.Spatial
 
                     roomObj = new
                     {
-                        id = room.Id.IntegerValue,
+                        id = room.Id.IntValue(),
                         name = room.Name ?? string.Empty,
                         number = room.Number ?? string.Empty,
                         phase = phaseUsed?.Name ?? string.Empty,
@@ -152,7 +152,7 @@ namespace RevitMCPAddin.Commands.Spatial
                             {
                                 zoneObj = new
                                 {
-                                    id = z.Id.IntegerValue,
+                                    id = z.Id.IntValue(),
                                     name = z.Name ?? string.Empty
                                 };
                             }
@@ -165,7 +165,7 @@ namespace RevitMCPAddin.Commands.Spatial
 
                     spacesArr.Add(new
                     {
-                        id = s.Id.IntegerValue,
+                        id = s.Id.IntValue(),
                         name = s.Name ?? string.Empty,
                         number = s.Number ?? string.Empty,
                         phase = string.Empty,
@@ -209,14 +209,14 @@ namespace RevitMCPAddin.Commands.Spatial
                     {
                         schemeObj = new
                         {
-                            id = scheme.Id.IntegerValue,
+                            id = scheme.Id.IntValue(),
                             name = scheme.Name ?? string.Empty
                         };
                     }
 
                     areasArr.Add(new
                     {
-                        id = a.Id.IntegerValue,
+                        id = a.Id.IntValue(),
                         name = a.Name ?? string.Empty,
                         number = a.Number ?? string.Empty,
                         areaScheme = schemeObj
@@ -263,3 +263,5 @@ namespace RevitMCPAddin.Commands.Spatial
         }
     }
 }
+
+

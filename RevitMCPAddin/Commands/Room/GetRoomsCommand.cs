@@ -115,7 +115,7 @@ namespace RevitMCPAddin.Commands.Room
                         }
                     }
 
-                    int elementId = r.Id.IntegerValue;
+                    int elementId = r.Id.IntValue();
                     string uniqueId = r.UniqueId ?? string.Empty;
 
                     var item = new
@@ -153,7 +153,7 @@ namespace RevitMCPAddin.Commands.Room
                 }
                 catch (Exception ex)
                 {
-                    errors.Add(new { elementId = r?.Id?.IntegerValue ?? 0, message = ex.Message });
+                    errors.Add(new { elementId = r?.Id?.IntValue() ?? 0, message = ex.Message });
                 }
             }
 
@@ -184,4 +184,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
 

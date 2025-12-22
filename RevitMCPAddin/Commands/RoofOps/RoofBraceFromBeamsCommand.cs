@@ -1364,7 +1364,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                         if (inst != null)
                         {
                             created++;
-                            createdIds.Add(inst.Id.IntegerValue);
+                            createdIds.Add(inst.Id.IntValue());
                             TrySetReferenceLevel(inst, level);
                             TrySetStructuralUsageBrace(inst);
                         }
@@ -1459,3 +1459,4 @@ namespace RevitMCPAddin.Commands.RoofOps
 
     #endregion
 }
+

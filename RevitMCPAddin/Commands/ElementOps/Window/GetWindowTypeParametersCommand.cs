@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Window/GetWindowTypeParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Window/GetWindowTypeParametersCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -29,10 +29,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             if (typeId > 0)
             {
-                symbol = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
                 if (symbol == null)
                     return new { ok = false, msg = $"FamilySymbol(typeId={typeId}) が見つかりません。" };
-                if (symbol.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Windows)
+                if (symbol.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Windows)
                     return new { ok = false, msg = $"typeId={typeId} は Window タイプではありません。" };
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 symbol = syms
                     .OrderBy(s => s.Family?.Name ?? "")
                     .ThenBy(s => s.Name ?? "")
-                    .ThenBy(s => s.Id.IntegerValue)
+                    .ThenBy(s => s.Id.IntValue())
                     .FirstOrDefault();
 
                 if (symbol == null)
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             {
                 int eid = p.Value<int?>("elementId") ?? p.Value<int?>("windowId") ?? 0;
                 FamilyInstance inst = null;
-                if (eid > 0) inst = doc.GetElement(new ElementId(eid)) as FamilyInstance;
+                if (eid > 0) inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as FamilyInstance;
                 else
                 {
                     var uid = p.Value<string>("uniqueId");
@@ -70,12 +70,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 if (inst == null)
                     return new { ok = false, msg = "Window インスタンスが見つかりません（elementId/windowId/uniqueId を確認）。" };
 
-                if (inst.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Windows)
-                    return new { ok = false, msg = $"要素 {inst.Id.IntegerValue} は Window ではありません。" };
+                if (inst.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Windows)
+                    return new { ok = false, msg = $"要素 {inst.Id.IntValue()} は Window ではありません。" };
 
                 symbol = doc.GetElement(inst.GetTypeId()) as FamilySymbol
                          ?? throw new InvalidOperationException("インスタンスのタイプ（FamilySymbol）が取得できませんでした。");
-                sourceElementId = inst.Id.IntegerValue;
+                sourceElementId = inst.Id.IntValue();
             }
 
             int legacySkip = p.Value<int?>("skip") ?? 0;
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
 
             var orderedParams = (symbol.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(prm => new { prm, name = prm?.Definition?.Name ?? string.Empty, id = prm?.Id.IntegerValue ?? -1 })
+                .Select(prm => new { prm, name = prm?.Definition?.Name ?? string.Empty, id = prm?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.prm)
                 .ToList();
@@ -102,7 +102,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     ok = true,
                     scope = "type",
                     elementId = sourceElementId,
-                    typeId = symbol.Id.IntegerValue,
+                    typeId = symbol.Id.IntValue(),
                     uniqueId = symbol.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
@@ -121,7 +121,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     ok = true,
                     scope = "type",
                     elementId = sourceElementId,
-                    typeId = symbol.Id.IntegerValue,
+                    typeId = symbol.Id.IntValue(),
                     uniqueId = symbol.UniqueId,
                     totalCount,
                     names,
@@ -138,7 +138,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 if (prm == null) continue;
 
                 string name = prm.Definition?.Name ?? string.Empty;
-                int pid = prm.Id.IntegerValue;
+                int pid = prm.Id.IntValue();
                 string storageType = prm.StorageType.ToString();
                 bool isReadOnly = prm.IsReadOnly;
 
@@ -162,7 +162,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                         case StorageType.String:
                             value = prm.AsString() ?? string.Empty; break;
                         case StorageType.ElementId:
-                            value = prm.AsElementId()?.IntegerValue ?? -1; break;
+                            value = prm.AsElementId()?.IntValue() ?? -1; break;
                         default:
                             value = null; break;
                     }
@@ -185,7 +185,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 ok = true,
                 scope = "type",
                 elementId = sourceElementId,
-                typeId = symbol.Id.IntegerValue,
+                typeId = symbol.Id.IntValue(),
                 uniqueId = symbol.UniqueId,
                 totalCount,
                 parameters,
@@ -195,3 +195,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+
+

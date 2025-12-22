@@ -68,7 +68,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = sectionView.Id.IntegerValue,
+                    viewId = sectionView.Id.IntValue(),
                     viewName = sectionView.Name,
                     scale = sectionView.Scale,
                     box = new
@@ -115,4 +115,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
 

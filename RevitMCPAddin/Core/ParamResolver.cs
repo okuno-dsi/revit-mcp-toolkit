@@ -140,7 +140,7 @@ namespace RevitMCPAddin.Core
                     {
                         try
                         {
-                            if (pr?.Id?.IntegerValue == paramId.Value)
+                            if (pr?.Id?.IntValue() == paramId.Value)
                             {
                                 resolvedBy = $"paramId:{paramId.Value}";
                                 return pr;
@@ -156,3 +156,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

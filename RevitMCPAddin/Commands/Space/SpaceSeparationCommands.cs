@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             if (doc == null) return ResultUtil.Err("アクティブドキュメントがありません。");
             var p = (JObject)cmd.Params;
             var viewId = p.Value<int?>("viewId");
-            var view = viewId.HasValue ? doc.GetElement(new ElementId(viewId.Value)) as View : uiapp.ActiveUIDocument?.ActiveView;
+            var view = viewId.HasValue ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View : uiapp.ActiveUIDocument?.ActiveView;
             if (view == null) return ResultUtil.Err("対象ビューが見つかりません。");
 
             var els = new FilteredElementCollector(doc, view.Id)
@@ -95,7 +95,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             foreach (var ce in els)
             {
                 var curve = ce.GeometryCurve;
-                var o = new JObject { ["elementId"] = ce.Id.IntegerValue };
+                var o = new JObject { ["elementId"] = ce.Id.IntValue() };
                 switch (curve)
                 {
                     case Line ln:
@@ -167,7 +167,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             return ResultUtil.Ok(new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 total = els.Count,
                 lines = items,
                 units = new { Length = "mm", Angle = "deg" }
@@ -185,7 +185,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             if (doc == null) return ResultUtil.Err("アクティブドキュメントがありません。");
             var p = (JObject)cmd.Params;
             var viewId = p.Value<int?>("viewId");
-            var view = viewId.HasValue ? doc.GetElement(new ElementId(viewId.Value)) as View : uiapp.ActiveUIDocument?.ActiveView;
+            var view = viewId.HasValue ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View : uiapp.ActiveUIDocument?.ActiveView;
             if (view == null) return ResultUtil.Err("対象ビューが見つかりません。");
 
             var segments = p["segments"] as JArray;
@@ -209,7 +209,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             return ResultUtil.Ok(new
             {
                 createdCount = createdIds.Count,
-                elementIds = createdIds.Select(id => id.IntegerValue).ToList(),
+                elementIds = createdIds.Select(id => id.IntValue()).ToList(),
                 units = new { Length = "mm", Angle = "deg" }
             });
         }
@@ -228,7 +228,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             var dx = p.Value<double>("dx");
             var dy = p.Value<double>("dy");
             var dz = p.Value<double>("dz");
-            var el = doc.GetElement(new ElementId(id));
+            var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
             if (el == null) return ResultUtil.Err($"elementId={id} が見つかりません。");
             if (!SpaceSepUtil.IsSpaceSeparationLine(el)) return ResultUtil.Err("指定要素はSpace Separation Lineではありません。");
 
@@ -258,7 +258,7 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
             var delTargets = new List<ElementId>();
             foreach (var i in ids)
             {
-                var e = doc.GetElement(new ElementId(i));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(i));
                 if (e != null && SpaceSepUtil.IsSpaceSeparationLine(e))
                     delTargets.Add(e.Id);
             }
@@ -271,7 +271,9 @@ namespace RevitMCPAddin.Commands.SpaceOps.Separation
                 deleted = doc.Delete(delTargets);
                 tx.Commit();
             }
-            return ResultUtil.Ok(new { requested = ids.Count, deleted = deleted.Select(x => x.IntegerValue).ToList() });
+            return ResultUtil.Ok(new { requested = ids.Count, deleted = deleted.Select(x => x.IntValue()).ToList() });
         }
     }
 }
+
+

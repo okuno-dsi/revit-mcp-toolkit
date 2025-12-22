@@ -1,5 +1,5 @@
 // ================================================================
-// File: Commands/Room/SetRoomParamCommand.cs  (UnitHelper“ˆê”Å)
+// File: Commands/Room/SetRoomParamCommand.cs  (UnitHelperï¿½ï¿½ï¿½ï¿½ï¿½)
 // ================================================================
 using System;
 using Autodesk.Revit.DB;
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.Room
             if (!p.TryGetValue("value", out var valToken))
                 throw new InvalidOperationException("Parameter 'value' is required.");
 
-            var room = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return new { ok = false, message = $"Room not found: {elementId}" };
 
             using (var tx = new Transaction(doc, $"Set Room Param {paramName}"))
@@ -38,8 +38,8 @@ namespace RevitMCPAddin.Commands.Room
                 tx.Start();
                 try
                 {
-                    // “Á—á: –¼‘O•ÏXiparam–¼‚Ìƒ[ƒJƒ‰ƒCƒY/‰pŒê—¼‘Î‰j
-                    if (paramName.Equals("–¼‘O", StringComparison.OrdinalIgnoreCase) ||
+                    // ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½Oï¿½ÏXï¿½iparamï¿½ï¿½ï¿½Ìƒï¿½ï¿½[ï¿½Jï¿½ï¿½ï¿½Cï¿½Y/ï¿½pï¿½ê—¼ï¿½Î‰ï¿½ï¿½j
+                    if (paramName.Equals("ï¿½ï¿½ï¿½O", StringComparison.OrdinalIgnoreCase) ||
                         paramName.Equals("Name", StringComparison.OrdinalIgnoreCase))
                     {
                         room.Name = valToken.Value<string>() ?? string.Empty;
@@ -68,3 +68,4 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+

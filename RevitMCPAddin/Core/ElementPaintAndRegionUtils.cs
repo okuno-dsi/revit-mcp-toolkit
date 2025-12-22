@@ -65,7 +65,7 @@ namespace RevitMCPAddin.Core
 
             var info = new PaintAndRegionElementInfo
             {
-                ElementId = elem.Id.IntegerValue,
+                ElementId = elem.Id.IntValue(),
                 UniqueId = elem.UniqueId,
                 Category = elem.Category?.Name,
                 HasPaint = false,
@@ -130,3 +130,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

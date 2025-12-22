@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/CreateDuctCommand.cs
+// RevitMCPAddin/Commands/MEPOps/CreateDuctCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
@@ -22,9 +22,9 @@ namespace RevitMCPAddin.Commands.MEPOps
             var start = UnitHelper.MmToXyz(s.Value<double>("x"), s.Value<double>("y"), s.Value<double>("z"));
             var end = UnitHelper.MmToXyz(e.Value<double>("x"), e.Value<double>("y"), e.Value<double>("z"));
 
-            var systemTypeId = new ElementId(p.Value<int>("systemTypeId"));
-            var typeId = new ElementId(p.Value<int>("ductTypeId"));
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var systemTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("systemTypeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("ductTypeId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             using (var tx = new Transaction(doc, "Create Duct"))
             {
@@ -57,8 +57,8 @@ namespace RevitMCPAddin.Commands.MEPOps
                     return new
                     {
                         ok = true,
-                        elementId = duct.Id.IntegerValue,
-                        typeId = typeId.IntegerValue,
+                        elementId = duct.Id.IntValue(),
+                        typeId = typeId.IntValue(),
                         units = UnitHelper.DefaultUnitsMeta()
                     };
                 }
@@ -71,3 +71,5 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/GetBoundingBoxCommand.cs (UnitHelper対応版)
 // - すべての長さは UnitHelper を介して mm に正規化
 // - 応答に units メタを付加
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             var results = new List<object>();
             foreach (var id in idList)
             {
-                var elem = doc.GetElement(new ElementId(id));
+                var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 if (elem == null)
                 {
                     results.Add(new { elementId = id, ok = false, message = $"Element {id} not found." });

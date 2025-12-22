@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/UpdateArchitecturalColumnParameterCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/UpdateArchitecturalColumnParameterCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
             var valueObj = valueToken.ToObject<object>()
                            ?? throw new InvalidOperationException("'value' が必要です");
 
-            var fi = doc.GetElement(new ElementId(id)) as FamilyInstance
+            var fi = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilyInstance
                      ?? throw new InvalidOperationException($"要素が見つかりません: {id}");
 
             var prm = fi.LookupParameter(paramName)
@@ -71,7 +71,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_architectural_column_parameter: move by offset failed for element {fi.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_architectural_column_parameter: move by offset failed for element {fi.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
@@ -82,3 +82,5 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+
+

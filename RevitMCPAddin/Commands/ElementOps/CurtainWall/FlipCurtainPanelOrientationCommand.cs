@@ -1,4 +1,4 @@
-﻿// ====================================================================
+// ====================================================================
 // File : Commands/CurtainOps/FlipCurtainPanelOrientationCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: カーテンウォールパネル (OST_CurtainWallPanels) の反転・ミラー・回転
@@ -30,12 +30,12 @@ namespace RevitMCPAddin.Commands.CurtainOps
             Element elem = null;
             JToken vId, vUid;
             if (p.TryGetValue("elementId", out vId) && vId.Type == JTokenType.Integer)
-                elem = doc.GetElement(new ElementId(vId.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vId.Value<int>()));
             else if (p.TryGetValue("uniqueId", out vUid) && vUid.Type == JTokenType.String)
                 elem = doc.GetElement(vUid.Value<string>());
             if (elem == null) return Err("要素が見つかりません（elementId/uniqueId を確認）。");
 
-            if (elem.Category == null || elem.Category.Id.IntegerValue != (int)BuiltInCategory.OST_CurtainWallPanels)
+            if (elem.Category == null || elem.Category.Id.IntValue() != (int)BuiltInCategory.OST_CurtainWallPanels)
                 return Err("対象がカーテンウォールパネルではありません（categoryId != OST_CurtainWallPanels）。");
 
             var fi = elem as FamilyInstance; // loadable panel の場合のみ
@@ -105,7 +105,7 @@ namespace RevitMCPAddin.Commands.CurtainOps
                 return new
                 {
                     ok = true,
-                    elementId = elem.Id.IntegerValue,
+                    elementId = elem.Id.IntValue(),
                     applied = new { hand = "none", facing = "none", mirror = "none", rotateDeg = 0.0 },
                     before,
                     after = before,
@@ -197,7 +197,7 @@ namespace RevitMCPAddin.Commands.CurtainOps
             return new
             {
                 ok = true,
-                elementId = elem.Id.IntegerValue,
+                elementId = elem.Id.IntValue(),
                 applied,
                 before,
                 after = new { handFlipped = afterHand, facingFlipped = afterFacing, mirrored = afterMirrored, yawDeg = afterYawDeg },
@@ -249,3 +249,5 @@ namespace RevitMCPAddin.Commands.CurtainOps
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/GetMepElementsCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/MEPOps/GetMepElementsCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -32,7 +32,7 @@ namespace RevitMCPAddin.Commands.MEPOps
             if (cats.Any())
             {
                 var bic = new HashSet<int>(cats);
-                q = q.Where(e => e.Category != null && bic.Contains(e.Category.Id.IntegerValue));
+                q = q.Where(e => e.Category != null && bic.Contains(e.Category.Id.IntValue()));
             }
             else
             {
@@ -57,19 +57,19 @@ namespace RevitMCPAddin.Commands.MEPOps
                     e.GetType().Name;
 
                 int? systemId = null;
-                try { if (e is MEPCurve c && c.MEPSystem != null) systemId = c.MEPSystem.Id.IntegerValue; } catch { }
+                try { if (e is MEPCurve c && c.MEPSystem != null) systemId = c.MEPSystem.Id.IntValue(); } catch { }
 
                 var endpts = Endpoints(e);
                 var shape = (e as MEPCurve) != null ? ShapeInfo(e as MEPCurve) : null;
 
                 return new
                 {
-                    elementId = e.Id.IntegerValue,
+                    elementId = e.Id.IntValue(),
                     uniqueId = e.UniqueId,
                     kind,
-                    categoryId = e.Category?.Id.IntegerValue,
-                    typeId = e.GetTypeId().IntegerValue,
-                    levelId = (e.LevelId != null ? e.LevelId.IntegerValue : (int?)null),
+                    categoryId = e.Category?.Id.IntValue(),
+                    typeId = e.GetTypeId().IntValue(),
+                    levelId = (e.LevelId != null ? e.LevelId.IntValue() : (int?)null),
                     systemId,
                     lengthMm = LengthMm(e),
                     endpoints = endpts == null ? null : new
@@ -92,3 +92,4 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -22,8 +22,8 @@ namespace RevitMCPAddin.Commands.ElementOps.FaceHost
             int symbolId = p.Value<int>("familySymbolId");
 
             // 要素／シンボル取得
-            var elem = doc.GetElement(new ElementId(elemId));
-            var symbol = doc.GetElement(new ElementId(symbolId)) as FamilySymbol;
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elemId));
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(symbolId)) as FamilySymbol;
             if (elem == null || symbol == null)
                 return new { ok = false, msg = "要素またはファミリタイプが見つかりません" };
 
@@ -43,8 +43,10 @@ namespace RevitMCPAddin.Commands.ElementOps.FaceHost
                     symbol.Activate();
                 var inst = FaceHostHelper.CreateOnFace(doc, faces[faceIndex], pt, symbol);
                 tx.Commit();
-                return new { ok = true, elementId = inst.Id.IntegerValue };
+                return new { ok = true, elementId = inst.Id.IntValue() };
             }
         }
     }
 }
+
+

@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             int vid = p.Value<int?>("viewId") ?? 0;
             if (vid <= 0) return new { ok = false, code = "NO_VIEW", msg = "viewId is required." };
 
-            var view = doc.GetElement(new ElementId(vid)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
             if (view == null) return new { ok = false, code = "NO_VIEW", msg = $"View not found: {vid}" };
 
             var res = new List<object>();
@@ -66,7 +66,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     }
                     catch { }
 
-                    res.Add(new { elementId = c.Id.IntegerValue, bboxMm = bbmm, comments });
+                    res.Add(new { elementId = c.Id.IntValue(), bboxMm = bbmm, comments });
                 }
 
                 return new { ok = true, count = res.Count, clouds = res };
@@ -78,4 +78,6 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+
 

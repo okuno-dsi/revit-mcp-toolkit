@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 int? viewId = p.Value<int?>("viewId");
                 if (viewId.HasValue && viewId.Value > 0)
                 {
-                    view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                 }
             }
             catch
@@ -144,7 +144,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     {
                         try
                         {
-                            return elementFilterIds.Contains(w.Id.IntegerValue);
+                            return elementFilterIds.Contains(w.Id.IntValue());
                         }
                         catch
                         {
@@ -163,7 +163,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                             var lid = w.LevelId;
                             return lid != null &&
                                    lid != ElementId.InvalidElementId &&
-                                   levelFilterIds.Contains(lid.IntegerValue);
+                                   levelFilterIds.Contains(lid.IntValue());
                         }
                         catch
                         {
@@ -200,7 +200,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     {
                         roomsByLevelId = rooms
                             .Where(r => r != null && r.LevelId != null && r.LevelId != ElementId.InvalidElementId)
-                            .GroupBy(r => r.LevelId.IntegerValue)
+                            .GroupBy(r => r.LevelId.IntValue())
                             .ToDictionary(g => g.Key, g => g.ToList());
                     }
                 }
@@ -222,16 +222,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
                 if (isExterior && exteriorAreaM2 >= minExteriorAreaM2)
                 {
-                    int eid = wall.Id.IntegerValue;
+                    int eid = wall.Id.IntValue();
                     int levelId = (wall.LevelId != null && wall.LevelId != ElementId.InvalidElementId)
-                        ? wall.LevelId.IntegerValue
+                        ? wall.LevelId.IntValue()
                         : 0;
-                    int typeId = wall.GetTypeId().IntegerValue;
+                    int typeId = wall.GetTypeId().IntValue();
 
                     string typeName = string.Empty;
                     try
                     {
-                        var tElem = doc.GetElement(new ElementId(typeId)) as ElementType;
+                        var tElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
                         if (tElem != null)
                         {
                             typeName = tElem.Name ?? string.Empty;
@@ -301,7 +301,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     var lid = wall.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId)
                     {
-                        wallLevelId = lid.IntegerValue;
+                        wallLevelId = lid.IntValue();
                     }
 
                     if (wallLevelId != 0 && roomsByLevelId.TryGetValue(wallLevelId, out var perLevel) && perLevel != null)
@@ -621,3 +621,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

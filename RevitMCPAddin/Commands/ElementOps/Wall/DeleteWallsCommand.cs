@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             var ids = new List<ElementId>();
             foreach (var t in arr)
             {
-                try { ids.Add(new ElementId(t.Value<int>())); } catch { }
+                try { ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>())); } catch { }
             }
             if (ids.Count == 0) return new { ok = true, deletedCount = 0, deletedElementIds = new int[0] };
 
@@ -37,8 +37,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 catch (Exception ex) { tx.RollBack(); return new { ok = false, msg = ex.Message }; }
             }
 
-            var ret = deleted?.Select(e => e.IntegerValue).ToArray() ?? Array.Empty<int>();
+            var ret = deleted?.Select(e => e.IntValue()).ToArray() ?? Array.Empty<int>();
             return new { ok = true, deletedCount = ret.Length, deletedElementIds = ret };
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             FamilySymbol symbol = null;
             if (p.TryGetValue("typeId", out var tid))
-                symbol = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             else if (p.TryGetValue("typeName", out var tn))
                 symbol = symbols.FirstOrDefault(s => s.Name == tn.Value<string>());
 
@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             if (p.TryGetValue("levelId", out var lidToken))
             {
                 var lid = lidToken.Value<int>();
-                level = doc.GetElement(new ElementId(lid)) as Level
+                level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lid)) as Level
                     ?? throw new InvalidOperationException($"Level not found: {lid}");
             }
             else
@@ -77,9 +77,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             return new
             {
                 ok = true,
-                elementId = newInst.Id.IntegerValue,
-                typeId = symbol.Id.IntegerValue
+                elementId = newInst.Id.IntValue(),
+                typeId = symbol.Id.IntValue()
             };
         }
     }
 }
+
+

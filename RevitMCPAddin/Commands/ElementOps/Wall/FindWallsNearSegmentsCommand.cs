@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 return ResultUtil.Err("levelId is required.");
 
             int levelId = levelTok.Value<int>();
-            var level = doc.GetElement(new ElementId(levelId)) as Level;
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
             if (level == null)
                 return ResultUtil.Err($"Level not found: levelId={levelId}");
 
@@ -239,7 +239,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     }
                     if (overlapMm <= 0 || overlapMm < minOverlapMm) continue;
 
-                    int wid = wall.Id.IntegerValue;
+                    int wid = wall.Id.IntValue();
                     if (!wallMatches.TryGetValue(wid, out var wm))
                     {
                         wm = new WallMatch
@@ -302,3 +302,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

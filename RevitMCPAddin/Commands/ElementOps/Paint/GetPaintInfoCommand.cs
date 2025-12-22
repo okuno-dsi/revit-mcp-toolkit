@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Paint/GetPaintInfoCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Paint/GetPaintInfoCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -27,7 +27,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
                 int elementId = p.Value<int?>("elementId") ?? 0;
                 string uniqueId = p.Value<string>("uniqueId");
 
-                if (elementId > 0) elem = doc.GetElement(new ElementId(elementId));
+                if (elementId > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
                 else if (!string.IsNullOrWhiteSpace(uniqueId)) elem = doc.GetElement(uniqueId);
 
                 if (elem == null)
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
                     {
                         faceIndex = i,
                         isPainted,
-                        materialId = (matId != null && matId != ElementId.InvalidElementId) ? (int?)matId.IntegerValue : null,
+                        materialId = (matId != null && matId != ElementId.InvalidElementId) ? (int?)matId.IntValue() : null,
                         materialName = matName,
                         faceStableReference = stableRep
                     });
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
                 return new
                 {
                     ok = true,
-                    elementId = elem.Id.IntegerValue,
+                    elementId = elem.Id.IntValue(),
                     uniqueId = elem.UniqueId,
                     totalFaces = faces.Count,
                     paintedCount,
@@ -104,3 +104,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
         }
     }
 }
+
+

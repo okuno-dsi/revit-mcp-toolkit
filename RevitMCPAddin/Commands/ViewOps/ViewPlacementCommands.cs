@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 string viewUid = p.Value<string>("viewUniqueId");
 
                 View view = null;
-                if (viewId > 0) view = doc.GetElement(new ElementId(viewId)) as View;
+                if (viewId > 0) view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                 if (view == null && !string.IsNullOrWhiteSpace(viewUid)) view = doc.GetElement(viewUid) as View;
                 if (view == null)
                     return new { ok = false, msg = $"ビューが見つかりません: viewId={viewId}" };
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     vps = new FilteredElementCollector(doc)
                         .OfClass(typeof(Viewport))
                         .Cast<Viewport>()
-                        .Where(vp => vp.ViewId.IntegerValue == view.Id.IntegerValue)
+                        .Where(vp => vp.ViewId.IntValue() == view.Id.IntValue())
                         .ToList();
                 }
                 catch { /* ignore */ }
@@ -58,8 +58,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                 foreach (var vp in vps)
                 {
                     var sheet = doc.GetElement(vp.SheetId) as ViewSheet;
-                    int viewportId = vp.Id.IntegerValue;
-                    int sheetId = sheet?.Id.IntegerValue ?? 0;
+                    int viewportId = vp.Id.IntValue();
+                    int sheetId = sheet?.Id.IntValue() ?? 0;
                     string sheetNumber = sheet?.SheetNumber ?? string.Empty;
                     string sheetName = sheet?.Name ?? string.Empty;
 
@@ -95,7 +95,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     placed = placements.Count > 0,
                     placements
                 };
@@ -107,3 +107,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

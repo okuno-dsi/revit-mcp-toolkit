@@ -30,10 +30,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             var p = cmd.Params as JObject ?? new JObject();
 
-            int viewId = p.Value<int?>("viewId") ?? uidoc.ActiveView?.Id.IntegerValue ?? 0;
+            int viewId = p.Value<int?>("viewId") ?? uidoc.ActiveView?.Id.IntValue() ?? 0;
             if (viewId <= 0) return new { ok = false, msg = "viewId を解決できませんでした。" };
 
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
             // Optional: detach template
@@ -141,9 +141,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     int eid = 0;
                     try { eid = jt.Value<int>(); } catch { eid = 0; }
                     if (eid <= 0) continue;
-                    var e = doc.GetElement(new ElementId(eid));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                     if (e == null) continue;
-                    if (e.Category?.Id?.IntegerValue != (int)BuiltInCategory.OST_Doors) continue;
+                    if (e.Category?.Id?.IntValue() != (int)BuiltInCategory.OST_Doors) continue;
                     doorElems.Add(e);
                 }
             }
@@ -235,16 +235,16 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                                         ok = false,
                                         code = "VIEW_TEMPLATE_LOCK",
                                         msg = "ビューにビューテンプレートが適用されているため、寸法カテゴリの表示設定を変更できません。detachViewTemplate:true を指定するか、手動でテンプレートを外してください。",
-                                        details = new { viewId = view.Id.IntegerValue, viewName = view.Name, templateViewId = view.ViewTemplateId.IntegerValue }
+                                        details = new { viewId = view.Id.IntValue(), viewName = view.Name, templateViewId = view.ViewTemplateId.IntValue() }
                                     };
                                 }
 
                                 view.SetCategoryHidden(cat.Id, false);
-                                visibility.Add(new { categoryId = cat.Id.IntegerValue, name = cat.Name, visible = true, changed = true });
+                                visibility.Add(new { categoryId = cat.Id.IntValue(), name = cat.Name, visible = true, changed = true });
                             }
                             else
                             {
-                                visibility.Add(new { categoryId = cat.Id.IntegerValue, name = cat.Name, visible = true, changed = false });
+                                visibility.Add(new { categoryId = cat.Id.IntValue(), name = cat.Name, visible = true, changed = false });
                             }
                         }
                     }
@@ -256,7 +256,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                 foreach (var doorElem in doorElems)
                 {
-                    int doorId = doorElem.Id.IntegerValue;
+                    int doorId = doorElem.Id.IntValue();
 
                     try
                     {
@@ -339,7 +339,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                                     items.Add(new
                                     {
                                         kind = "width",
-                                        dimensionId = dim.Id.IntegerValue,
+                                        dimensionId = dim.Id.IntValue(),
                                         side = widthSide,
                                         requestedOffsetMm = requestedOmm,
                                         baseOffsetModelMm,
@@ -403,7 +403,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                                     items.Add(new
                                     {
                                         kind = "height",
-                                        dimensionId = dim.Id.IntegerValue,
+                                        dimensionId = dim.Id.IntValue(),
                                         side = heightSide,
                                         requestedOffsetMm = requestedOmm,
                                         baseOffsetModelMm,
@@ -536,7 +536,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                                 items.Add(new
                                 {
                                     kind = specName,
-                                    dimensionId = dim.Id.IntegerValue,
+                                    dimensionId = dim.Id.IntValue(),
                                     orientation = isHorizontal ? "horizontal" : "vertical",
                                     side,
                                     requestedOffsetMm = specOffsetMm,
@@ -600,7 +600,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 baseOffsetModelMm,
                 baseOffsetSource,
                 dimensionType = resolvedType.typeId != ElementId.InvalidElementId
-                    ? new { typeId = resolvedType.typeId.IntegerValue, typeName = resolvedType.typeName }
+                    ? new { typeId = resolvedType.typeId.IntValue(), typeName = resolvedType.typeName }
                     : null,
                 crop = new
                 {
@@ -967,7 +967,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             {
                 if (typeId > 0)
                 {
-                    var t = doc.GetElement(new ElementId(typeId)) as DimensionType;
+                    var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as DimensionType;
                     if (t == null) return (false, $"DimensionType not found: {typeId}", ElementId.InvalidElementId, null);
                     return (true, null, t.Id, t.Name);
                 }
@@ -1171,3 +1171,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

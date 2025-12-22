@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorsCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorsCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -35,12 +35,12 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             // filters 略…
 
             // Collector（viewId 指定時はビュー内に限定）
-            var fec = viewId > 0 ? new FilteredElementCollector(doc, new ElementId(viewId))
+            var fec = viewId > 0 ? new FilteredElementCollector(doc, Autodesk.Revit.DB.ElementIdCompat.From(viewId))
                                   : new FilteredElementCollector(doc);
             fec = fec.OfCategory(BuiltInCategory.OST_Floors).WhereElementIsNotElementType();
 
             // まずは ID のみ列挙（軽量化）
-            var allIds = fec.ToElementIds().Select(eid => eid.IntegerValue).ToList();
+            var allIds = fec.ToElementIds().Select(eid => eid.IntValue()).ToList();
             int totalCount = allIds.Count;
 
             if (summaryOnly || limit == 0)
@@ -60,7 +60,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 var names = new List<string>(sliceIds.Count);
                 foreach (var id in sliceIds)
                 {
-                    var fl = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Floor;
+                    var fl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Floor;
                     if (fl == null) { names.Add(""); continue; }
                     names.Add(string.IsNullOrEmpty(fl.Name) ? (fl.FloorType?.Name ?? "") : fl.Name);
                 }
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             // フル出力：ページングした ID 群のみ詳細取得
             var list = sliceIds.Select(id =>
             {
-                var fl = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Floor;
+                var fl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Floor;
                 if (fl == null) return null;
 
                 // 位置：BB中心（mm）
@@ -90,12 +90,12 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
 
                 return new
                 {
-                    elementId = fl.Id.IntegerValue,
+                    elementId = fl.Id.IntValue(),
                     uniqueId = fl.UniqueId,
-                    typeId = fl.FloorType?.Id.IntegerValue,
+                    typeId = fl.FloorType?.Id.IntValue(),
                     typeName = fl.FloorType?.Name ?? "",
                     familyName = fl.FloorType?.FamilyName ?? "",
-                    levelId = fl.LevelId.IntegerValue,
+                    levelId = fl.LevelId.IntValue(),
                     levelName = lv?.Name ?? "",
                     location
                 };
@@ -107,3 +107,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

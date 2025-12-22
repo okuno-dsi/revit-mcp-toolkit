@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/CreateWallCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/CreateWallCommand.cs
 // UnitHelper化: mm→ft 変換は UnitHelper.MmToXyz/MmToFt、units メタ追加
 using System;
 using System.Linq;
@@ -27,8 +27,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
                 // --- 1) Base Level 解決 ---
                 ElementId baseLevelId = ElementId.InvalidElementId;
-                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = new ElementId(blid.Value<int>());
-                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = new ElementId(lid.Value<int>());
+                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(blid.Value<int>());
+                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(lid.Value<int>());
 
                 RevitLevel baseLevel = null;
                 if (baseLevelId != ElementId.InvalidElementId)
@@ -77,7 +77,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     }
                 }
                 if (wType == null && p.TryGetValue("wallTypeId", out var wid))
-                    wType = doc.GetElement(new ElementId(wid.Value<int>())) as RevitWallType;
+                    wType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wid.Value<int>())) as RevitWallType;
 
                 if (wType == null)
                 {
@@ -108,7 +108,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 if (hasTopLevelParam || isLevelToLevel)
                 {
                     if (p.TryGetValue("topLevelId", out var tlid))
-                        topLevel = doc.GetElement(new ElementId(tlid.Value<int>())) as RevitLevel;
+                        topLevel = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tlid.Value<int>())) as RevitLevel;
 
                     if (topLevel == null && p.TryGetValue("topLevelName", out var tlname))
                     {
@@ -182,10 +182,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     return new
                     {
                         ok = true,
-                        elementId = wall.Id.IntegerValue,
-                        typeId = wall.GetTypeId().IntegerValue,
-                        baseLevelId = baseLevel.Id.IntegerValue,
-                        topLevelId = useTopConstraint ? topLevel.Id.IntegerValue : (int?)null,
+                        elementId = wall.Id.IntValue(),
+                        typeId = wall.GetTypeId().IntValue(),
+                        baseLevelId = baseLevel.Id.IntValue(),
+                        topLevelId = useTopConstraint ? topLevel.Id.IntValue() : (int?)null,
                         mode = useTopConstraint ? "top-constrained" : "unconnected",
                         inputUnits = UnitHelper.InputUnitsMeta(),
                         internalUnits = UnitHelper.InternalUnitsMeta()
@@ -199,3 +199,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

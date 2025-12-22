@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Core/Failures/FailureCaptureScope.cs (C# 8.0 safe)
 // 概要: コマンド実行中だけ FailuresProcessing / DialogBoxShowing を購読し、
 //       警告・エラー・ダイアログを収集（必要に応じて警告はUI非表示で削除）
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Core
                 FailureSeverity sev = f.GetSeverity();
                 string message = f.GetDescriptionText();
                 int[] ids = (f.GetFailingElementIds() != null)
-                    ? f.GetFailingElementIds().Select(x => x.IntegerValue).ToArray()
+                    ? f.GetFailingElementIds().Select(x => x.IntValue()).ToArray()
                     : new int[0];
 
                 Issues.failures.Add(new FailureRecord
@@ -160,3 +160,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

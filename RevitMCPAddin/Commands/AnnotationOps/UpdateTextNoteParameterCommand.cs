@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/UpdateTextNoteParameterCommand.cs
 // Purpose : Update TextNote / TextNoteType parameter with project units
 // Params  : {
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             string? unitOpt = p.Value<string>("unit");
             bool applyToType = p.Value<bool?>("applyToType") ?? false;
 
-            var note = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var note = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (note == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             Element target = applyToType ? doc.GetElement(note.GetTypeId()) : note;
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 return new
                 {
                     ok = true,
-                    elementId = note.Id.IntegerValue,
+                    elementId = note.Id.IntValue(),
                     target = applyToType ? "type" : "instance",
                     param = param.Definition?.Name
                 };
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         if (valueTok.Type == JTokenType.Integer)
                         {
                             int id = valueTok.Value<int>();
-                            return param.Set(new ElementId(id));
+                            return param.Set(Autodesk.Revit.DB.ElementIdCompat.From(id));
                         }
                         if (valueTok.Type == JTokenType.Null || (valueTok.Type == JTokenType.String && string.IsNullOrWhiteSpace(valueTok.Value<string>())))
                         {
@@ -162,3 +162,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

@@ -14,7 +14,7 @@ namespace RevitMCPAddin.Commands.ElementOps
         {
             if (p.TryGetValue(idKey, out var aTok))
             {
-                try { return doc.GetElement(new ElementId(aTok.Value<int>())); } catch { }
+                try { return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(aTok.Value<int>())); } catch { }
             }
             if (p.TryGetValue(uidKey, out var uTok))
             {
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     JoinGeometryUtils.JoinGeometry(doc, a, b);
                     tx.Commit();
                 }
-                return new { ok = true, a = a.Id.IntegerValue, b = b.Id.IntegerValue };
+                return new { ok = true, a = a.Id.IntValue(), b = b.Id.IntValue() };
             }
             catch (Exception ex)
             {
@@ -79,7 +79,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         JoinGeometryUtils.UnjoinGeometry(doc, a, b);
                     tx.Commit();
                 }
-                return new { ok = true, a = a.Id.IntegerValue, b = b.Id.IntegerValue };
+                return new { ok = true, a = a.Id.IntValue(), b = b.Id.IntValue() };
             }
             catch (Exception ex)
             {
@@ -100,7 +100,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA �� elementIdB/uniqueIdB ���w�肵�Ă��������B" };
             bool joined = false;
             try { joined = JoinGeometryUtils.AreElementsJoined(doc, a, b); } catch { }
-            return new { ok = true, joined, a = a.Id.IntegerValue, b = b.Id.IntegerValue };
+            return new { ok = true, joined, a = a.Id.IntValue(), b = b.Id.IntValue() };
         }
     }
 
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     JoinGeometryUtils.SwitchJoinOrder(doc, a, b);
                     tx.Commit();
                 }
-                return new { ok = true, a = a.Id.IntegerValue, b = b.Id.IntegerValue };
+                return new { ok = true, a = a.Id.IntValue(), b = b.Id.IntValue() };
             }
             catch (Exception ex)
             {
@@ -163,7 +163,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (ids != null)
                 {
                     foreach (var id in ids)
-                        joinedIds.Add(id.IntegerValue);
+                        joinedIds.Add(id.IntValue());
                 }
             }
             catch
@@ -177,15 +177,15 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (a is FamilyInstance fi)
                 {
                     if (fi.Host != null)
-                        hostId = fi.Host.Id.IntegerValue;
+                        hostId = fi.Host.Id.IntValue();
                     if (fi.SuperComponent != null)
-                        superComponentId = fi.SuperComponent.Id.IntegerValue;
+                        superComponentId = fi.SuperComponent.Id.IntValue();
 
                     var subs = fi.GetSubComponentIds();
                     if (subs != null)
                     {
                         foreach (var sid in subs)
-                            subComponentIds.Add(sid.IntegerValue);
+                            subComponentIds.Add(sid.IntValue());
                     }
                 }
 
@@ -194,7 +194,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (a.GroupId != null && a.GroupId != ElementId.InvalidElementId)
                 {
                     isInGroup = true;
-                    groupId = a.GroupId.IntegerValue;
+                    groupId = a.GroupId.IntValue();
                 }
 
                 // 依存要素（寸法・タグなど）
@@ -202,7 +202,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (deps != null)
                 {
                     foreach (var did in deps)
-                        dependentIds.Add(did.IntegerValue);
+                        dependentIds.Add(did.IntValue());
                 }
             }
             catch
@@ -252,7 +252,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             return new
             {
                 ok = true,
-                elementId = a.Id.IntegerValue,
+                elementId = a.Id.IntValue(),
                 joinedIds,
                 hostId,
                 superComponentId,
@@ -267,3 +267,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+

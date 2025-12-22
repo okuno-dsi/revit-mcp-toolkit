@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Window/GetWindowsCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Window/GetWindowsCommand.cs
 #nullable enable
 using System;
 using System.Linq;
@@ -56,34 +56,34 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 .Cast<FamilyInstance>()
                 .ToList();
 
-            var typeIds = all.Select(w => w.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(w => w.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, FamilySymbol>(typeIds.Count);
             foreach (var id in typeIds)
-                typeMap[id] = doc.GetElement(new ElementId(id)) as FamilySymbol;
+                typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilySymbol;
 
-            var levelIds = all.Select(w => w.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(w => w.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
             foreach (var id in levelIds)
-                levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+                levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<FamilyInstance> q = all;
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 FamilyInstance target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as FamilyInstance;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance;
                 else target = doc.GetElement(targetUid) as FamilyInstance;
 
                 q = target == null ? Enumerable.Empty<FamilyInstance>() : new[] { target };
             }
 
             if (filterTypeId > 0)
-                q = q.Where(w => w.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(w => w.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
             {
                 q = q.Where(w =>
                 {
-                    typeMap.TryGetValue(w.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(w.GetTypeId().IntValue(), out var sym);
                     if (sym == null) return false;
                     bool nameOk = string.Equals(sym.Name, filterTypeName, StringComparison.OrdinalIgnoreCase);
                     if (!nameOk) return false;
@@ -99,7 +99,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 {
                     if (w.Host is Autodesk.Revit.DB.Wall hw)
                     {
-                        if (filterWallId > 0 && hw.Id.IntegerValue != filterWallId) return false;
+                        if (filterWallId > 0 && hw.Id.IntValue() != filterWallId) return false;
                         if (!string.IsNullOrWhiteSpace(filterHostUid)
                             && !string.Equals(hw.UniqueId, filterHostUid, StringComparison.OrdinalIgnoreCase)) return false;
                         return true;
@@ -109,13 +109,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             }
 
             if (filterLevelId > 0)
-                q = q.Where(w => w.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(w => w.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
             {
                 q = q.Where(w =>
                 {
-                    levelMap.TryGetValue(w.LevelId.IntegerValue, out var lv);
+                    levelMap.TryGetValue(w.LevelId.IntValue(), out var lv);
                     return lv != null && string.Equals(lv.Name, filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
             }
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     var instName = w.Name ?? string.Empty;
                     if (instName.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
 
-                    typeMap.TryGetValue(w.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(w.GetTypeId().IntValue(), out var sym);
                     var tName = sym?.Name ?? string.Empty;
                     return tName.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
@@ -136,12 +136,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             var ordered = q
                 .Select(w =>
                 {
-                    typeMap.TryGetValue(w.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(w.GetTypeId().IntValue(), out var sym);
                     string tName = sym?.Name ?? "";
                     return new { w, tName };
                 })
                 .OrderBy(x => x.tName)
-                .ThenBy(x => x.w.Id.IntegerValue)
+                .ThenBy(x => x.w.Id.IntValue())
                 .Select(x => x.w)
                 .ToList();
 
@@ -167,7 +167,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     {
                         var name = w.Name ?? string.Empty;
                         if (!string.IsNullOrEmpty(name)) return name;
-                        typeMap.TryGetValue(w.GetTypeId().IntegerValue, out var sym);
+                        typeMap.TryGetValue(w.GetTypeId().IntValue(), out var sym);
                         return sym?.Name ?? string.Empty;
                     })
                     .ToList();
@@ -188,7 +188,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             if (idsOnly)
             {
-                var ids = seq.Select(w => w.Id.IntegerValue).ToList();
+                var ids = seq.Select(w => w.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids, inputUnits = new { Length = "mm" }, internalUnits = new { Length = "ft" } };
             }
 
@@ -208,25 +208,25 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     z = Math.Round(UnitHelper.InternalToMm(pt.Z), 3);
                 }
 
-                typeMap.TryGetValue(w.GetTypeId().IntegerValue, out var sym);
+                typeMap.TryGetValue(w.GetTypeId().IntValue(), out var sym);
                 string typeName = sym?.Name ?? string.Empty;
                 string familyName = sym?.Family?.Name ?? string.Empty;
 
-                levelMap.TryGetValue(w.LevelId.IntegerValue, out var lv);
+                levelMap.TryGetValue(w.LevelId.IntValue(), out var lv);
                 string levelName = lv?.Name ?? string.Empty;
 
                 int? hostWallId = null;
                 if (w.Host is Autodesk.Revit.DB.Wall hw)
-                    hostWallId = hw.Id.IntegerValue;
+                    hostWallId = hw.Id.IntValue();
 
                 return new
                 {
-                    elementId = w.Id.IntegerValue,
+                    elementId = w.Id.IntValue(),
                     uniqueId = w.UniqueId,
-                    typeId = w.GetTypeId().IntegerValue,
+                    typeId = w.GetTypeId().IntValue(),
                     typeName,
                     familyName,
-                    levelId = w.LevelId.IntegerValue,
+                    levelId = w.LevelId.IntValue(),
                     levelName,
                     hostWallId,
                     location = new { x, y, z }
@@ -244,3 +244,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+
+

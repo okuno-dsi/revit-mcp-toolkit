@@ -22,27 +22,105 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.Concurrent;  // NEW
 using System.Threading;               // NEW
+using System.Diagnostics;             // Step1 timings
+using System.Reflection;              // Step2 command metadata (aliases)
 
 namespace RevitMCPAddin.Core
 {
     public class CommandRouter
     {
         private readonly Dictionary<string, IRevitCommandHandler> _handlers;
+        // Step 4: canonical alias -> legacy dispatch mapping (for handler branching safety)
+        private readonly Dictionary<string, string> _aliasToDispatch;
 
         public CommandRouter(IEnumerable<IRevitCommandHandler> handlers)
         {
             var map = new Dictionary<string, IRevitCommandHandler>(StringComparer.OrdinalIgnoreCase);
             var dupList = new List<string>();
+            var aliasToDispatch = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var h in handlers ?? Enumerable.Empty<IRevitCommandHandler>())
             {
                 var name = h?.CommandName ?? "";
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
-                var methods = name.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(x => x.Trim())
-                                  .Where(x => !string.IsNullOrEmpty(x));
-                foreach (var m in methods)
+                var methodsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var dispatchMethods = new List<string>();
+                foreach (var s in name.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries)
+                                      .Select(x => x.Trim())
+                                      .Where(x => !string.IsNullOrEmpty(x)))
+                {
+                    methodsSet.Add(s);
+                    dispatchMethods.Add(s);
+                }
+
+                // Step 2: attribute-driven aliases/name (optional; no behavior change unless attribute is present)
+                try
+                {
+                    var attr = h.GetType().GetCustomAttribute<RpcCommandAttribute>(inherit: true);
+                    if (attr != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(attr.Name))
+                            methodsSet.Add(attr.Name.Trim());
+                        if (attr.Aliases != null)
+                        {
+                            foreach (var a in attr.Aliases)
+                            {
+                                var aa = (a ?? "").Trim();
+                                if (!string.IsNullOrWhiteSpace(aa))
+                                    methodsSet.Add(aa);
+                            }
+                        }
+                    }
+                }
+                catch { /* best-effort */ }
+
+                // Step 4: add domain-first canonical names as callable aliases, and remember how to dispatch them.
+                try
+                {
+                    var t = h.GetType();
+                    foreach (var d in dispatchMethods.Distinct(StringComparer.OrdinalIgnoreCase))
+                    {
+                        var canon = CommandNaming.GetCanonical(d, t);
+                        if (string.IsNullOrWhiteSpace(canon)) continue;
+                        if (string.Equals(canon, d, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        methodsSet.Add(canon);
+                        if (!aliasToDispatch.ContainsKey(canon))
+                            aliasToDispatch[canon] = d;
+                    }
+
+                    // Attribute-driven name/aliases can also be treated as aliases when the handler has a single dispatch method.
+                    if (dispatchMethods.Count == 1)
+                    {
+                        var d0 = dispatchMethods[0];
+                        var attr = t.GetCustomAttribute<RpcCommandAttribute>(inherit: true);
+                        if (attr != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(attr.Name))
+                            {
+                                var a0 = attr.Name.Trim();
+                                if (!string.IsNullOrWhiteSpace(a0) && !string.Equals(a0, d0, StringComparison.OrdinalIgnoreCase) && !aliasToDispatch.ContainsKey(a0))
+                                    aliasToDispatch[a0] = d0;
+                            }
+
+                            if (attr.Aliases != null)
+                            {
+                                foreach (var a in attr.Aliases)
+                                {
+                                    var aa = (a ?? "").Trim();
+                                    if (string.IsNullOrWhiteSpace(aa)) continue;
+                                    if (string.Equals(aa, d0, StringComparison.OrdinalIgnoreCase)) continue;
+                                    if (!aliasToDispatch.ContainsKey(aa))
+                                        aliasToDispatch[aa] = d0;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* best-effort */ }
+
+                foreach (var m in methodsSet)
                 {
                     if (map.ContainsKey(m))
                     {
@@ -61,6 +139,7 @@ namespace RevitMCPAddin.Core
             }
 
             _handlers = map;
+            _aliasToDispatch = aliasToDispatch;
         }
 
         // ----------------------------------------------------------------
@@ -114,7 +193,9 @@ namespace RevitMCPAddin.Core
         {
             try
             {
-                if (raw is JObject jo && (jo["jsonrpc"] != null || jo["result"] != null || jo["error"] != null))
+                // JSON-RPC detection must be strict: many legacy payloads use a top-level "result" property.
+                // Only treat as JSON-RPC when "jsonrpc" exists.
+                if (raw is JObject jo && jo["jsonrpc"] != null)
                     return raw; // 既に JSON-RPC 形を返すハンドラはそのまま
             }
             catch { /* best effort */ }
@@ -189,8 +270,38 @@ namespace RevitMCPAddin.Core
                 };
             }
 
-            // ① documentPath が来ていたらアクティブドキュメント切替
-            TryActivateDocument(uiapp, cmd);
+            // Step 4: canonical alias -> legacy dispatch translation (for handler branching safety)
+            var invokedMethod = (cmd.Command ?? string.Empty).Trim();
+            var dispatchMethod = invokedMethod;
+            var translated = false;
+            if (!string.IsNullOrWhiteSpace(invokedMethod) && _aliasToDispatch != null)
+            {
+                if (_aliasToDispatch.TryGetValue(invokedMethod, out var mapped) &&
+                    !string.IsNullOrWhiteSpace(mapped) &&
+                    !string.Equals(mapped, invokedMethod, StringComparison.OrdinalIgnoreCase))
+                {
+                    dispatchMethod = mapped.Trim();
+                    cmd.Command = dispatchMethod;
+                    translated = true;
+
+                    // Preserve both names for logs/ledger (agent-friendly)
+                    try
+                    {
+                        var meta = cmd.MetaRaw as JObject;
+                        if (meta == null) { meta = new JObject(); cmd.MetaRaw = meta; }
+                        if (meta["invokedMethod"] == null) meta["invokedMethod"] = invokedMethod;
+                        if (meta["dispatchMethod"] == null) meta["dispatchMethod"] = dispatchMethod;
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+
+            var methodEcho = translated ? invokedMethod : (cmd.Command ?? string.Empty);
+
+            try
+            {
+                // ① documentPath が来ていたらアクティブドキュメント切替
+                TryActivateDocument(uiapp, cmd);
 
             // ② uniqueId / uniqueIds & 各種エイリアスID → elementId / elementIds の前処理（＋後方互換バックフィル）
             var early = PreprocessIdsAndAliases(uiapp, cmd);
@@ -222,6 +333,16 @@ namespace RevitMCPAddin.Core
             var teachErr = CommandParamTeach.Guard(cmd.Command, cmd.Params as JObject);
             if (teachErr != null) return teachErr;
 
+            // ④b Step 7: optional expectedContextToken guard (precondition)
+            var ctxFail = ValidateExpectedContextToken(uiapp, cmd, methodEcho);
+            if (ctxFail != null)
+            {
+                var standardized = RpcResultEnvelope.StandardizePayload(ctxFail, uiapp, methodEcho, revitMs: 0);
+                if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                if (translated) cmd.Command = invokedMethod;
+                return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
+            }
+
             // ⑤ ディスパッチ（ここだけ“包む”。ハンドラは無改造）
             if (_handlers.TryGetValue(cmd.Command, out var handler))
             {
@@ -232,18 +353,14 @@ namespace RevitMCPAddin.Core
                 const int LOCK_TIMEOUT_MS = 8000; // 必要なら設定化
                 if (!gate.Wait(millisecondsTimeout: LOCK_TIMEOUT_MS))
                 {
-                    return new
-                    {
-                        jsonrpc = "2.0",
-                        id = cmd?.Id,
-                        method = cmd?.Command ?? "",
-                        agentId = GetAgentIdEcho(cmd),
-                        error = new
-                        {
-                            code = -32002,
-                            message = $"{cmd?.Command}: concurrency lock timeout on scope '{scopeKey}' (>{LOCK_TIMEOUT_MS}ms)"
-                        }
-                    };
+                    var fail = RpcResultEnvelope.Fail(
+                        code: "CONCURRENCY_LOCK_TIMEOUT",
+                        msg: $"{methodEcho}: concurrency lock timeout on scope '{scopeKey}' (>{LOCK_TIMEOUT_MS}ms)"
+                    );
+                    var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+                    return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
                 }
 
                 try
@@ -252,46 +369,58 @@ namespace RevitMCPAddin.Core
                     // CommandRouter.Route is invoked from RevitCommandExecutor (ExternalEvent) and therefore already runs
                     // in a valid Revit API context (UI thread). Using UiEventPump.InvokeSmart here can mask real exceptions
                     // and cause long timeouts due to nested ExternalEvent waits. Execute directly and surface errors.
+                    var sw = Stopwatch.StartNew();
                     var exec = McpLedgerEngine.ExecuteWithLedger(uiapp, cmd, handler);
+                    sw.Stop();
 
                     var raw = exec != null ? exec.RawResult : null;
                     var ledger = exec != null ? (object)exec.LedgerInfo : null;
 
+                    // Step 7: bump context revision after successful *write* execution (prevents drift).
+                    try
+                    {
+                        var okFlag = ExtractOkFlag(raw);
+                        if (okFlag != false && ShouldBumpContextRevision(methodEcho))
+                        {
+                            var doc = uiapp?.ActiveUIDocument?.Document;
+                            if (doc != null) ContextTokenService.BumpRevision(doc, "CommandExecuted");
+                        }
+                    }
+                    catch { /* best-effort */ }
+
+                    // Step 1: Standardize payload (non-breaking additive fields)
+                    var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, sw.ElapsedMilliseconds);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+
                     // JSON-RPC ラップ（既に JSON-RPC で返すハンドラは素通し）
-                    return WrapJsonRpcIfNeeded(cmd, raw, ledger);
+                    return WrapJsonRpcIfNeeded(cmd, standardized, ledger);
                 }
                 catch (ArgumentOutOfRangeException ex)
                 {
-                    return new
-                    {
-                        jsonrpc = "2.0",
-                        id = cmd?.Id,
-                        method = cmd?.Command ?? "",
-                        agentId = GetAgentIdEcho(cmd),
-                        error = new { code = -32602, message = $"{cmd?.Command}: {ex.Message}" }
-                    };
+                    var fail = RpcResultEnvelope.Fail(code: "INVALID_PARAMS", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                    var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+                    return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
                 }
                 catch (InvalidOperationException ex)
                 {
-                    return new
-                    {
-                        jsonrpc = "2.0",
-                        id = cmd?.Id,
-                        method = cmd?.Command ?? "",
-                        agentId = GetAgentIdEcho(cmd),
-                        error = new { code = -32003, message = $"{cmd?.Command}: {ex.Message}" }
-                    };
+                    var fail = RpcResultEnvelope.Fail(code: "INVALID_OPERATION", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                    var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+                    return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
                 }
                 catch (Exception ex)
                 {
-                    return new
-                    {
-                        jsonrpc = "2.0",
-                        id = cmd?.Id,
-                        method = cmd?.Command ?? "",
-                        agentId = GetAgentIdEcho(cmd),
-                        error = new { code = -32099, message = $"{cmd?.Command}: {ex.Message}" }
-                    };
+                    var fail = RpcResultEnvelope.Fail(code: "UNHANDLED_EXCEPTION", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                    // Keep full detail only for logs; avoid bloating the response.
+                    fail["detail"] = ex.ToString();
+                    var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+                    return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
                 }
                 finally
                 {
@@ -299,8 +428,316 @@ namespace RevitMCPAddin.Core
                 }
             }
 
-            // 既存互換: 未知は例外のまま（必要なら -32601 に置換可）
-            throw new InvalidOperationException($"Unknown command: {cmd.Command}");
+            // Step 1: Prefer fail-result over throwing (consistent for agents)
+            var unknown = RpcResultEnvelope.Fail(code: "UNKNOWN_COMMAND", msg: $"Unknown command: {methodEcho}");
+            unknown["nextActions"] = new JArray
+            {
+                new JObject { ["method"] = "list_commands", ["reason"] = "List available commands and retry with a valid name." }
+            };
+            var unknownStd = RpcResultEnvelope.StandardizePayload(unknown, uiapp, methodEcho, revitMs: 0);
+            if (translated) TryAnnotateDispatch(unknownStd, invokedMethod, dispatchMethod);
+            if (translated) cmd.Command = invokedMethod;
+            return WrapJsonRpcIfNeeded(cmd, unknownStd, ledger: null);
+            }
+            finally
+            {
+                // Ensure cmd.Command is restored for the caller (even when we dispatched to legacy name).
+                if (translated) cmd.Command = invokedMethod;
+            }
+        }
+
+        /// <summary>
+        /// Internal execution path for batch-like orchestrators.
+        /// - No concurrency gate (assumes caller already serialized execution).
+        /// - No ledger wrapping (caller controls ledger scope).
+        /// - No JSON-RPC wrapping (returns standardized payload only).
+        /// </summary>
+        internal JObject RouteInternalNoGateNoLedger(UIApplication uiapp, RequestCommand cmd)
+        {
+            if (cmd == null)
+                return RpcResultEnvelope.StandardizePayload(RpcResultEnvelope.Fail("INVALID_PARAMS", "Command is null."), uiapp, method: "", revitMs: 0);
+
+            // Step 4: canonical alias -> legacy dispatch translation (for handler branching safety)
+            var invokedMethod = (cmd.Command ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(invokedMethod))
+                return RpcResultEnvelope.StandardizePayload(RpcResultEnvelope.Fail("ERR_NO_METHOD", "Command(method) is empty."), uiapp, method: "", revitMs: 0);
+
+            var dispatchMethod = invokedMethod;
+            var translated = false;
+            if (_aliasToDispatch != null && _aliasToDispatch.TryGetValue(invokedMethod, out var mapped) &&
+                !string.IsNullOrWhiteSpace(mapped) &&
+                !string.Equals(mapped, invokedMethod, StringComparison.OrdinalIgnoreCase))
+            {
+                dispatchMethod = mapped.Trim();
+                cmd.Command = dispatchMethod;
+                translated = true;
+
+                try
+                {
+                    var meta = cmd.MetaRaw as JObject;
+                    if (meta == null) { meta = new JObject(); cmd.MetaRaw = meta; }
+                    if (meta["invokedMethod"] == null) meta["invokedMethod"] = invokedMethod;
+                    if (meta["dispatchMethod"] == null) meta["dispatchMethod"] = dispatchMethod;
+                }
+                catch { /* ignore */ }
+            }
+
+            var methodEcho = translated ? invokedMethod : (cmd.Command ?? string.Empty);
+
+            try
+            {
+                // ① documentPath が来ていたらアクティブドキュメント切替
+                TryActivateDocument(uiapp, cmd);
+
+                // ② uniqueId / uniqueIds & 各種エイリアスID → elementId / elementIds の前処理（＋後方互換バックフィル）
+                var early = PreprocessIdsAndAliases(uiapp, cmd);
+                if (early != null)
+                {
+                    var stdEarly = RpcResultEnvelope.StandardizePayload(early, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(stdEarly, invokedMethod, dispatchMethod);
+                    return stdEarly;
+                }
+
+                // ③ 軽微正規化 + 配列正規化（elementIds/uniqueIds/categoryIds）
+                var pObj = cmd.Params as JObject;
+                NormalizeCommandSpecificAliases(cmd.Command, pObj);
+                try
+                {
+                    if (pObj != null)
+                    {
+                        NormalizeArray(pObj, "elementIds");
+                        NormalizeArray(pObj, "uniqueIds");
+                        NormalizeArray(pObj, "categoryIds");
+                        if (pObj["params"] is JObject inner)
+                        {
+                            NormalizeArray(inner, "elementIds");
+                            NormalizeArray(inner, "uniqueIds");
+                            NormalizeArray(inner, "categoryIds");
+                        }
+                    }
+                }
+                catch { /* ignore */ }
+
+                // ④ コマンド別パラメータ検証
+                var teachErr = CommandParamTeach.Guard(cmd.Command, cmd.Params as JObject);
+                if (teachErr != null)
+                {
+                    var stdTeach = RpcResultEnvelope.StandardizePayload(teachErr, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(stdTeach, invokedMethod, dispatchMethod);
+                    return stdTeach;
+                }
+
+                // ④b Step 7: optional expectedContextToken guard (precondition)
+                var ctxFail = ValidateExpectedContextToken(uiapp, cmd, methodEcho);
+                if (ctxFail != null)
+                {
+                    var standardized = RpcResultEnvelope.StandardizePayload(ctxFail, uiapp, methodEcho, revitMs: 0);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    return standardized;
+                }
+
+                // ⑤ ディスパッチ（No gate / No ledger）
+                if (_handlers.TryGetValue(cmd.Command, out var handler))
+                {
+                    var sw = Stopwatch.StartNew();
+                    object raw;
+                    try
+                    {
+                        raw = handler.Execute(uiapp, cmd);
+                    }
+                    finally
+                    {
+                        sw.Stop();
+                    }
+
+                    // Step 7: bump context revision after successful *write* execution (prevents drift).
+                    try
+                    {
+                        var okFlag = ExtractOkFlag(raw);
+                        if (okFlag != false && ShouldBumpContextRevision(methodEcho))
+                        {
+                            var doc = uiapp?.ActiveUIDocument?.Document;
+                            if (doc != null) ContextTokenService.BumpRevision(doc, "CommandExecuted");
+                        }
+                    }
+                    catch { /* ignore */ }
+
+                    var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, sw.ElapsedMilliseconds);
+                    if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                    return standardized;
+                }
+
+                var unknown = RpcResultEnvelope.Fail(code: "UNKNOWN_COMMAND", msg: $"Unknown command: {methodEcho}");
+                unknown["nextActions"] = new JArray
+                {
+                    new JObject { ["method"] = "list_commands", ["reason"] = "List available commands and retry with a valid name." }
+                };
+                var unknownStd = RpcResultEnvelope.StandardizePayload(unknown, uiapp, methodEcho, revitMs: 0);
+                if (translated) TryAnnotateDispatch(unknownStd, invokedMethod, dispatchMethod);
+                return unknownStd;
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                var fail = RpcResultEnvelope.Fail(code: "INVALID_PARAMS", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                return standardized;
+            }
+            catch (InvalidOperationException ex)
+            {
+                var fail = RpcResultEnvelope.Fail(code: "INVALID_OPERATION", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                return standardized;
+            }
+            catch (Exception ex)
+            {
+                var fail = RpcResultEnvelope.Fail(code: "UNHANDLED_EXCEPTION", msg: $"{methodEcho}: {ex.Message}", data: new { exception = ex.GetType().Name });
+                fail["detail"] = ex.ToString();
+                var standardized = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
+                return standardized;
+            }
+            finally
+            {
+                // Ensure cmd.Command is restored for the caller.
+                if (translated) cmd.Command = invokedMethod;
+            }
+        }
+
+        private static bool IsContextTokenBypassMethod(string method)
+        {
+            var m = (method ?? string.Empty).Trim();
+            if (m.Length == 0) return false;
+            var leaf = CommandNaming.Leaf(m).ToLowerInvariant();
+            // Allow recovery even when caller mistakenly includes expectedContextToken.
+            return leaf == "get_context";
+        }
+
+        private static string GetExpectedContextToken(RequestCommand cmd)
+        {
+            try
+            {
+                var p = cmd != null ? (cmd.Params as JObject) : null;
+                string t = p?.Value<string>("expectedContextToken") ?? p?.Value<string>("__expectedContextToken") ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(t) && p?["params"] is JObject inner)
+                    t = inner.Value<string>("expectedContextToken") ?? inner.Value<string>("__expectedContextToken") ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(t) && cmd != null && cmd.MetaRaw is JObject meta)
+                    t = meta.Value<string>("expectedContextToken") ?? meta.Value<string>("__expectedContextToken") ?? string.Empty;
+
+                return (t ?? string.Empty).Trim();
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static JObject? ValidateExpectedContextToken(UIApplication uiapp, RequestCommand cmd, string methodEcho)
+        {
+            var expected = GetExpectedContextToken(cmd);
+            if (string.IsNullOrWhiteSpace(expected)) return null;
+
+            if (IsContextTokenBypassMethod(methodEcho) || IsContextTokenBypassMethod(cmd != null ? cmd.Command : string.Empty))
+                return null;
+
+            var snap = ContextTokenService.Capture(uiapp, includeSelectionIds: false, maxSelectionIds: 0);
+            var actual = (snap != null ? snap.contextToken : string.Empty) ?? string.Empty;
+            if (string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var fail = RpcResultEnvelope.Fail("PRECONDITION_FAILED", "Context token mismatch. Call help.get_context (or get_context) and retry.");
+            fail["data"] = new JObject
+            {
+                ["expectedContextToken"] = expected,
+                ["actualContextToken"] = actual,
+                ["tokenVersion"] = snap != null ? snap.tokenVersion : ContextTokenService.TokenVersion,
+                ["contextRevision"] = snap != null ? snap.revision : 0,
+                ["docGuid"] = snap != null ? snap.docGuid : "",
+                ["docTitle"] = snap != null ? snap.docTitle : "",
+                ["activeViewId"] = snap != null ? snap.activeViewId : 0,
+                ["selectionCount"] = snap != null ? snap.selectionCount : 0
+            };
+            fail["nextActions"] = new JArray
+            {
+                new JObject { ["method"] = "help.get_context", ["reason"] = "Get the current contextToken." },
+                new JObject { ["method"] = "get_context", ["reason"] = "Legacy alias for help.get_context." },
+                new JObject { ["method"] = methodEcho ?? (cmd != null ? (cmd.Command ?? "") : ""), ["reason"] = "Retry with expectedContextToken set to the latest token." }
+            };
+            return fail;
+        }
+
+        private static bool? ExtractOkFlag(object raw)
+        {
+            try
+            {
+                if (raw == null) return null;
+
+                JObject jo = raw as JObject;
+                if (jo == null)
+                    jo = JObject.FromObject(raw);
+
+                // If handler returned JSON-RPC shape, try to unwrap.
+                if (jo["jsonrpc"] != null && jo["result"] is JObject inner)
+                    jo = inner;
+
+                var okTok = jo["ok"];
+                if (okTok != null && okTok.Type == JTokenType.Boolean) return okTok.Value<bool>();
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool ShouldBumpContextRevision(string method)
+        {
+            try
+            {
+                var m = (method ?? string.Empty).Trim();
+                if (m.Length == 0) return true;
+
+                if (CommandMetadataRegistry.TryGet(m, out var meta))
+                {
+                    var kind = (meta != null ? (meta.kind ?? string.Empty) : string.Empty).Trim();
+                    if (kind.Length > 0)
+                        return string.Equals(kind, "write", StringComparison.OrdinalIgnoreCase);
+                }
+
+                // Fallback heuristic when metadata is unavailable.
+                var leaf = CommandNaming.Leaf(m).ToLowerInvariant();
+                if (leaf.StartsWith("get_")) return false;
+                if (leaf.StartsWith("list_")) return false;
+                if (leaf.StartsWith("search_")) return false;
+                if (leaf.StartsWith("describe_")) return false;
+                if (leaf == "ping_server") return false;
+                if (leaf == "get_context") return false;
+                return true;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private static void TryAnnotateDispatch(JObject payload, string invoked, string dispatch)
+        {
+            if (payload == null) return;
+            try
+            {
+                var ctx = payload["context"] as JObject;
+                if (ctx == null)
+                {
+                    ctx = new JObject();
+                    payload["context"] = ctx;
+                }
+
+                if (ctx["invokedMethod"] == null) ctx["invokedMethod"] = invoked ?? "";
+                if (ctx["dispatchMethod"] == null) ctx["dispatchMethod"] = dispatch ?? "";
+            }
+            catch { /* ignore */ }
         }
 
         // ----------------------------------------------------------------
@@ -445,7 +882,7 @@ namespace RevitMCPAddin.Core
                         msg = $"Element not found for uniqueId: {uid}"
                     };
                 }
-                container["elementId"] = e.Id.IntegerValue;
+                container["elementId"] = e.Id.IntValue();
             }
 
             // 2) uniqueIds -> elementIds
@@ -458,7 +895,7 @@ namespace RevitMCPAddin.Core
                 {
                     if (string.IsNullOrWhiteSpace(s)) continue;
                     var e = doc.GetElement(s);
-                    if (e != null) outIds.Add(e.Id.IntegerValue);
+                    if (e != null) outIds.Add(e.Id.IntValue());
                 }
 
                 if (outIds.Count == 0)
@@ -623,7 +1060,8 @@ namespace RevitMCPAddin.Core
         {
             private static readonly HashSet<string> CommonOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "documentPath", "debug", "dryRun", "scope", "where", "target", "targets"
+                "documentPath", "debug", "dryRun", "scope", "where", "target", "targets",
+                "expectedContextToken", "__expectedContextToken"
             };
 
             private static readonly Dictionary<string, ParamProfile> Profiles =
@@ -739,3 +1177,4 @@ internal static class _StrEx
 {
     public static bool IsNullOrEmpty(this string? s) => string.IsNullOrEmpty(s);
 }
+

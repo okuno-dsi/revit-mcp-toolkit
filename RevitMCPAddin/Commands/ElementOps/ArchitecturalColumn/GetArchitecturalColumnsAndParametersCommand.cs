@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnsAndParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnsAndParametersCommand.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,11 +54,11 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
                 var all = new FilteredElementCollector(doc)
                     .OfClass(typeof(FamilyInstance))
                     .Cast<FamilyInstance>()
-                    .Where(fi => fi.Symbol?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_Columns)
+                    .Where(fi => fi.Symbol?.Family?.FamilyCategory?.Id.IntValue() == (int)BuiltInCategory.OST_Columns)
                     .ToList();
 
-                if (levelFilter.HasValue) all = all.Where(fi => fi.LevelId.IntegerValue == levelFilter.Value).ToList();
-                if (typeFilter.HasValue) all = all.Where(fi => fi.GetTypeId().IntegerValue == typeFilter.Value).ToList();
+                if (levelFilter.HasValue) all = all.Where(fi => fi.LevelId.IntValue() == levelFilter.Value).ToList();
+                if (typeFilter.HasValue) all = all.Where(fi => fi.GetTypeId().IntValue() == typeFilter.Value).ToList();
 
                 if (min2 != null && max2 != null)
                 {
@@ -73,12 +73,12 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
                 all = sortBy switch
                 {
-                    "level" => all.OrderBy(fi => fi.LevelId.IntegerValue).ToList(),
-                    "type" => all.OrderBy(fi => fi.GetTypeId().IntegerValue).ToList(),
+                    "level" => all.OrderBy(fi => fi.LevelId.IntValue()).ToList(),
+                    "type" => all.OrderBy(fi => fi.GetTypeId().IntValue()).ToList(),
                     "x" => all.OrderBy(fi => ((fi.Location as LocationPoint)?.Point?.X) ?? Double.MinValue).ToList(),
                     "y" => all.OrderBy(fi => ((fi.Location as LocationPoint)?.Point?.Y) ?? Double.MinValue).ToList(),
                     "z" => all.OrderBy(fi => ((fi.Location as LocationPoint)?.Point?.Z) ?? Double.MinValue).ToList(),
-                    _ => all.OrderBy(fi => fi.Id.IntegerValue).ToList()
+                    _ => all.OrderBy(fi => fi.Id.IntValue()).ToList()
                 };
 
                 int total = all.Count;
@@ -90,7 +90,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
                 if (idsOnly)
                 {
-                    var ids = page.Select(fi => fi.Id.IntegerValue).ToList();
+                    var ids = page.Select(fi => fi.Id.IntValue()).ToList();
                     return new { ok = true, totalCount = total, elementIds = ids, units = UnitHelper.DefaultUnitsMeta(), unitsMode = mode.ToString() };
                 }
 
@@ -128,9 +128,9 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
                     return new
                     {
-                        elementId = fi.Id.IntegerValue,
-                        typeId = fi.GetTypeId().IntegerValue,
-                        levelId = fi.LevelId.IntegerValue,
+                        elementId = fi.Id.IntValue(),
+                        typeId = fi.GetTypeId().IntValue(),
+                        levelId = fi.LevelId.IntValue(),
                         location = loc,
                         bbox
                     };
@@ -145,3 +145,4 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+

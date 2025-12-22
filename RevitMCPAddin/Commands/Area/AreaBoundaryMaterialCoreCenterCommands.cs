@@ -72,14 +72,14 @@ namespace RevitMCPAddin.Commands.Area
             if (tok.Type == JTokenType.Integer)
             {
                 var v = tok.Value<int>();
-                if (v != 0) yield return new ElementId(v);
+                if (v != 0) yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
                 yield break;
             }
 
             if (tok.Type == JTokenType.String)
             {
                 if (int.TryParse(tok.Value<string>(), out var v) && v != 0)
-                    yield return new ElementId(v);
+                    yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
                 yield break;
             }
 
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.Area
             {
                 var jo = (JObject)tok;
                 if (TryGetInt(jo, new[] { "elementId", "id", "wallId", "areaId" }, out var v) && v != 0)
-                    yield return new ElementId(v);
+                    yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
             }
         }
 
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.Area
             foreach (var id in ids ?? Enumerable.Empty<ElementId>())
             {
                 if (id == null || id == ElementId.InvalidElementId) continue;
-                if (set.Add(id.IntegerValue)) list.Add(id);
+                if (set.Add(id.IntValue())) list.Add(id);
             }
             return list;
         }
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.Area
             View view = null;
 
             if (TryGetInt(p, new[] { "viewId", "view_id" }, out var vid) && vid > 0)
-                view = doc.GetElement(new ElementId(vid)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
 
             if (view == null && TryGetString(p, new[] { "viewUniqueId", "view_unique_id" }, out var vuid))
                 view = doc.GetElement(vuid) as View;
@@ -160,7 +160,7 @@ namespace RevitMCPAddin.Commands.Area
 
             if (TryGetInt(matObj ?? p, new[] { "id", "materialId", "material_id" }, out var mid) && mid > 0)
             {
-                var m = doc.GetElement(new ElementId(mid)) as Material;
+                var m = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(mid)) as Material;
                 if (m == null) { error = $"Material not found: {mid}"; return false; }
                 materialId = m.Id;
                 materialName = m.Name;
@@ -543,7 +543,7 @@ namespace RevitMCPAddin.Commands.Area
             if (materialId == null || materialId == ElementId.InvalidElementId) { warning = "materialId is invalid"; return false; }
             if (level == null) { warning = "level is null"; return false; }
 
-            debug["wallId"] = wall.Id.IntegerValue;
+            debug["wallId"] = wall.Id.IntValue();
             debug["wallUniqueId"] = wall.UniqueId;
             debug["wallName"] = wall.Name ?? "";
             debug["layerSelection"] = new JObject
@@ -556,7 +556,7 @@ namespace RevitMCPAddin.Commands.Area
             var lc = wall.Location as LocationCurve;
             if (lc == null || lc.Curve == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: no LocationCurve.";
+                warning = $"Wall {wall.Id.IntValue()} skipped: no LocationCurve.";
                 return false;
             }
 
@@ -564,7 +564,7 @@ namespace RevitMCPAddin.Commands.Area
             var baseCurve = FlattenCurveToZ(baseCurveRaw, level.Elevation, out var flatWarn);
             if (baseCurve == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: curve flatten failed ({flatWarn}).";
+                warning = $"Wall {wall.Id.IntValue()} skipped: curve flatten failed ({flatWarn}).";
                 return false;
             }
             debug["baseCurve"] = CurveToJson(baseCurve);
@@ -572,17 +572,17 @@ namespace RevitMCPAddin.Commands.Area
             var wt = doc.GetElement(wall.GetTypeId()) as WallType;
             if (wt == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: WallType not found.";
+                warning = $"Wall {wall.Id.IntValue()} skipped: WallType not found.";
                 return false;
             }
-            debug["wallTypeId"] = wt.Id.IntegerValue;
+            debug["wallTypeId"] = wt.Id.IntValue();
             debug["wallTypeName"] = wt.Name ?? "";
 
             CompoundStructure cs = null;
             try { cs = wt.GetCompoundStructure(); } catch { cs = null; }
             if (cs == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: no CompoundStructure (Curtain/Stacked wall etc.).";
+                warning = $"Wall {wall.Id.IntValue()} skipped: no CompoundStructure (Curtain/Stacked wall etc.).";
                 return false;
             }
 
@@ -590,7 +590,7 @@ namespace RevitMCPAddin.Commands.Area
             try { layers = cs.GetLayers(); } catch { layers = null; }
             if (layers == null || layers.Count == 0)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: CompoundStructure has no layers.";
+                warning = $"Wall {wall.Id.IntValue()} skipped: CompoundStructure has no layers.";
                 return false;
             }
 
@@ -600,7 +600,7 @@ namespace RevitMCPAddin.Commands.Area
                 try
                 {
                     var mid = layers[i].MaterialId;
-                    if (mid != null && mid.IntegerValue == materialId.IntegerValue) matches.Add(i);
+                    if (mid != null && mid.IntValue() == materialId.IntValue()) matches.Add(i);
                 }
                 catch { }
             }
@@ -621,7 +621,7 @@ namespace RevitMCPAddin.Commands.Area
                 targetLayerIndex = ChooseTargetLayerIndex(layers, matches, firstCore, lastCore, includeNonCore, out ruleUsed);
                 if (targetLayerIndex < 0)
                 {
-                    warning = $"Wall {wall.Id.IntegerValue} skipped: target layer resolution failed.";
+                    warning = $"Wall {wall.Id.IntValue()} skipped: target layer resolution failed.";
                     return false;
                 }
             }
@@ -629,13 +629,13 @@ namespace RevitMCPAddin.Commands.Area
             {
                 if (!fallbackToCoreCenterlineWhenMaterialMissing)
                 {
-                    warning = $"Wall {wall.Id.IntegerValue} skipped: materialId {materialId.IntegerValue} not found in CompoundStructure layers.";
+                    warning = $"Wall {wall.Id.IntValue()} skipped: materialId {materialId.IntValue()} not found in CompoundStructure layers.";
                     return false;
                 }
             }
 
             debug["layerCount"] = layers.Count;
-            debug["materialId"] = materialId.IntegerValue;
+            debug["materialId"] = materialId.IntValue();
             debug["materialMatched"] = materialMatched;
             debug["targetLayerIndex"] = materialMatched ? (int?)targetLayerIndex : (int?)null;
 
@@ -658,7 +658,7 @@ namespace RevitMCPAddin.Commands.Area
             double total = widths.Sum();
             if (total <= 1e-9)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: wall thickness is zero.";
+                warning = $"Wall {wall.Id.IntValue()} skipped: wall thickness is zero.";
                 return false;
             }
 
@@ -736,7 +736,7 @@ namespace RevitMCPAddin.Commands.Area
                 debug["targetLayerRule"] = hasCore ? "fallback_core_centerline" : "fallback_wall_centerline";
 
                 // Informational warning (success path). Caller may choose to surface it.
-                warning = $"Wall {wall.Id.IntegerValue}: materialId {materialId.IntegerValue} not found; used {(hasCore ? "core centerline" : "wall centerline")} fallback.";
+                warning = $"Wall {wall.Id.IntValue()}: materialId {materialId.IntValue()} not found; used {(hasCore ? "core centerline" : "wall centerline")} fallback.";
             }
 
             xTargetExt = Math.Max(0.0, Math.Min(total, xTargetExt));
@@ -766,7 +766,7 @@ namespace RevitMCPAddin.Commands.Area
                     debug["targetLayerFunction"] = SafeLayerFunction(layers, targetLayerIndex).ToString();
                     ElementId targetMatId = ElementId.InvalidElementId;
                     try { targetMatId = layers[targetLayerIndex].MaterialId; } catch { targetMatId = ElementId.InvalidElementId; }
-                    debug["targetLayerMaterialId"] = (targetMatId == null || targetMatId == ElementId.InvalidElementId) ? (int?)null : targetMatId.IntegerValue;
+                    debug["targetLayerMaterialId"] = (targetMatId == null || targetMatId == ElementId.InvalidElementId) ? (int?)null : targetMatId.IntValue();
                     if (targetMatId != null && targetMatId != ElementId.InvalidElementId)
                     {
                         var m = doc.GetElement(targetMatId) as Material;
@@ -797,10 +797,10 @@ namespace RevitMCPAddin.Commands.Area
                     try
                     {
                         if (mid == null || mid == ElementId.InvalidElementId) return null;
-                        if (matNameCache.TryGetValue(mid.IntegerValue, out var nm)) return nm;
+                        if (matNameCache.TryGetValue(mid.IntValue(), out var nm)) return nm;
                         var m = doc.GetElement(mid) as Material;
                         nm = m?.Name;
-                        matNameCache[mid.IntegerValue] = nm;
+                        matNameCache[mid.IntValue()] = nm;
                         return nm;
                     }
                     catch { return null; }
@@ -823,9 +823,9 @@ namespace RevitMCPAddin.Commands.Area
                         ["index"] = i,
                         ["widthMm"] = Math.Round(UnitHelper.FtToMm(w), 3),
                         ["function"] = fn.ToString(),
-                        ["materialId"] = (mid == null || mid == ElementId.InvalidElementId) ? (int?)null : mid.IntegerValue,
+                        ["materialId"] = (mid == null || mid == ElementId.InvalidElementId) ? (int?)null : mid.IntValue(),
                         ["materialName"] = getMatName(mid) ?? "",
-                        ["matchedMaterial"] = (mid != null && mid.IntegerValue == materialId.IntegerValue),
+                        ["matchedMaterial"] = (mid != null && mid.IntValue() == materialId.IntValue()),
                         ["inCoreRange"] = hasCore && i >= firstCore && i <= lastCore,
                         ["isTargetLayer"] = i == targetLayerIndex
                     });
@@ -970,14 +970,14 @@ namespace RevitMCPAddin.Commands.Area
 
             if (offset == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: failed to compute offset curve.";
+                warning = $"Wall {wall.Id.IntValue()} skipped: failed to compute offset curve.";
                 return false;
             }
 
             var offsetFlat = FlattenCurveToZ(offset, level.Elevation, out var offWarn);
             if (offsetFlat == null)
             {
-                warning = $"Wall {wall.Id.IntegerValue} skipped: offset curve flatten failed ({offWarn}).";
+                warning = $"Wall {wall.Id.IntValue()} skipped: offset curve flatten failed ({offWarn}).";
                 return false;
             }
 
@@ -1148,12 +1148,12 @@ namespace RevitMCPAddin.Commands.Area
                 var s2 = loop[(i + 1) % n];
 
                 var c1 = (s1.BoundaryLineId != null && s1.BoundaryLineId != ElementId.InvalidElementId &&
-                          candidatesById.TryGetValue(s1.BoundaryLineId.IntegerValue, out var cand1) && cand1.NewCurve != null)
+                          candidatesById.TryGetValue(s1.BoundaryLineId.IntValue(), out var cand1) && cand1.NewCurve != null)
                     ? cand1.NewCurve
                     : s1.Curve;
 
                 var c2 = (s2.BoundaryLineId != null && s2.BoundaryLineId != ElementId.InvalidElementId &&
-                          candidatesById.TryGetValue(s2.BoundaryLineId.IntegerValue, out var cand2) && cand2.NewCurve != null)
+                          candidatesById.TryGetValue(s2.BoundaryLineId.IntValue(), out var cand2) && cand2.NewCurve != null)
                     ? cand2.NewCurve
                     : s2.Curve;
 
@@ -1164,8 +1164,8 @@ namespace RevitMCPAddin.Commands.Area
 
                 CandidateBoundary m1 = null;
                 CandidateBoundary m2 = null;
-                bool has1 = s1.BoundaryLineId != null && s1.BoundaryLineId != ElementId.InvalidElementId && candidatesById.TryGetValue(s1.BoundaryLineId.IntegerValue, out m1);
-                bool has2 = s2.BoundaryLineId != null && s2.BoundaryLineId != ElementId.InvalidElementId && candidatesById.TryGetValue(s2.BoundaryLineId.IntegerValue, out m2);
+                bool has1 = s1.BoundaryLineId != null && s1.BoundaryLineId != ElementId.InvalidElementId && candidatesById.TryGetValue(s1.BoundaryLineId.IntValue(), out m1);
+                bool has2 = s2.BoundaryLineId != null && s2.BoundaryLineId != ElementId.InvalidElementId && candidatesById.TryGetValue(s2.BoundaryLineId.IntValue(), out m2);
                 bool mod1 = has1 && m1 != null && m1.NewCurve is Line;
                 bool mod2 = has2 && m2 != null && m2.NewCurve is Line;
 
@@ -1177,7 +1177,7 @@ namespace RevitMCPAddin.Commands.Area
                 if (!(c1 is Line l1) || !(c2 is Line l2))
                 {
                     if (mod1 || mod2)
-                        warnings?.Add($"Corner unresolved (non-line): areaId={s1.AreaId?.IntegerValue} loop={s1.LoopIndex} seg={s1.SegmentIndex}");
+                        warnings?.Add($"Corner unresolved (non-line): areaId={s1.AreaId?.IntValue()} loop={s1.LoopIndex} seg={s1.SegmentIndex}");
                     continue;
                 }
 
@@ -1204,7 +1204,7 @@ namespace RevitMCPAddin.Commands.Area
 
                 if (mod1 && mod2 && !hasIp)
                 {
-                    warnings?.Add($"Corner unresolved (parallel): areaId={s1.AreaId?.IntegerValue} loop={s1.LoopIndex} seg={s1.SegmentIndex}");
+                    warnings?.Add($"Corner unresolved (parallel): areaId={s1.AreaId?.IntValue()} loop={s1.LoopIndex} seg={s1.SegmentIndex}");
                 }
             }
         }
@@ -1291,12 +1291,12 @@ namespace RevitMCPAddin.Commands.Area
                     foreach (var wid in wallIds)
                     {
                         var w = doc.GetElement(wid) as Autodesk.Revit.DB.Wall;
-                        if (w == null) { warnings.Add($"Wall not found: {wid.IntegerValue}"); continue; }
+                        if (w == null) { warnings.Add($"Wall not found: {wid.IntValue()}"); continue; }
 
                         if (!AreaBoundaryMaterialCoreCenterUtil.TryComputeTargetCurveFromWall(doc, w, materialId, level, includeNonCore, includeLayerDetails, fallbackToCoreCenterlineWhenMaterialMissing, out var curve, out var dbg, out var warn))
                         {
                             if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
-                            perWall.Add(new { wallId = wid.IntegerValue, ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
+                            perWall.Add(new { wallId = wid.IntValue(), ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
                             continue;
                         }
                         if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
@@ -1304,7 +1304,7 @@ namespace RevitMCPAddin.Commands.Area
                         bool dup = skipExisting && existing.Any(ce => AreaCommon.CurveEquals(ce.GeometryCurve, curve, tolFt));
                         perWall.Add(new
                         {
-                            wallId = wid.IntegerValue,
+                            wallId = wid.IntValue(),
                             ok = true,
                             dryRun = true,
                             duplicate = dup,
@@ -1317,9 +1317,9 @@ namespace RevitMCPAddin.Commands.Area
                     {
                         ok = true,
                         dryRun = true,
-                        viewId = vp.Id.IntegerValue,
-                        levelId = level.Id.IntegerValue,
-                        materialId = materialId.IntegerValue,
+                        viewId = vp.Id.IntValue(),
+                        levelId = level.Id.IntValue(),
+                        materialId = materialId.IntValue(),
                         materialName,
                         requestedWalls = wallIds.Count,
                         createdBoundaryLineIds = created,
@@ -1338,12 +1338,12 @@ namespace RevitMCPAddin.Commands.Area
                     foreach (var wid in wallIds)
                     {
                         var w = doc.GetElement(wid) as Autodesk.Revit.DB.Wall;
-                        if (w == null) { warnings.Add($"Wall not found: {wid.IntegerValue}"); continue; }
+                        if (w == null) { warnings.Add($"Wall not found: {wid.IntValue()}"); continue; }
 
                         if (!AreaBoundaryMaterialCoreCenterUtil.TryComputeTargetCurveFromWall(doc, w, materialId, level, includeNonCore, includeLayerDetails, fallbackToCoreCenterlineWhenMaterialMissing, out var curve, out var dbg, out var warn))
                         {
                             if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
-                            perWall.Add(new { wallId = wid.IntegerValue, ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
+                            perWall.Add(new { wallId = wid.IntValue(), ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
                             continue;
                         }
                         if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
@@ -1351,14 +1351,14 @@ namespace RevitMCPAddin.Commands.Area
                         bool dup = skipExisting && existing.Any(ce => AreaCommon.CurveEquals(ce.GeometryCurve, curve, tolFt));
                         if (dup)
                         {
-                            perWall.Add(new { wallId = wid.IntegerValue, ok = true, skipped = true, reason = "duplicate", debug = includeDebug ? (object)dbg : null });
+                            perWall.Add(new { wallId = wid.IntValue(), ok = true, skipped = true, reason = "duplicate", debug = includeDebug ? (object)dbg : null });
                             continue;
                         }
 
                         var ce = doc.Create.NewAreaBoundaryLine(sp, curve, vp);
-                        created.Add(ce.Id.IntegerValue);
+                        created.Add(ce.Id.IntValue());
                         existing.Add(ce);
-                        perWall.Add(new { wallId = wid.IntegerValue, ok = true, createdBoundaryLineId = ce.Id.IntegerValue, debug = includeDebug ? (object)dbg : null });
+                        perWall.Add(new { wallId = wid.IntValue(), ok = true, createdBoundaryLineId = ce.Id.IntValue(), debug = includeDebug ? (object)dbg : null });
                     }
 
                     tx.Commit();
@@ -1369,9 +1369,9 @@ namespace RevitMCPAddin.Commands.Area
                 return new
                 {
                     ok = true,
-                    viewId = vp.Id.IntegerValue,
-                    levelId = level.Id.IntegerValue,
-                    materialId = materialId.IntegerValue,
+                    viewId = vp.Id.IntValue(),
+                    levelId = level.Id.IntValue(),
+                    materialId = materialId.IntValue(),
                     materialName,
                     requestedWalls = wallIds.Count,
                     created = created.Count,
@@ -1503,11 +1503,11 @@ namespace RevitMCPAddin.Commands.Area
                     foreach (var aid in areaIds)
                     {
                         var area = doc.GetElement(aid) as Autodesk.Revit.DB.Area;
-                        if (area == null) { warnings.Add($"Area not found: {aid.IntegerValue}"); continue; }
+                        if (area == null) { warnings.Add($"Area not found: {aid.IntValue()}"); continue; }
 
                         IList<IList<BoundarySegment>> loops = null;
                         try { loops = area.GetBoundarySegments(opts); } catch { loops = null; }
-                        if (loops == null) { warnings.Add($"Area {aid.IntegerValue}: boundary segments not available."); continue; }
+                        if (loops == null) { warnings.Add($"Area {aid.IntValue()}: boundary segments not available."); continue; }
 
                         for (int li = 0; li < loops.Count; li++)
                         {
@@ -1574,7 +1574,7 @@ namespace RevitMCPAddin.Commands.Area
                 foreach (var s in loopSegs)
                 {
                     if (s.BoundaryLineId == null || s.BoundaryLineId == ElementId.InvalidElementId) continue;
-                    int key = s.BoundaryLineId.IntegerValue;
+                    int key = s.BoundaryLineId.IntValue();
                     if (candidatesById.ContainsKey(key)) continue;
                     candidatesById[key] = new AreaBoundaryMaterialCoreCenterUtil.CandidateBoundary { BoundaryLineId = s.BoundaryLineId, Curve = s.Curve };
                 }
@@ -1588,12 +1588,12 @@ namespace RevitMCPAddin.Commands.Area
                 foreach (var wid in wallIds)
                 {
                     var w = doc.GetElement(wid) as Autodesk.Revit.DB.Wall;
-                    if (w == null) { warnings.Add($"Wall not found: {wid.IntegerValue}"); continue; }
+                    if (w == null) { warnings.Add($"Wall not found: {wid.IntValue()}"); continue; }
 
                     if (!AreaBoundaryMaterialCoreCenterUtil.TryComputeTargetCurveFromWall(doc, w, materialId, level, includeNonCore, includeLayerDetails, fallbackToCoreCenterlineWhenMaterialMissing, out var targetCurve, out var dbg, out var warn))
                     {
                         if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
-                        wallDebug.Add(new { wallId = wid.IntegerValue, ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
+                        wallDebug.Add(new { wallId = wid.IntValue(), ok = false, msg = warn, debug = includeDebug ? (object)dbg : null });
                         continue;
                     }
                     if (!string.IsNullOrWhiteSpace(warn)) warnings.Add(warn);
@@ -1626,7 +1626,7 @@ namespace RevitMCPAddin.Commands.Area
                     {
                         wallDebug.Add(new
                         {
-                            wallId = wid.IntegerValue,
+                            wallId = wid.IntValue(),
                             ok = true,
                             matched = false,
                             reason = $"no boundary line within tolerance (matchToleranceMm={matchTolMm}, parallelThreshold={parallelThreshold})",
@@ -1635,11 +1635,11 @@ namespace RevitMCPAddin.Commands.Area
                         continue;
                     }
 
-                    usedBoundaryIds.Add(best.BoundaryLineId.IntegerValue);
+                    usedBoundaryIds.Add(best.BoundaryLineId.IntValue());
 
                     var clipped = AreaBoundaryMaterialCoreCenterUtil.ClipTargetCurveToCandidateExtent(targetCurve, best.Curve, level.Elevation, out var clipRule);
                     best.NewCurve = clipped;
-                    best.MatchedWallId = wid.IntegerValue;
+                    best.MatchedWallId = wid.IntValue();
                     best.MatchDistanceFt = bestDist;
                     best.ParallelScore = bestPar;
                     matched++;
@@ -1656,10 +1656,10 @@ namespace RevitMCPAddin.Commands.Area
 
                     wallDebug.Add(new
                     {
-                        wallId = wid.IntegerValue,
+                        wallId = wid.IntValue(),
                         ok = true,
                         matched = true,
-                        boundaryLineId = best.BoundaryLineId.IntegerValue,
+                        boundaryLineId = best.BoundaryLineId.IntValue(),
                         matchDistanceMm = Math.Round(UnitHelper.FtToMm(bestDist), 3),
                         parallelScore = Math.Round(bestPar, 4),
                         debug = includeDebug ? (object)dbg : null
@@ -1671,9 +1671,9 @@ namespace RevitMCPAddin.Commands.Area
                     return new
                     {
                         ok = true,
-                        viewId = vp.Id.IntegerValue,
-                        levelId = level.Id.IntegerValue,
-                        materialId = materialId.IntegerValue,
+                        viewId = vp.Id.IntValue(),
+                        levelId = level.Id.IntValue(),
+                        materialId = materialId.IntValue(),
                         materialName,
                         matchedBoundaryLines = 0,
                         adjustedBoundaryLineIdMap = Array.Empty<object>(),
@@ -1690,7 +1690,7 @@ namespace RevitMCPAddin.Commands.Area
                 {
                     var grouped = loopSegs
                         .Where(s => s.AreaId != null && s.AreaId != ElementId.InvalidElementId)
-                        .GroupBy(s => $"{s.AreaId.IntegerValue}:{s.LoopIndex}")
+                        .GroupBy(s => $"{s.AreaId.IntValue()}:{s.LoopIndex}")
                         .ToList();
                     foreach (var g in grouped)
                     {
@@ -1707,7 +1707,7 @@ namespace RevitMCPAddin.Commands.Area
                     {
                         map.Add(new
                         {
-                            oldId = kv.BoundaryLineId.IntegerValue,
+                            oldId = kv.BoundaryLineId.IntValue(),
                             newId = (int?)null,
                             wallId = kv.MatchedWallId,
                             matchDistanceMm = Math.Round(UnitHelper.FtToMm(kv.MatchDistanceFt), 3),
@@ -1720,9 +1720,9 @@ namespace RevitMCPAddin.Commands.Area
                     {
                         ok = true,
                         dryRun = true,
-                        viewId = vp.Id.IntegerValue,
-                        levelId = level.Id.IntegerValue,
-                        materialId = materialId.IntegerValue,
+                        viewId = vp.Id.IntValue(),
+                        levelId = level.Id.IntValue(),
+                        materialId = materialId.IntValue(),
                         materialName,
                         matchedBoundaryLines = matched,
                         adjustedBoundaryLineIdMap = map,
@@ -1744,13 +1744,13 @@ namespace RevitMCPAddin.Commands.Area
 
                     foreach (var cand in candidatesById.Values.Where(c => c.NewCurve != null))
                     {
-                        int oldId = cand.BoundaryLineId.IntegerValue;
+                        int oldId = cand.BoundaryLineId.IntValue();
                         int newId = 0;
                         try
                         {
                             doc.Delete(cand.BoundaryLineId);
                             var ce = doc.Create.NewAreaBoundaryLine(sp, cand.NewCurve, vp);
-                            newId = ce.Id.IntegerValue;
+                            newId = ce.Id.IntValue();
                         }
                         catch (Exception ex)
                         {
@@ -1776,9 +1776,9 @@ namespace RevitMCPAddin.Commands.Area
                 return new
                 {
                     ok = true,
-                    viewId = vp.Id.IntegerValue,
-                    levelId = level.Id.IntegerValue,
-                    materialId = materialId.IntegerValue,
+                    viewId = vp.Id.IntValue(),
+                    levelId = level.Id.IntValue(),
+                    materialId = materialId.IntValue(),
                     materialName,
                     requestedAreas = areaIds.Count,
                     requestedWalls = wallIds.Count,
@@ -1801,3 +1801,5 @@ namespace RevitMCPAddin.Commands.Area
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -99,8 +99,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                     // -------------------------------------------------------------------
 
                     t.Commit();
-                    LoggerProxy.Info($"[Site] BuildingPad placed id={pad.Id.IntegerValue} on level='{level.Name}'");
-                    return new { ok = true, elementId = pad.Id.IntegerValue };
+                    LoggerProxy.Info($"[Site] BuildingPad placed id={pad.Id.IntValue()} on level='{level.Name}'");
+                    return new { ok = true, elementId = pad.Id.IntValue() };
                 }
             }
             catch (Exception ex)
@@ -179,3 +179,4 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+

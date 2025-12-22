@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.Room
                 return ResultUtil.Err("roomId is required.");
 
             int roomId = roomToken.Value<int>();
-            var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null)
                 return ResultUtil.Err($"Room not found: roomId={roomId}");
 
@@ -180,11 +180,11 @@ namespace RevitMCPAddin.Commands.Room
 
                     results.Add(new
                     {
-                        wallId = wall.Id.IntegerValue,
+                        wallId = wall.Id.IntValue(),
                         uniqueId = wall.UniqueId,
-                        typeId = wt != null ? wt.Id.IntegerValue : 0,
+                        typeId = wt != null ? wt.Id.IntValue() : 0,
                         typeName = wt != null ? wt.Name ?? string.Empty : string.Empty,
-                        levelId = level != null ? level.Id.IntegerValue : 0,
+                        levelId = level != null ? level.Id.IntValue() : 0,
                         levelName = level?.Name ?? string.Empty,
                         sample = new
                         {
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.Room
             return ResultUtil.Ok(new
             {
                 roomId,
-                levelId = level != null ? level.Id.IntegerValue : 0,
+                levelId = level != null ? level.Id.IntValue() : 0,
                 levelName = level?.Name ?? string.Empty,
                 t1,
                 t2,
@@ -225,3 +225,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

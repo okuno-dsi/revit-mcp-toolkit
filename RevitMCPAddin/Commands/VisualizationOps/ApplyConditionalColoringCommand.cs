@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.Visualization
             int reqViewId = p.Value<int?>("viewId") ?? 0;
             View view = null;
             if (reqViewId > 0)
-                view = doc.GetElement(new ElementId(reqViewId)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(reqViewId)) as View;
             if (view == null)
                 view = uiapp.ActiveUIDocument?.ActiveGraphicalView
                     ?? (uiapp.ActiveUIDocument?.ActiveView is View av && av.ViewType != ViewType.ProjectBrowser ? av : null);
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.Visualization
             // 対象カテゴリ
             var catsArr = p["categoryIds"] as JArray;
             var targetCatIds = (catsArr != null)
-                ? catsArr.Values<int>().Select(i => new ElementId(i)).ToList()
+                ? catsArr.Values<int>().Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList()
                 : null;
 
             // 対象パラメータ
@@ -162,13 +162,13 @@ namespace RevitMCPAddin.Commands.Visualization
                                 double? siValue = TryGetParamSiValue(e, paramName, parameterId, builtinId, unitsMode);
                                 if (siValue == null)
                                 {
-                                    skipped.Add(new { elementId = e.Id.IntegerValue, reason = "parameter not found or null/double以外" });
+                                    skipped.Add(new { elementId = e.Id.IntValue(), reason = "parameter not found or null/double以外" });
                                     continue;
                                 }
                                 var rule = SelectRule(rules, siValue.Value);
                                 if (rule == null)
                                 {
-                                    skipped.Add(new { elementId = e.Id.IntegerValue, reason = "no rule matched" });
+                                    skipped.Add(new { elementId = e.Id.IntValue(), reason = "no rule matched" });
                                     continue;
                                 }
                                 var ogs = new OverrideGraphicSettings();
@@ -189,7 +189,7 @@ namespace RevitMCPAddin.Commands.Visualization
                             }
                             catch (Exception rx)
                             {
-                                skipped.Add(new { elementId = e.Id.IntegerValue, reason = rx.Message });
+                                skipped.Add(new { elementId = e.Id.IntValue(), reason = rx.Message });
                             }
                         }
                         t.Commit();
@@ -213,7 +213,7 @@ namespace RevitMCPAddin.Commands.Visualization
             return ResultUtil.Ok(new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 updated,
                 skippedCount = skipped.Count,
                 skipped,
@@ -314,7 +314,7 @@ namespace RevitMCPAddin.Commands.Visualization
             int reqViewId = p.Value<int?>("viewId") ?? 0;
             View view = null;
             if (reqViewId > 0)
-                view = doc.GetElement(new ElementId(reqViewId)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(reqViewId)) as View;
             if (view == null)
                 view = uiapp.ActiveUIDocument?.ActiveGraphicalView
                     ?? (uiapp.ActiveUIDocument?.ActiveView is View av && av.ViewType != ViewType.ProjectBrowser ? av : null);
@@ -361,7 +361,7 @@ namespace RevitMCPAddin.Commands.Visualization
             // 対象カテゴリ/クラス
             var catsArr = p["categoryIds"] as JArray;
             var targetCatIds = (catsArr != null)
-                ? catsArr.Values<int>().Select(i => new ElementId(i)).ToList()
+                ? catsArr.Values<int>().Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList()
                 : null;
             string className = (p.Value<string>("className") ?? string.Empty).Trim();
 
@@ -451,13 +451,13 @@ namespace RevitMCPAddin.Commands.Visualization
                                 var val = ResolveParamStringForTargets(doc, e, target, paramName, builtinName, builtinId, guidStr);
                                 if (string.IsNullOrWhiteSpace(val))
                                 {
-                                    skipped.Add(new { elementId = e.Id.IntegerValue, reason = "param empty" });
+                                    skipped.Add(new { elementId = e.Id.IntValue(), reason = "param empty" });
                                     continue;
                                 }
                                 if (!valueToColor.TryGetValue(val, out var cTriplet))
                                 {
                                     // 予期せぬ（並行で値が増えた等）→スキップ
-                                    skipped.Add(new { elementId = e.Id.IntegerValue, reason = "value not mapped" });
+                                    skipped.Add(new { elementId = e.Id.IntValue(), reason = "value not mapped" });
                                     continue;
                                 }
                                 var ogs = new OverrideGraphicSettings();
@@ -476,7 +476,7 @@ namespace RevitMCPAddin.Commands.Visualization
                             }
                             catch (Exception rx)
                             {
-                                skipped.Add(new { elementId = e.Id.IntegerValue, reason = rx.Message });
+                                skipped.Add(new { elementId = e.Id.IntValue(), reason = rx.Message });
                             }
                         }
                         t.Commit();
@@ -500,11 +500,11 @@ namespace RevitMCPAddin.Commands.Visualization
             return ResultUtil.Ok(new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 updated,
                 skippedCount = skipped.Count,
                 skipped,
-                categories = targetCatIds?.Select(x => x.IntegerValue).ToList(),
+                categories = targetCatIds?.Select(x => x.IntValue()).ToList(),
                 distinctValues = distinct,
                 palette = paletteName,
                 completed = nextIndex >= elems.Count,
@@ -600,7 +600,7 @@ namespace RevitMCPAddin.Commands.Visualization
             if (parameterId.HasValue)
             {
                 prm = e.Parameters.Cast<Parameter>()
-                    .FirstOrDefault(x => x.Id?.IntegerValue == parameterId.Value);
+                    .FirstOrDefault(x => x.Id?.IntValue() == parameterId.Value);
             }
             else if (builtinId.HasValue)
             {
@@ -641,7 +641,7 @@ namespace RevitMCPAddin.Commands.Visualization
         private object ForwardToColorFill(UIApplication uiapp, Document doc, JObject p)
         {
             var viewId = p.Value<int?>("viewId")
-                ?? uiapp.ActiveUIDocument.ActiveView?.Id.IntegerValue
+                ?? uiapp.ActiveUIDocument.ActiveView?.Id.IntValue()
                 ?? 0;
 
             var payload = new JObject
@@ -683,7 +683,7 @@ namespace RevitMCPAddin.Commands.Visualization
             View view;
             var viewId = p.Value<int?>("viewId");
             if (viewId.HasValue)
-                view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             else
                 view = uiapp.ActiveUIDocument.ActiveView;
 
@@ -715,7 +715,7 @@ namespace RevitMCPAddin.Commands.Visualization
             }
 
             // Color Fill の解除は既存コマンド remove_color_scheme_from_view を推奨。
-            return ResultUtil.Ok(new { ok = true, viewId = view.Id.IntegerValue });
+            return ResultUtil.Ok(new { ok = true, viewId = view.Id.IntValue() });
         }
 
         private void RemoveAllElementOverrides(View v)
@@ -729,3 +729,5 @@ namespace RevitMCPAddin.Commands.Visualization
         }
     }
 }
+
+

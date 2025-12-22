@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Method : list_lighting_fixtures
 // ================================================================
 #nullable enable
@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.LightingOps
 
                     var o = new JObject
                     {
-                        ["elementId"] = f.Id.IntegerValue,
+                        ["elementId"] = f.Id.IntValue(),
                         ["name"] = f.Name,
                         ["type"] = typeName,
                         ["level"] = levelName != null ? (JToken)levelName : JValue.CreateNull(),
@@ -58,3 +58,4 @@ namespace RevitMCPAddin.Commands.LightingOps
         }
     }
 }
+

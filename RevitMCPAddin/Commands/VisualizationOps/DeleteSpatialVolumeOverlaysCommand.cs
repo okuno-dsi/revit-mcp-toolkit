@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -51,13 +51,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 // MCP 生成物のみ
                 if (!string.Equals(ds.ApplicationId, "RevitMCP", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (dsIdSet.Contains(ds.Id.IntegerValue))
+                    if (dsIdSet.Contains(ds.Id.IntValue()))
                         skipped.Add(Skip(ds.Id, "not overlay"));
                     continue;
                 }
 
                 // directShapeIds 指定があれば最優先マッチ
-                if (dsIdSet.Count > 0 && dsIdSet.Contains(ds.Id.IntegerValue))
+                if (dsIdSet.Count > 0 && dsIdSet.Contains(ds.Id.IntValue()))
                 {
                     willDelete.Add(ds.Id);
                     continue;
@@ -100,7 +100,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 {
                     ["ok"] = true,
                     ["requested"] = willDelete.Count,
-                    ["wouldDelete"] = new JArray(willDelete.Select(x => x.IntegerValue)),
+                    ["wouldDelete"] = new JArray(willDelete.Select(x => x.IntValue())),
                     ["skipped"] = skipped
                 };
             }
@@ -117,13 +117,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     {
                         // doc.Delete は関連要素を複数返すことがあるが、ここでは代表として自要素IDを記録
                         doc.Delete(id);
-                        deleted.Add(id.IntegerValue);
+                        deleted.Add(id.IntValue());
                     }
                     catch (Exception ex)
                     {
                         errors.Add(new JObject
                         {
-                            ["id"] = id.IntegerValue,
+                            ["id"] = id.IntValue(),
                             ["message"] = ex.Message
                         });
                     }
@@ -145,6 +145,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             => new JObject { ["ok"] = false, ["msg"] = msg };
 
         private static JObject Skip(ElementId id, string reason)
-            => new JObject { ["id"] = id.IntegerValue, ["reason"] = reason };
+            => new JObject { ["id"] = id.IntValue(), ["reason"] = reason };
     }
 }
+

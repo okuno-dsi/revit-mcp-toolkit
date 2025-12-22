@@ -37,17 +37,17 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
                         // Level
                         Level baseLevel = null; Level topLevel = null;
-                        if (it.TryGetValue("baseLevelId", out var blid)) baseLevel = doc.GetElement(new ElementId(blid.Value<int>())) as Level;
+                        if (it.TryGetValue("baseLevelId", out var blid)) baseLevel = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(blid.Value<int>())) as Level;
                         if (baseLevel == null && it.TryGetValue("baseLevelName", out var bln)) baseLevel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().FirstOrDefault(l => string.Equals(l.Name, bln.Value<string>(), StringComparison.OrdinalIgnoreCase));
                         if (baseLevel == null) baseLevel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).FirstOrDefault();
                         if (baseLevel == null) continue;
 
-                        if (it.TryGetValue("topLevelId", out var tlid)) topLevel = doc.GetElement(new ElementId(tlid.Value<int>())) as Level;
+                        if (it.TryGetValue("topLevelId", out var tlid)) topLevel = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tlid.Value<int>())) as Level;
                         if (topLevel == null && it.TryGetValue("topLevelName", out var tln)) topLevel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().FirstOrDefault(l => string.Equals(l.Name, tln.Value<string>(), StringComparison.OrdinalIgnoreCase));
 
                         // Type
                         WallType wType = null;
-                        if (it.TryGetValue("wallTypeId", out var wtid)) wType = doc.GetElement(new ElementId(wtid.Value<int>())) as WallType;
+                        if (it.TryGetValue("wallTypeId", out var wtid)) wType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wtid.Value<int>())) as WallType;
                         if (wType == null && it.TryGetValue("wallTypeName", out var wtn))
                         {
                             var name = wtn.Value<string>();
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                             if (pUnconn != null && !pUnconn.IsReadOnly) pUnconn.Set(heightFt);
                         }
 
-                        created.Add(wall.Id.IntegerValue);
+                        created.Add(wall.Id.IntValue());
                     }
                     catch { /* skip one item */ }
                 }
@@ -95,3 +95,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

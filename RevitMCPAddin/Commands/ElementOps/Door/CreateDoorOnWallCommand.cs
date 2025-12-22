@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/CreateDoorOnWallCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/CreateDoorOnWallCommand.cs
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
@@ -25,14 +25,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             FamilySymbol symbol = null;
             if (p.TryGetValue("typeId", out var tid))
-                symbol = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             else if (p.TryGetValue("typeName", out var tn))
                 symbol = symbols.FirstOrDefault(s => s.Name == tn.Value<string>());
             symbol ??= symbols.FirstOrDefault()
                 ?? throw new System.InvalidOperationException("Door FamilySymbol が見つかりません");
 
             var wallId = p.Value<int>("wallId");
-            var hostWall = doc.GetElement(new ElementId(wallId)) as Autodesk.Revit.DB.Wall
+            var hostWall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wallId)) as Autodesk.Revit.DB.Wall
                           ?? throw new System.InvalidOperationException($"Wall not found: {wallId}");
 
             var level = doc.GetElement(hostWall.LevelId) as Level
@@ -53,7 +53,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 pos, symbol, hostWall, level, StructuralType.NonStructural);
 
             tx.Commit();
-            return new { ok = true, elementId = inst.Id.IntegerValue, typeId = symbol.Id.IntegerValue };
+            return new { ok = true, elementId = inst.Id.IntValue(), typeId = symbol.Id.IntValue() };
         }
     }
 }
+
+

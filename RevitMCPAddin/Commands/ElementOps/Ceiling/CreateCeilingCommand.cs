@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CreateCeilingCommand.cs  (UnitHelper化)
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CreateCeilingCommand.cs  (UnitHelper化)
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,9 +19,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             var p = (JObject)cmd.Params;
 
             // レベル
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
             var level = doc.GetElement(levelId) as Level
-                        ?? throw new InvalidOperationException($"Level not found: {levelId.IntegerValue}");
+                        ?? throw new InvalidOperationException($"Level not found: {levelId.IntValue()}");
 
             // 境界ループ（mm入力）
             var pts = p["points"] as JArray;
@@ -45,7 +45,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             }
 
             // タイプ/オフセット（mm → 内部）
-            var typeId = new ElementId(p.Value<int>("typeId"));
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("typeId"));
             double offsetMm = p.Value<double?>("offsetMm") ?? 0.0;
             double offsetInternal = UnitHelper.MmToInternalLength(offsetMm);
 
@@ -63,7 +63,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
 
             tx.Commit();
 
-            return ResultUtil.Ok(new { elementId = ceiling.Id.IntegerValue });
+            return ResultUtil.Ok(new { elementId = ceiling.Id.IntValue() });
         }
     }
 }
+
+

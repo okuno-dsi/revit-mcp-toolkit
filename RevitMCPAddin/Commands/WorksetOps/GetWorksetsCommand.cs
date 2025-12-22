@@ -1,4 +1,4 @@
-﻿// ======================================================================
+// ======================================================================
 // File: Commands/WorksetOps/WorksetCommands.cs
 // 機能: ワークセット関連コマンド集（CreateWorksetCommand を 2 引数版に修正）
 // ======================================================================
@@ -28,13 +28,13 @@ namespace RevitMCPAddin.Commands.WorksetOps
             {
                 var ids = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.WorksetId.IntegerValue == ws.Id.IntegerValue)
-                    .Select(e => e.Id.IntegerValue)
+                    .Where(e => e.WorksetId.IntValue() == ws.Id.IntValue())
+                    .Select(e => e.Id.IntValue())
                     .ToList();
 
                 return new
                 {
-                    worksetId = ws.Id.IntegerValue,
+                    worksetId = ws.Id.IntValue(),
                     name = ws.Name,
                     kind = ws.Kind.ToString(),
                     isEditable = ws.IsEditable,
@@ -57,21 +57,21 @@ namespace RevitMCPAddin.Commands.WorksetOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             int eid = ((JObject)cmd.Params).Value<int>("elementId");
-            var elem = doc.GetElement(new ElementId(eid));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (elem == null)
                 return new { ok = false, msg = $"Element {eid} not found." };
 
             var wsId = elem.WorksetId;
             var ws = new FilteredWorksetCollector(doc)
                         .ToWorksets()
-                        .FirstOrDefault(w => w.Id.IntegerValue == wsId.IntegerValue);
+                        .FirstOrDefault(w => w.Id.IntValue() == wsId.IntValue());
             if (ws == null)
-                return new { ok = false, msg = $"Workset {wsId.IntegerValue} not found." };
+                return new { ok = false, msg = $"Workset {wsId.IntValue()} not found." };
 
             return new
             {
                 ok = true,
-                worksetId = ws.Id.IntegerValue,
+                worksetId = ws.Id.IntValue(),
                 worksetName = ws.Name
             };
         }
@@ -102,7 +102,7 @@ namespace RevitMCPAddin.Commands.WorksetOps
                 tx.Commit();
             }
 
-            return new { ok = true, worksetId = ws.Id.IntegerValue };
+            return new { ok = true, worksetId = ws.Id.IntValue() };
         }
     }
 
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.WorksetOps
             int eid = p.Value<int>("elementId");
             int wsid = p.Value<int>("worksetId");
 
-            var elem = doc.GetElement(new ElementId(eid));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (elem == null)
                 return new { ok = false, msg = $"Element {eid} not found." };
             if (!doc.IsWorkshared)
@@ -143,3 +143,5 @@ namespace RevitMCPAddin.Commands.WorksetOps
         }
     }
 }
+
+

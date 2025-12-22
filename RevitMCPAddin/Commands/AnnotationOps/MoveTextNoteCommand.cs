@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/MoveTextNoteCommand.cs
 // Purpose : Move a TextNote by offset vector (project units aware)
 // Params  : { elementId:int, dx:number, dy:number, dz?:number, unit?:"mm|cm|m|in|ft" }
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             double dy = p.Value<double?>("dy") ?? 0.0;
             double dz = p.Value<double?>("dz") ?? 0.0;
 
-            var tn = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var tn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (tn == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             var v = new XYZ(
@@ -44,8 +44,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 t.Start();
                 ElementTransformUtils.MoveElement(doc, tn.Id, v);
                 t.Commit();
-                return new { ok = true, elementId = tn.Id.IntegerValue };
+                return new { ok = true, elementId = tn.Id.IntValue() };
             }
         }
     }
 }
+
+

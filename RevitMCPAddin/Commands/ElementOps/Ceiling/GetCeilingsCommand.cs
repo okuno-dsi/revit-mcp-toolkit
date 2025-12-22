@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/GetCeilingsCommand.cs  (UnitHelper化)
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/GetCeilingsCommand.cs  (UnitHelper化)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -56,13 +56,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 CeilingElement target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as CeilingElement;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as CeilingElement;
                 else target = doc.GetElement(targetUid) as CeilingElement;
                 q = (target != null) ? new[] { target } : Enumerable.Empty<CeilingElement>();
             }
 
             if (filterTypeId > 0)
-                q = q.Where(c => c.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(c => c.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName) || !string.IsNullOrWhiteSpace(filterFamilyName))
             {
@@ -79,7 +79,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             }
 
             if (filterLevelId > 0)
-                q = q.Where(c => c.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(c => c.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
                 q = q.Where(c =>
@@ -101,16 +101,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             var filtered = q.ToList();
             var typeNameMap = new Dictionary<int, string>();
             var familyNameMap = new Dictionary<int, string>();
-            foreach (var tid in filtered.Select(c => c.GetTypeId().IntegerValue).Distinct())
+            foreach (var tid in filtered.Select(c => c.GetTypeId().IntValue()).Distinct())
             {
-                var et = doc.GetElement(new ElementId(tid)) as ElementType;
+                var et = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as ElementType;
                 typeNameMap[tid] = et?.Name ?? string.Empty;
                 familyNameMap[tid] = et?.FamilyName ?? string.Empty;
             }
 
             var ordered = filtered
-                .OrderBy(c => typeNameMap.TryGetValue(c.GetTypeId().IntegerValue, out var tn) ? tn : string.Empty)
-                .ThenBy(c => c.Id.IntegerValue)
+                .OrderBy(c => typeNameMap.TryGetValue(c.GetTypeId().IntValue(), out var tn) ? tn : string.Empty)
+                .ThenBy(c => c.Id.IntValue())
                 .ToList();
 
             int totalCount = ordered.Count;
@@ -129,7 +129,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
                 {
                     var n = c.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    var tid = c.GetTypeId().IntegerValue;
+                    var tid = c.GetTypeId().IntValue();
                     return typeNameMap.TryGetValue(tid, out var tnm) ? tnm : string.Empty;
                 }).ToList();
 
@@ -149,17 +149,17 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
 
             if (idsOnly)
             {
-                var ids = paged.Select(c => c.Id.IntegerValue).ToList();
+                var ids = paged.Select(c => c.Id.IntValue()).ToList();
                 return ResultUtil.Ok(new { totalCount, elementIds = ids });
             }
 
             var ceilings = paged.Select(c =>
             {
-                var tid = c.GetTypeId().IntegerValue;
+                var tid = c.GetTypeId().IntValue();
                 var tName = typeNameMap.TryGetValue(tid, out var tn2) ? tn2 : string.Empty;
                 var fName = familyNameMap.TryGetValue(tid, out var fn2) ? fn2 : string.Empty;
                 var lv = doc.GetElement(c.LevelId) as Level;
-                int? categoryId = c.Category?.Id?.IntegerValue;
+                int? categoryId = c.Category?.Id?.IntValue();
                 string categoryName = c.Category?.Name ?? "";
 
                 // 面積（m2）
@@ -223,14 +223,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
 
                 return new
                 {
-                    elementId = c.Id.IntegerValue,
+                    elementId = c.Id.IntValue(),
                     uniqueId = c.UniqueId,
                     categoryId,
                     categoryName,
                     typeId = tid,
                     typeName = tName,
                     familyName = fName,
-                    levelId = c.LevelId.IntegerValue,
+                    levelId = c.LevelId.IntValue(),
                     levelName = lv?.Name ?? "",
                     elevationMm,
                     areaM2,
@@ -250,3 +250,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/CreateScheduleViewCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/CreateScheduleViewCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -45,7 +45,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             {
                 var sf = available.FirstOrDefault(f =>
                 {
-                    try { return f.ParameterId != null && f.ParameterId.IntegerValue == pid; }
+                    try { return f.ParameterId != null && f.ParameterId.IntValue() == pid; }
                     catch { return false; }
                 });
                 if (sf != null) def.AddField(sf);
@@ -77,7 +77,8 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             }
             tx.Commit();
 
-            return new { ok = true, scheduleViewId = schedule.Id.IntegerValue, units = UnitHelper.DefaultUnitsMeta() };
+            return new { ok = true, scheduleViewId = schedule.Id.IntValue(), units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 }
+

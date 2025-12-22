@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/ChangeMassInstanceTypeCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/ChangeMassInstanceTypeCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
 
             if (!p.TryGetValue("elementId", out var elemTok))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
-            var elemId = new ElementId(elemTok.Value<int>());
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(elemTok.Value<int>());
             var element = doc.GetElement(elemId);
 
             if (!(element is FamilyInstance inst))
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
 
             if (!p.TryGetValue("newTypeId", out var typeTok))
                 throw new InvalidOperationException("Parameter 'newTypeId' is required.");
-            var newType = new ElementId(typeTok.Value<int>());
+            var newType = Autodesk.Revit.DB.ElementIdCompat.From(typeTok.Value<int>());
 
             using var tx = new Transaction(doc, "Change Mass Type");
             tx.Start();
@@ -37,3 +37,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
         }
     }
 }
+

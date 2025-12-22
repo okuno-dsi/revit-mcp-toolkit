@@ -48,7 +48,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             int viewId = p.Value<int?>("viewId") ?? 0;
             string? uniqueId = p.Value<string>("uniqueId");
             View? view = null;
-            if (viewId > 0) view = doc.GetElement(new ElementId(viewId)) as View;
+            if (viewId > 0) view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             else if (!string.IsNullOrWhiteSpace(uniqueId)) view = doc.GetElement(uniqueId) as View;
             else view = uidoc?.ActiveView;
             if (view == null) return new { ok = false, msg = "ビューが見つかりません。viewId または uniqueId を指定してください。" };
@@ -172,11 +172,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                         }
 
                         // Category filters
-                        if (includeCatIds != null && cat != null && !includeCatIds.Contains(cat.Id.IntegerValue))
+                        if (includeCatIds != null && cat != null && !includeCatIds.Contains(cat.Id.IntValue()))
                         {
                             if (!invertMatch) { toHideBatch.Add(e.Id); continue; } else { continue; }
                         }
-                        if (excludeCatIds != null && cat != null && excludeCatIds.Contains(cat.Id.IntegerValue))
+                        if (excludeCatIds != null && cat != null && excludeCatIds.Contains(cat.Id.IntValue()))
                         {
                             if (!invertMatch) { toHideBatch.Add(e.Id); continue; } else { continue; }
                         }
@@ -245,7 +245,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     kept,
                     hidden,
                     total = allIds.Count,
@@ -268,7 +268,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 = new System.Collections.Generic.Dictionary<string, System.WeakReference<System.Collections.Generic.List<ElementId>>>();
 
             private static string Key(Document doc, View view)
-                => doc.GetHashCode().ToString() + ":" + (view?.Id.IntegerValue ?? 0).ToString();
+                => doc.GetHashCode().ToString() + ":" + (view?.Id.IntValue() ?? 0).ToString();
 
             public static System.Collections.Generic.List<ElementId> GetOrBuild(Document doc, View view)
             {
@@ -402,7 +402,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     case StorageType.Integer: return (p.AsInteger().ToString(), (double)p.AsInteger());
                     case StorageType.Double: return (p.AsValueString() ?? string.Empty, p.AsDouble());
                     case StorageType.ElementId:
-                        var id = p.AsElementId(); return ((id != null && id != ElementId.InvalidElementId) ? id.IntegerValue.ToString() : string.Empty, (double?)((id != null && id != ElementId.InvalidElementId) ? id.IntegerValue : (int?)null));
+                        var id = p.AsElementId(); return ((id != null && id != ElementId.InvalidElementId) ? id.IntValue().ToString() : string.Empty, (double?)((id != null && id != ElementId.InvalidElementId) ? id.IntValue() : (int?)null));
                     default: return (p.AsValueString() ?? string.Empty, null);
                 }
             }
@@ -507,7 +507,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         if (includeCatNames.Contains(c?.Name ?? string.Empty))
                         {
                             includeCatIds ??= new HashSet<int>();
-                            includeCatIds.Add(c.Id.IntegerValue);
+                            includeCatIds.Add(c.Id.IntValue());
                         }
                     }
                 }
@@ -518,7 +518,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         if (excludeCatNames.Contains(c?.Name ?? string.Empty))
                         {
                             excludeCatIds ??= new HashSet<int>();
-                            excludeCatIds.Add(c.Id.IntegerValue);
+                            excludeCatIds.Add(c.Id.IntValue());
                         }
                     }
                 }
@@ -556,3 +556,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

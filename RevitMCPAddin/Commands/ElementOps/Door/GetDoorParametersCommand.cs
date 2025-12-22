@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/GetDoorParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/GetDoorParametersCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             var el = DoorUtil.ResolveElement(doc, p);
             var door = el as FamilyInstance;
-            if (door == null || door.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Doors)
+            if (door == null || door.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Doors)
                 return new { ok = false, msg = "ドア要素が見つかりません（elementId/uniqueId）。" };
 
             int legacySkip = p.Value<int?>("skip") ?? 0;
@@ -34,16 +34,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
 
             var ordered = (door.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
-            if (summaryOnly || legacyCount == 0 || limit == 0) return new { ok = true, elementId = door.Id.IntegerValue, uniqueId = door.UniqueId, totalCount, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
+            if (summaryOnly || legacyCount == 0 || limit == 0) return new { ok = true, elementId = door.Id.IntValue(), uniqueId = door.UniqueId, totalCount, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
 
             if (namesOnly)
             {
                 var names = ordered.Skip(skip).Take(limit).Select(pa => pa?.Definition?.Name ?? "").ToList();
-                return new { ok = true, elementId = door.Id.IntegerValue, uniqueId = door.UniqueId, totalCount, names, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
+                return new { ok = true, elementId = door.Id.IntValue(), uniqueId = door.UniqueId, totalCount, names, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
             }
 
             var page = ordered.Skip(skip).Take(limit);
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                         case StorageType.Double: val = DoorUtil.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -77,7 +77,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 });
             }
 
-            return new { ok = true, elementId = door.Id.IntegerValue, uniqueId = door.UniqueId, totalCount, parameters = list, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
+            return new { ok = true, elementId = door.Id.IntValue(), uniqueId = door.UniqueId, totalCount, parameters = list, inputUnits = DoorUtil.UnitsIn(), internalUnits = DoorUtil.UnitsInt() };
         }
     }
 }
+

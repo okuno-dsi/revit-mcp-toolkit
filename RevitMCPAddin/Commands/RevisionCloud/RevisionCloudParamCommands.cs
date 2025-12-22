@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/RevisionCloud/RevisionCloudParamCommands.cs
 // Purpose: リビジョンクラウドのインスタンスパラメータ取得・設定
 // Target : .NET Framework 4.8 / C# 8 / Revit 2023 API
@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             var p = (JObject)cmd.Params;
             int elemId = p.Value<int>("elementId");
 
-            var cloud = doc.GetElement(new ElementId(elemId)) as Autodesk.Revit.DB.RevisionCloud;
+            var cloud = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elemId)) as Autodesk.Revit.DB.RevisionCloud;
             if (cloud == null) return new { ok = false, msg = $"RevisionCloud not found: {elemId}" };
 
             var list = new List<object>();
@@ -56,14 +56,14 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         val = param.AsInteger();
                         break;
                     case StorageType.ElementId:
-                        val = param.AsElementId().IntegerValue;
+                        val = param.AsElementId().IntValue();
                         break;
                 }
 
                 list.Add(new
                 {
                     name = param.Definition?.Name,
-                    id = param.Id.IntegerValue,
+                    id = param.Id.IntValue(),
                     storageType = param.StorageType.ToString(),
                     isReadOnly = param.IsReadOnly,
                     value = val
@@ -99,7 +99,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             if (string.IsNullOrEmpty(paramName) && p["builtInName"] == null && p["builtInId"] == null && p["guid"] == null) return new { ok = false, msg = "paramName または builtInName/builtInId/guid は必須です。" };
             if (valTok == null) return new { ok = false, msg = "value は必須です。" };
 
-            var cloud = doc.GetElement(new ElementId(elemId)) as Autodesk.Revit.DB.RevisionCloud;
+            var cloud = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elemId)) as Autodesk.Revit.DB.RevisionCloud;
             if (cloud == null) return new { ok = false, msg = $"RevisionCloud not found: {elemId}" };
 
             var param = ParamResolver.ResolveByPayload(cloud, p, out var resolvedBy);
@@ -123,7 +123,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                             param.Set(RcParamUnits.MmToFt(valTok.Value<double>()));
                             break;
                         case StorageType.ElementId:
-                            param.Set(new ElementId(valTok.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valTok.Value<int>()));
                             break;
                         default:
                             tx.RollBack();
@@ -141,3 +141,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

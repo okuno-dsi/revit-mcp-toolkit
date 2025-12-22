@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/DeleteSpaceCommand.cs (UnitHelper統一：※単位変換なし)
 // ================================================================
 using Autodesk.Revit.DB;
@@ -20,10 +20,11 @@ namespace RevitMCPAddin.Commands.Space
 
             using var tx = new Transaction(doc, "Delete Space");
             tx.Start();
-            doc.Delete(new ElementId(p.Value<int>("elementId")));
+            doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             tx.Commit();
 
             return new { ok = true };
         }
     }
 }
+

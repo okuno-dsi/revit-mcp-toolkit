@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/ApplyTransformDeltaCommand.cs
 // Purpose: Apply translation / rotation-only delta to a single element
 //          (no shape change). Designed for Rhino↔Revit workflow.
@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (p.TryGetValue("uniqueId", out var jUid) && !string.IsNullOrWhiteSpace(jUid?.ToString()))
                 elem = doc.GetElement(jUid.ToString());
             else if (p.TryGetValue("elementId", out var jId) && int.TryParse(jId.ToString(), out var idInt))
-                elem = doc.GetElement(new ElementId(idInt));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idInt));
 
             if (elem == null) return new { ok = false, code = "NOT_FOUND", msg = "Element not found." };
 
@@ -188,3 +188,4 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+

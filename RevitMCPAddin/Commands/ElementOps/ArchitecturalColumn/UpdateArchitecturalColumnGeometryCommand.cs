@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/UpdateArchitecturalColumnGeometryCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/UpdateArchitecturalColumnGeometryCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -17,7 +17,7 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
             var p = (JObject)cmd.Params;
             int id = p.Value<int>("elementId");
 
-            var fi = doc.GetElement(new ElementId(id)) as FamilyInstance
+            var fi = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilyInstance
                      ?? throw new InvalidOperationException($"要素が見つかりません: {id}");
             var loc = fi.Location as LocationCurve
                       ?? throw new InvalidOperationException("LocationCurve を持たない要素です");
@@ -36,3 +36,4 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
         }
     }
 }
+

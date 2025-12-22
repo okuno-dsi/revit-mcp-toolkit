@@ -43,7 +43,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 int? viewId = p.Value<int?>("viewId");
                 if (viewId.HasValue && viewId.Value > 0)
                 {
-                    view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                 }
             }
             catch
@@ -182,7 +182,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             {
                 if (e == null) continue;
 
-                int eid = e.Id.IntegerValue;
+                int eid = e.Id.IntValue();
                 if (elementFilterIds != null && !elementFilterIds.Contains(eid))
                 {
                     continue;
@@ -193,7 +193,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 {
                     var lid = e.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId)
-                        levelId = lid.IntegerValue;
+                        levelId = lid.IntValue();
                 }
                 catch
                 {
@@ -264,7 +264,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     var tid = e.GetTypeId();
                     if (tid != null && tid != ElementId.InvalidElementId)
                     {
-                        typeId = tid.IntegerValue;
+                        typeId = tid.IntValue();
                         var t = doc.GetElement(tid) as ElementType;
                         if (t != null) typeName = t.Name ?? "";
                     }
@@ -459,4 +459,6 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
         }
     }
 }
+
+
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -23,9 +23,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
 
                 PaintHelper.ApplyPaint(
                     doc,
-                    new ElementId(elementId),
+                    Autodesk.Revit.DB.ElementIdCompat.From(elementId),
                     faceIndex,
-                    new ElementId(materialId)
+                    Autodesk.Revit.DB.ElementIdCompat.From(materialId)
                 );
 
                 return new
@@ -42,3 +42,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
         }
     }
 }
+

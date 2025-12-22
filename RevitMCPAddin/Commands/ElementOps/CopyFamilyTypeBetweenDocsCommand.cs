@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/CopyFamilyTypeBetweenDocsCommand.cs  (UnitHelper対応: 参照のみ)
 // Revit 2023+ / .NET Framework 4.8
 // 概要:
@@ -83,7 +83,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         case "id":
                             {
                                 var id = (int)sel["elementId"];
-                                var et = srcDoc.GetElement(new ElementId(id)) as ElementType;
+                                var et = srcDoc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ElementType;
                                 if (et == null) { items.Add(MakeItem(null, null, "failed", $"ElementId {id} is not ElementType in source.")); }
                                 else
                                 {
@@ -294,7 +294,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             // 数値指定（BuiltInCategoryの整数IDなど）にも緩く対応
             if (int.TryParse(nameOrId, out var idInt))
-                return cat.Id.IntegerValue == idInt;
+                return cat.Id.IntValue() == idInt;
 
             return string.Equals(cat.Name, nameOrId, StringComparison.OrdinalIgnoreCase);
         }
@@ -305,12 +305,12 @@ namespace RevitMCPAddin.Commands.ElementOps
             return new JObject
             {
                 ["doc"] = doc?.Title,
-                ["id"] = et.Id?.IntegerValue,
+                ["id"] = et.Id?.IntValue(),
                 ["uniqueId"] = et.UniqueId,
                 ["name"] = et.Name,
                 ["family"] = et.FamilyName,
                 ["category"] = et.Category?.Name,
-                ["categoryId"] = et.Category?.Id?.IntegerValue
+                ["categoryId"] = et.Category?.Id?.IntValue()
             };
         }
 
@@ -364,4 +364,6 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+
 

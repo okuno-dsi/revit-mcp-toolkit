@@ -89,7 +89,7 @@ namespace RevitMCPAddin.Commands.Spatial
                             lv = lid != null ? (doc.GetElement(lid) as Level)?.Name ?? string.Empty : string.Empty;
                         }
                         catch { }
-                        list.Add(new { elementId = e.Id.IntegerValue, category = cat, level = lv, distanceMm = Math.Round(d, 3) });
+                        list.Add(new { elementId = e.Id.IntValue(), category = cat, level = lv, distanceMm = Math.Round(d, 3) });
                     }
                 }
                 catch { }
@@ -113,4 +113,5 @@ namespace RevitMCPAddin.Commands.Spatial
         }
     }
 }
+
 

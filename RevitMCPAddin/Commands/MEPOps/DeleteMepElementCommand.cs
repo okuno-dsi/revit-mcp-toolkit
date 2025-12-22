@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/DeleteMepElementCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/MEPOps/DeleteMepElementCommand.cs (UnitHelper対応)
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -16,7 +16,7 @@ namespace RevitMCPAddin.Commands.MEPOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
             int elementId = p.Value<int>("elementId");
-            var id = new ElementId(elementId);
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(elementId);
 
             using var tx = new Transaction(doc, "Delete MEP Element");
             tx.Start();
@@ -39,3 +39,4 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+

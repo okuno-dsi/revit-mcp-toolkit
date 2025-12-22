@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/MoveCeilingCommand.cs  (UnitHelper化)
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/MoveCeilingCommand.cs  (UnitHelper化)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            var id = new ElementId(p.Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             double dx = UnitHelper.MmToInternalLength(p.Value<double>("dx"));
             double dy = UnitHelper.MmToInternalLength(p.Value<double>("dy"));
             double dz = UnitHelper.MmToInternalLength(p.Value<double>("dz"));
@@ -29,3 +29,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+

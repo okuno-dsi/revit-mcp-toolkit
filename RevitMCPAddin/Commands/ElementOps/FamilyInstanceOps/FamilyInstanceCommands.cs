@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             var cat = e.Category;
             if (cat == null) return false;
 
-            bool idOk = !hasId || catIds.Contains(cat.Id.IntegerValue);
+            bool idOk = !hasId || catIds.Contains(cat.Id.IntValue());
             bool nameOk = !hasName || catNames.Contains(cat.Name, StringComparer.OrdinalIgnoreCase);
 
             if (hasId && hasName) return idOk || nameOk;   // OR 許容
@@ -113,7 +113,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             // typeId 優先
             if (p.TryGetValue("typeId", out var tidTok))
             {
-                var sym = doc.GetElement(new ElementId(tidTok.Value<int>())) as FamilySymbol;
+                var sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tidTok.Value<int>())) as FamilySymbol;
                 if (sym != null && sym.Family != null && !sym.Family.IsInPlace) return sym;
             }
 
@@ -133,7 +133,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                     .Where(s => s.Family != null && !s.Family.IsInPlace);
 
                 if (catId.HasValue)
-                    q = q.Where(s => s.Category != null && s.Category.Id.IntegerValue == catId.Value);
+                    q = q.Where(s => s.Category != null && s.Category.Id.IntValue() == catId.Value);
                 else if (!string.IsNullOrWhiteSpace(catName))
                     q = q.Where(s => s.Category != null && string.Equals(s.Category.Name, catName, StringComparison.OrdinalIgnoreCase));
 
@@ -148,7 +148,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
         {
             if (p.TryGetValue("levelId", out var lidTok))
             {
-                var lvl = doc.GetElement(new ElementId(lidTok.Value<int>())) as Level;
+                var lvl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lidTok.Value<int>())) as Level;
                 if (lvl != null) return lvl;
             }
             if (p.TryGetValue("levelName", out var lnameTok))
@@ -166,7 +166,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -216,7 +216,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 FamilyInstance target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as FamilyInstance;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance;
                 else target = doc.GetElement(targetUid) as FamilyInstance;
                 if (target != null && FamUtil.IsLoadableFamilyInstance(target) && FamUtil.CategoryMatches(target, catIds, catNames))
                     q = new[] { target };
@@ -237,7 +237,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
 
             var ordered = q
                 .Select(fi => new { fi, cat = fi.Category?.Name ?? "", tName = fi.Symbol?.Name ?? "" })
-                .OrderBy(x => x.cat).ThenBy(x => x.tName).ThenBy(x => x.fi.Id.IntegerValue)
+                .OrderBy(x => x.cat).ThenBy(x => x.tName).ThenBy(x => x.fi.Id.IntValue())
                 .Select(x => x.fi)
                 .ToList();
 
@@ -264,7 +264,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
 
             if (idsOnly)
             {
-                var ids = seq.Select(fi => fi.Id.IntegerValue).ToList();
+                var ids = seq.Select(fi => fi.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
             }
 
@@ -282,14 +282,14 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
 
                 return new
                 {
-                    elementId = fi.Id.IntegerValue,
+                    elementId = fi.Id.IntValue(),
                     uniqueId = fi.UniqueId,
-                    categoryId = fi.Category?.Id.IntegerValue,
+                    categoryId = fi.Category?.Id.IntValue(),
                     categoryName = fi.Category?.Name ?? "",
                     familyName = fi.Symbol?.Family?.Name ?? "",
-                    typeId = fi.Symbol?.Id.IntegerValue,
+                    typeId = fi.Symbol?.Id.IntValue(),
                     typeName = fi.Symbol?.Name ?? "",
-                    levelId = fi.LevelId?.IntegerValue,
+                    levelId = fi.LevelId?.IntValue(),
                     levelName = lvl?.Name ?? "",
                     location = new { x, y, z }
                 };
@@ -346,7 +346,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                                    || (s.Family?.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
 
             var ordered = all
-                .Select(s => new { s, fam = s.Family?.Name ?? "", cat = s.Category?.Name ?? "", name = s.Name ?? "", id = s.Id.IntegerValue })
+                .Select(s => new { s, fam = s.Family?.Name ?? "", cat = s.Category?.Name ?? "", name = s.Name ?? "", id = s.Id.IntValue() })
                 .OrderBy(x => x.cat).ThenBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.s)
                 .ToList();
@@ -366,17 +366,17 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             if (count > 0 && count != int.MaxValue) seq = seq.Take(count);
             if (idsOnly)
             {
-                var typeIds = seq.Select(s => s.Id.IntegerValue).ToList();
+                var typeIds = seq.Select(s => s.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
             }
 
             var page = seq.Select(s => new
             {
-                typeId = s.Id.IntegerValue,
+                typeId = s.Id.IntValue(),
                 uniqueId = s.UniqueId,
                 typeName = s.Name ?? "",
                 familyName = s.Family?.Name ?? "",
-                categoryId = s.Category?.Id.IntegerValue,
+                categoryId = s.Category?.Id.IntValue(),
                 categoryName = s.Category?.Name ?? ""
             }).ToList();
 
@@ -417,7 +417,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 // host 任意
                 Element host = null;
                 if (p.TryGetValue("hostId", out var hostTok))
-                    host = doc.GetElement(new ElementId(hostTok.Value<int>()));
+                    host = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(hostTok.Value<int>()));
                 else if (p.TryGetValue("hostUniqueId", out var hostUidTok))
                     host = doc.GetElement(hostUidTok.Value<string>());
 
@@ -445,9 +445,9 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
-                typeId = inst.Symbol?.Id.IntegerValue,
+                typeId = inst.Symbol?.Id.IntValue(),
                 inputUnits = FamUtil.UnitsIn(),
                 internalUnits = FamUtil.UnitsInt()
             };
@@ -481,7 +481,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 ElementTransformUtils.MoveElement(doc, el.Id, offset);
                 tx.Commit();
             }
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId, inputUnits = new { Length = "mm" }, internalUnits = new { Length = "ft" } };
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId, inputUnits = new { Length = "mm" }, internalUnits = new { Length = "ft" } };
         }
     }
 
@@ -500,15 +500,30 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             var el = FamUtil.ResolveElement(doc, p);
             if (el == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
+            // IMPORTANT: Do not touch 'el' after doc.Delete(el.Id). It becomes invalid and will throw InvalidObjectException.
+            // Capture identity up-front to keep this command safe under Ledger TransactionGroup (otherwise it rolls back).
+            var targetId = el.Id;
+            int elementId = targetId.IntValue();
+            string uniqueId = null;
+            try { uniqueId = el.UniqueId; } catch { uniqueId = null; }
+
             ICollection<ElementId> deleted = null;
             using (var tx = new Transaction(doc, "Delete Family Instance"))
             {
-                tx.Start();
-                deleted = doc.Delete(el.Id);
-                tx.Commit();
+                try
+                {
+                    tx.Start();
+                    deleted = doc.Delete(targetId);
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    try { tx.RollBack(); } catch { }
+                    return new { ok = false, elementId, uniqueId = uniqueId ?? string.Empty, msg = "削除に失敗しました: " + ex.Message };
+                }
             }
-            var ids = deleted?.Select(x => x.IntegerValue).ToList() ?? new List<int>();
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId, deletedCount = ids.Count, deletedElementIds = ids };
+            var ids = deleted?.Select(x => x.IntValue()).ToList() ?? new List<int>();
+            return new { ok = true, elementId, uniqueId = uniqueId ?? string.Empty, deletedCount = ids.Count, deletedElementIds = ids };
         }
     }
 
@@ -533,18 +548,18 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (fi.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
 
             if (count == 0)
-                return new { ok = true, elementId = fi.Id.IntegerValue, uniqueId = fi.UniqueId, totalCount, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+                return new { ok = true, elementId = fi.Id.IntValue(), uniqueId = fi.UniqueId, totalCount, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
 
             if (namesOnly)
             {
                 var names = ordered.Skip(skip).Take(count).Select(pa => pa?.Definition?.Name ?? "").ToList();
-                return new { ok = true, elementId = fi.Id.IntegerValue, uniqueId = fi.UniqueId, totalCount, names, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+                return new { ok = true, elementId = fi.Id.IntValue(), uniqueId = fi.UniqueId, totalCount, names, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
             }
 
             var page = ordered.Skip(skip).Take(count);
@@ -562,7 +577,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                         case StorageType.Double: val = FamUtil.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -578,7 +593,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -587,7 +602,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 });
             }
 
-            return new { ok = true, elementId = fi.Id.IntegerValue, uniqueId = fi.UniqueId, totalCount, parameters = list, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+            return new { ok = true, elementId = fi.Id.IntValue(), uniqueId = fi.UniqueId, totalCount, parameters = list, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
         }
     }
 
@@ -657,7 +672,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                             prm.Set(vtok.Value<string>() ?? string.Empty);
                             break;
                         case StorageType.ElementId:
-                            prm.Set(new ElementId(vtok.Value<int>()));
+                            prm.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>()));
                             break;
                         default:
                             tx.RollBack();
@@ -675,7 +690,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                         catch (Exception ex)
                         {
                             // 位置移動に失敗してもパラメータ更新自体は成功させる
-                            RevitMCPAddin.Core.RevitLogger.Warn($"update_family_instance_parameter: move by offset failed for element {fi.Id.IntegerValue}: {ex.Message}");
+                            RevitMCPAddin.Core.RevitLogger.Warn($"update_family_instance_parameter: move by offset failed for element {fi.Id.IntValue()}: {ex.Message}");
                         }
                     }
 
@@ -687,7 +702,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                     return new { ok = false, msg = ex.Message };
                 }
             }
-            return new { ok = true, elementId = fi.Id.IntegerValue, uniqueId = fi.UniqueId };
+            return new { ok = true, elementId = fi.Id.IntValue(), uniqueId = fi.UniqueId };
         }
     }
 
@@ -705,7 +720,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
 
             FamilySymbol sym = null;
             int typeId = p.Value<int?>("typeId") ?? 0;
-            if (typeId > 0) sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            if (typeId > 0) sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             else
             {
                 string typeName = p.Value<string>("typeName");
@@ -715,7 +730,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 {
                     var q = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).WhereElementIsElementType()
                         .Cast<FamilySymbol>().Where(FamUtil.IsLoadableFamilyInstance);
-                    if (categoryId.HasValue) q = q.Where(s => s.Category?.Id.IntegerValue == categoryId.Value);
+                    if (categoryId.HasValue) q = q.Where(s => s.Category?.Id.IntValue() == categoryId.Value);
                     else if (!string.IsNullOrWhiteSpace(categoryName)) q = q.Where(s => string.Equals(s.Category?.Name ?? "", categoryName, StringComparison.OrdinalIgnoreCase));
                     sym = q.FirstOrDefault(s => string.Equals(s.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
                 }
@@ -727,18 +742,18 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (sym.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
 
             if (count == 0)
-                return new { ok = true, typeId = sym.Id.IntegerValue, uniqueId = sym.UniqueId, totalCount, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+                return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId, totalCount, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
 
             if (namesOnly)
             {
                 var names = ordered.Skip(skip).Take(count).Select(pa => pa?.Definition?.Name ?? "").ToList();
-                return new { ok = true, typeId = sym.Id.IntegerValue, uniqueId = sym.UniqueId, totalCount, names, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+                return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId, totalCount, names, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
             }
 
             var page = ordered.Skip(skip).Take(count);
@@ -756,7 +771,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                         case StorageType.Double: val = FamUtil.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -773,7 +788,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -782,7 +797,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 });
             }
 
-            return new { ok = true, typeId = sym.Id.IntegerValue, uniqueId = sym.UniqueId, totalCount, parameters = list, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
+            return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId, totalCount, parameters = list, inputUnits = FamUtil.UnitsIn(), internalUnits = FamUtil.UnitsInt() };
         }
     }
 
@@ -800,7 +815,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
 
             FamilySymbol sym = null;
             int typeId = p.Value<int?>("typeId") ?? 0;
-            if (typeId > 0) sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            if (typeId > 0) sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             else
             {
                 string typeName = p.Value<string>("typeName");
@@ -810,7 +825,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 {
                     var q = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).WhereElementIsElementType()
                         .Cast<FamilySymbol>().Where(FamUtil.IsLoadableFamilyInstance);
-                    if (categoryId.HasValue) q = q.Where(s => s.Category?.Id.IntegerValue == categoryId.Value);
+                    if (categoryId.HasValue) q = q.Where(s => s.Category?.Id.IntValue() == categoryId.Value);
                     else if (!string.IsNullOrWhiteSpace(categoryName)) q = q.Where(s => string.Equals(s.Category?.Name ?? "", categoryName, StringComparison.OrdinalIgnoreCase));
                     sym = q.FirstOrDefault(s => string.Equals(s.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
                 }
@@ -841,7 +856,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                             }
                         case StorageType.Integer: prm.Set(vtok.Value<int>()); break;
                         case StorageType.String: prm.Set(vtok.Value<string>() ?? string.Empty); break;
-                        case StorageType.ElementId: prm.Set(new ElementId(vtok.Value<int>())); break;
+                        case StorageType.ElementId: prm.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>())); break;
                         default: tx.RollBack(); return new { ok = false, msg = $"Unsupported StorageType: {prm.StorageType}" };
                     }
                     tx.Commit();
@@ -852,7 +867,9 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                     return new { ok = false, msg = ex.Message };
                 }
             }
-            return new { ok = true, typeId = sym.Id.IntegerValue, uniqueId = sym.UniqueId };
+            return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId };
         }
     }
 }
+
+

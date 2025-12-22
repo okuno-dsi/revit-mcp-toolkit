@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.Spatial
             int maxMillis = p.Value<int?>("maxMillis") ?? 0;
             bool emitFactorsOnly = p.Value<bool?>("emitFactorsOnly") ?? false;
 
-            var room = doc.GetElement(new ElementId(roomId.Value)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId.Value)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return ResultUtil.Err("Room not found.");
 
             string roomName = Safe(room.Name);
@@ -53,7 +53,7 @@ namespace RevitMCPAddin.Commands.Spatial
                 .OfClass(typeof(SpatialElement))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null &&
-                            e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Areas)
+                            e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Areas)
                 .Cast<SpatialElement>()
                 .OfType<Autodesk.Revit.DB.Area>()
                 .Where(a => a != null && a.LevelId == roomLevelId)
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.Spatial
                 .OfClass(typeof(SpatialElement))
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null &&
-                            e.Category.Id.IntegerValue == (int)BuiltInCategory.OST_MEPSpaces)
+                            e.Category.Id.IntValue() == (int)BuiltInCategory.OST_MEPSpaces)
                 .Cast<SpatialElement>()
                 .OfType<Autodesk.Revit.DB.Mechanical.Space>()
                 .Where(s => s != null && s.LevelId == roomLevelId)
@@ -131,11 +131,11 @@ namespace RevitMCPAddin.Commands.Spatial
             var result = new
             {
                 ok = true,
-                room = new { id = room.Id.IntegerValue, level = roomLevelName, name = roomName, number = roomNumber },
+                room = new { id = room.Id.IntValue(), level = roomLevelName, name = roomName, number = roomNumber },
                 area = areaMatch == null ? null : new
                 {
                     mode = areaMode,
-                    elementId = areaMatch.Id.IntegerValue,
+                    elementId = areaMatch.Id.IntValue(),
                     name = Safe(areaMatch.Name),
                     number = Safe(areaMatch.Number),
                     distanceMm = areaMode == "nearest_centroid" ? Math.Round(areaDist, 3) : (double?)null
@@ -143,7 +143,7 @@ namespace RevitMCPAddin.Commands.Spatial
                 space = spaceMatch == null ? null : new
                 {
                     mode = spaceMode,
-                    elementId = spaceMatch.Id.IntegerValue,
+                    elementId = spaceMatch.Id.IntValue(),
                     name = Safe(spaceMatch.Name),
                     number = Safe(spaceMatch.Number),
                     distanceMm = spaceMode == "nearest_centroid" ? Math.Round(spaceDist, 3) : (double?)null
@@ -304,3 +304,5 @@ namespace RevitMCPAddin.Commands.Spatial
     }
 }
  
+
+

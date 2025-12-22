@@ -41,7 +41,7 @@ namespace RevitMCPAddin.Commands.Room
                             ok = true,
                             wouldCreate = false,
                             reason = "ALREADY_HAS_ROOM",
-                            existingRoomId = r.Id.IntegerValue,
+                            existingRoomId = r.Id.IntValue(),
                             level = (doc.GetElement(r.LevelId) as Level)?.Name ?? string.Empty
                         };
                     }

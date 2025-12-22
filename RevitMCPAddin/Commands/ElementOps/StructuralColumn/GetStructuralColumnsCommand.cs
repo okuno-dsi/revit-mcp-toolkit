@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/StructuralColumn/GetStructuralColumnsCommand.cs
+// RevitMCPAddin/Commands/ElementOps/StructuralColumn/GetStructuralColumnsCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -43,27 +43,27 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 .ToList();
 
             // caches
-            var typeMap = all.Select(c => c.GetTypeId().IntegerValue)
-                             .Distinct().ToDictionary(id => id, id => doc.GetElement(new ElementId(id)) as FamilySymbol);
-            var levelMap = all.Select(c => c.LevelId.IntegerValue)
-                              .Distinct().ToDictionary(id => id, id => doc.GetElement(new ElementId(id)) as Level);
+            var typeMap = all.Select(c => c.GetTypeId().IntValue())
+                             .Distinct().ToDictionary(id => id, id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilySymbol);
+            var levelMap = all.Select(c => c.LevelId.IntValue())
+                              .Distinct().ToDictionary(id => id, id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level);
 
             IEnumerable<FamilyInstance> q = all;
 
             // single target
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
-                var target = targetEid > 0 ? doc.GetElement(new ElementId(targetEid)) as FamilyInstance
+                var target = targetEid > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance
                                            : doc.GetElement(targetUid) as FamilyInstance;
                 q = (target == null) ? Enumerable.Empty<FamilyInstance>() : new[] { target };
             }
 
             // filters（元実装どおり）
-            if (filterTypeId > 0) q = q.Where(c => c.GetTypeId().IntegerValue == filterTypeId);
+            if (filterTypeId > 0) q = q.Where(c => c.GetTypeId().IntValue() == filterTypeId);
             if (!string.IsNullOrWhiteSpace(filterTypeName))
                 q = q.Where(c =>
                 {
-                    typeMap.TryGetValue(c.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(c.GetTypeId().IntValue(), out var sym);
                     if (sym == null) return false;
                     var ok = string.Equals(sym.Name ?? "", filterTypeName, StringComparison.OrdinalIgnoreCase);
                     if (!ok) return false;
@@ -71,25 +71,25 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                         return string.Equals(sym.Family?.Name ?? "", filterFamilyName, StringComparison.OrdinalIgnoreCase);
                     return true;
                 });
-            if (filterLevelId > 0) q = q.Where(c => c.LevelId.IntegerValue == filterLevelId);
+            if (filterLevelId > 0) q = q.Where(c => c.LevelId.IntValue() == filterLevelId);
             if (!string.IsNullOrWhiteSpace(filterLevelName))
-                q = q.Where(c => { levelMap.TryGetValue(c.LevelId.IntegerValue, out var lv); return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase); });
+                q = q.Where(c => { levelMap.TryGetValue(c.LevelId.IntValue(), out var lv); return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase); });
             if (!string.IsNullOrWhiteSpace(nameContains))
                 q = q.Where(c =>
                 {
                     var instName = c.Name ?? "";
                     if (instName.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    typeMap.TryGetValue(c.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(c.GetTypeId().IntValue(), out var sym);
                     return (sym?.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
             if (pinned.HasValue) q = q.Where(c => c.Pinned == pinned.Value);
 
             var ordered = q.Select(c =>
             {
-                typeMap.TryGetValue(c.GetTypeId().IntegerValue, out var sym);
+                typeMap.TryGetValue(c.GetTypeId().IntValue(), out var sym);
                 return new { c, tName = sym?.Name ?? "" };
             })
-            .OrderBy(x => x.tName).ThenBy(x => x.c.Id.IntegerValue).Select(x => x.c).ToList();
+            .OrderBy(x => x.tName).ThenBy(x => x.c.Id.IntValue()).Select(x => x.c).ToList();
 
             int totalCount = ordered.Count;
 
@@ -102,7 +102,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 {
                     var n = c.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    typeMap.TryGetValue(c.GetTypeId().IntegerValue, out var sym);
+                    typeMap.TryGetValue(c.GetTypeId().IntValue(), out var sym);
                     return sym?.Name ?? "";
                 }).ToList();
                 return new { ok = true, totalCount, names, inputUnits = new { Length = "mm" }, internalUnits = new { Length = "ft" } };
@@ -122,8 +122,8 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     z = Math.Round(UnitHelper.FtToMm(xyz.Z), 3)
                 };
 
-                typeMap.TryGetValue(col.GetTypeId().IntegerValue, out var sym);
-                levelMap.TryGetValue(col.LevelId.IntegerValue, out var lv);
+                typeMap.TryGetValue(col.GetTypeId().IntValue(), out var sym);
+                levelMap.TryGetValue(col.LevelId.IntValue(), out var lv);
 
                 // withParameters: SI 正規化で返却
                 List<object> parameters = null;
@@ -136,12 +136,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
 
                 return new
                 {
-                    elementId = col.Id.IntegerValue,
+                    elementId = col.Id.IntValue(),
                     uniqueId = col.UniqueId,
-                    typeId = col.GetTypeId().IntegerValue,
+                    typeId = col.GetTypeId().IntValue(),
                     typeName = sym?.Name ?? "",
                     familyName = sym?.Family?.Name ?? "",
-                    levelId = col.LevelId.IntegerValue,
+                    levelId = col.LevelId.IntValue(),
                     levelName = lv?.Name ?? "",
                     location,
                     parameters
@@ -152,3 +152,5 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
         }
     }
 }
+
+

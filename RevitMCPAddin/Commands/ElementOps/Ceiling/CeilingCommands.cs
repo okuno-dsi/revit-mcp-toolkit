@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CeilingTypeCommands.cs
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/CeilingTypeCommands.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
 
             if (typeId > 0)
             {
-                var t = doc.GetElement(new ElementId(typeId)) as CeilingType;
+                var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as CeilingType;
                 return t;
             }
 
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
                     {
                         ok = true,
                         existed = true,
-                        newTypeId = existing.Id.IntegerValue,
+                        newTypeId = existing.Id.IntValue(),
                         newTypeName = existing.Name,
                         uniqueId = existing.UniqueId
                     };
@@ -140,7 +140,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             return new
             {
                 ok = true,
-                newTypeId = newCt.Id.IntegerValue,
+                newTypeId = newCt.Id.IntValue(),
                 newTypeName = newCt.Name,
                 uniqueId = newCt.UniqueId,
                 familyName = newCt.FamilyName ?? ""
@@ -188,11 +188,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
                 tx.Commit();
             }
 
-            var ids = deleted?.Select(x => x.IntegerValue).ToList() ?? new List<int>();
+            var ids = deleted?.Select(x => x.IntValue()).ToList() ?? new List<int>();
             return new
             {
                 ok = true,
-                typeId = ct.Id.IntegerValue,
+                typeId = ct.Id.IntValue(),
                 uniqueId = ct.UniqueId,
                 deletedCount = ids.Count,
                 deletedElementIds = ids
@@ -236,7 +236,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
                 q = q.Where(ct => (ct.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
             var ordered = q
-                .Select(ct => new { ct, fam = ct.FamilyName ?? "", name = ct.Name ?? "", id = ct.Id.IntegerValue })
+                .Select(ct => new { ct, fam = ct.FamilyName ?? "", name = ct.Name ?? "", id = ct.Id.IntValue() })
                 .OrderBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.ct)
                 .ToList();
@@ -255,7 +255,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             var list = ordered.Skip(skip).Take(count)
                 .Select(ct => new
                 {
-                    typeId = ct.Id.IntegerValue,
+                    typeId = ct.Id.IntValue(),
                     uniqueId = ct.UniqueId,
                     typeName = ct.Name ?? "",
                     familyName = ct.FamilyName ?? ""
@@ -266,3 +266,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+
+

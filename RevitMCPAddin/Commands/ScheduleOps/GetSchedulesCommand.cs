@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/GetSchedulesCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/GetSchedulesCommand.cs (UnitHelper対応)
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         .FirstOrDefault(c => c.Id == catId);
                     return new
                     {
-                        scheduleViewId = vs.Id.IntegerValue,
+                        scheduleViewId = vs.Id.IntValue(),
                         title = vs.Name,
                         categoryName = category?.Name ?? string.Empty
                     };
@@ -34,3 +34,4 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+

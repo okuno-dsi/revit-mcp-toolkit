@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (view == null)
             {
                 int sid = state.Value<int?>("viewId") ?? 0; // optional carry-over
-                view = sid > 0 ? (doc.GetElement(new ElementId(sid)) as View) : uidoc.ActiveView;
+                view = sid > 0 ? (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sid)) as View) : uidoc.ActiveView;
             }
             if (view == null) return new { ok = false, msg = "Target view not found." };
 
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     try
                     {
-                        var tmpl = doc.GetElement(new ElementId(templateViewId)) as View;
+                        var tmpl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(templateViewId)) as View;
                         if (tmpl != null && tmpl.IsTemplate)
                         {
                             view.ViewTemplateId = tmpl.Id;
@@ -93,7 +93,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         try
                         {
                             foreach (Category c in doc.Settings.Categories)
-                                if (c != null) byId[c.Id.IntegerValue] = c;
+                                if (c != null) byId[c.Id.IntValue()] = c;
                         }
                         catch { }
 
@@ -116,13 +116,13 @@ namespace RevitMCPAddin.Commands.ViewOps
                     if (filters != null)
                     {
                         var current = new HashSet<int>();
-                        try { foreach (var fid in view.GetFilters()) current.Add(fid.IntegerValue); } catch { }
+                        try { foreach (var fid in view.GetFilters()) current.Add(fid.IntValue()); } catch { }
                         foreach (var t in filters.OfType<JObject>())
                         {
                             int fid = t.Value<int?>("filterId") ?? 0;
                             bool visible = t.Value<bool?>("visible") ?? true;
                             if (fid <= 0 || !current.Contains(fid)) continue;
-                            try { view.SetFilterVisibility(new ElementId(fid), visible); changedFilters++; }
+                            try { view.SetFilterVisibility(Autodesk.Revit.DB.ElementIdCompat.From(fid), visible); changedFilters++; }
                             catch (Exception ex) { RevitLogger.Warn($"SetFilterVisibility failed: {fid}", ex); }
                         }
                     }
@@ -138,7 +138,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         try
                         {
                             var wsCol = new FilteredWorksetCollector(doc).OfKind(WorksetKind.UserWorkset);
-                            foreach (Workset ws in wsCol) wsById[ws.Id.IntegerValue] = ws;
+                            foreach (Workset ws in wsCol) wsById[ws.Id.IntValue()] = ws;
                         }
                         catch { }
                         foreach (var t in wsArr.OfType<JObject>())
@@ -161,7 +161,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     if (hid != null && hid.Count > 0)
                     {
                         var ids = new List<ElementId>();
-                        foreach (var v in hid) { try { ids.Add(new ElementId((int)v)); } catch { } }
+                        foreach (var v in hid) { try { ids.Add(Autodesk.Revit.DB.ElementIdCompat.From((int)v)); } catch { } }
                         // Batch to avoid overly long single calls
                         int batch = 1000;
                         for (int i = 0; i < ids.Count; i += batch)
@@ -183,9 +183,11 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 applied = new { templateApplied, changedCats, changedFilters, changedWorksets, hiddenCount }
             };
         }
     }
 }
+
+

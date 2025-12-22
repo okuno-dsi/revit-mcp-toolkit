@@ -56,7 +56,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 bool ensureUnique = naming.Value<bool?>("ensureUnique") ?? true;
 
                 View baseView = null;
-                if (sourceViewId > 0) baseView = doc.GetElement(new ElementId(sourceViewId)) as View;
+                if (sourceViewId > 0) baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceViewId)) as View;
                 else baseView = uidoc?.ActiveView;
                 if (baseView == null) return new { ok = false, msg = "対象ビューが見つかりません。" };
                 if (baseView is ViewSheet) return new { ok = false, msg = "シートビューは対象外です。" };
@@ -96,7 +96,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         var subParams = new JObject
                         {
-                            ["viewId"] = newView.Id.IntegerValue,
+                            ["viewId"] = newView.Id.IntValue(),
                             ["detachViewTemplate"] = false, // already detached
                             ["reset"] = true,
                             ["keepAnnotations"] = keepAnnotations,
@@ -132,7 +132,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                     created.Add(new
                     {
-                        viewId = newView.Id.IntegerValue,
+                        viewId = newView.Id.IntValue(),
                         name = newView.Name ?? string.Empty,
                         group = groupName
                     });
@@ -141,7 +141,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    baseViewId = baseView.Id.IntegerValue,
+                    baseViewId = baseView.Id.IntValue(),
                     created = created.Count,
                     views = created
                 };
@@ -184,4 +184,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

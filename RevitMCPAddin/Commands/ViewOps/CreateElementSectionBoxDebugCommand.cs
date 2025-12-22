@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             ? ((JObject)t).Value<int>("elementId")
                             : t.Value<int>();
                         if (id > 0)
-                            elementIds.Add(new ElementId(id));
+                            elementIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     }
                     catch { }
                 }
@@ -60,7 +60,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             elementIds = elementIds
                 .Where(id => id != null && id != ElementId.InvalidElementId)
-                .GroupBy(id => id.IntegerValue)
+                .GroupBy(id => id.IntValue())
                 .Select(g => g.First())
                 .ToList();
 
@@ -99,14 +99,14 @@ namespace RevitMCPAddin.Commands.ViewOps
                         var elem = doc.GetElement(eid);
                         if (elem == null)
                         {
-                            skipped.Add(new { elementId = eid.IntegerValue, reason = "要素が見つかりませんでした。" });
+                            skipped.Add(new { elementId = eid.IntValue(), reason = "要素が見つかりませんでした。" });
                             continue;
                         }
 
                         var bb = elem.get_BoundingBox(null);
                         if (bb == null)
                         {
-                            skipped.Add(new { elementId = eid.IntegerValue, reason = "BoundingBox を取得できませんでした。" });
+                            skipped.Add(new { elementId = eid.IntValue(), reason = "BoundingBox を取得できませんでした。" });
                             continue;
                         }
 
@@ -116,7 +116,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             skipped.Add(new
                             {
-                                elementId = eid.IntegerValue,
+                                elementId = eid.IntValue(),
                                 reason = "BoundingBox が極端に小さいため、SectionBox を生成しませんでした。"
                             });
                             continue;
@@ -218,7 +218,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             skipped.Add(new
                             {
-                                elementId = eid.IntegerValue,
+                                elementId = eid.IntValue(),
                                 reason = "ViewSection.CreateSection 例外: " + exCreate.GetType().Name +
                                          (string.IsNullOrEmpty(exCreate.Message) ? "" : " - " + exCreate.Message),
                                 debug = new
@@ -249,7 +249,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             skipped.Add(new
                             {
-                                elementId = eid.IntegerValue,
+                                elementId = eid.IntValue(),
                                 reason = "ViewSection.CreateSection が null を返しました。",
                                 debug = new
                                 {
@@ -280,7 +280,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         // デバッグ用に名前を分かりやすく
                         try
                         {
-                            string baseName = "DbgSection_" + eid.IntegerValue;
+                            string baseName = "DbgSection_" + eid.IntValue();
                             view.Name = MakeUniqueViewName(doc, baseName);
                         }
                         catch { }
@@ -288,8 +288,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         created.Add(new
                         {
                             ok = true,
-                            elementId = eid.IntegerValue,
-                            viewId = view.Id.IntegerValue,
+                            elementId = eid.IntValue(),
+                            viewId = view.Id.IntValue(),
                             viewName = view.Name,
                             worldBounds = new
                             {
@@ -314,7 +314,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         skipped.Add(new
                         {
-                            elementId = eid.IntegerValue,
+                            elementId = eid.IntValue(),
                             reason = exElem.GetType().Name +
                                      (string.IsNullOrEmpty(exElem.Message) ? "" : " - " + exElem.Message)
                         });
@@ -466,3 +466,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

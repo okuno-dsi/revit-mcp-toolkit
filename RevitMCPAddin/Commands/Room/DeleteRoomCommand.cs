@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/DeleteRoomCommand.cs  (UnitHelper対応不要)
 // Revit 2023 / .NET Framework 4.8
 // ================================================================
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.Room
             var p = (JObject)(cmd.Params ?? new JObject());
 
             int elementIdInt = p.Value<int>("elementId");
-            var elemId = new ElementId(elementIdInt);
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(elementIdInt);
 
             var room = doc.GetElement(elemId) as RevitRoom;
             if (room == null)

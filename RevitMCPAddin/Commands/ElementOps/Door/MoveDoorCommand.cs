@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/MoveDoorCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Door/MoveDoorCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var id = new ElementId(p.Value<int>("elementId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
 
             // mm → ft: UnitHelper へ統一
             double dx = UnitHelper.MmToFt(p.Value<double?>("dx") ?? 0.0);
@@ -32,3 +32,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+

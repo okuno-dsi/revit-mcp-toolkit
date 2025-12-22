@@ -225,7 +225,7 @@ namespace RevitMCPAddin.Core.Ledger
                 return false;
             }
 
-            dataStorageId = storage.Id.IntegerValue;
+            dataStorageId = storage.Id.IntValue();
             docKey = SafeGetString(entity, schema, F_ProjectToken);
             if (string.IsNullOrWhiteSpace(docKey))
             {
@@ -238,4 +238,5 @@ namespace RevitMCPAddin.Core.Ledger
         }
     }
 }
+
 

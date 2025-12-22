@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                     if (t.Type == JTokenType.Integer)
                     {
                         var v = t.Value<int>();
-                        if (v > 0) ids.Add(new ElementId(v));
+                        if (v > 0) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(v));
                     }
                 }
             }
@@ -43,7 +43,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 Element target = null;
                 var eid = p.Value<int?>("elementId") ?? 0;
                 var uid = p.Value<string>("uniqueId");
-                if (eid > 0) target = doc.GetElement(new ElementId(eid));
+                if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
 
                 if (target != null)
@@ -160,4 +160,5 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
         }
     }
 }
+
 

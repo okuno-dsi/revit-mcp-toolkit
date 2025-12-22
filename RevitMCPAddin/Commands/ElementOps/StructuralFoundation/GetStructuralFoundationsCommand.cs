@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/GetStructuralFoundationsCommand.cs (UnitHelper対応)
+// File: Commands/ElementOps/Foundation/GetStructuralFoundationsCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -44,27 +44,27 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 .ToElements()
                 .ToList();
 
-            var typeIds = all.Select(e => e.GetTypeId()?.IntegerValue ?? -1).Where(id => id > 0).Distinct().ToList();
-            var typeMap = typeIds.ToDictionary(id => id, id => doc.GetElement(new ElementId(id)) as ElementType);
+            var typeIds = all.Select(e => e.GetTypeId()?.IntValue() ?? -1).Where(id => id > 0).Distinct().ToList();
+            var typeMap = typeIds.ToDictionary(id => id, id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ElementType);
 
             var levelIds = new HashSet<int>();
             foreach (var e in all) { var lvId = TryGetLevelId(e); if (lvId.HasValue) levelIds.Add(lvId.Value); }
-            var levelMap = levelIds.ToDictionary(id => id, id => doc.GetElement(new ElementId(id)) as Level);
+            var levelMap = levelIds.ToDictionary(id => id, id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level);
 
             IEnumerable<Element> q = all;
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
-                var target = targetEid > 0 ? doc.GetElement(new ElementId(targetEid)) : doc.GetElement(targetUid);
+                var target = targetEid > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) : doc.GetElement(targetUid);
                 q = target == null ? Enumerable.Empty<Element>() : new[] { target };
             }
 
-            if (filterTypeId > 0) q = q.Where(e => (e.GetTypeId()?.IntegerValue ?? -1) == filterTypeId);
+            if (filterTypeId > 0) q = q.Where(e => (e.GetTypeId()?.IntValue() ?? -1) == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
             {
                 q = q.Where(e =>
                 {
-                    var tid = e.GetTypeId()?.IntegerValue ?? -1;
+                    var tid = e.GetTypeId()?.IntValue() ?? -1;
                     if (!typeMap.TryGetValue(tid, out var et) || et == null) return false;
                     bool ok = string.Equals(et.Name ?? "", filterTypeName, StringComparison.OrdinalIgnoreCase);
                     if (!ok) return false;
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 {
                     var n = e.Name ?? "";
                     if (n.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    var tid = e.GetTypeId()?.IntegerValue ?? -1;
+                    var tid = e.GetTypeId()?.IntValue() ?? -1;
                     var tn = typeMap.TryGetValue(tid, out var et) ? et?.Name ?? "" : "";
                     return tn.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 {
                     if (e is FamilyInstance fi && fi.Host != null)
                     {
-                        if (filterHostId > 0 && fi.Host.Id.IntegerValue != filterHostId) return false;
+                        if (filterHostId > 0 && fi.Host.Id.IntValue() != filterHostId) return false;
                         if (!string.IsNullOrWhiteSpace(filterHostUid) && !string.Equals(fi.Host.UniqueId, filterHostUid, StringComparison.OrdinalIgnoreCase)) return false;
                         return true;
                     }
@@ -106,7 +106,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                     {
                         var wid = wf.WallId;
                         if (wid == null || wid == ElementId.InvalidElementId) return false;
-                        if (filterHostId > 0 && wid.IntegerValue != filterHostId) return false;
+                        if (filterHostId > 0 && wid.IntValue() != filterHostId) return false;
                         if (!string.IsNullOrWhiteSpace(filterHostUid))
                         {
                             var hostWall = doc.GetElement(wid) as Autodesk.Revit.DB.Wall;
@@ -120,11 +120,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             var ordered = q.Select(e =>
             {
-                var tid = e.GetTypeId()?.IntegerValue ?? -1;
+                var tid = e.GetTypeId()?.IntValue() ?? -1;
                 typeMap.TryGetValue(tid, out var et);
                 return new { e, tName = et?.Name ?? "" };
             })
-            .OrderBy(x => x.tName).ThenBy(x => x.e.Id.IntegerValue).Select(x => x.e).ToList();
+            .OrderBy(x => x.tName).ThenBy(x => x.e.Id.IntValue()).Select(x => x.e).ToList();
 
             int totalCount = ordered.Count;
 
@@ -137,7 +137,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 {
                     var n = e.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    var tid = e.GetTypeId()?.IntegerValue ?? -1;
+                    var tid = e.GetTypeId()?.IntValue() ?? -1;
                     return typeMap.TryGetValue(tid, out var et) ? et?.Name ?? "" : "";
                 }).ToList();
 
@@ -148,7 +148,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             var foundations = page.Select(f =>
             {
-                var tid = f.GetTypeId()?.IntegerValue ?? -1;
+                var tid = f.GetTypeId()?.IntValue() ?? -1;
                 typeMap.TryGetValue(tid, out var et);
                 string typeName = et?.Name ?? "";
                 string familyName = et?.FamilyName ?? "";
@@ -159,13 +159,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 int? hostId = null; int? hostWallId = null;
                 if (f is FamilyInstance fi && fi.Host != null)
                 {
-                    hostId = fi.Host.Id.IntegerValue;
-                    if (fi.Host is Autodesk.Revit.DB.Wall hw) hostWallId = hw.Id.IntegerValue;
+                    hostId = fi.Host.Id.IntValue();
+                    if (fi.Host is Autodesk.Revit.DB.Wall hw) hostWallId = hw.Id.IntValue();
                 }
                 if (f is WallFoundation wf)
                 {
                     var wid = wf.WallId;
-                    if (wid != null && wid != ElementId.InvalidElementId) { hostId = wid.IntegerValue; hostWallId = wid.IntegerValue; }
+                    if (wid != null && wid != ElementId.InvalidElementId) { hostId = wid.IntValue(); hostWallId = wid.IntValue(); }
                 }
 
                 // 位置（内部→mm）: UnitHelper.ConvertDoubleBySpec を使用
@@ -192,7 +192,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
                 return new
                 {
-                    elementId = f.Id.IntegerValue,
+                    elementId = f.Id.IntValue(),
                     uniqueId = f.UniqueId,
                     typeId = (tid > 0) ? (int?)tid : null,
                     typeName,
@@ -213,8 +213,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         // レベルID推定
         private static int? TryGetLevelId(Element e)
         {
-            if (e is FamilyInstance fi) return fi.LevelId.IntegerValue;
-            if (e is Autodesk.Revit.DB.Floor fl) return fl.LevelId.IntegerValue;
+            if (e is FamilyInstance fi) return fi.LevelId.IntValue();
+            if (e is Autodesk.Revit.DB.Floor fl) return fl.LevelId.IntValue();
 
             var p = e.get_Parameter(BuiltInParameter.LEVEL_PARAM)
                  ?? e.get_Parameter(BuiltInParameter.SCHEDULE_LEVEL_PARAM)
@@ -224,9 +224,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             if (p != null && p.StorageType == StorageType.ElementId)
             {
                 var id = p.AsElementId();
-                if (id != null && id != ElementId.InvalidElementId) return id.IntegerValue;
+                if (id != null && id != ElementId.InvalidElementId) return id.IntValue();
             }
             return null;
         }
     }
 }
+
+

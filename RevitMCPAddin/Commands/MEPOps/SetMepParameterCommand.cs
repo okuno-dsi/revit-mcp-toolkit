@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/SetMepParameterCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/MEPOps/SetMepParameterCommand.cs (UnitHelper対応)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.MEPOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            var el = doc.GetElement(new ElementId(p.Value<int>("elementId")));
+            var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             if (el == null) return new { ok = false, msg = "Element not found." };
 
             string paramName = p.Value<string>("paramName");
@@ -41,3 +41,4 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+

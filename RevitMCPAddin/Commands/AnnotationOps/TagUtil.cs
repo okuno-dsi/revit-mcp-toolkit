@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int vid = p.Value<int?>("viewId") ?? 0;
             string vuid = p.Value<string>("viewUniqueId");
             View v = null;
-            if (vid > 0) v = doc.GetElement(new ElementId(vid)) as View;
+            if (vid > 0) v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
             else if (!string.IsNullOrWhiteSpace(vuid)) v = doc.GetElement(vuid) as View;
             return v;
         }
@@ -72,7 +72,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("hostElementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             FamilySymbol fs = null;
             if (typeId > 0)
             {
-                fs = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                fs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
@@ -117,3 +117,4 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Foundation/MoveStructuralFoundationCommand.cs (UnitHelper対応版)
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // ================================================================
@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             Element e = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) e = doc.GetElement(new ElementId(eid));
+            if (eid > 0) e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) e = doc.GetElement(uid);
             if (e == null) return ResultUtil.Err("要素が見つかりません（elementId/uniqueId）。");
 
@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             return new
             {
                 ok = true,
-                elementId = e.Id.IntegerValue,
+                elementId = e.Id.IntValue(),
                 uniqueId = e.UniqueId,
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
@@ -54,3 +54,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+
+

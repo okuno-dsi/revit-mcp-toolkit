@@ -25,11 +25,11 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (doc == null) return new { ok = false, msg = "No active document." };
 
             var p = (JObject)(cmd.Params ?? new JObject());
-            var view = doc.GetElement(new ElementId(p.Value<int>("viewId"))) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("viewId"))) as View;
             if (view == null) return new { ok = false, msg = "View not found." };
 
             Element tag = null;
-            if (p.TryGetValue("tagId", out var idTok)) tag = doc.GetElement(new ElementId(idTok.Value<int>()));
+            if (p.TryGetValue("tagId", out var idTok)) tag = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>()));
             else if (p.TryGetValue("uniqueId", out var uTok)) tag = doc.GetElement(uTok.Value<string>());
             if (tag == null) return new { ok = false, msg = "Tag not found (tagId/uniqueId)." };
 
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             return new
             {
                 ok = true,
-                tagId = it.Id.IntegerValue,
+                tagId = it.Id.IntValue(),
                 uniqueId = it.UniqueId,
                 widthMm = Math.Round(widthMm, 1),
                 heightMm = Math.Round(heightMm, 1),
@@ -73,4 +73,6 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+
 

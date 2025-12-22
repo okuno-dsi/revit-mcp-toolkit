@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     case StorageType.Double: value = ColumnUnits.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                     case StorageType.Integer: value = pa.AsInteger(); break;
                     case StorageType.String: value = pa.AsString() ?? string.Empty; break;
-                    case StorageType.ElementId: value = pa.AsElementId()?.IntegerValue ?? -1; break;
+                    case StorageType.ElementId: value = pa.AsElementId()?.IntValue() ?? -1; break;
                     default: value = null; break;
                 }
             }
@@ -66,7 +66,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             return new
             {
                 name = pa.Definition?.Name ?? "",
-                id = pa.Id.IntegerValue,
+                id = pa.Id.IntValue(),
                 storageType = pa.StorageType.ToString(),
                 isReadOnly = pa.IsReadOnly,
                 dataType,
@@ -92,7 +92,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             if (!(target is FamilyInstance fi)) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
 
@@ -114,7 +114,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             return new
             {
                 ok = true,
-                elementId = fi.Id.IntegerValue,
+                elementId = fi.Id.IntValue(),
                 uniqueId = fi.UniqueId,
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
@@ -138,7 +138,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             if (target == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
@@ -170,7 +170,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var col = target as FamilyInstance;
             if (col == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -194,7 +194,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = col.Id.IntegerValue, uniqueId = col.UniqueId };
+            return new { ok = true, elementId = col.Id.IntValue(), uniqueId = col.UniqueId };
         }
     }
 
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var inst = target as FamilyInstance;
             if (inst == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -236,7 +236,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     case StorageType.Double: value = ColumnUnits.ConvertDoubleBySpec(pa.AsDouble(), fdt); break;
                     case StorageType.Integer: value = pa.AsInteger(); break;
                     case StorageType.String: value = pa.AsString() ?? string.Empty; break;
-                    case StorageType.ElementId: value = pa.AsElementId()?.IntegerValue ?? -1; break;
+                    case StorageType.ElementId: value = pa.AsElementId()?.IntValue() ?? -1; break;
                 }
             }
             catch { value = null; }
@@ -244,10 +244,10 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
                 name = pa.Definition?.Name ?? "",
-                id = pa.Id.IntegerValue,
+                id = pa.Id.IntValue(),
                 storageType = pa.StorageType.ToString(),
                 isReadOnly = pa.IsReadOnly,
                 dataType,
@@ -274,7 +274,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var inst = target as FamilyInstance;
             if (inst == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -324,7 +324,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                         pa.Set(ConvertToInternalUnits(vtok.Value<double>(), UnitTypeId.Millimeters));
                         break;
                     case StorageType.ElementId:
-                        pa.Set(new ElementId(vtok.Value<int>()));
+                        pa.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>()));
                         break;
                     default:
                         tx.RollBack();
@@ -342,14 +342,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_column_parameter: move by offset failed for element {inst.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_column_parameter: move by offset failed for element {inst.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = inst.Id.IntegerValue, uniqueId = inst.UniqueId };
+            return new { ok = true, elementId = inst.Id.IntValue(), uniqueId = inst.UniqueId };
         }
     }
 
@@ -369,7 +369,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var inst = target as FamilyInstance;
             if (inst == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -379,7 +379,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (inst.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -390,7 +390,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 return new
                 {
                     ok = true,
-                    elementId = inst.Id.IntegerValue,
+                    elementId = inst.Id.IntValue(),
                     uniqueId = inst.UniqueId,
                     totalCount,
                     inputUnits = ColumnUnits.InputUnits(),
@@ -404,7 +404,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 return new
                 {
                     ok = true,
-                    elementId = inst.Id.IntegerValue,
+                    elementId = inst.Id.IntValue(),
                     uniqueId = inst.UniqueId,
                     totalCount,
                     names,
@@ -421,7 +421,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
                 totalCount,
                 parameters = list,
@@ -451,9 +451,9 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
 
             if (typeId > 0)
             {
-                sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
                 if (sym == null) return new { ok = false, msg = $"typeId={typeId} のタイプが見つかりません。" };
-                if (sym.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_StructuralColumns)
+                if (sym.Category?.Id.IntValue() != (int)BuiltInCategory.OST_StructuralColumns)
                     return new { ok = false, msg = "指定タイプは構造柱カテゴリではありません。" };
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
@@ -474,7 +474,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 Element instElm = null;
                 int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
                 string uid = p.Value<string>("uniqueId");
-                if (eid > 0) instElm = doc.GetElement(new ElementId(eid));
+                if (eid > 0) instElm = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 else if (!string.IsNullOrWhiteSpace(uid)) instElm = doc.GetElement(uid);
                 var inst = instElm as FamilyInstance;
                 if (inst == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -487,7 +487,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (sym.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -499,7 +499,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 {
                     ok = true,
                     scope = "type",
-                    typeId = sym.Id.IntegerValue,
+                    typeId = sym.Id.IntValue(),
                     uniqueId = sym.UniqueId,
                     totalCount,
                     inputUnits = ColumnUnits.InputUnits(),
@@ -514,7 +514,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 {
                     ok = true,
                     scope = "type",
-                    typeId = sym.Id.IntegerValue,
+                    typeId = sym.Id.IntValue(),
                     uniqueId = sym.UniqueId,
                     totalCount,
                     names,
@@ -532,7 +532,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             {
                 ok = true,
                 scope = "type",
-                typeId = sym.Id.IntegerValue,
+                typeId = sym.Id.IntValue(),
                 uniqueId = sym.UniqueId,
                 totalCount,
                 parameters = list,
@@ -558,7 +558,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element instElm = null;
             int eid = p.Value<int?>("elementId") ?? p.Value<int?>("columnId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) instElm = doc.GetElement(new ElementId(eid));
+            if (eid > 0) instElm = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) instElm = doc.GetElement(uid);
             var inst = instElm as FamilyInstance;
             if (inst == null) return new { ok = false, msg = "FamilyInstance（構造柱）が見つかりません。" };
@@ -568,7 +568,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             int typeId = p.Value<int?>("typeId") ?? 0;
             if (typeId > 0)
             {
-                newSym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                newSym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
                 if (newSym == null) return new { ok = false, msg = $"typeId={typeId} のタイプが見つかりません。" };
             }
             else
@@ -596,7 +596,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = inst.Id.IntegerValue, uniqueId = inst.UniqueId, typeId = inst.GetTypeId().IntegerValue };
+            return new { ok = true, elementId = inst.Id.IntValue(), uniqueId = inst.UniqueId, typeId = inst.GetTypeId().IntValue() };
         }
     }
 
@@ -638,7 +638,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             }
 
             if (filterFamilyId > 0)
-                q = q.Where(s => s.Family != null && s.Family.Id.IntegerValue == filterFamilyId);
+                q = q.Where(s => s.Family != null && s.Family.Id.IntValue() == filterFamilyId);
 
             if (!string.IsNullOrWhiteSpace(filterFamilyName))
                 q = q.Where(s => string.Equals(s.Family?.Name ?? "", filterFamilyName, StringComparison.OrdinalIgnoreCase));
@@ -651,7 +651,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 s,
                 famName = s.Family != null ? (s.Family.Name ?? "") : "",
                 typeName = s.Name ?? "",
-                typeId = s.Id.IntegerValue
+                typeId = s.Id.IntValue()
             })
             .OrderBy(x => x.famName)
             .ThenBy(x => x.typeName)
@@ -688,10 +688,10 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             var list = ordered.Skip(skip).Take(count)
                 .Select(s => new
                 {
-                    typeId = s.Id.IntegerValue,
+                    typeId = s.Id.IntValue(),
                     uniqueId = s.UniqueId,
                     typeName = s.Name ?? "",
-                    familyId = s.Family != null ? s.Family.Id.IntegerValue : (int?)null,
+                    familyId = s.Family != null ? s.Family.Id.IntValue() : (int?)null,
                     familyName = s.Family != null ? (s.Family.Name ?? "") : ""
                 }).ToList();
 
@@ -722,7 +722,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             Element target = null; string scope = "instance";
             if (p.TryGetValue("elementId", out var cid))
             {
-                target = doc.GetElement(new ElementId(cid.Value<int>()));
+                target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(cid.Value<int>()));
             }
             else if (p.TryGetValue("uniqueId", out var uidTok))
             {
@@ -730,7 +730,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             }
             else if (p.TryGetValue("typeId", out var tid))
             {
-                target = doc.GetElement(new ElementId(tid.Value<int>()));
+                target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>()));
                 scope = "type";
             }
             else if (!string.IsNullOrWhiteSpace(p.Value<string>("typeName")))
@@ -755,17 +755,17 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (target.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
 
-            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntegerValue : null;
+            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntValue() : null;
             int? typeIdOut = scope == "type"
-                ? target.Id.IntegerValue
+                ? target.Id.IntValue()
                 : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId
-                    ? (int?)target.GetTypeId().IntegerValue
+                    ? (int?)target.GetTypeId().IntValue()
                     : null);
 
             if (count == 0)
@@ -809,7 +809,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 defs.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     dataType,
                     isReadOnly = pa.IsReadOnly
@@ -831,3 +831,5 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
         }
     }
 }
+
+

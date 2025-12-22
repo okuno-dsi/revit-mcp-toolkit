@@ -30,9 +30,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var p = (JObject?)(cmd.Params ?? new JObject());
                 if (p == null) return new { ok = false, msg = "Missing params" };
 
-                var viewId = new ElementId(p.Value<int>("viewId"));
+                var viewId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("viewId"));
                 var view = doc.GetElement(viewId) as View;
-                if (view == null) return new { ok = false, msg = $"viewId={viewId.IntegerValue} not found" };
+                if (view == null) return new { ok = false, msg = $"viewId={viewId.IntValue()} not found" };
 
                 bool visible = p.Value<bool?>("visible") ?? true;
                 var catIds = new List<int>();
@@ -72,4 +72,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -20,7 +20,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             using (var tx = new Transaction(doc, "Delete Curtain Wall"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(id));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 tx.Commit();
             }
 
@@ -28,3 +28,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

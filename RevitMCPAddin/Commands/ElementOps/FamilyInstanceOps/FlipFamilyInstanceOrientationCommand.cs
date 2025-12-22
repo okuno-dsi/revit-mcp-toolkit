@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File : Commands/FamilyOps/FlipFamilyInstanceOrientationCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: FamilyInstance 全般の Hand/Facing 反転・ミラー・回転（dryRun対応）
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.FamilyOps
             Element elem = null;
             JToken vId, vUid;
             if (p.TryGetValue("elementId", out vId) && vId.Type == JTokenType.Integer)
-                elem = doc.GetElement(new ElementId(vId.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vId.Value<int>()));
             else if (p.TryGetValue("uniqueId", out vUid) && vUid.Type == JTokenType.String)
                 elem = doc.GetElement(vUid.Value<string>());
             if (elem == null) return Err("要素が見つかりません（elementId/uniqueId を確認）。");
@@ -103,7 +103,7 @@ namespace RevitMCPAddin.Commands.FamilyOps
                 return new
                 {
                     ok = true,
-                    elementId = fi.Id.IntegerValue,
+                    elementId = fi.Id.IntValue(),
                     applied = new { hand = "none", facing = "none", mirror = "none", rotateDeg = 0.0 },
                     before,
                     after = before,
@@ -198,7 +198,7 @@ namespace RevitMCPAddin.Commands.FamilyOps
             return new
             {
                 ok = true,
-                elementId = fi.Id.IntegerValue,
+                elementId = fi.Id.IntValue(),
                 applied,
                 before,
                 after = new { handFlipped = afterHand, facingFlipped = afterFacing, mirrored = afterMirrored, yawDeg = afterYawDeg },
@@ -263,3 +263,5 @@ namespace RevitMCPAddin.Commands.FamilyOps
         }
     }
 }
+
+

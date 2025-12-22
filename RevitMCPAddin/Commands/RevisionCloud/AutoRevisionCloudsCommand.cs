@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/RevisionCloud/AutoRevisionCloudsCommand.cs
 // Target: .NET Framework 4.8 / Revit 2023
 // Purpose:
@@ -69,13 +69,13 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             {
                 if (wanted.Any(w => string.Equals(cat.Name, w, StringComparison.OrdinalIgnoreCase))
                  || wanted.Any(w => cat.Name.IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0))
-                    set.Add((BuiltInCategory)cat.Id.IntegerValue);
+                    set.Add((BuiltInCategory)cat.Id.IntValue());
 
                 foreach (Category sub in cat.SubCategories)
                 {
                     if (wanted.Any(w => string.Equals(sub.Name, w, StringComparison.OrdinalIgnoreCase))
                      || wanted.Any(w => sub.Name.IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0))
-                        set.Add((BuiltInCategory)sub.Id.IntegerValue);
+                        set.Add((BuiltInCategory)sub.Id.IntValue());
                 }
             }
             return set;
@@ -243,16 +243,16 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 // ===== View =====
                 if (!p.TryGetValue("viewId", out var vTok))
                     return new { ok = false, msg = "viewId is required." };
-                var view = doc.GetElement(new ElementId(vTok.Value<int>())) as View;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vTok.Value<int>())) as View;
                 if (view == null) return new { ok = false, msg = $"View not found: {vTok.Value<int>()}" };
 
                 // ===== Revision resolve/create =====
                 ElementId revisionId = ElementId.InvalidElementId;
                 if (p.TryGetValue("revisionId", out var ridTok))
                 {
-                    revisionId = new ElementId(ridTok.Value<int>());
+                    revisionId = Autodesk.Revit.DB.ElementIdCompat.From(ridTok.Value<int>());
                     if (doc.GetElement(revisionId) as Autodesk.Revit.DB.Revision == null)
-                        return new { ok = false, msg = $"Revision not found: {revisionId.IntegerValue}" };
+                        return new { ok = false, msg = $"Revision not found: {revisionId.IntValue()}" };
                 }
                 else
                 {
@@ -322,7 +322,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     foreach (var e in col)
                     {
                         if (e.Category == null) continue;
-                        var bic = (BuiltInCategory)e.Category.Id.IntegerValue;
+                        var bic = (BuiltInCategory)e.Category.Id.IntValue();
                         if (excludeCats.Contains(bic)) continue;
                         if (includeCats.Count > 0 && !includeCats.Contains(bic)) continue;
                         targetIds.Add(e.Id);
@@ -342,8 +342,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     return new
                     {
                         ok = true,
-                        viewId = view.Id.IntegerValue,
-                        usedRevisionId = revisionId.IntegerValue,
+                        viewId = view.Id.IntValue(),
+                        usedRevisionId = revisionId.IntValue(),
                         summary = Summarize(items),
                         clouds = items,
                         skipped,
@@ -393,8 +393,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
-                    usedRevisionId = revisionId.IntegerValue,
+                    viewId = view.Id.IntValue(),
+                    usedRevisionId = revisionId.IntValue(),
                     summary = Summarize(cloudsOut),
                     clouds = cloudsOut,
                     skipped,
@@ -414,10 +414,10 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             foreach (var id in ids)
             {
                 var e = doc.GetElement(id);
-                if (e == null) { skipped.Add(new { elementId = id.IntegerValue, reason = "not found" }); continue; }
+                if (e == null) { skipped.Add(new { elementId = id.IntValue(), reason = "not found" }); continue; }
 
                 var bb = e.get_BoundingBox(view) ?? e.get_BoundingBox(null);
-                if (bb == null) { skipped.Add(new { elementId = id.IntegerValue, reason = "no bbox" }); continue; }
+                if (bb == null) { skipped.Add(new { elementId = id.IntValue(), reason = "no bbox" }); continue; }
 
                 var rect = RectFromBBoxMm(bb, view, padFt, minFt);
                 var label = new JObject
@@ -431,7 +431,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 {
                     ["reason"] = "target",
                     ["rect"] = rect,
-                    ["elementIds"] = outElemIds ? new JArray(id.IntegerValue) : null,
+                    ["elementIds"] = outElemIds ? new JArray(id.IntValue()) : null,
                     ["changeDetails"] = outDetails ? new JArray() : null,
                     ["_label"] = label
                 });
@@ -449,7 +449,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
 
                 foreach (var eid in g.ElementIds)
                 {
-                    var e = doc.GetElement(new ElementId(eid));
+                    var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                     if (e == null) { skipped.Add(new { elementId = eid, reason = "not found (maybe deleted)" }); continue; }
                     var bb = e.get_BoundingBox(view) ?? e.get_BoundingBox(null);
                     if (bb == null) { skipped.Add(new { elementId = eid, reason = "no bbox" }); continue; }
@@ -510,7 +510,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
 
             return new
             {
-                cloudId = rc.Id.IntegerValue,
+                cloudId = rc.Id.IntValue(),
                 mode = "each",
                 reason = item.Value<string>("reason"),
                 rect,
@@ -550,7 +550,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
 
             return new
             {
-                cloudId = rc.Id.IntegerValue,
+                cloudId = rc.Id.IntValue(),
                 mode = "merge",
                 reason = "merged",
                 rect = rectMm,
@@ -669,8 +669,10 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         private static IList<ElementId> ReadElementIds(JToken token)
         {
             var list = new List<ElementId>();
-            if (token is JArray arr) foreach (var t in arr) list.Add(new ElementId(t.Value<int>()));
+            if (token is JArray arr) foreach (var t in arr) list.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>()));
             return list;
         }
     }
 }
+
+

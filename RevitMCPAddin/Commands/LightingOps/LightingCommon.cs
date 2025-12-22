@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/LightingOps/LightingCommon.cs
 // ================================================================
 #nullable enable
@@ -23,15 +23,15 @@ namespace RevitMCPAddin.Commands.LightingOps
 
             if (viewId.HasValue)
             {
-                var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                 if (v != null)
                 {
                     var inView = new FilteredElementCollector(doc, v.Id)
                         .OfCategory(BuiltInCategory.OST_LightingFixtures)
                         .WhereElementIsNotElementType()
                         .ToElements();
-                    var set = new HashSet<int>(inView.Select(e => e.Id.IntegerValue));
-                    elems = baseCol.Where(e => set.Contains(e.Id.IntegerValue));
+                    var set = new HashSet<int>(inView.Select(e => e.Id.IntValue()));
+                    elems = baseCol.Where(e => set.Contains(e.Id.IntValue()));
                 }
             }
 
@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.LightingOps
             if (levelId.HasValue)
             {
                 fixtures = fixtures.Where(f => f.LevelId != ElementId.InvalidElementId &&
-                                               f.LevelId.IntegerValue == levelId.Value);
+                                               f.LevelId.IntValue() == levelId.Value);
             }
             return fixtures;
         }
@@ -102,3 +102,5 @@ namespace RevitMCPAddin.Commands.LightingOps
         }
     }
 }
+
+

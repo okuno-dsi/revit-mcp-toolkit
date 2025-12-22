@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/ModelLineCommands.cs
 // モデル線(Model Line) 一式: 一覧/作成(直線・円弧)/移動/回転/削除/線種変更
 // 仕様:
@@ -27,7 +27,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             if (p.TryGetValue("viewId", out var vtok))
             {
-                var v = doc.GetElement(new ElementId(vtok.Value<int>())) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>())) as View;
                 return v;
             }
             return null;
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         {
             if (p.TryGetValue("styleId", out var tid))
             {
-                var gs = doc.GetElement(new ElementId(tid.Value<int>())) as GraphicsStyle;
+                var gs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as GraphicsStyle;
                 if (gs != null) return gs;
             }
 
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 var p = (JObject)(cmd.Params ?? new JObject());
                 int viewId = p.Value<int>("viewId");
 
-                var view = doc.GetElement(new ElementId(viewId)) as View;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                 if (view == null) return new { ok = false, msg = "View not found: " + viewId };
 
                 // Shape / paging and filters
@@ -119,9 +119,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     .OfClass(typeof(CurveElement))
                     .Cast<CurveElement>()
                     .Where(ce => !ce.ViewSpecific)
-                    .Where(ce => ce.Category != null && ce.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Lines);
+                    .Where(ce => ce.Category != null && ce.Category.Id.IntValue() == (int)BuiltInCategory.OST_Lines);
 
-                if (typeIdsFilter.Count > 0) coll = coll.Where(ce => typeIdsFilter.Contains(ce.GetTypeId().IntegerValue));
+                if (typeIdsFilter.Count > 0) coll = coll.Where(ce => typeIdsFilter.Contains(ce.GetTypeId().IntValue()));
                 if (!string.IsNullOrWhiteSpace(styleNameContains)) coll = coll.Where(ce => (ce.LineStyle?.Name ?? string.Empty).IndexOf(styleNameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
                 var all = coll.ToList();
@@ -134,7 +134,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                 if (idsOnly)
                 {
-                    var ids = paged.Select(ce => ce.Id.IntegerValue).ToList();
+                    var ids = paged.Select(ce => ce.Id.IntValue()).ToList();
                     return new { ok = true, viewId, totalCount, elementIds = ids };
                 }
 
@@ -152,9 +152,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     }
                     return new
                     {
-                        elementId = ce.Id.IntegerValue,
+                        elementId = ce.Id.IntValue(),
                         curveKind = (c != null ? MLHelpers.CurveKind(c) : ""),
-                        styleId = style != null ? style.Id.IntegerValue : 0,
+                        styleId = style != null ? style.Id.IntValue() : 0,
                         styleName = style != null ? style.GraphicsStyleCategory?.Name ?? "" : "",
                         start,
                         end
@@ -203,7 +203,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     if (gs != null) ce.LineStyle = gs;
 
                     tx.Commit();
-                    return new { ok = true, elementId = ce.Id.IntegerValue };
+                    return new { ok = true, elementId = ce.Id.IntValue() };
                 }
             }
             catch (Exception ex)
@@ -271,7 +271,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     if (gs != null) ce.LineStyle = gs;
 
                     tx.Commit();
-                    return new { ok = true, elementId = ce.Id.IntegerValue };
+                    return new { ok = true, elementId = ce.Id.IntValue() };
                 }
             }
             catch (Exception ex)
@@ -302,7 +302,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 using (var tx = new Transaction(doc, "Move Model Line"))
                 {
                     tx.Start();
-                    ElementTransformUtils.MoveElement(doc, new ElementId(id), new XYZ(dx, dy, dz));
+                    ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id), new XYZ(dx, dy, dz));
                     tx.Commit();
                 }
                 return new { ok = true };
@@ -345,7 +345,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 using (var tx = new Transaction(doc, "Rotate Model Line"))
                 {
                     tx.Start();
-                    ElementTransformUtils.RotateElement(doc, new ElementId(id), rotAxis, angleRad);
+                    ElementTransformUtils.RotateElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id), rotAxis, angleRad);
                     tx.Commit();
                 }
                 return new { ok = true };
@@ -373,7 +373,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 using (var tx = new Transaction(doc, "Delete Model Line"))
                 {
                     tx.Start();
-                    doc.Delete(new ElementId(id));
+                    doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     tx.Commit();
                 }
                 return new { ok = true };
@@ -401,7 +401,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 using (var tx = new Transaction(doc, "Delete Model Lines"))
                 {
                     tx.Start();
-                    var deleted = doc.Delete(ids.Select(i => new ElementId(i)).ToList());
+                    var deleted = doc.Delete(ids.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList());
                     tx.Commit();
                     return new { ok = true, requested = ids.Count, deletedCount = deleted?.Count ?? 0 };
                 }
@@ -427,7 +427,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             try
             {
                 int elementId = p.Value<int>("elementId");
-                var ce = doc.GetElement(new ElementId(elementId)) as CurveElement;
+                var ce = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as CurveElement;
                 if (ce == null || ce.ViewSpecific)
                     return new { ok = false, msg = "Model Line not found (elementId) or it is a Detail Line." };
 
@@ -478,7 +478,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     tx.Start();
                     foreach (var eid in ids)
                     {
-                        var ce = doc.GetElement(new ElementId(eid)) as CurveElement;
+                        var ce = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as CurveElement;
                         if (ce != null && !ce.ViewSpecific) // モデル線に限定
                         {
                             ce.LineStyle = gs;
@@ -497,3 +497,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 return new { ok = false, msg = "Missing parameter: viewId" };
 
             int viewId = viewToken.Value<int>();
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null)
                 return new { ok = false, msg = $"View not found: {viewId}" };
 
@@ -82,7 +82,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 try
                 {
                     var catFilters = includeCatsAll
-                        .Select(i => new ElementCategoryFilter(new ElementId(i)))
+                        .Select(i => new ElementCategoryFilter(Autodesk.Revit.DB.ElementIdCompat.From(i)))
                         .Cast<ElementFilter>()
                         .ToList();
                     if (catFilters.Count > 0)
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                     var lid = e.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId)
                     {
-                        int k = lid.IntegerValue;
+                        int k = lid.IntValue();
                         if (!levelNameById.TryGetValue(k, out var nm))
                         {
                             var lv = doc.GetElement(lid) as Level;
@@ -144,7 +144,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
 
                 if (tryIds != null)
                 {
-                    int k = tryIds.IntegerValue;
+                    int k = tryIds.IntValue();
                     if (!levelNameById.TryGetValue(k, out var nm))
                     {
                         var lv = doc.GetElement(tryIds) as Level;
@@ -161,7 +161,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             string ResolveCategoryName(Category cat)
             {
                 if (cat == null) return null;
-                int k = cat.Id.IntegerValue;
+                int k = cat.Id.IntValue();
                 if (!categoryNameById.TryGetValue(k, out var nm))
                 {
                     nm = cat.Name;
@@ -197,7 +197,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
 
             bool PassFilters(Element e, int? lvId, string lvName, int? catId, string catName)
             {
-                int eid = e.Id.IntegerValue;
+                int eid = e.Id.IntValue();
                 if (onlyElementIds.Count > 0 && !onlyElementIds.Contains(eid)) return false;
                 if (filterLevelId.HasValue && (!lvId.HasValue || lvId.Value != filterLevelId.Value)) return false;
                 // model/annotation partition
@@ -268,10 +268,10 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 foreach (var e in allElems)
                 {
                     var (lvIdF, lvNameF) = ResolveLevel(e);
-                    var catF = e.Category; int? catIdF = (catF != null) ? (int?)catF.Id.IntegerValue : null; string catNameF = ResolveCategoryName(catF);
+                    var catF = e.Category; int? catIdF = (catF != null) ? (int?)catF.Id.IntValue() : null; string catNameF = ResolveCategoryName(catF);
                     if (!PassFilters(e, lvIdF, lvNameF, catIdF, catNameF)) continue;
                     if (skipped < skip) { skipped++; continue; }
-                    idList.Add(e.Id.IntegerValue);
+                    idList.Add(e.Id.IntValue());
                     if (idList.Count >= limit) break;
                 }
                 return new { ok = true, totalCount, elementIds = idList };
@@ -283,10 +283,10 @@ namespace RevitMCPAddin.Commands.GeneralOps
             {
                 var (lvId, lvName) = ResolveLevel(e);
                 var cat = e.Category;
-                int? categoryId = (cat != null) ? (int?)cat.Id.IntegerValue : null;
+                int? categoryId = (cat != null) ? (int?)cat.Id.IntValue() : null;
                 string categoryName = ResolveCategoryName(cat);
                 if (!PassFilters(e, lvId, lvName, categoryId, categoryName)) continue;
-                rowsAll.Add(new { levelName = lvName, levelId = lvId, categoryName, categoryId, elementId = e.Id.IntegerValue });
+                rowsAll.Add(new { levelName = lvName, levelId = lvId, categoryName, categoryId, elementId = e.Id.IntValue() });
             }
 
             var rows = rowsAll.Skip(skip).Take(limit).ToList();
@@ -331,3 +331,5 @@ namespace RevitMCPAddin.Commands.GeneralOps
         }
     }
 }
+
+

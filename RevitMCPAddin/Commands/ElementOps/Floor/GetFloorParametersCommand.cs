@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorParametersCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             Element el = null;
             int elementId = p.Value<int?>("elementId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (elementId > 0) el = doc.GetElement(new ElementId(elementId));
+            if (elementId > 0) el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             else if (!string.IsNullOrWhiteSpace(uniqueId)) el = doc.GetElement(uniqueId);
             if (el == null) return new { ok = false, msg = "Floor 要素が見つかりません（elementId/uniqueId）。" };
 
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (el.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -41,7 +41,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 return new
                 {
                     ok = true,
-                    elementId = el.Id.IntegerValue,
+                    elementId = el.Id.IntValue(),
                     uniqueId = el.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 return new
                 {
                     ok = true,
-                    elementId = el.Id.IntegerValue,
+                    elementId = el.Id.IntValue(),
                     uniqueId = el.UniqueId,
                     totalCount,
                     names,
@@ -71,7 +71,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             return new
             {
                 ok = true,
-                elementId = el.Id.IntegerValue,
+                elementId = el.Id.IntValue(),
                 uniqueId = el.UniqueId,
                 totalCount,
                 parameters = list,
@@ -81,3 +81,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/GetWallParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/GetWallParametersCommand.cs
 // UnitHelper化: ResolveUnitsMode + MapParameter に統一、メタ返却も UnitHelper メタへ
 using System;
 using System.Linq;
@@ -22,12 +22,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
             Autodesk.Revit.DB.Wall wall = null;
             int elementId = p.Value<int?>("elementId") ?? p.Value<int?>("wallId") ?? 0;
-            if (elementId > 0) wall = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Wall;
+            if (elementId > 0) wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Wall;
             else
             {
                 var uid = p.Value<string>("uniqueId");
                 if (!string.IsNullOrWhiteSpace(uid)) wall = doc.GetElement(uid) as Autodesk.Revit.DB.Wall;
-                if (wall != null) elementId = wall.Id.IntegerValue;
+                if (wall != null) elementId = wall.Id.IntValue();
             }
             if (wall == null) return new { ok = false, msg = "Wall not found. Provide elementId/wallId or uniqueId." };
 
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             int count = p.Value<int?>("count") ?? int.MaxValue;
 
             var allParams = wall.Parameters?.Cast<Parameter>()
-                .Select(par => new { par, name = par?.Definition?.Name ?? "", id = par?.Id.IntegerValue ?? -1 })
+                .Select(par => new { par, name = par?.Definition?.Name ?? "", id = par?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.par)
                 .ToList() ?? new System.Collections.Generic.List<Parameter>();
@@ -73,3 +73,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

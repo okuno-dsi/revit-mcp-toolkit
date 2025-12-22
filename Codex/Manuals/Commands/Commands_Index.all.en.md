@@ -196,6 +196,8 @@ Notes:
 ## MetaOps
 - (high)
   - `list_commands` — read
+  - `help.get_context` — read
+  - `revit.batch` — write
   - `start_command_logging` — write
   - `stop_command_logging` — write
 

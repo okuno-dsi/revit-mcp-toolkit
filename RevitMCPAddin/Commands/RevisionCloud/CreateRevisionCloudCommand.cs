@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/RevisionCloud/CreateRevisionCloudCommand.cs
+// File: RevitMCPAddin/Commands/RevisionCloud/CreateRevisionCloudCommand.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,9 +24,9 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 // ——— 必須パラメータ取得 ———
                 int viewIdInt = p.Value<int>("viewId");
                 int revIdInt = p.Value<int>("revisionId");
-                var view = doc.GetElement(new ElementId(viewIdInt)) as View
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View
                                 ?? throw new InvalidOperationException($"View not found: {viewIdInt}");
-                var revElem = doc.GetElement(new ElementId(revIdInt)) as Autodesk.Revit.DB.Revision
+                var revElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(revIdInt)) as Autodesk.Revit.DB.Revision
                                 ?? throw new InvalidOperationException($"Revision not found: {revIdInt}");
 
                 var sp = view.SketchPlane ?? throw new InvalidOperationException("Target view has no SketchPlane.");
@@ -95,8 +95,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         }
 
                         // 5) 安全な作図
-                        var rc = SafeCreateRevisionCloud(doc, view, new ElementId(revIdInt), curves);
-                        created.Add(new { elementId = rc.Id.IntegerValue });
+                        var rc = SafeCreateRevisionCloud(doc, view, Autodesk.Revit.DB.ElementIdCompat.From(revIdInt), curves);
+                        created.Add(new { elementId = rc.Id.IntValue() });
                     }
 
                     tx.Commit();
@@ -170,3 +170,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

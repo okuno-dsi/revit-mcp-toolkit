@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/ChangeStructuralFoundationTypeCommand.cs (UnitHelper対応/返却整備)
+// File: Commands/ElementOps/Foundation/ChangeStructuralFoundationTypeCommand.cs (UnitHelper対応/返却整備)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -22,10 +22,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
 
             // 新タイプ: newTypeId or typeId
             int newTypeId = p.Value<int?>("newTypeId") ?? p.Value<int?>("typeId") ?? 0;
-            var newType = (newTypeId > 0) ? doc.GetElement(new ElementId(newTypeId)) as ElementType : null;
+            var newType = (newTypeId > 0) ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newTypeId)) as ElementType : null;
             if (newType == null) return ResultUtil.Err($"TypeElement が見つかりません: {newTypeId}");
 
-            int oldTypeId = inst.GetTypeId()?.IntegerValue ?? -1;
+            int oldTypeId = inst.GetTypeId()?.IntValue() ?? -1;
 
             using (var tx = new Transaction(doc, "Change Structural Foundation Type"))
             {
@@ -37,11 +37,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
                 oldTypeId,
-                typeId = newType.Id.IntegerValue
+                typeId = newType.Id.IntValue()
             };
         }
     }
 }
+
+

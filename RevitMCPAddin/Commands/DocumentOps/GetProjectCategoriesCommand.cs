@@ -1,4 +1,4 @@
-﻿// File: Commands/DocumentOps/GetProjectCategoriesCommand.cs
+// File: Commands/DocumentOps/GetProjectCategoriesCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -27,9 +27,9 @@ namespace RevitMCPAddin.Commands.DocumentOps
 
                 list.Add(new
                 {
-                    categoryId = cat.Id.IntegerValue,
+                    categoryId = cat.Id.IntValue(),
                     name = cat.Name,
-                    parentId = cat.Parent != null ? cat.Parent.Id.IntegerValue : (int?)null,
+                    parentId = cat.Parent != null ? cat.Parent.Id.IntValue() : (int?)null,
                     categoryType = cat.CategoryType.ToString(),
                     isTagCategory = cat.IsTagCategory,
                     allowsBoundParameters = cat.AllowsBoundParameters
@@ -45,3 +45,4 @@ namespace RevitMCPAddin.Commands.DocumentOps
         }
     }
 }
+

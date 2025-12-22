@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // File: Commands/ViewOps/InteriorElevationAutoCropCommands.cs
 // Purpose : Interior Elevation（展開図）を部屋境界に合わせて自動クロップ
 // Target  : .NET Framework 4.8 / C# 8 / Revit 2023 API
@@ -198,14 +198,14 @@ namespace RevitMCPAddin.Commands.ViewOps
                 double minHeightMm = p.Value<double?>("minHeightMm") ?? 1200.0;
                 double clipDepthMm = p.Value<double?>("clipDepthMm") ?? 1000.0;
 
-                var view = doc.GetElement(new ElementId(viewId)) as ViewSection;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as ViewSection;
                 if (view == null || view.ViewType != ViewType.Elevation)
                     return new { ok = false, msg = "Elevation view が見つかりません。" };
 
                 if (ElevCropUtil.IsCropLockedByTemplate(view))
                     return new { ok = true, viewId, cropApplied = false, skipped = true, reason = "View has a template; crop parameters are locked." };
 
-                var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+                var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
                 if (room == null) return new { ok = false, msg = $"Room not found: {roomId}" };
 
                 var pts = ElevCropUtil.CollectRoomBoundaryPoints(doc, room, boundaryLocation);
@@ -265,7 +265,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 double minHeightMm = p.Value<double?>("minHeightMm") ?? 1500.0;
                 double clipDepthMm = p.Value<double?>("clipDepthMm") ?? 1200.0;
 
-                var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+                var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
                 if (room == null) return new { ok = false, msg = $"Room not found: {roomId}" };
 
                 // 対象 Elevation を列挙（Origin が Room 内にあるもの）
@@ -294,7 +294,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         if (ElevCropUtil.IsCropLockedByTemplate(view))
                         {
-                            skipped.Add(new { viewId = view.Id.IntegerValue, reason = "View has a template; crop parameters are locked." });
+                            skipped.Add(new { viewId = view.Id.IntValue(), reason = "View has a template; crop parameters are locked." });
                             continue;
                         }
 
@@ -305,11 +305,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                         try
                         {
                             ElevCropUtil.ApplyCropBox(view, rect, depthFt);
-                            updated.Add(new { viewId = view.Id.IntegerValue, cropApplied = true });
+                            updated.Add(new { viewId = view.Id.IntValue(), cropApplied = true });
                         }
                         catch (Exception ex)
                         {
-                            skipped.Add(new { viewId = view.Id.IntegerValue, reason = ex.Message });
+                            skipped.Add(new { viewId = view.Id.IntValue(), reason = ex.Message });
                         }
                     }
 
@@ -333,3 +333,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

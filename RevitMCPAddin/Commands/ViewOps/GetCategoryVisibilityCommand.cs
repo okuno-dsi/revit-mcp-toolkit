@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ViewOps/GetCategoryVisibilityCommand.cs
+// RevitMCPAddin/Commands/ViewOps/GetCategoryVisibilityCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var p = (JObject)cmd.Params;
 
             int viewId = p.Value<int>("viewId");
-            var view = doc.GetElement(new ElementId(viewId)) as View
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View
                        ?? throw new InvalidOperationException($"View not found: {viewId}");
 
             var resolveResult = ResolveCategories(doc, p);
@@ -43,12 +43,12 @@ namespace RevitMCPAddin.Commands.ViewOps
                 try
                 {
                     bool isHidden = view.GetCategoryHidden(cid);
-                    results.Add(new { categoryId = cid.IntegerValue, visible = !isHidden });
+                    results.Add(new { categoryId = cid.IntValue(), visible = !isHidden });
                 }
                 catch (Exception ex)
                 {
-                    RevitLogger.Error($"GetCategoryHidden failed for {cid.IntegerValue}", ex);
-                    errors.Add(new { categoryId = cid.IntegerValue, reason = ex.Message });
+                    RevitLogger.Error($"GetCategoryHidden failed for {cid.IntValue()}", ex);
+                    errors.Add(new { categoryId = cid.IntValue(), reason = ex.Message });
                 }
             }
 
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             int requestedCount = 0;
 
             var allCats = doc.Settings.Categories.Cast<Category>().ToList();
-            var byId = allCats.ToDictionary(c => c.Id.IntegerValue, c => c);
+            var byId = allCats.ToDictionary(c => c.Id.IntValue(), c => c);
             var byName = allCats.GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
@@ -124,3 +124,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

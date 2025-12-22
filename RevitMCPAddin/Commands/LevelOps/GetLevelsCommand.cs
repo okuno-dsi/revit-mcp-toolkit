@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/GetLevelsCommand.cs (UnitHelper統一版)
 // ================================================================
 using System;
@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.DatumOps
 
             var levels = slice.Select(lvl =>
             {
-                int id = lvl.Id.IntegerValue;
+                int id = lvl.Id.IntValue();
                 double elevMm = Math.Round(UnitHelper.InternalToMm(lvl.Elevation, doc), 3);
                 return new
                 {
@@ -64,3 +64,4 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+

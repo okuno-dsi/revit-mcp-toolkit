@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 return new { ok = false, msg = "Missing parameter: viewId" };
 
             int viewId = vidTok.Value<int>();
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
             bool includeIndependentTags = p.Value<bool?>("includeIndependentTags") ?? false;
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             {
                 try
                 {
-                    var filters = catIds.Select(i => new ElementCategoryFilter(new ElementId(i))).Cast<ElementFilter>().ToList();
+                    var filters = catIds.Select(i => new ElementCategoryFilter(Autodesk.Revit.DB.ElementIdCompat.From(i))).Cast<ElementFilter>().ToList();
                     if (filters.Count == 1)
                         collector = collector.WherePasses(filters[0]);
                     else if (filters.Count > 1)
@@ -94,7 +94,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 ElementId tid;
                 try { tid = e.GetTypeId(); } catch { continue; }
                 if (tid == null || tid == ElementId.InvalidElementId) continue;
-                int t = tid.IntegerValue; if (t <= 0) continue;
+                int t = tid.IntValue(); if (t <= 0) continue;
 
                 if (!counts.ContainsKey(t)) counts[t] = 0;
                 counts[t]++;
@@ -102,7 +102,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 if (!typeCat.ContainsKey(t))
                 {
                     int? cid = null;
-                    try { var c = e.Category; if (c != null) cid = c.Id.IntegerValue; } catch { }
+                    try { var c = e.Category; if (c != null) cid = c.Id.IntValue(); } catch { }
                     typeCat[t] = cid;
                 }
             }
@@ -117,7 +117,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                     string typeName = null; string familyName = null;
                     try
                     {
-                        var et = doc.GetElement(new ElementId(t)) as ElementType;
+                        var et = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t)) as ElementType;
                         if (et != null)
                         {
                             typeName = et.Name;
@@ -145,4 +145,6 @@ namespace RevitMCPAddin.Commands.GeneralOps
         }
     }
 }
+
+
 

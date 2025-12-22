@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             int instId = p.Value<int?>("elementId") ?? p.Value<int?>("wallId") ?? 0;
             if (instId > 0)
             {
-                elem = doc.GetElement(new ElementId(instId));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(instId));
                 if (elem is Autodesk.Revit.DB.Wall)
                 {
                     targetKind = "instance";
@@ -46,7 +46,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     if (elem is Autodesk.Revit.DB.Wall)
                     {
                         targetKind = "instance";
-                        elementId = elem.Id.IntegerValue;
+                        elementId = elem.Id.IntValue();
                         uniqueId = elem.UniqueId ?? string.Empty;
                     }
                 }
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 WallType wt = null;
 
                 if (tid > 0)
-                    wt = doc.GetElement(new ElementId(tid)) as WallType;
+                    wt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as WallType;
                 else if (!string.IsNullOrWhiteSpace(typeName))
                     wt = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>()
                         .FirstOrDefault(t => string.Equals(t.Name, typeName, StringComparison.OrdinalIgnoreCase));
@@ -68,7 +68,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 {
                     elem = wt;
                     targetKind = "type";
-                    typeId = wt.Id.IntegerValue;
+                    typeId = wt.Id.IntValue();
                     uniqueId = wt.UniqueId ?? string.Empty;
                 }
             }
@@ -77,7 +77,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 return new { ok = false, message = "Wall instance or WallType not found." };
 
             var paramList = elem.Parameters.Cast<Parameter>()
-                .OrderBy(pr => pr.Definition?.Name).ThenBy(pr => pr.Id.IntegerValue)
+                .OrderBy(pr => pr.Definition?.Name).ThenBy(pr => pr.Id.IntValue())
                 .ToList();
             int totalCount = paramList.Count;
 
@@ -104,3 +104,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

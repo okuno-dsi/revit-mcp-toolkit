@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Foundation/UpdateStructuralFoundationTypeParameterCommand.cs (UnitHelper対応版)
 // - Double は spec 依存で mm/m2/m3/deg → 内部値に変換
 // ================================================================
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             if (!p.TryGetValue("value", out var valueToken))
                 return ResultUtil.Err("Parameter 'value' is required.");
 
-            var typeElem = doc.GetElement(new ElementId(typeId)) as ElementType;
+            var typeElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
             if (typeElem == null) return ResultUtil.Err($"TypeElement not found: {typeId}");
 
             var param = ParamResolver.ResolveByPayload(typeElem, p, out var resolvedBy);
@@ -60,7 +60,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                         case StorageType.String:
                             success = param.Set(valueToken.Value<string>() ?? ""); break;
                         case StorageType.ElementId:
-                            success = param.Set(new ElementId(valueToken.Value<int>())); break;
+                            success = param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valueToken.Value<int>())); break;
                         default:
                             success = false; break;
                     }
@@ -75,7 +75,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             }
 
             if (!success) return ResultUtil.Err($"Failed to set parameter '{paramName}'.");
-            return ResultUtil.Ok(new { typeId = typeElem.Id.IntegerValue, uniqueId = typeElem.UniqueId });
+            return ResultUtil.Ok(new { typeId = typeElem.Id.IntValue(), uniqueId = typeElem.UniqueId });
         }
     }
 }
+
+

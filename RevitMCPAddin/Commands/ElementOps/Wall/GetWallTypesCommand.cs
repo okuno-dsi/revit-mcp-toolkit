@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/GetWallTypesCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/GetWallTypesCommand.cs
 // UnitHelper化: 幅の mm 変換を UnitHelper.InternalToMm で、units メタも整備
 using System;
 using System.Linq;
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
 
             var types = slice.Select(wt =>
             {
-                int id = wt.Id.IntegerValue;
+                int id = wt.Id.IntValue();
                 double widthMm = Math.Round(UnitHelper.InternalToMm(wt.Width), 3);
 
                 return new
@@ -81,3 +81,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+

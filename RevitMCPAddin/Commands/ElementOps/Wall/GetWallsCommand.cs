@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Wall/GetWallsCommand.cs
+// RevitMCPAddin/Commands/ElementOps/Wall/GetWallsCommand.cs
 // UnitHelper化: 位置/高さ/厚さの mm 変換を UnitHelper 経由、units メタは Input/Internal を整備
 using System;
 using System.Linq;
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             {
                 int? viewId = p.Value<int?>("viewId");
                 if (viewId.HasValue && viewId.Value > 0)
-                    view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             }
             catch { }
 
@@ -52,10 +52,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     internalUnits = new { Length = "ft" }
                 };
 
-            var typeIds = allWalls.Select(w => w.GetTypeId().IntegerValue).Distinct();
+            var typeIds = allWalls.Select(w => w.GetTypeId().IntValue()).Distinct();
             var typeNameMap = typeIds.ToDictionary(
                 id => id,
-                id => doc.GetElement(new ElementId(id))?.Name ?? string.Empty
+                id => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id))?.Name ?? string.Empty
             );
 
             var slice = allWalls.Skip(skip).Take(count).ToList();
@@ -82,9 +82,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     end = new { x = Math.Round(eMm.x, 3), y = Math.Round(eMm.y, 3), z = Math.Round(eMm.z, 3) };
                 }
 
-                int eid = wall.Id.IntegerValue;
-                int tid = wall.GetTypeId().IntegerValue;
-                int levelId = wall.LevelId != null ? wall.LevelId.IntegerValue : 0;
+                int eid = wall.Id.IntValue();
+                int tid = wall.GetTypeId().IntValue();
+                int levelId = wall.LevelId != null ? wall.LevelId.IntValue() : 0;
 
                 var typeName = typeNameMap.TryGetValue(tid, out var tn) ? tn : string.Empty;
 
@@ -117,3 +117,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

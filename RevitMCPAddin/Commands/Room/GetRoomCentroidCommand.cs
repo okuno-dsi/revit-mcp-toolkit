@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomCentroidCommand.cs  (UnitHelper統一版)
 // ================================================================
 using System;
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.Room
             if (!p.TryGetValue("elementId", out var idToken))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
 
-            var room = doc.GetElement(new ElementId(idToken.Value<int>()))
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idToken.Value<int>()))
                        as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return new { ok = false, message = $"Room not found: {idToken}" };
 
@@ -46,3 +46,4 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+

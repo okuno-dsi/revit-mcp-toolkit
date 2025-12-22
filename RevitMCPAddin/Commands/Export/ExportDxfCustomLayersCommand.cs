@@ -57,7 +57,7 @@ namespace RevitMCPAddin.Commands.Export
                 View baseView = null;
                 if (viewIdIn.HasValue && viewIdIn.Value > 0)
                 {
-                    baseView = doc.GetElement(new ElementId(viewIdIn.Value)) as View;
+                    baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdIn.Value)) as View;
                     if (baseView == null) return new { ok = false, msg = $"viewId={viewIdIn} のビューが見つかりません。" };
                 }
                 else if (!string.IsNullOrWhiteSpace(viewUidIn))
@@ -424,3 +424,4 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+

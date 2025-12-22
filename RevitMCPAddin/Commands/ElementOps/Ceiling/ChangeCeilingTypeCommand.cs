@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
@@ -19,13 +19,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             var p = (JObject)cmd.Params;
 
             // 要素IDと新タイプIDを取得
-            ElementId elemId = new ElementId(p.Value<int>("elementId"));
+            ElementId elemId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId"));
             Element elem = doc.GetElement(elemId);
-            ElementId newTypeId = new ElementId(p.Value<int>("newTypeId"));
+            ElementId newTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("newTypeId"));
 
             // 存在チェック
             if (elem == null)
-                return new { ok = false, message = $"ElementId {elemId.IntegerValue} が見つかりません。" };
+                return new { ok = false, message = $"ElementId {elemId.IntValue()} が見つかりません。" };
 
             // トランザクションでタイプ変更
             using (var tx = new Transaction(doc, "Change Ceiling Type"))
@@ -34,11 +34,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
                 elem.ChangeTypeId(newTypeId);
                 tx.Commit();
 
-                if (elem.GetTypeId().IntegerValue != newTypeId.IntegerValue)
-                    return new { ok = false, message = $"ElementId {elemId.IntegerValue} のタイプ変更に失敗しました。" };
+                if (elem.GetTypeId().IntValue() != newTypeId.IntValue())
+                    return new { ok = false, message = $"ElementId {elemId.IntValue()} のタイプ変更に失敗しました。" };
             }
 
             return new { ok = true };
         }
     }
 }
+
+

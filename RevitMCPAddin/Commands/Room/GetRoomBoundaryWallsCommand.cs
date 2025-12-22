@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomBoundaryWallsCommand.cs
 // Revit 2023 / .NET Framework 4.8
 // ================================================================
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.Room
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
             int roomId = eidToken.Value<int>();
 
-            var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return new { ok = false, message = $"Room not found: {roomId}" };
 
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
@@ -41,10 +41,12 @@ namespace RevitMCPAddin.Commands.Room
                 .Select(bs => bs.ElementId)
                 .Distinct()
                 .Where(id => doc.GetElement(id) is Wall)
-                .Select(id => id.IntegerValue)
+                .Select(id => id.IntValue())
                 .ToList();
 
             return new { ok = true, boundaryLocation = options.SpatialElementBoundaryLocation.ToString(), wallIds };
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/LinkOps/LinkCommands.cs
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // 概要: Revit リンク操作コマンド一式（1ファイル集約版 / UnitHelper対応）
@@ -88,10 +88,10 @@ namespace RevitMCPAddin.Commands.LinkOps
 
             if (p.TryGetValue("typeId", out var tIdTok) && tIdTok.Type == JTokenType.Integer)
             {
-                var id = new ElementId(tIdTok.Value<int>());
+                var id = Autodesk.Revit.DB.ElementIdCompat.From(tIdTok.Value<int>());
                 var t = doc.GetElement(id) as RevitLinkType;
                 if (t != null) return t;
-                why = $"RevitLinkType not found: {id.IntegerValue}";
+                why = $"RevitLinkType not found: {id.IntValue()}";
                 return null;
             }
 
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Commands.LinkOps
 
                             instList.Add(new JObject
                             {
-                                ["instanceId"] = ins.Id.IntegerValue,
+                                ["instanceId"] = ins.Id.IntValue(),
                                 ["name"] = ins.Name,
                                 ["transform"] = trRaw,   // 旧互換（ft）
                                 ["transformMm"] = trMm   // 新推奨（mm）
@@ -220,7 +220,7 @@ namespace RevitMCPAddin.Commands.LinkOps
 
                     arr.Add(new JObject
                     {
-                        ["typeId"] = t.Id.IntegerValue,
+                        ["typeId"] = t.Id.IntValue(),
                         ["name"] = t.Name,
                         ["isLoaded"] = isLoaded,
                         ["status"] = status.ToString(),
@@ -272,7 +272,7 @@ namespace RevitMCPAddin.Commands.LinkOps
                 }
                 return ResultUtil.Ok(new JObject
                 {
-                    ["typeId"] = type.Id.IntegerValue,
+                    ["typeId"] = type.Id.IntValue(),
                     ["name"] = type.Name,
                     ["message"] = "Reloaded."
                 });
@@ -310,7 +310,7 @@ namespace RevitMCPAddin.Commands.LinkOps
                 }
                 return ResultUtil.Ok(new JObject
                 {
-                    ["typeId"] = type.Id.IntegerValue,
+                    ["typeId"] = type.Id.IntValue(),
                     ["name"] = type.Name,
                     ["message"] = "Unloaded."
                 });
@@ -366,7 +366,7 @@ namespace RevitMCPAddin.Commands.LinkOps
                 }
                 return ResultUtil.Ok(new JObject
                 {
-                    ["typeId"] = type.Id.IntegerValue,
+                    ["typeId"] = type.Id.IntValue(),
                     ["name"] = type.Name,
                     ["newPath"] = userPath,
                     ["message"] = "Reloaded from specified path."
@@ -405,3 +405,5 @@ namespace RevitMCPAddin.Commands.LinkOps
         }
     }
 }
+
+

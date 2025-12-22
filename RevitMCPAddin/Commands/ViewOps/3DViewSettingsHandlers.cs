@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/SaveApply3DViewSettingsHandlers.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 3Dビューの状態（姿勢・Crop/Section・Transform・FOV）を保存/適用
@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new { ok = false, msg = "アクティブドキュメントがありません" };
                 var doc = uidoc.Document;
 
-                var view = doc.GetElement(new ElementId(p.Value<int>("viewId"))) as View3D;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("viewId"))) as View3D;
                 if (view == null)
                     return new { ok = false, msg = "指定されたビューは3Dビューではありません" };
 
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     isPerspective = view.IsPerspective,
 
                     // Orientation
@@ -269,7 +269,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var doc = uidoc.Document;
 
                 int inputViewId = p.Value<int>("viewId");
-                var baseView = doc.GetElement(new ElementId(inputViewId)) as View3D;
+                var baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(inputViewId)) as View3D;
                 if (baseView == null)
                     return new { ok = false, msg = "指定されたビューは3Dビューではありません" };
 
@@ -435,7 +435,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new
                     {
                         ok = true,
-                        viewId = view.Id.IntegerValue,
+                        viewId = view.Id.IntValue(),
                         warnings = warnings.Count > 0 ? warnings : null,
                         skips = skips.Count > 0 ? skips : null
                     };
@@ -621,3 +621,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

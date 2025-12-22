@@ -38,7 +38,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (!p.TryGetValue("viewId", out var vTok))
                 return new { ok = false, code = "NO_VIEW", msg = "Missing parameter: viewId" };
 
-            var view = doc.GetElement(new ElementId(vTok.Value<int>())) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vTok.Value<int>())) as View;
             if (view == null)
                 return new { ok = false, code = "NO_VIEW", msg = $"View not found: {vTok}" };
 
@@ -86,7 +86,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                 int GetCatId(Element e)
                 {
-                    try { return e.Category?.Id?.IntegerValue ?? 0; } catch { return 0; }
+                    try { return e.Category?.Id?.IntValue() ?? 0; } catch { return 0; }
                 }
 
                 // Elements collection
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var elementsOut = new List<object>();
                 foreach (var e in slice)
                 {
-                    int eid = e.Id.IntegerValue;
+                    int eid = e.Id.IntValue();
                     string uid = e.UniqueId ?? string.Empty;
                     int catId = GetCatId(e);
 
@@ -116,9 +116,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                     try
                     {
                         var tid = e.GetTypeId();
-                        if (tid != null && tid.IntegerValue > 0)
+                        if (tid != null && tid.IntValue() > 0)
                         {
-                            typeId = tid.IntegerValue;
+                            typeId = tid.IntValue();
                             if (doc.GetElement(tid) is ElementType et)
                             {
                                 typeName = et.Name ?? string.Empty;
@@ -245,7 +245,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     ["ok"] = true,
                     ["project"] = new { name = projectName, number = projectNumber, guid = projectGuid },
                     ["port"] = port,
-                    ["view"] = new { id = view.Id.IntegerValue, name = view.Name ?? string.Empty },
+                    ["view"] = new { id = view.Id.IntValue(), name = view.Name ?? string.Empty },
                     ["count"] = total,
                     ["elements"] = elementsOut
                 };
@@ -288,7 +288,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             case StorageType.String: v = p.AsString() ?? string.Empty; break;
                             case StorageType.Integer: v = p.AsInteger(); break;
-                            case StorageType.ElementId: v = p.AsElementId()?.IntegerValue ?? 0; break;
+                            case StorageType.ElementId: v = p.AsElementId()?.IntValue() ?? 0; break;
                             case StorageType.Double:
                                 // convert length-like doubles to mm; otherwise keep AsValueString
                                 try
@@ -321,3 +321,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

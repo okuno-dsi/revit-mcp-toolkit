@@ -1,39 +1,3 @@
-﻿// ================================================================
-// File: Commands/Export/ExportViewMeshCommand.cs
-// Purpose: Export visible render meshes ("what you see") of a 3D view,
-//          grouped per element & material, GLTF/OBJ-friendly.
-// Method:  CustomExporter + IExportContext (Polymesh) capture
-// JSON-RPC: method = "export_view_mesh"
-// Params: {
-//   viewId: int,                      // 3D view element id
-//   elementIds?: int[],               // optional subset
-//   detailLevel?: "Coarse"|"Medium"|"Fine" (default "Fine")
-//   includeLinked?: bool (default true)
-//   unitsOut?: "feet"|"mm" (default "feet")
-//   weld?: bool (default true)
-//   weldTolerance?: number (feet, default 1e-6)
-// }
-// Result: {
-//   ok: true,
-//   units: "feet"|"mm",
-//   viewId: int,
-//   elements: [
-//     {
-//       elementId: int,
-//       uniqueId: string,
-//       transform: number[4][4],
-//       materialSlots: [{ materialKey:int, name:string, color:[r,g,b], transparency:number }],
-//       vertices: number[][3],        // unified vertex buffer (world-space, unitsOut)
-//       submeshes: [{ materialKey:int, indices:int[] }]
-//     }, ...
-//   ]
-// }
-// ================================================================
-
-using Autodesk.Revit.DB;
-using System;
-using System.Collections.Generic;
-
 // ================================================================
 // File: Commands/Export/ExportViewMeshCommand.cs
 // Purpose: Export visible render meshes ("what you see") of a 3D view,
@@ -88,7 +52,7 @@ namespace RevitMCPAddin.Commands.Export
             var p = cmd.Params as JObject ?? new JObject();
             var viewIdInt = p.Value<int?>("viewId") ?? 0;
             if (viewIdInt <= 0) return new { ok = false, msg = "viewId is required." };
-            var view = doc.GetElement(new ElementId(viewIdInt)) as View3D;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View3D;
             if (view == null || view.ViewType != ViewType.ThreeD || view.IsTemplate)
                 return new { ok = false, msg = "View not found or not a 3D view.", code = "INVALID_VIEW" };
 
@@ -185,7 +149,7 @@ namespace RevitMCPAddin.Commands.Export
                 {
                     var eid = kv.Key;
                     var coll = kv.Value;
-                    var elem = coll.Element ?? _doc.GetElement(new ElementId(eid));
+                    var elem = coll.Element ?? _doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                     if (elem == null) continue;
 
                     var mats = coll.BuildMaterialArray(_doc);
@@ -213,7 +177,7 @@ namespace RevitMCPAddin.Commands.Export
 
             public RenderNodeAction OnElementBegin(ElementId elementId)
             {
-                if (_filterIds != null && !_filterIds.Contains(elementId.IntegerValue))
+                if (_filterIds != null && !_filterIds.Contains(elementId.IntValue()))
                 {
                     _ownerStack.Push(ElementId.InvalidElementId); // filter marker
                     return RenderNodeAction.Proceed;
@@ -256,7 +220,7 @@ namespace RevitMCPAddin.Commands.Export
             {
                 if (_ownerStack.Count > 0 && _ownerStack.Peek() == ElementId.InvalidElementId) return; // filtered
 
-                int elementId = _ownerStack.Count > 0 ? _ownerStack.Peek().IntegerValue : -1;
+                int elementId = _ownerStack.Count > 0 ? _ownerStack.Peek().IntValue() : -1;
                 if (elementId <= 0) return;
 
                 var t = _tStack.Peek();
@@ -264,7 +228,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 if (!_collectors.TryGetValue(elementId, out var coll))
                 {
-                    coll = new Collector(_weld, _tol) { Element = _doc.GetElement(new ElementId(elementId)), RootTransform = t };
+                    coll = new Collector(_weld, _tol) { Element = _doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)), RootTransform = t };
                     _collectors[elementId] = coll;
                 }
 
@@ -308,7 +272,7 @@ namespace RevitMCPAddin.Commands.Export
 
                 public void AddTriangle(ElementId mat, XYZ p0, XYZ p1, XYZ p2)
                 {
-                    int key = (mat != null && mat.IntegerValue > 0) ? mat.IntegerValue : -1;
+                    int key = (mat != null && mat.IntValue() > 0) ? mat.IntValue() : -1;
                     if (!_matToIdx.TryGetValue(key, out var list)) { list = new List<int>(2048); _matToIdx[key] = list; }
                     _matSet.Add(key);
 
@@ -379,7 +343,7 @@ namespace RevitMCPAddin.Commands.Export
                     foreach (var mid in _matSet)
                     {
                         if (mid <= 0) { list.Add(new { materialKey = -1, name = "Unknown", color = new[] { 0, 0, 0 }, transparency = 0.0 }); continue; }
-                        var m = doc.GetElement(new ElementId(mid)) as Autodesk.Revit.DB.Material;
+                        var m = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(mid)) as Autodesk.Revit.DB.Material;
                         if (m == null) list.Add(new { materialKey = mid, name = "Unknown(" + mid + ")", color = new[] { 0, 0, 0 }, transparency = 0.0 });
                         else
                         {
@@ -409,3 +373,4 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+

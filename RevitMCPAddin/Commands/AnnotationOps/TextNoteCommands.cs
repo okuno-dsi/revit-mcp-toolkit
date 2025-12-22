@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/AnnotationOps/TextNoteCommands.cs
 // Purpose : Create / Edit TextNote and Update Parameters (Spec-aware)
 //           - 数値入力は既定で「プロジェクトの表示単位」を使用
@@ -116,7 +116,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             View view = null;
             if (viewIdOpt.HasValue)
             {
-                view = doc.GetElement(new ElementId(viewIdOpt.Value)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdOpt.Value)) as View;
             }
             else
             {
@@ -158,7 +158,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 {
                     try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { }
                 }
-                return new { ok = true, elementId = tn.Id.IntegerValue, viewId = view.Id.IntegerValue, typeId = tnt.Id.IntegerValue };
+                return new { ok = true, elementId = tn.Id.IntValue(), viewId = view.Id.IntValue(), typeId = tnt.Id.IntValue() };
             }
         }
 
@@ -175,7 +175,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             double zExt = p.Value<double?>("z") ?? 0.0;
 
             View view = viewIdOpt.HasValue
-                ? doc.GetElement(new ElementId(viewIdOpt.Value)) as View
+                ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdOpt.Value)) as View
                 : doc.ActiveView;
             if (view == null) return (false, "View not found.", 0, 0, 0);
             if (!(view is ViewPlan) && !(view is View3D) && !(view is ViewSection) && !(view is ViewDrafting))
@@ -203,7 +203,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
             var opts = new TextNoteOptions(tnt.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
             var tn = TextNote.Create(doc, view.Id, pos, text, opts);
-            return (true, string.Empty, tn.Id.IntegerValue, view.Id.IntegerValue, tnt.Id.IntegerValue);
+            return (true, string.Empty, tn.Id.IntValue(), view.Id.IntValue(), tnt.Id.IntValue());
         }
 
         // ------------------------------------------------------------
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             bool refreshView = p.Value<bool?>("refreshView") ?? false;
             string text = (p.Value<string>("text") ?? "").Trim();
 
-            var tn = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var tn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (tn == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             using (var t = new Transaction(doc, "set_text"))
@@ -230,7 +230,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 tn.Text = text;
                 t.Commit();
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
-                return new { ok = true, elementId = tn.Id.IntegerValue, len = text.Length };
+                return new { ok = true, elementId = tn.Id.IntValue(), len = text.Length };
             }
         }
 
@@ -259,7 +259,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             bool applyToType = p.Value<bool?>("applyToType") ?? false;
             bool refreshView = p.Value<bool?>("refreshView") ?? false;
 
-            var elem = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (elem == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             Element target = elem;
@@ -302,7 +302,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 return new
                 {
                     ok = true,
-                    elementId = elem.Id.IntegerValue,
+                    elementId = elem.Id.IntValue(),
                     target = applyToType ? "type" : "instance",
                     param = param.Definition?.Name
                 };
@@ -328,7 +328,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             string? unitOpt = p.Value<string>("unit");
             bool refreshView = p.Value<bool?>("refreshView") ?? false;
 
-            var tn = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var tn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (tn == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             var v = new XYZ(
@@ -343,7 +343,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 ElementTransformUtils.MoveElement(doc, tn.Id, v);
                 t.Commit();
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
-                return new { ok = true, elementId = tn.Id.IntegerValue };
+                return new { ok = true, elementId = tn.Id.IntValue() };
             }
         }
 
@@ -361,7 +361,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             if (elementId <= 0) return new { ok = false, msg = "elementId required." };
             bool refreshView = p.Value<bool?>("refreshView") ?? false;
 
-            var tn = doc.GetElement(new ElementId(elementId)) as TextNote;
+            var tn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as TextNote;
             if (tn == null) return new { ok = false, msg = $"TextNote not found: {elementId}" };
 
             using (var t = new Transaction(doc, "delete_text_note"))
@@ -460,7 +460,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         if (valueTok.Type == JTokenType.Integer)
                         {
                             int id = valueTok.Value<int>();
-                            return param.Set(new ElementId(id));
+                            return param.Set(Autodesk.Revit.DB.ElementIdCompat.From(id));
                         }
                         if (valueTok.Type == JTokenType.Null || (valueTok.Type == JTokenType.String && string.IsNullOrWhiteSpace(valueTok.Value<string>())))
                         {
@@ -543,3 +543,5 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         }
     }
 }
+
+

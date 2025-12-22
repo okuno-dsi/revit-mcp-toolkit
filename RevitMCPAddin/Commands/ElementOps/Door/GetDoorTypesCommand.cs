@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Door/GetDoorTypesCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Door/GetDoorTypesCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -64,7 +64,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
                 };
 
             var ordered = filtered
-                .Select(s => new { s, fam = s.Family?.Name ?? "", name = s.Name ?? "", id = s.Id.IntegerValue })
+                .Select(s => new { s, fam = s.Family?.Name ?? "", name = s.Name ?? "", id = s.Id.IntValue() })
                 .OrderBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.s)
                 .ToList();
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             if (idsOnly)
             {
-                var ids = ordered.Skip(skip2).Take(limit).Select(s => s.Id.IntegerValue).ToList();
+                var ids = ordered.Skip(skip2).Take(limit).Select(s => s.Id.IntValue()).ToList();
                 return new
                 {
                     ok = true,
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             var list = ordered.Skip(skip2).Take(limit).Select(s => new
             {
-                typeId = s.Id.IntegerValue,
+                typeId = s.Id.IntValue(),
                 uniqueId = s.UniqueId,
                 typeName = s.Name ?? "",
                 familyName = s.Family?.Name ?? ""
@@ -114,3 +114,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+

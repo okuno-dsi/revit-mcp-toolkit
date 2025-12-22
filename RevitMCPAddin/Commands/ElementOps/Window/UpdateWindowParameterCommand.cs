@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                 throw new ArgumentException("Parameter 'elementId' is required.");
             int elementId = eidToken.Value<int>();
 
-            var elem = doc.GetElement(new ElementId(elementId));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (elem == null)
                 return new { ok = false, msg = $"Window not found: {elementId}" };
 
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_window_parameter: move by offset failed for element {elem.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_window_parameter: move by offset failed for element {elem.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
@@ -89,3 +89,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+
+

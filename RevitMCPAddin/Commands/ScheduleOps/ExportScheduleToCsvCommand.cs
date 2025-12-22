@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 if (doc == null)
                     return ResultUtil.Err("No active document.");
 
-                var vs = doc.GetElement(new ElementId(scheduleViewId)) as ViewSchedule;
+                var vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scheduleViewId)) as ViewSchedule;
                 if (vs == null)
                     return ResultUtil.Err($"ScheduleView {scheduleViewId} not found.");
 
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             var def = workVs?.Definition;
                             try { def.IsItemized = true; } catch { /* versions */ }
                             try { def.ShowGrandTotal = false; } catch { /* 2023/2024 */ }
-                            TrySetPropertyIfExists(def, "ShowGrandTotals", false); // «—ˆ‚ÌAPI–¼—h‚ê‚É”õ‚¦
+                            TrySetPropertyIfExists(def, "ShowGrandTotals", false); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½APIï¿½ï¿½ï¿½hï¿½ï¿½É”ï¿½ï¿½ï¿½
 
                             try
                             {
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             }
                             catch { /* ignore */ }
 
-                            // •ÏX”½‰f
+                            // ï¿½ÏXï¿½ï¿½ï¿½f
                             doc.Regenerate();
                         }
                         catch { /* ignore */ }
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     }
                 }
 
-                // ---------- “Ç‚İæ‚è’¼‘O‚É Regenerate ‚ğ–¾¦iæ‚è‚±‚Ú‚µ–h~j ----------
+                // ---------- ï¿½Ç‚İï¿½è’¼ï¿½Oï¿½ï¿½ Regenerate ï¿½ğ–¾ï¿½ï¿½iï¿½ï¿½è‚±ï¿½Ú‚ï¿½ï¿½hï¿½~ï¿½j ----------
                 using (var tx = new Transaction(doc, "ExportScheduleToCsv - Regenerate"))
                 {
                     tx.Start();
@@ -95,12 +95,12 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     return ResultUtil.Err("The schedule Body section has no rows/columns to export.");
                 }
 
-                // gŒ©‚½‚Ü‚Üh’læ“¾‚Ì‚½‚ßAViewSchedule.GetCellText ‚ğ—Dæ‚·‚é
-                // ƒZƒ‹‘–¸‚Í 0..NumberOfRows-1 / 0..NumberOfColumns-1 ‚Ì 0 Šî“_‚Åˆµ‚¤
+                // ï¿½gï¿½ï¿½ï¿½ï¿½ï¿½Ü‚Ühï¿½lï¿½æ“¾ï¿½Ì‚ï¿½ï¿½ßAViewSchedule.GetCellText ï¿½ï¿½Dï¿½æ‚·ï¿½ï¿½
+                // ï¿½Zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0..NumberOfRows-1 / 0..NumberOfColumns-1 ï¿½ï¿½ 0 ï¿½ï¿½_ï¿½Åˆï¿½ï¿½ï¿½
                 int rows = bodySec.NumberOfRows;
                 int cols = bodySec.NumberOfColumns;
 
-                // ---------- ƒwƒbƒ_1s‚Ì\’zi•\¦–¼ â ’è‹`–¼(HiddenœŠO) â HeaderƒZƒNƒVƒ‡ƒ“j ----------
+                // ---------- ï¿½wï¿½bï¿½_1ï¿½sï¿½Ì\ï¿½zï¿½iï¿½\ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½`ï¿½ï¿½(Hiddenï¿½ï¿½ï¿½O) ï¿½ï¿½ Headerï¿½Zï¿½Nï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½j ----------
                 string[] headerRow = Array.Empty<string>();
                 if (includeHeader)
                 {
@@ -112,10 +112,10 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     {
                         string header = string.Empty;
 
-                        // 1) BodyÅã’i(0s–Ú)‚ğ—ñŒ©o‚µŒó•â‚Æ‚µ‚Ä‚·iˆÄŒ‚É‚æ‚è‚±‚±‚ÉŒ©o‚µ‚ª—ˆ‚éj
+                        // 1) Bodyï¿½Åï¿½i(0ï¿½sï¿½ï¿½)ï¿½ï¿½ñŒ©oï¿½ï¿½ï¿½ï¿½ï¿½Æ‚ï¿½ï¿½Äï¿½ï¿½ï¿½ï¿½iï¿½ÄŒï¿½ï¿½É‚ï¿½è‚±ï¿½ï¿½ï¿½ÉŒï¿½ï¿½oï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½j
                         try { header = workVs.GetCellText(SectionType.Body, 0, c) ?? ""; } catch { header = ""; }
 
-                        // 2) æ‚ê‚È‚¢ê‡‚Í Definition ‚Ì–¼‘OiHidden‚ÍÌ—p‚µ‚È‚¢j
+                        // 2) ï¿½ï¿½ï¿½È‚ï¿½ï¿½ê‡ï¿½ï¿½ Definition ï¿½Ì–ï¿½ï¿½Oï¿½iHiddenï¿½ÍÌ—pï¿½ï¿½ï¿½È‚ï¿½ï¿½j
                         if (string.IsNullOrWhiteSpace(header) && c < fieldOrder.Count)
                         {
                             try
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             catch { /* ignore */ }
                         }
 
-                        // 3) ‚»‚ê‚Å‚à‹ó‚È‚çAHeaderƒZƒNƒVƒ‡ƒ“‚ğ‰º‚©‚ç’Tõ
+                        // 3) ï¿½ï¿½ï¿½ï¿½Å‚ï¿½ï¿½ï¿½È‚ï¿½AHeaderï¿½Zï¿½Nï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Tï¿½ï¿½
                         if (string.IsNullOrWhiteSpace(header))
                         {
                             try
@@ -147,13 +147,13 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     }
                 }
 
-                // ---------- –{‘ÌF•\¦•¶š—ñiGetCellText 3ˆø”—DæA•ÛŒ¯‚Å TableSectionData.GetCellTextj ----------
+                // ---------- ï¿½{ï¿½ÌFï¿½\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½iGetCellText 3ï¿½ï¿½ï¿½ï¿½ï¿½Dï¿½ï¿½Aï¿½ÛŒï¿½ï¿½ï¿½ TableSectionData.GetCellTextï¿½j ----------
                 var bodyTab = ReadSectionDisplay(workVs, bodySec, SectionType.Body);
 
                 if (fillBlanks && bodyTab.Length > 0)
                     FillBlanksDownwards(bodyTab);
 
-                // ---------- ‘‚«o‚µiUTF-8 BOM / w’è‚Ì‰üsƒR[ƒhj ----------
+                // ---------- ï¿½ï¿½ï¿½ï¿½ï¿½oï¿½ï¿½ï¿½iUTF-8 BOM / ï¿½wï¿½ï¿½Ì‰ï¿½ï¿½sï¿½Rï¿½[ï¿½hï¿½j ----------
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -169,7 +169,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         sw.WriteLine(string.Join(delimiter, row.Select(EscapeCsv)));
                 }
 
-                // ---------- ˆêƒrƒ…[•Ğ•t‚¯ ----------
+                // ---------- ï¿½êï¿½rï¿½ï¿½ï¿½[ï¿½Ğ•tï¿½ï¿½ ----------
                 CleanupTemp(doc, tempId);
 
                 return new { ok = true, path, units = UnitHelper.DefaultUnitsMeta() };
@@ -198,15 +198,15 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             if (sec == null) return false;
             try
             {
-                // 0Šî“_‚Ìs—ñ”‚Å•]‰¿
+                // 0ï¿½ï¿½_ï¿½Ìsï¿½ñ”‚Å•]ï¿½ï¿½
                 return sec.NumberOfRows > 0 && sec.NumberOfColumns > 0;
             }
             catch { return false; }
         }
 
         /// <summary>
-        /// gŒ©‚½‚Ü‚Üh•\¦•¶š—ñ‚ğ—Dæ‚µ‚ÄƒZƒNƒVƒ‡ƒ“‚ğ“Ç‚İæ‚éB
-        /// —Dæ: ViewSchedule.GetCellText(section, r, c) / •ÛŒ¯: TableSectionData.GetCellText(rowAbs, colAbs)
+        /// ï¿½gï¿½ï¿½ï¿½ï¿½ï¿½Ü‚Ühï¿½\ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Dï¿½æ‚µï¿½ÄƒZï¿½Nï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç‚İï¿½ï¿½B
+        /// ï¿½Dï¿½ï¿½: ViewSchedule.GetCellText(section, r, c) / ï¿½ÛŒï¿½: TableSectionData.GetCellText(rowAbs, colAbs)
         /// </summary>
         private static string[][] ReadSectionDisplay(ViewSchedule vs, TableSectionData sec, SectionType sectionType)
         {
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             int cols = sec.NumberOfColumns;
             var table = new string[rows][];
 
-            // Absolute indexi•ÛŒ¯—pj
+            // Absolute indexï¿½iï¿½ÛŒï¿½ï¿½pï¿½j
             int r0 = sec.FirstRowNumber;
             int c0 = sec.FirstColumnNumber;
 
@@ -278,3 +278,4 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+

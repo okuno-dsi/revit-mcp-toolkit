@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ConstraintOps/ConstraintCommands.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: Constraint ops (lock/unlock/alignment/update via dimension)
@@ -104,7 +104,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
             if (p.ContainsKey("dimensionId"))
             {
                 int dimId = Convert.ToInt32(p["dimensionId"]);
-                var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
+                var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
                 if (dim == null) return new { ok = false, msg = $"Dimension not found: {dimId}" };
                 if (dim.Segments != null && dim.Segments.Size > 0)
                     return new { ok = false, msg = "Segmented dimension is not supported for locking." };
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
 
             // 2) 2参照から寸法作成→ロック
             int viewId = ToIntOrThrow(p, "viewId");
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
             var (ra, rb, line, err) = ResolveTwoRefsAndLine(doc, view, p);
@@ -159,7 +159,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
                     uiapp?.ActiveUIDocument?.RefreshActiveView();
             }
             catch { }
-            return new { ok = true, locked = true, createdDimensionId = created.Id.IntegerValue };
+            return new { ok = true, locked = true, createdDimensionId = created.Id.IntValue() };
         }
 
         // -------- unlock_constraint --------
@@ -168,7 +168,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             int dimId = ToIntOrThrow(p, "dimensionId");
-            var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
+            var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
             if (dim == null) return new { ok = false, msg = $"Dimension not found: {dimId}" };
 
             using (var t = new Transaction(doc, "Unlock Dimension"))
@@ -193,7 +193,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             int viewId = ToIntOrThrow(p, "viewId");
-            var view = doc.GetElement(new ElementId(viewId)) as View;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null) return new { ok = false, msg = $"View not found: {viewId}" };
 
             var (ra, rb, line, err) = ResolveTwoRefsAndLine(doc, view, p);
@@ -224,7 +224,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
                     uiapp?.ActiveUIDocument?.RefreshActiveView();
             }
             catch { }
-            return new { ok = true, alignedAndLocked = true, dimensionId = d.Id.IntegerValue };
+            return new { ok = true, alignedAndLocked = true, dimensionId = d.Id.IntValue() };
         }
 
         // -------- update_dimension_value_if_temp_dim --------
@@ -237,7 +237,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
             double targetMm = ToDoubleOrThrow(p, "targetMm");
             double targetFt = targetMm / 304.8; // mm→ft
 
-            var dim = doc.GetElement(new ElementId(dimId)) as Dimension;
+            var dim = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(dimId)) as Dimension;
             if (dim == null) return new { ok = false, msg = $"Dimension not found: {dimId}" };
             if (dim.Segments != null && dim.Segments.Size > 0)
                 return new { ok = false, msg = "Segmented dimension is not supported." };
@@ -285,7 +285,7 @@ namespace RevitMCPAddin.Commands.ConstraintOps
                 adjusted = true,
                 dimensionId = dimId,
                 targetMm,
-                movedElementId = movable.Id.IntegerValue
+                movedElementId = movable.Id.IntValue()
             };
         }
 
@@ -343,7 +343,6 @@ namespace RevitMCPAddin.Commands.ConstraintOps
         {
             var ra = default(Reference);
             var rb = default(Reference);
-            string? err = null;
 
             var pa = p.ContainsKey("refA") ? p["refA"] as JObject ?? JObject.FromObject(p["refA"]) : null;
             var pb = p.ContainsKey("refB") ? p["refB"] as JObject ?? JObject.FromObject(p["refB"]) : null;
@@ -354,8 +353,8 @@ namespace RevitMCPAddin.Commands.ConstraintOps
             string hintA = (pa["hint"]?.ToString() ?? "").ToLowerInvariant();
             string hintB = (pb["hint"]?.ToString() ?? "").ToLowerInvariant();
 
-            var ea = doc.GetElement(new ElementId(aId));
-            var eb = doc.GetElement(new ElementId(bId));
+            var ea = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(aId));
+            var eb = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(bId));
             if (ea == null || eb == null) return (null, null, null, "Element not found for refA/refB");
 
             ra = TryGetReferenceFromElement(ea, hintA);
@@ -486,3 +485,5 @@ namespace RevitMCPAddin.Commands.ConstraintOps
         }
     }
 }
+
+

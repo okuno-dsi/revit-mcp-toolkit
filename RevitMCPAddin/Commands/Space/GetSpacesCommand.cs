@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/GetSpacesCommand.cs (UnitHelper完全統一版 - 修正版)
 // Target: Revit 2023 / .NET Framework 4.8 / C# 8
 // 変更点:
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.Space
                 IEnumerable<SpaceElem> q = allSpaces;
 
                 if (levelIdFilter.HasValue)
-                    q = q.Where(s => s.LevelId.IntegerValue == levelIdFilter.Value);
+                    q = q.Where(s => s.LevelId.IntValue() == levelIdFilter.Value);
 
                 if (!string.IsNullOrEmpty(nameContains))
                     q = q.Where(s => (s.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
@@ -77,15 +77,15 @@ namespace RevitMCPAddin.Commands.Space
 
                 Func<SpaceElem, object> keySel = orderBy switch
                 {
-                    "id" => s => (object)s.Id.IntegerValue,
+                    "id" => s => (object)s.Id.IntValue(),
                     "name" => s => (object)(s.Name ?? ""),
                     "number" => s => (object)(s.Number ?? ""),
                     "area" => s => (object)areaM2Func(s),
                     "level" => s => (object)((doc.GetElement(s.LevelId) as Level)?.Name ?? ""),
                     _ => s => (object)(s.Number ?? "")
                 };
-                q = desc ? q.OrderByDescending(keySel).ThenBy(s => s.Id.IntegerValue)
-                         : q.OrderBy(keySel).ThenBy(s => s.Id.IntegerValue);
+                q = desc ? q.OrderByDescending(keySel).ThenBy(s => s.Id.IntValue())
+                         : q.OrderBy(keySel).ThenBy(s => s.Id.IntValue());
 
                 int totalCount = q.Count();
 
@@ -156,14 +156,14 @@ namespace RevitMCPAddin.Commands.Space
                                         val = pa.AsString() ?? string.Empty;
                                         break;
                                     case StorageType.ElementId:
-                                        val = pa.AsElementId().IntegerValue;
+                                        val = pa.AsElementId().IntValue();
                                         break;
                                 }
 
                                 return new
                                 {
                                     name = pa.Definition?.Name ?? "(no name)",
-                                    id = pa.Id.IntegerValue,
+                                    id = pa.Id.IntValue(),
                                     storageType = pa.StorageType.ToString(),
                                     value = val
                                 };
@@ -175,8 +175,8 @@ namespace RevitMCPAddin.Commands.Space
 
                     spaces.Add(new
                     {
-                        id = s.Id.IntegerValue,
-                        elementId = s.Id.IntegerValue,
+                        id = s.Id.IntValue(),
+                        elementId = s.Id.IntValue(),
                         uniqueId = s.UniqueId,
                         number = s.Number,
                         name = s.Name,
@@ -196,3 +196,4 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+

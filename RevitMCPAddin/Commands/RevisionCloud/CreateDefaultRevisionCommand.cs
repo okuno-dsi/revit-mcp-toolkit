@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;
 
@@ -30,9 +30,10 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 return new
                 {
                     ok = true,
-                    revisionId = rev.Id.IntegerValue
+                    revisionId = rev.Id.IntValue()
                 };
             }
         }
     }
 }
+

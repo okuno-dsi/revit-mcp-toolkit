@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.Room
                 return ResultUtil.Err("roomId は必須です。");
 
             int roomId = roomToken.Value<int>();
-            var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null)
                 return ResultUtil.Err($"Room が見つかりません: roomId={roomId}");
 
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.Room
                     if (t.Type == JTokenType.Integer)
                     {
                         int id = t.Value<int>();
-                        if (id > 0) columnIds.Add(new ElementId(id));
+                        if (id > 0) columnIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     }
                 }
             }
@@ -116,7 +116,7 @@ namespace RevitMCPAddin.Commands.Room
                                 try
                                 {
                                     pRoomBound.Set(1);
-                                    toggledColumnIds.Add(id.IntegerValue);
+                                    toggledColumnIds.Add(id.IntValue());
                                 }
                                 catch
                                 {
@@ -225,7 +225,7 @@ namespace RevitMCPAddin.Commands.Room
                     useBuiltInPerimeterIfAvailable,
                     autoDetectColumnsInRoom = autoDetectColumns,
                     searchMarginMm,
-                    autoDetectedColumnIds = autoDetectedColumns.Select(x => x.IntegerValue).ToArray(),
+                    autoDetectedColumnIds = autoDetectedColumns.Select(x => x.IntValue()).ToArray(),
                     toggledColumnIds = toggledColumnIds
                 }
             });
@@ -324,3 +324,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

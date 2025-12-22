@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
 
             PaintHelper.RemovePaint(
                 doc,
-                new ElementId(elementId),
+                Autodesk.Revit.DB.ElementIdCompat.From(elementId),
                 faceIndex
             );
 
@@ -27,3 +27,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Paint
         }
     }
 }
+

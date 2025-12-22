@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ViewOps/CreateViewPlanCommand.cs
+// RevitMCPAddin/Commands/ViewOps/CreateViewPlanCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -41,7 +41,8 @@ namespace RevitMCPAddin.Commands.ViewOps
             view.Name = viewName;
             tx.Commit();
 
-            return new { ok = true, viewId = view.Id.IntegerValue, name = view.Name };
+            return new { ok = true, viewId = view.Id.IntValue(), name = view.Name };
         }
     }
 }
+

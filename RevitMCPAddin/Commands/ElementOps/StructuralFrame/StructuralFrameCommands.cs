@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/StructuralFrame/StructuralFrameCommands.cs
+// File: RevitMCPAddin/Commands/ElementOps/StructuralFrame/StructuralFrameCommands.cs
 // Revit 2023 / .NET Framework 4.8 / C# 8
 // Notes:
 //  - 単位変換は UnitHelper に統一（入力は mm / 角度は deg で扱い、内部は ft/rad）
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             // Level: id または name
             Level level = null;
             if (p.TryGetValue("levelId", out var lid))
-                level = doc.GetElement(new ElementId(lid.Value<int>())) as Level;
+                level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lid.Value<int>())) as Level;
             if (level == null && p.TryGetValue("levelName", out var lname))
                 level = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                     .FirstOrDefault(l => string.Equals(l.Name, lname.Value<string>(), StringComparison.OrdinalIgnoreCase));
@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             FamilySymbol symbol = null;
             if (p.TryGetValue("typeId", out var tid))
             {
-                symbol = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             }
             else
             {
@@ -77,9 +77,9 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 return new
                 {
                     ok = true,
-                    elementId = frame.Id.IntegerValue,
+                    elementId = frame.Id.IntValue(),
                     uniqueId = frame.UniqueId,
-                    typeId = frame.GetTypeId().IntegerValue,
+                    typeId = frame.GetTypeId().IntValue(),
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
                     internalUnits = new { Length = "ft", Area = "ft2", Volume = "ft3", Angle = "rad" }
                 };
@@ -102,7 +102,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             FamilySymbol original = null;
             if (p.TryGetValue("typeId", out var tid))
             {
-                original = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                original = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             }
             else
             {
@@ -135,8 +135,8 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 return new
                 {
                     ok = true,
-                    originalId = original.Id.IntegerValue,
-                    newTypeId = dup.Id.IntegerValue,
+                    originalId = original.Id.IntValue(),
+                    newTypeId = dup.Id.IntValue(),
                     newTypeName = dup.Name
                 };
             }
@@ -177,15 +177,15 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 .ToList();
 
             // type/level 辞書
-            var typeIds = all.Select(x => x.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(x => x.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, FamilySymbol>(typeIds.Count);
             foreach (var id in typeIds)
-                typeMap[id] = doc.GetElement(new ElementId(id)) as FamilySymbol;
+                typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilySymbol;
 
-            var levelIds = all.Select(x => x.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(x => x.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
             foreach (var id in levelIds)
-                levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+                levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<FamilyInstance> q = all;
 
@@ -193,7 +193,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 FamilyInstance target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as FamilyInstance;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance;
                 else target = doc.GetElement(targetUid) as FamilyInstance;
 
                 q = target == null ? Enumerable.Empty<FamilyInstance>() : new[] { target };
@@ -201,14 +201,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
 
             // typeId / typeName(+familyName)
             if (filterTypeId > 0)
-                q = q.Where(x => x.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(x => x.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
             {
                 q = q.Where(x =>
                 {
                     FamilySymbol sym = null;
-                    typeMap.TryGetValue(x.GetTypeId().IntegerValue, out sym);
+                    typeMap.TryGetValue(x.GetTypeId().IntValue(), out sym);
                     if (sym == null) return false;
                     var ok = string.Equals(sym.Name, filterTypeName, StringComparison.OrdinalIgnoreCase);
                     if (!ok) return false;
@@ -220,13 +220,13 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
 
             // levelId / levelName
             if (filterLevelId > 0)
-                q = q.Where(x => x.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(x => x.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
             {
                 q = q.Where(x =>
                 {
-                    Level lv; levelMap.TryGetValue(x.LevelId.IntegerValue, out lv);
+                    Level lv; levelMap.TryGetValue(x.LevelId.IntValue(), out lv);
                     return lv != null && string.Equals(lv.Name, filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
             }
@@ -238,7 +238,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 {
                     var instName = x.Name ?? string.Empty;
                     if (instName.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntegerValue, out sym);
+                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntValue(), out sym);
                     var tName = sym?.Name ?? string.Empty;
                     return tName.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
@@ -248,12 +248,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             var ordered = q
                 .Select(x =>
                 {
-                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntegerValue, out sym);
+                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntValue(), out sym);
                     string tName = sym?.Name ?? "";
                     return new { x, tName };
                 })
                 .OrderBy(a => a.tName)
-                .ThenBy(a => a.x.Id.IntegerValue)
+                .ThenBy(a => a.x.Id.IntValue())
                 .Select(a => a.x)
                 .ToList();
 
@@ -277,7 +277,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 var names = ordered.Skip(skip).Take(count).Select(x =>
                 {
                     if (!string.IsNullOrEmpty(x.Name)) return x.Name;
-                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntegerValue, out sym);
+                    FamilySymbol sym; typeMap.TryGetValue(x.GetTypeId().IntValue(), out sym);
                     return sym?.Name ?? string.Empty;
                 }).ToList();
 
@@ -295,11 +295,11 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             var page = ordered.Skip(skip).Take(count).ToList();
             var frames = page.Select(e =>
             {
-                FamilySymbol sym; typeMap.TryGetValue(e.GetTypeId().IntegerValue, out sym);
+                FamilySymbol sym; typeMap.TryGetValue(e.GetTypeId().IntValue(), out sym);
                 string typeName = sym?.Name ?? string.Empty;
                 string familyName = sym?.Family?.Name ?? string.Empty;
 
-                Level lv; levelMap.TryGetValue(e.LevelId.IntegerValue, out lv);
+                Level lv; levelMap.TryGetValue(e.LevelId.IntValue(), out lv);
                 string levelName = lv?.Name ?? string.Empty;
 
                 (double x, double y, double z)? sMm = null, eMm = null;
@@ -321,12 +321,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
 
                 return new
                 {
-                    elementId = e.Id.IntegerValue,
+                    elementId = e.Id.IntValue(),
                     uniqueId = e.UniqueId,
-                    typeId = e.GetTypeId().IntegerValue,
+                    typeId = e.GetTypeId().IntValue(),
                     typeName,
                     familyName,
-                    levelId = e.LevelId.IntegerValue,
+                    levelId = e.LevelId.IntValue(),
                     levelName,
                     start = sMm != null ? new { x = sMm.Value.x, y = sMm.Value.y, z = sMm.Value.z } : null,
                     end = eMm != null ? new { x = eMm.Value.x, y = eMm.Value.y, z = eMm.Value.z } : null
@@ -358,7 +358,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             if (target == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
@@ -375,7 +375,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             return new
             {
                 ok = true,
-                elementId = target.Id.IntegerValue,
+                elementId = target.Id.IntValue(),
                 uniqueId = target.UniqueId,
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
@@ -397,7 +397,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             if (target == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
@@ -426,7 +426,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var fr = target as FamilyInstance;
             if (fr == null) return new { ok = false, msg = "FamilyInstance が必要です。" };
@@ -447,7 +447,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 lc.Curve = newLine;
                 tx.Commit();
             }
-            return new { ok = true, elementId = fr.Id.IntegerValue, uniqueId = fr.UniqueId };
+            return new { ok = true, elementId = fr.Id.IntValue(), uniqueId = fr.UniqueId };
         }
     }
 
@@ -465,7 +465,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var fr = target as FamilyInstance;
             if (fr == null) return new { ok = false, msg = "FamilyInstance が見つかりません。" };
@@ -490,7 +490,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                         break;
                     case StorageType.Integer: value = param.AsInteger(); break;
                     case StorageType.String: value = param.AsString() ?? string.Empty; break;
-                    case StorageType.ElementId: value = param.AsElementId()?.IntegerValue ?? -1; break;
+                    case StorageType.ElementId: value = param.AsElementId()?.IntValue() ?? -1; break;
                 }
             }
             catch { value = null; }
@@ -498,10 +498,10 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             return new
             {
                 ok = true,
-                elementId = fr.Id.IntegerValue,
+                elementId = fr.Id.IntValue(),
                 uniqueId = fr.UniqueId,
                 name = param.Definition?.Name ?? paramName,
-                id = param.Id.IntegerValue,
+                id = param.Id.IntValue(),
                 storageType = param.StorageType.ToString(),
                 isReadOnly = param.IsReadOnly,
                 dataType,
@@ -526,7 +526,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var fr = target as FamilyInstance;
             if (fr == null) return new { ok = false, msg = "FamilyInstance が見つかりません。" };
@@ -588,14 +588,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_frame_parameter: move by offset failed for element {fr.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_frame_parameter: move by offset failed for element {fr.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = fr.Id.IntegerValue, uniqueId = fr.UniqueId };
+            return new { ok = true, elementId = fr.Id.IntValue(), uniqueId = fr.UniqueId };
         }
     }
 
@@ -613,7 +613,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element target = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) target = doc.GetElement(new ElementId(eid));
+            if (eid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) target = doc.GetElement(uid);
             var fr = target as FamilyInstance;
             if (fr == null) return new { ok = false, msg = "FamilyInstance が見つかりません。" };
@@ -623,7 +623,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (fr.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -634,7 +634,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 return new
                 {
                     ok = true,
-                    elementId = fr.Id.IntegerValue,
+                    elementId = fr.Id.IntValue(),
                     uniqueId = fr.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
@@ -648,7 +648,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 return new
                 {
                     ok = true,
-                    elementId = fr.Id.IntegerValue,
+                    elementId = fr.Id.IntValue(),
                     uniqueId = fr.UniqueId,
                     totalCount,
                     names,
@@ -676,7 +676,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                             break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -684,7 +684,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -695,7 +695,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             return new
             {
                 ok = true,
-                elementId = fr.Id.IntegerValue,
+                elementId = fr.Id.IntValue(),
                 uniqueId = fr.UniqueId,
                 totalCount,
                 parameters = list,
@@ -724,7 +724,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
 
             if (typeId > 0)
             {
-                sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
@@ -742,7 +742,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 Element inst = null;
                 int eid = p.Value<int?>("elementId") ?? 0;
                 string uid = p.Value<string>("uniqueId");
-                if (eid > 0) inst = doc.GetElement(new ElementId(eid));
+                if (eid > 0) inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 else if (!string.IsNullOrWhiteSpace(uid)) inst = doc.GetElement(uid);
                 var fi = inst as FamilyInstance;
                 if (fi != null) sym = doc.GetElement(fi.GetTypeId()) as FamilySymbol;
@@ -755,7 +755,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (sym.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -767,7 +767,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 {
                     ok = true,
                     scope = "type",
-                    typeId = sym.Id.IntegerValue,
+                    typeId = sym.Id.IntValue(),
                     uniqueId = sym.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
@@ -782,7 +782,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 {
                     ok = true,
                     scope = "type",
-                    typeId = sym.Id.IntegerValue,
+                    typeId = sym.Id.IntValue(),
                     uniqueId = sym.UniqueId,
                     totalCount,
                     names,
@@ -810,7 +810,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                             break;
                         case StorageType.Integer: val = pa.AsInteger(); break;
                         case StorageType.String: val = pa.AsString() ?? string.Empty; break;
-                        case StorageType.ElementId: val = pa.AsElementId()?.IntegerValue ?? -1; break;
+                        case StorageType.ElementId: val = pa.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { val = null; }
@@ -818,7 +818,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 list.Add(new
                 {
                     name = pa.Definition?.Name ?? "",
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     dataType,
@@ -830,7 +830,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             {
                 ok = true,
                 scope = "type",
-                typeId = sym.Id.IntegerValue,
+                typeId = sym.Id.IntValue(),
                 uniqueId = sym.UniqueId,
                 totalCount,
                 parameters = list,
@@ -854,7 +854,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element instElm = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) instElm = doc.GetElement(new ElementId(eid));
+            if (eid > 0) instElm = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) instElm = doc.GetElement(uid);
 
             var fr = instElm as FamilyInstance;
@@ -865,7 +865,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             int typeId = p.Value<int?>("typeId") ?? 0;
             if (typeId > 0)
             {
-                newSym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+                newSym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             }
             else
             {
@@ -891,7 +891,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 fr.ChangeTypeId(newSym.Id);
                 tx.Commit();
             }
-            return new { ok = true, elementId = fr.Id.IntegerValue, uniqueId = fr.UniqueId, typeId = fr.GetTypeId().IntegerValue };
+            return new { ok = true, elementId = fr.Id.IntValue(), uniqueId = fr.UniqueId, typeId = fr.GetTypeId().IntValue() };
         }
     }
 
@@ -931,7 +931,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             }
 
             if (filterFamilyId > 0)
-                q = q.Where(s => s.Family != null && s.Family.Id.IntegerValue == filterFamilyId);
+                q = q.Where(s => s.Family != null && s.Family.Id.IntValue() == filterFamilyId);
 
             if (!string.IsNullOrWhiteSpace(filterFamilyName))
                 q = q.Where(s => string.Equals(s.Family?.Name, filterFamilyName, StringComparison.OrdinalIgnoreCase));
@@ -944,7 +944,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 s,
                 famName = s.Family != null ? (s.Family.Name ?? "") : "",
                 typeName = s.Name ?? "",
-                typeId = s.Id.IntegerValue
+                typeId = s.Id.IntValue()
             })
             .OrderBy(x => x.famName)
             .ThenBy(x => x.typeName)
@@ -981,10 +981,10 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             var list = ordered.Skip(skip).Take(count)
                 .Select(s => new
                 {
-                    typeId = s.Id.IntegerValue,
+                    typeId = s.Id.IntValue(),
                     uniqueId = s.UniqueId,
                     typeName = s.Name ?? "",
-                    familyId = s.Family != null ? s.Family.Id.IntegerValue : (int?)null,
+                    familyId = s.Family != null ? s.Family.Id.IntValue() : (int?)null,
                     familyName = s.Family != null ? (s.Family.Name ?? "") : ""
                 }).ToList();
 
@@ -1014,7 +1014,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             Element elem = null;
             if (p.TryGetValue("elementId", out var fid))
             {
-                elem = doc.GetElement(new ElementId(fid.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(fid.Value<int>()));
             }
             else if (p.TryGetValue("uniqueId", out var uidTok))
             {
@@ -1022,7 +1022,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             }
             else if (p.TryGetValue("typeId", out var tid))
             {
-                elem = doc.GetElement(new ElementId(tid.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>()));
             }
             else if (!string.IsNullOrWhiteSpace(p.Value<string>("typeName")))
             {
@@ -1042,7 +1042,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
 
             // 並び（名前 → id）
             var defs = (elem.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa)
                 .Select(pa =>
@@ -1052,7 +1052,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                     return new
                     {
                         name = pa.Definition?.Name ?? "",
-                        id = pa.Id.IntegerValue,
+                        id = pa.Id.IntValue(),
                         storageType = pa.StorageType.ToString(),
                         dataType,
                         isReadOnly = pa.IsReadOnly
@@ -1063,8 +1063,8 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             return new
             {
                 ok = true,
-                elementId = (elem as FamilyInstance)?.Id.IntegerValue,
-                typeId = elem is FamilySymbol ? elem.Id.IntegerValue : (elem as FamilyInstance)?.GetTypeId().IntegerValue,
+                elementId = (elem as FamilyInstance)?.Id.IntValue(),
+                typeId = elem is FamilySymbol ? elem.Id.IntValue() : (elem as FamilyInstance)?.GetTypeId().IntValue(),
                 uniqueId = elem.UniqueId,
                 totalCount = defs.Count,
                 definitions = defs
@@ -1087,7 +1087,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
             FamilySymbol sym = null;
             if (p.TryGetValue("typeId", out var tidToken))
             {
-                sym = doc.GetElement(new ElementId(tidToken.Value<int>())) as FamilySymbol;
+                sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tidToken.Value<int>())) as FamilySymbol;
             }
             else
             {
@@ -1126,7 +1126,9 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralFrame
                 }
                 tx.Commit();
             }
-            return new { ok = true, typeId = sym.Id.IntegerValue, uniqueId = sym.UniqueId };
+            return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId };
         }
     }
 }
+
+

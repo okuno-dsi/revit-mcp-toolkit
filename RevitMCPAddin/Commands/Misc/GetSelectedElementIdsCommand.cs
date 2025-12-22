@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -45,7 +45,7 @@ namespace RevitMCPAddin.Commands.Misc
             System.Collections.Generic.List<int> ids = null;
             while (true)
             {
-                ids = uidoc.Selection.GetElementIds().Select(x => x.IntegerValue).ToList();
+                ids = uidoc.Selection.GetElementIds().Select(x => x.IntValue()).ToList();
                 if (ids.Count > 0) break;
                 if (sw.ElapsedMilliseconds >= maxWaitMs || maxWaitMs <= 0) break;
                 try { System.Threading.Thread.Sleep(pollMs); } catch { break; }
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.Misc
                 string docPath = string.Empty, docTitle = string.Empty; int viewId = 0;
                 try { docPath = doc.PathName ?? string.Empty; } catch { }
                 try { docTitle = doc.Title ?? string.Empty; } catch { }
-                try { viewId = uidoc.ActiveView?.Id?.IntegerValue ?? 0; } catch { }
+                try { viewId = uidoc.ActiveView?.Id?.IntValue() ?? 0; } catch { }
                 SelectionStash.Set(ids, docPath, docTitle, viewId);
             }
 
@@ -90,3 +90,4 @@ namespace RevitMCPAddin.Commands.Misc
         }
     }
 }
+

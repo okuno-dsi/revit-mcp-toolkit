@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -27,7 +27,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             double heightMm = (double)p["heightMm"]!;
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var wall = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Wall
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Wall
                        ?? throw new InvalidOperationException("Curtain wall not found");
 
             using (var tx = new Transaction(doc, "Update Curtain Wall Geometry"))
@@ -48,3 +48,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

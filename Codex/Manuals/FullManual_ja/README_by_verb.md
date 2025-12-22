@@ -603,6 +603,7 @@
 - [move_tag](move_tag.md)
 - [move_text_note](move_text_note.md)
 - [move_window](move_window.md)
+- [viewport_move_to_sheet_center](viewport_move_to_sheet_center.md)
 
 ## open
 - [open_views](open_views.md)
@@ -616,6 +617,7 @@
 - [place_room_in_circuit](place_room_in_circuit.md)
 - [place_site_component](place_site_component.md)
 - [place_view_on_sheet](place_view_on_sheet.md)
+- [sheet_place_view_auto](sheet_place_view_auto.md)
 
 ## prepare
 - [prepare_sunstudy_view](prepare_sunstudy_view.md)
@@ -641,6 +643,7 @@
 - [remove_roof_layer](remove_roof_layer.md)
 - [remove_spaces_from_zone](remove_spaces_from_zone.md)
 - [remove_wall_layer](remove_wall_layer.md)
+- [sheet_remove_titleblocks_auto](sheet_remove_titleblocks_auto.md)
 
 ## rename
 - [rename_door_type](rename_door_type.md)

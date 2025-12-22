@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using Autodesk.Revit.UI;
+using Autodesk.Revit.DB;
 using RevitMCPAddin.Core;
 using Rvt = Autodesk.Revit.DB;
 using Rg = Rhino.Geometry;
@@ -57,7 +58,7 @@ namespace RevitMCPAddin.Commands.Export
             if (string.IsNullOrWhiteSpace(outPath))
                 return new { ok = false, msg = "outPath is required.", code = "ARG_OUTPATH" };
 
-            var view = doc.GetElement(new Rvt.ElementId(viewIdInt)) as Rvt.View3D;
+            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as Rvt.View3D;
             if (view == null || view.ViewType != Rvt.ViewType.ThreeD || view.IsTemplate)
                 return new { ok = false, msg = "View not found or not a 3D view.", code = "INVALID_VIEW" };
 
@@ -184,7 +185,7 @@ namespace RevitMCPAddin.Commands.Export
 
             public Rvt.RenderNodeAction OnElementBegin(Rvt.ElementId elementId)
             {
-                if (_filterIds != null && !_filterIds.Contains(elementId.IntegerValue))
+                if (_filterIds != null && !_filterIds.Contains(elementId.IntValue()))
                 {
                     _ownerStack.Push(Rvt.ElementId.InvalidElementId);
                     return Rvt.RenderNodeAction.Proceed;
@@ -214,11 +215,11 @@ namespace RevitMCPAddin.Commands.Export
                     var ge = e.get_Geometry(opt);
                     if (ge == null) return;
 
-                    if (!_elements.TryGetValue(eid.IntegerValue, out var pe))
+                    if (!_elements.TryGetValue(eid.IntValue(), out var pe))
                     {
                         pe = new PerElement
                         {
-                            ElementId = eid.IntegerValue,
+                            ElementId = eid.IntValue(),
                             UniqueId = e.UniqueId,
                             Category = e.Category?.Name ?? "Unknown",
                             TypeName = TryTypeName(e),
@@ -268,11 +269,11 @@ namespace RevitMCPAddin.Commands.Export
                 var e = _doc.GetElement(eid);
                 if (e == null) return;
 
-                if (!_elements.TryGetValue(eid.IntegerValue, out var pe))
+                if (!_elements.TryGetValue(eid.IntValue(), out var pe))
                 {
                     pe = new PerElement
                     {
-                        ElementId = eid.IntegerValue,
+                        ElementId = eid.IntValue(),
                         UniqueId = e?.UniqueId ?? string.Empty,
                         Category = e?.Category?.Name ?? "Unknown",
                         TypeName = TryTypeName(e)
@@ -528,7 +529,7 @@ namespace RevitMCPAddin.Commands.Export
                 try
                 {
                     var tid = e?.GetTypeId();
-                    if (tid != null && tid.IntegerValue > 0)
+                    if (tid != null && tid.IntValue() > 0)
                     {
                         var t = e.Document.GetElement(tid) as Rvt.ElementType;
                         return t?.Name ?? "";
@@ -595,4 +596,6 @@ namespace RevitMCPAddin.Commands.Export
         }
     }
 }
+
+
 

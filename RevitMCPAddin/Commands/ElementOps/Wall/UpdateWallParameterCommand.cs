@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
             int elementId = eidToken.Value<int>();
 
-            var wall = doc.GetElement(new ElementId(elementId)) as Autodesk.Revit.DB.Wall;
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Autodesk.Revit.DB.Wall;
             if (wall == null) return new { ok = false, msg = $"Wall not found: {elementId}" };
 
             // Resolve parameter by builtInId/builtInName/guid/name (fallback)
@@ -72,7 +72,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     }
                     catch (Exception ex)
                     {
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_wall_parameter: move by offset failed for element {wall.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_wall_parameter: move by offset failed for element {wall.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
@@ -90,3 +90,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
         }
     }
 }
+
+

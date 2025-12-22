@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
@@ -51,7 +51,7 @@ namespace RevitMCPAddin.Core
                         if (!int.TryParse(s, out intId))
                             return null;
                     }
-                    var id = new ElementId(intId);
+                    var id = Autodesk.Revit.DB.ElementIdCompat.From(intId);
                     var byId = doc.GetElement(id);
                     if (byId != null) return byId;
                 }
@@ -62,3 +62,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/SheetCommands.cs
 // Target : Revit 2023 / .NET Framework 4.8 / C# 8
 // Summary: ViewSheet 操作（create/get/delete/place/remove）
@@ -24,13 +24,81 @@ namespace RevitMCPAddin.Commands.ViewOps
         public static double FtToMm(double ft) =>
             ConvertFromInternalUnits(ft, UnitTypeId.Millimeters);
 
+        private static bool TryGetTitleBlockBoundsFt(ViewSheet sheet, out XYZ min, out XYZ max)
+        {
+            min = XYZ.Zero;
+            max = XYZ.Zero;
+            if (sheet == null) return false;
+
+            try
+            {
+                var doc = sheet.Document;
+                if (doc == null) return false;
+
+                var ids = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .ToElementIds()
+                    .ToList();
+
+                if (ids == null || ids.Count == 0) return false;
+
+                double minX = double.PositiveInfinity;
+                double minY = double.PositiveInfinity;
+                double maxX = double.NegativeInfinity;
+                double maxY = double.NegativeInfinity;
+
+                foreach (var id in ids)
+                {
+                    var e = doc.GetElement(id);
+                    if (e == null) continue;
+
+                    BoundingBoxXYZ bb = null;
+                    try { bb = e.get_BoundingBox(sheet); } catch { bb = null; }
+                    if (bb == null) continue;
+
+                    XYZ p1;
+                    XYZ p2;
+                    try
+                    {
+                        var t = bb.Transform ?? Transform.Identity;
+                        p1 = t.OfPoint(bb.Min);
+                        p2 = t.OfPoint(bb.Max);
+                    }
+                    catch
+                    {
+                        p1 = bb.Min;
+                        p2 = bb.Max;
+                    }
+
+                    var x1 = Math.Min(p1.X, p2.X);
+                    var y1 = Math.Min(p1.Y, p2.Y);
+                    var x2 = Math.Max(p1.X, p2.X);
+                    var y2 = Math.Max(p1.Y, p2.Y);
+
+                    minX = Math.Min(minX, x1);
+                    minY = Math.Min(minY, y1);
+                    maxX = Math.Max(maxX, x2);
+                    maxY = Math.Max(maxY, y2);
+                }
+
+                if (double.IsInfinity(minX) || double.IsInfinity(minY) || double.IsInfinity(maxX) || double.IsInfinity(maxY))
+                    return false;
+
+                min = new XYZ(minX, minY, 0);
+                max = new XYZ(maxX, maxY, 0);
+                return true;
+            }
+            catch { return false; }
+        }
+
         public static ViewSheet ResolveSheet(Document doc, JObject p)
         {
             // sheetId > uniqueId > sheetNumber（SHEET_NUMBER）
             int sheetId = p.Value<int?>("sheetId") ?? p.Value<int?>("viewId") ?? 0; // エージェントが viewId と書く事故に備える
             if (sheetId > 0)
             {
-                var s = doc.GetElement(new ElementId(sheetId)) as ViewSheet;
+                var s = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sheetId)) as ViewSheet;
                 if (s != null) return s;
             }
 
@@ -60,7 +128,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             int id = p.Value<int?>("viewId") ?? 0;
             if (id > 0)
             {
-                var v = doc.GetElement(new ElementId(id)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as View;
                 if (v != null) return v;
             }
             string uid = p.Value<string>("viewUniqueId");
@@ -77,8 +145,8 @@ namespace RevitMCPAddin.Commands.ViewOps
             int typeId = p.Value<int?>("titleBlockTypeId") ?? 0;
             if (typeId > 0)
             {
-                var fs = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
-                if (fs != null && fs.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_TitleBlocks)
+                var fs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
+                if (fs != null && fs.Category?.Id.IntValue() == (int)BuiltInCategory.OST_TitleBlocks)
                     return fs;
             }
 
@@ -103,6 +171,31 @@ namespace RevitMCPAddin.Commands.ViewOps
             return fs2; // null もあり得る（無題ブロックで作る）
         }
 
+        public static XYZ GetSheetCenterFt(ViewSheet sheet)
+        {
+            if (sheet == null) return XYZ.Zero;
+
+            try
+            {
+                var pw = sheet.get_Parameter(BuiltInParameter.SHEET_WIDTH);
+                var ph = sheet.get_Parameter(BuiltInParameter.SHEET_HEIGHT);
+                if (pw != null && ph != null &&
+                    pw.StorageType == StorageType.Double && ph.StorageType == StorageType.Double)
+                {
+                    var wFt = pw.AsDouble();
+                    var hFt = ph.AsDouble();
+                    if (wFt > 0 && hFt > 0)
+                        return new XYZ(wFt * 0.5, hFt * 0.5, 0);
+                }
+            }
+            catch { /* ignore */ }
+
+            if (TryGetTitleBlockBoundsFt(sheet, out var min, out var max))
+                return new XYZ((min.X + max.X) * 0.5, (min.Y + max.Y) * 0.5, 0);
+
+            return XYZ.Zero;
+        }
+
         public static (double widthMm, double heightMm) GetSheetSizeMm(ViewSheet sheet)
         {
             double w = 0, h = 0;
@@ -114,6 +207,19 @@ namespace RevitMCPAddin.Commands.ViewOps
                 if (ph != null && ph.StorageType == StorageType.Double) h = FtToMm(ph.AsDouble());
             }
             catch { /* ignore */ }
+
+            if (w <= 0 || h <= 0)
+            {
+                if (TryGetTitleBlockBoundsFt(sheet, out var min, out var max))
+                {
+                    try
+                    {
+                        w = FtToMm(max.X - min.X);
+                        h = FtToMm(max.Y - min.Y);
+                    }
+                    catch { /* ignore */ }
+                }
+            }
             return (Math.Round(w, 3), Math.Round(h, 3));
         }
     }
@@ -162,12 +268,12 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                sheetId = sheet.Id.IntegerValue,
+                sheetId = sheet.Id.IntValue(),
                 uniqueId = sheet.UniqueId,
                 sheetNumber = sheet.get_Parameter(BuiltInParameter.SHEET_NUMBER)?.AsString(),
                 sheetName = sheet.get_Parameter(BuiltInParameter.SHEET_NAME)?.AsString(),
                 sizeMm = new { width = w, height = h },
-                titleBlockTypeId = titleType?.Id.IntegerValue
+                titleBlockTypeId = titleType?.Id.IntValue()
             };
         }
     }
@@ -215,7 +321,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 })
                 .OrderBy(x => x.number)
                 .ThenBy(x => x.name)
-                .ThenBy(x => x.vs.Id.IntegerValue)
+                .ThenBy(x => x.vs.Id.IntValue())
                 .Select(x => x.vs)
                 .ToList();
 
@@ -268,8 +374,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         items.Add(new
                         {
                             kind = "viewport",
-                            viewportId = vp.Id.IntegerValue,
-                            viewId = vp.ViewId.IntegerValue,
+                            viewportId = vp.Id.IntValue(),
+                            viewId = vp.ViewId.IntValue(),
                             viewName = vname,
                             viewType = vtype,
                             centerMm = new
@@ -292,8 +398,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         items.Add(new
                         {
                             kind = "schedule",
-                            scheduleInstanceId = si.Id.IntegerValue,
-                            scheduleViewId = si.ScheduleId.IntegerValue,
+                            scheduleInstanceId = si.Id.IntValue(),
+                            scheduleViewId = si.ScheduleId.IntValue(),
                             locationMm = new
                             {
                                 x = Math.Round(SheetUtil.FtToMm(loc.X), 3),
@@ -307,7 +413,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                 list.Add(new
                 {
-                    sheetId = vs.Id.IntegerValue,
+                    sheetId = vs.Id.IntValue(),
                     uniqueId = vs.UniqueId,
                     sheetNumber = num,
                     sheetName = nm,
@@ -378,8 +484,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             bool center = p.Value<bool?>("centerOnSheet") ?? false;
             if (center)
             {
-                var (w, h) = SheetUtil.GetSheetSizeMm(sheet);
-                pos = new XYZ(SheetUtil.MmToFt(w * 0.5), SheetUtil.MmToFt(h * 0.5), 0);
+                pos = SheetUtil.GetSheetCenterFt(sheet);
             }
             else
             {
@@ -404,9 +509,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             ok = true,
                             kind = "schedule",
-                            scheduleInstanceId = inst.Id.IntegerValue,
-                            sheetId = sheet.Id.IntegerValue,
-                            viewId = vs.Id.IntegerValue
+                            scheduleInstanceId = inst.Id.IntValue(),
+                            sheetId = sheet.Id.IntValue(),
+                            viewId = vs.Id.IntValue()
                         };
                     }
 
@@ -430,9 +535,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         ok = true,
                         kind = "viewport",
-                        viewportId = vp.Id.IntegerValue,
-                        sheetId = sheet.Id.IntegerValue,
-                        viewId = view.Id.IntegerValue
+                        viewportId = vp.Id.IntValue(),
+                        sheetId = sheet.Id.IntValue(),
+                        viewId = view.Id.IntValue()
                     };
                 }
                 catch (Exception ex)
@@ -469,14 +574,14 @@ namespace RevitMCPAddin.Commands.ViewOps
             // 直接指定: Viewport
             if (viewportId > 0)
             {
-                var vp = doc.GetElement(new ElementId(viewportId)) as Viewport;
+                var vp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewportId)) as Viewport;
                 if (vp != null && vp.SheetId == sheet.Id) toDelete.Add(vp.Id);
             }
 
             // 直接指定: ScheduleSheetInstance
             if (scheduleInstanceId > 0)
             {
-                var si = doc.GetElement(new ElementId(scheduleInstanceId)) as ScheduleSheetInstance;
+                var si = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scheduleInstanceId)) as ScheduleSheetInstance;
                 if (si != null && si.OwnerViewId == sheet.Id) toDelete.Add(si.Id);
             }
 
@@ -486,7 +591,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 foreach (var vpId in sheet.GetAllViewports() ?? new List<ElementId>())
                 {
                     var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp != null && vp.ViewId.IntegerValue == viewId) toDelete.Add(vp.Id);
+                    if (vp != null && vp.ViewId.IntValue() == viewId) toDelete.Add(vp.Id);
                 }
 
                 var schs = new FilteredElementCollector(doc, sheet.Id)
@@ -496,7 +601,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                 foreach (var si in schs)
                 {
-                    if (si.ScheduleId.IntegerValue == viewId) toDelete.Add(si.Id);
+                    if (si.ScheduleId.IntValue() == viewId) toDelete.Add(si.Id);
                 }
             }
 
@@ -579,7 +684,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // 既存配置を特定（case1: viewportId 指定）
             if (viewportId > 0)
             {
-                var elem = doc.GetElement(new ElementId(viewportId));
+                var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewportId));
                 oldViewport = elem as Viewport;
                 if (oldViewport != null)
                 {
@@ -607,7 +712,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new { ok = false, msg = "シートが見つかりません（sheetId/uniqueId/sheetNumber）。" };
 
                 if (oldViewId > 0)
-                    oldView = doc.GetElement(new ElementId(oldViewId)) as View;
+                    oldView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(oldViewId)) as View;
                 if (oldView == null && !string.IsNullOrWhiteSpace(oldViewUid))
                     oldView = doc.GetElement(oldViewUid) as View;
                 if (oldView == null)
@@ -617,7 +722,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 foreach (var vpId in sheet.GetAllViewports() ?? new List<ElementId>())
                 {
                     var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp != null && vp.ViewId.IntegerValue == oldView.Id.IntegerValue)
+                    if (vp != null && vp.ViewId.IntValue() == oldView.Id.IntValue())
                     {
                         oldViewport = vp;
                         break;
@@ -632,7 +737,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                     foreach (var si in schs)
                     {
-                        if (si.ScheduleId.IntegerValue == oldView.Id.IntegerValue)
+                        if (si.ScheduleId.IntValue() == oldView.Id.IntValue())
                         {
                             oldSchedule = si;
                             break;
@@ -647,7 +752,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // 新しいビューを解決
             View newView = null;
             if (newViewId > 0)
-                newView = doc.GetElement(new ElementId(newViewId)) as View;
+                newView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newViewId)) as View;
             if (newView == null && !string.IsNullOrWhiteSpace(newViewUid))
                 newView = doc.GetElement(newViewUid) as View;
             if (newView == null)
@@ -686,8 +791,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 if (centerOnSheet)
                 {
-                    var (w, h) = SheetUtil.GetSheetSizeMm(sheet);
-                    targetPosFt = new XYZ(SheetUtil.MmToFt(w * 0.5), SheetUtil.MmToFt(h * 0.5), 0);
+                    targetPosFt = SheetUtil.GetSheetCenterFt(sheet);
                 }
                 else
                 {
@@ -731,9 +835,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                         createdInfo = new
                         {
                             kind = "schedule",
-                            scheduleInstanceId = inst.Id.IntegerValue,
-                            sheetId = sheet.Id.IntegerValue,
-                            viewId = newVs.Id.IntegerValue
+                            scheduleInstanceId = inst.Id.IntValue(),
+                            sheetId = sheet.Id.IntValue(),
+                            viewId = newVs.Id.IntValue()
                         };
                     }
                     else
@@ -754,9 +858,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                         createdInfo = new
                         {
                             kind = "viewport",
-                            viewportId = vpNew.Id.IntegerValue,
-                            sheetId = sheet.Id.IntegerValue,
-                            viewId = newView.Id.IntegerValue
+                            viewportId = vpNew.Id.IntValue(),
+                            sheetId = sheet.Id.IntValue(),
+                            viewId = newView.Id.IntValue()
                         };
                     }
 
@@ -782,9 +886,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new
                     {
                         ok = true,
-                        sheetId = sheet.Id.IntegerValue,
-                        oldViewId = oldView?.Id.IntegerValue,
-                        newViewId = newView.Id.IntegerValue,
+                        sheetId = sheet.Id.IntValue(),
+                        oldViewId = oldView?.Id.IntValue(),
+                        newViewId = newView.Id.IntValue(),
                         usedLocationFromOld = keepLocation,
                         copyRotation,
                         copyScale,
@@ -801,3 +905,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

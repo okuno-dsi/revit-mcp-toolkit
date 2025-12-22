@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using Newtonsoft.Json.Linq;
 using Autodesk.Revit.UI;
@@ -62,9 +62,10 @@ namespace RevitMCPAddin.Commands.Spatial
         private static ElementId? ReadElemId(JToken? t)
         {
             if (t == null) return null;
-            if (t.Type == JTokenType.Integer) return new ElementId(t.Value<int>());
-            if (t.Type == JTokenType.String && int.TryParse((string)t, out var i)) return new ElementId(i);
+            if (t.Type == JTokenType.Integer) return Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>());
+            if (t.Type == JTokenType.String && int.TryParse((string)t, out var i)) return Autodesk.Revit.DB.ElementIdCompat.From(i);
             return null;
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/GridOps/AdjustGridExtentsCommand.cs  (UnitHelper 統一版)
 // Target: Revit 2023 / .NET Framework 4.8
 // CommandName: "adjust_grid_extents"
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.GridOps
                 modeNormalized = mode,
                 offsetsMm,
                 docTitle = doc.Title,
-                viewIds = views.Select(v => v.Id.IntegerValue).ToArray(),
+                viewIds = views.Select(v => v.Id.IntValue()).ToArray(),
                 summary = new { total, lin, curved },
                 modelZ = modelZ,
                 viewsXY = viewsXY
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Commands.GridOps
         {
             var res = new ViewXYResult
             {
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 updatedCount = 0,
                 skipped = new SkipInfo()
             };
@@ -227,7 +227,7 @@ namespace RevitMCPAddin.Commands.GridOps
 
             if (!dryRun)
             {
-                using (var t = new Transaction(doc, $"[MCP] Adjust Grid XY in View {view.Id.IntegerValue}"))
+                using (var t = new Transaction(doc, $"[MCP] Adjust Grid XY in View {view.Id.IntValue()}"))
                 {
                     t.Start();
 
@@ -413,7 +413,7 @@ namespace RevitMCPAddin.Commands.GridOps
             {
                 foreach (var idVal in arr.Values<int>())
                 {
-                    var v = doc.GetElement(new ElementId(idVal)) as ViewPlan;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idVal)) as ViewPlan;
                     if (v != null && IsSupportedPlanKind(v)) result.Add(v);
                 }
             }
@@ -592,3 +592,5 @@ namespace RevitMCPAddin.Commands.GridOps
         }
     }
 }
+
+

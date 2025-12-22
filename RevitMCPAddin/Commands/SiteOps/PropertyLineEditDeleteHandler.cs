@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.SiteOps
             if (oldId <= 0) return new { ok = false, msg = "propertyLineId is required." };
             if (pts.Count < 2) return new { ok = false, msg = "Need >= 2 points." };
 
-            var pl = doc.GetElement(new ElementId(oldId));
+            var pl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(oldId));
             if (pl == null) return new { ok = false, msg = $"PropertyLine not found: {oldId}" };
 
             // 2D polyline → 曲線列
@@ -65,7 +65,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 t.Start();
 
                 // 旧を削除
-                try { doc.Delete(new ElementId(oldId)); }
+                try { doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(oldId)); }
                 catch (Exception exDel)
                 {
                     t.RollBack();
@@ -81,8 +81,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                 }
 
                 t.Commit();
-                LoggerProxy.Info($"[Site] PropertyLine updated old={oldId} -> new={created.Id.IntegerValue}");
-                return new { ok = true, oldId, newId = created.Id.IntegerValue };
+                LoggerProxy.Info($"[Site] PropertyLine updated old={oldId} -> new={created.Id.IntValue()}");
+                return new { ok = true, oldId, newId = created.Id.IntValue() };
             }
         }
 
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 int okCount = 0, ngCount = 0;
                 foreach (var id in list)
                 {
-                    try { var deleted = doc.Delete(new ElementId(id)); okCount += deleted.Count; }
+                    try { var deleted = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id)); okCount += deleted.Count; }
                     catch { ngCount++; }
                 }
                 t.Commit();
@@ -179,3 +179,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

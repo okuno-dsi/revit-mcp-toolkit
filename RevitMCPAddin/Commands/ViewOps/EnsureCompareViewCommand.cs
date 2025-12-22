@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (baseViewId <= 0) return new { ok = false, code = "NO_VIEW", msg = "Missing baseViewId" };
             if (string.IsNullOrWhiteSpace(desiredName)) return new { ok = false, code = "NO_NAME", msg = "Missing desiredName" };
 
-            var baseView = doc.GetElement(new ElementId(baseViewId)) as View;
+            var baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(baseViewId)) as View;
             if (baseView == null) return new { ok = false, code = "NO_VIEW", msg = $"Base view not found: {baseViewId}" };
 
             // Name conflict policy
@@ -55,7 +55,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         try { using (var t0 = new Transaction(doc, "Detach View Template")) { t0.Start(); existing.ViewTemplateId = ElementId.InvalidElementId; t0.Commit(); } } catch { }
                     }
-                    return new { ok = true, created = false, viewId = existing.Id.IntegerValue, name = existing.Name ?? string.Empty };
+                    return new { ok = true, created = false, viewId = existing.Id.IntValue(), name = existing.Name ?? string.Empty };
                 }
                 if (onNameConflict == "fail")
                 {
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
 
                     tx.Commit();
-                    return new { ok = true, created = true, viewId = v.Id.IntegerValue, name = v.Name ?? string.Empty };
+                    return new { ok = true, created = true, viewId = v.Id.IntValue(), name = v.Name ?? string.Empty };
                 }
             }
             catch (Exception ex)
@@ -111,4 +111,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

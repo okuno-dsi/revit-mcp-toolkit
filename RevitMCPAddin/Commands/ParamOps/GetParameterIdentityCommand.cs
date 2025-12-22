@@ -48,14 +48,14 @@ namespace RevitMCPAddin.Commands.ParamOps
                     case "elementid":
                         {
                             int id = valTok?.Value<int>() ?? -1;
-                            target = id > 0 ? doc.GetElement(new ElementId(id)) : null;
+                            target = id > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) : null;
                             targetKind = "element";
                             break;
                         }
                     case "typeid":
                         {
                             int id = valTok?.Value<int>() ?? -1;
-                            target = id > 0 ? doc.GetElement(new ElementId(id)) : null;
+                            target = id > 0 ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) : null;
                             targetKind = "type";
                             break;
                         }
@@ -137,7 +137,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                 return ResultUtil.Ok(new
                 {
                     found = false,
-                    target = new { kind = targetKind, id = target.Id.IntegerValue, uniqueId = (target as Element)?.UniqueId },
+                    target = new { kind = targetKind, id = target.Id.IntValue(), uniqueId = (target as Element)?.UniqueId },
                     resolvedBy,
                     attachedTo = (string)null,
                     message = "Parameter not found on instance nor type"
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             int paramId = 0;
             try
             {
-                paramId = prm.Id?.IntegerValue ?? 0;
+                paramId = prm.Id?.IntValue() ?? 0;
                 isBuiltIn = paramId < 0;
             }
             catch { }
@@ -197,9 +197,10 @@ namespace RevitMCPAddin.Commands.ParamOps
             string groupUi = null;   // projectGroup.uiLabel
             try
             {
-                var grp = prm.Definition?.ParameterGroup ?? BuiltInParameterGroup.INVALID;
-                groupEnum = grp.ToString();
-                try { groupUi = LabelUtils.GetLabelFor(grp); } catch { groupUi = null; }
+                var def = prm.Definition;
+                Autodesk.Revit.DB.ForgeTypeId groupTypeId = def != null ? def.GetGroupTypeId() : null;
+                groupEnum = groupTypeId != null ? groupTypeId.TypeId : null;
+                try { groupUi = groupTypeId != null ? LabelUtils.GetLabelForGroup(groupTypeId) : null; } catch { groupUi = null; }
             }
             catch { }
 
@@ -463,7 +464,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             paramObj["isShared"] = isShared;
             paramObj["isBuiltIn"] = isBuiltIn;
             paramObj["guid"] = string.IsNullOrWhiteSpace(guidStr) ? null : guidStr;
-            paramObj["parameterElementId"] = parameterElementId?.IntegerValue ?? 0;
+            paramObj["parameterElementId"] = parameterElementId?.IntValue() ?? 0;
             paramObj["categories"] = categories;
             paramObj["dataType"] = new { storage = storage, spec = spec?.TypeId }; // expose ForgeTypeId via TypeId string
             paramObj["displayUnit"] = displayUnit;
@@ -488,7 +489,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             var res = new
             {
                 found = true,
-                target = new { kind = targetKind, id = target.Id.IntegerValue, uniqueId = (target as Element)?.UniqueId },
+                target = new { kind = targetKind, id = target.Id.IntValue(), uniqueId = (target as Element)?.UniqueId },
                 resolvedBy,
                 parameter = paramObj
             };
@@ -514,3 +515,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
+

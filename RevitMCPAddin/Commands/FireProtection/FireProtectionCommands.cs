@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/FireProtection/FireProtectionCommands.cs
 // Target : Revit 2023 / .NET Framework 4.8 / C# 8
 // Policy : すべての単位変換・値整形は RevitMCPAddin.Core.UnitHelper に統一
@@ -63,11 +63,11 @@ namespace RevitMCPAddin.Commands.FireProtection
 
                     return new
                     {
-                        elementId = fi.Id.IntegerValue,
+                        elementId = fi.Id.IntValue(),
                         uniqueId = fi.UniqueId,
                         familyName = fi.Symbol.FamilyName,
                         typeName = fi.Symbol.Name,
-                        levelId = fi.LevelId?.IntegerValue,
+                        levelId = fi.LevelId?.IntValue(),
                         location = locationMm
                     };
                 })
@@ -96,13 +96,13 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int typeId = p.Value<int>("typeId");
-            var symbol = doc.GetElement(new ElementId(typeId)) as FamilySymbol
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol
                 ?? throw new InvalidOperationException($"Type not found: {typeId}");
 
             var xyz = FpCommon.MmPoint(p["location"]);
 
             int levelId = p.Value<int>("levelId");
-            var level = doc.GetElement(new ElementId(levelId)) as Level
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level
                 ?? throw new InvalidOperationException($"Level not found: {levelId}");
 
             if (!symbol.IsActive)
@@ -122,7 +122,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 units = UnitHelper.DefaultUnitsMeta(),
                 unitsMode = mode.ToString()
             };
@@ -148,7 +148,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             using (var tx = new Transaction(doc, "Move Fire Protection"))
             {
                 tx.Start();
-                ElementTransformUtils.MoveElement(doc, new ElementId(eid), new XYZ(dx, dy, dz));
+                ElementTransformUtils.MoveElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(eid), new XYZ(dx, dy, dz));
                 tx.Commit();
             }
 
@@ -169,7 +169,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             using (var tx = new Transaction(doc, "Delete Fire Protection"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(eid));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 tx.Commit();
             }
             return new { ok = true };
@@ -188,11 +188,11 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int eid = p.Value<int>("elementId");
-            var orig = doc.GetElement(new ElementId(eid)) as FamilyInstance
+            var orig = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as FamilyInstance
                 ?? throw new InvalidOperationException($"Instance not found: {eid}");
 
             var level = doc.GetElement(orig.LevelId) as Level
-                ?? throw new InvalidOperationException($"Level not found: {orig.LevelId.IntegerValue}");
+                ?? throw new InvalidOperationException($"Level not found: {orig.LevelId.IntValue()}");
 
             var xyz = FpCommon.MmPoint(p["location"]);
 
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             return new
             {
                 ok = true,
-                newElementId = dup.Id.IntegerValue,
+                newElementId = dup.Id.IntValue(),
                 units = UnitHelper.DefaultUnitsMeta(),
                 unitsMode = mode.ToString()
             };
@@ -233,7 +233,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int eid = p.Value<int>("elementId");
-            var inst = doc.GetElement(new ElementId(eid)) as Element
+            var inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as Element
                 ?? throw new InvalidOperationException($"Element not found: {eid}");
 
             bool includeDisplay = p.Value<bool?>("includeDisplay") ?? true;
@@ -271,7 +271,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int eid = p.Value<int>("elementId");
-            var inst = doc.GetElement(new ElementId(eid)) as Element
+            var inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as Element
                 ?? throw new InvalidOperationException($"Element not found: {eid}");
 
             // Accept builtInId / builtInName / guid / paramName
@@ -314,7 +314,7 @@ namespace RevitMCPAddin.Commands.FireProtection
                 .Where(fs => FpCommon.FamilyNames.Contains(fs.FamilyName))
                 .Select(fs => new
                 {
-                    typeId = fs.Id.IntegerValue,
+                    typeId = fs.Id.IntValue(),
                     uniqueId = fs.UniqueId,
                     familyName = fs.FamilyName,
                     typeName = fs.Name
@@ -338,7 +338,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             int srcType = p.Value<int>("sourceTypeId");
             string newName = p.Value<string>("newTypeName");
 
-            var original = doc.GetElement(new ElementId(srcType)) as FamilySymbol
+            var original = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(srcType)) as FamilySymbol
                 ?? throw new InvalidOperationException($"Type not found: {srcType}");
 
             FamilySymbol dup;
@@ -349,7 +349,7 @@ namespace RevitMCPAddin.Commands.FireProtection
                 tx.Commit();
             }
 
-            return new { ok = true, newTypeId = dup.Id.IntegerValue };
+            return new { ok = true, newTypeId = dup.Id.IntValue() };
         }
     }
 
@@ -366,7 +366,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             using (var tx = new Transaction(doc, "Delete FP Type"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(typeId));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(typeId));
                 tx.Commit();
             }
 
@@ -387,13 +387,13 @@ namespace RevitMCPAddin.Commands.FireProtection
             int eid = p.Value<int>("elementId");
             int newType = p.Value<int>("newTypeId");
 
-            var inst = doc.GetElement(new ElementId(eid)) as FamilyInstance
+            var inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) as FamilyInstance
                 ?? throw new InvalidOperationException($"Instance not found: {eid}");
 
             using (var tx = new Transaction(doc, "Change FP Type"))
             {
                 tx.Start();
-                inst.ChangeTypeId(new ElementId(newType));
+                inst.ChangeTypeId(Autodesk.Revit.DB.ElementIdCompat.From(newType));
                 tx.Commit();
             }
 
@@ -413,7 +413,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int tid = p.Value<int>("typeId");
-            var symbol = doc.GetElement(new ElementId(tid)) as FamilySymbol
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as FamilySymbol
                 ?? throw new InvalidOperationException($"Type not found: {tid}");
 
             bool includeDisplay = p.Value<bool?>("includeDisplay") ?? true;
@@ -451,7 +451,7 @@ namespace RevitMCPAddin.Commands.FireProtection
             var mode = FpCommon.ResolveMode(doc, p);
 
             int tid = p.Value<int>("typeId");
-            var symbol = doc.GetElement(new ElementId(tid)) as FamilySymbol
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as FamilySymbol
                 ?? throw new InvalidOperationException($"Type not found: {tid}");
 
             // Accept builtInId / builtInName / guid / paramName
@@ -505,7 +505,7 @@ namespace RevitMCPAddin.Commands.FireProtection
                 {
                     issues.Add(new
                     {
-                        elementId = fi.Id.IntegerValue,
+                        elementId = fi.Id.IntValue(),
                         rating,
                         required = minRating
                     });
@@ -548,7 +548,9 @@ namespace RevitMCPAddin.Commands.FireProtection
                 tx.Commit();
             }
 
-            return new { ok = true, scheduleViewId = sched.Id.IntegerValue };
+            return new { ok = true, scheduleViewId = sched.Id.IntValue() };
         }
     }
 }
+
+

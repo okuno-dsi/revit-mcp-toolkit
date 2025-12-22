@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.SurfaceOps
                 var idTok = p["elementId"];
                 var uidTok = p["uniqueId"];
                 if (idTok != null && idTok.Type == JTokenType.Integer)
-                    elem = doc.GetElement(new ElementId(idTok.Value<int>()));
+                    elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>()));
                 else if (uidTok != null && uidTok.Type == JTokenType.String)
                     elem = doc.GetElement(uidTok.Value<string>());
                 if (elem == null) return Err("要素が見つかりません。");
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.SurfaceOps
                                 ["isRegion"] = parentFace.HasRegions && !ReferenceEquals(sf, parentFace),
                                 ["isPainted"] = true,
                                 ["area_m2"] = UnitHelper.Ft2ToM2(sf.Area),
-                                ["materialId"] = mid.IntegerValue,
+                                ["materialId"] = mid.IntValue(),
                                 ["materialName"] = mat?.Name ?? ""
                             });
 
@@ -118,7 +118,7 @@ namespace RevitMCPAddin.Commands.SurfaceOps
                             ["isRegion"] = false,
                             ["isPainted"] = true,
                             ["area_m2"] = UnitHelper.Ft2ToM2(parentFace.Area),
-                            ["materialId"] = mid.IntegerValue,
+                            ["materialId"] = mid.IntValue(),
                             ["materialName"] = mat?.Name ?? ""
                         });
 
@@ -158,7 +158,7 @@ namespace RevitMCPAddin.Commands.SurfaceOps
                 return new
                 {
                     ok = true,
-                    elementId = elem.Id.IntegerValue,
+                    elementId = elem.Id.IntValue(),
                     elementClass = elem.GetType().Name,
                     hostKind,
                     side,
@@ -385,3 +385,5 @@ namespace RevitMCPAddin.Commands.SurfaceOps
         private static object Err(string msg) => new { ok = false, msg };
     }
 }
+
+

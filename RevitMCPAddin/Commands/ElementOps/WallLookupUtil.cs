@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/ElementOps/WallLookupUtil.cs
 // 壁要素の解決 (elementId / wallId / uniqueId 両対応)
 // ================================================================
@@ -26,10 +26,10 @@ namespace RevitMCPAddin.Commands.ElementOps
             int id = p.Value<int?>("elementId") ?? p.Value<int?>("wallId") ?? 0;
             if (id > 0)
             {
-                var e = doc.GetElement(new ElementId(id)) as Autodesk.Revit.DB.Wall;
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Autodesk.Revit.DB.Wall;
                 if (e != null)
                 {
-                    wall = e; wallId = e.Id.IntegerValue; uniqueId = e.UniqueId ?? string.Empty;
+                    wall = e; wallId = e.Id.IntValue(); uniqueId = e.UniqueId ?? string.Empty;
                     return true;
                 }
             }
@@ -41,7 +41,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 var e = doc.GetElement(uid) as Autodesk.Revit.DB.Wall;
                 if (e != null)
                 {
-                    wall = e; wallId = e.Id.IntegerValue; uniqueId = e.UniqueId ?? string.Empty;
+                    wall = e; wallId = e.Id.IntValue(); uniqueId = e.UniqueId ?? string.Empty;
                     return true;
                 }
             }
@@ -51,3 +51,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+

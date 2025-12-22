@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/FamilyInstanceOps/ChangeFamilyInstanceTypeCommand.cs (UnitHelper対応)
+// File: Commands/ElementOps/FamilyInstanceOps/ChangeFamilyInstanceTypeCommand.cs (UnitHelper対応)
 using System;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -40,12 +40,12 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 return new { ok = false, msg = "新しいタイプがロード可能ファミリではありません。" };
 
             // カテゴリ整合性チェック
-            var instCatId = inst.Category?.Id?.IntegerValue;
-            var symCatId = newSym.Category?.Id?.IntegerValue;
+            var instCatId = inst.Category?.Id?.IntValue();
+            var symCatId = newSym.Category?.Id?.IntValue();
             if (instCatId.HasValue && symCatId.HasValue && instCatId.Value != symCatId.Value)
                 return new { ok = false, msg = $"カテゴリ不一致のため変更できません（instance:{inst.Category?.Name} / type:{newSym.Category?.Name}）。" };
 
-            int oldTypeId = inst.Symbol?.Id.IntegerValue ?? -1;
+            int oldTypeId = inst.Symbol?.Id.IntValue() ?? -1;
 
             // 変更実行
             using (var tx = new Transaction(doc, "Change Family Instance Type"))
@@ -68,15 +68,16 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
                 oldTypeId = oldTypeId,
-                typeId = newType?.Id.IntegerValue,
+                typeId = newType?.Id.IntValue(),
                 typeName = newType?.Name ?? "",
                 familyName = newType?.Family?.Name ?? "",
-                categoryId = inst.Category?.Id.IntegerValue,
+                categoryId = inst.Category?.Id.IntValue(),
                 categoryName = inst.Category?.Name ?? ""
             };
         }
     }
 }
+

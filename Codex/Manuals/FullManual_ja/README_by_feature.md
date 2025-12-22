@@ -678,6 +678,8 @@
 - [set_view_parameter](set_view_parameter.md)
 - [set_view_template](set_view_template.md)
 - [set_view_type](set_view_type.md)
+- [sheet_place_view_auto](sheet_place_view_auto.md)
+- [sheet_remove_titleblocks_auto](sheet_remove_titleblocks_auto.md)
 - [show_all_in_view](show_all_in_view.md)
 - [snapshot_view_elements](snapshot_view_elements.md)
 - [sync_view_state](sync_view_state.md)
@@ -688,6 +690,7 @@
 - [view_reset_origin](view_reset_origin.md)
 - [view_zoom](view_zoom.md)
 - [view_zoom_to_element](view_zoom_to_element.md)
+- [viewport_move_to_sheet_center](viewport_move_to_sheet_center.md)
 - [visibility_profile_preview](visibility_profile_preview.md)
 
 ## ワークセット

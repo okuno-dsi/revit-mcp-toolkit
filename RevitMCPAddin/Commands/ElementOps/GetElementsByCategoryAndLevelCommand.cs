@@ -68,7 +68,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (levelIdOpt.HasValue && levelIdOpt.Value > 0)
             {
-                level = doc.GetElement(new ElementId(levelIdOpt.Value)) as Level;
+                level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelIdOpt.Value)) as Level;
                 if (level == null)
                 {
                     return new
@@ -140,13 +140,13 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (elemLevelId == null || elemLevelId == ElementId.InvalidElementId)
                     continue;
 
-                if (elemLevelId.IntegerValue != lvlId.IntegerValue)
+                if (elemLevelId.IntValue() != lvlId.IntValue())
                     continue;
 
-                int eid = e.Id.IntegerValue;
-                int levelIdInt = elemLevelId.IntegerValue;
+                int eid = e.Id.IntValue();
+                int levelIdInt = elemLevelId.IntValue();
                 string? categoryLabel = includeCategoryName ? e.Category?.Name ?? string.Empty : null;
-                int? typeIdInt = includeTypeInfo ? e.GetTypeId().IntegerValue : (int?)null;
+                int? typeIdInt = includeTypeInfo ? e.GetTypeId().IntValue() : (int?)null;
 
                 items.Add(new
                 {
@@ -267,3 +267,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+

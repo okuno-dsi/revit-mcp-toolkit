@@ -48,14 +48,14 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     total = 0,
                     changed = 0,
                     skippedNoParam = 0,
                     skippedNoColor = 0,
                     parameterName = paramName,
                     templateApplied = true,
-                    templateViewId = view.ViewTemplateId.IntegerValue,
+                    templateViewId = view.ViewTemplateId.IntValue(),
                     skippedDueToTemplate = true,
                     errorCode = "VIEW_TEMPLATE_LOCK",
                     message = "View has a template; detach view template before calling colorize_tags_by_param."
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     total = 0,
                     changed = 0,
                     skippedNoParam = 0,
@@ -85,7 +85,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     total = 0,
                     changed = 0,
                     skippedNoParam = 0,
@@ -157,7 +157,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 total = elements.Count,
                 changed = changedCount,
                 skippedNoParam,
@@ -201,7 +201,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                         var cat = Category.GetCategory(doc, bic);
                         if (cat != null)
                         {
-                            ids.Add(cat.Id.IntegerValue);
+                            ids.Add(cat.Id.IntValue());
                         }
                     }
                 }
@@ -241,7 +241,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             {
                 var cat = el.Category;
                 if (cat == null) continue;
-                if (targetCatIds.Contains(cat.Id.IntegerValue))
+                if (targetCatIds.Contains(cat.Id.IntValue()))
                 {
                     result.Add(el);
                 }
@@ -404,3 +404,4 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+

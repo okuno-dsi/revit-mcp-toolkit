@@ -1,4 +1,4 @@
-﻿// ======================================================================
+// ======================================================================
 // File: Commands/Export/ExportDwgWithWorksetBucketingCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 「一時ワークセット振替 → 純正DWG出力 → 即ロールバック」
@@ -143,11 +143,11 @@ namespace RevitMCPAddin.Commands.Export
                         {
                             var elem = doc.GetElement(kv.Key);
                             if (elem == null) continue;
-                            if (!wsMap.TryGetValue(kv.Value, out var target)) { failedIds.Add(kv.Key.IntegerValue); continue; }
-                            if (target == null) { failedIds.Add(kv.Key.IntegerValue); continue; }
+                            if (!wsMap.TryGetValue(kv.Value, out var target)) { failedIds.Add(kv.Key.IntValue()); continue; }
+                            if (target == null) { failedIds.Add(kv.Key.IntValue()); continue; }
 
                             if (!TrySetElementWorkset(doc, elem, target.Id))
-                                failedIds.Add(kv.Key.IntegerValue);
+                                failedIds.Add(kv.Key.IntValue());
                             else
                                 reassigned++;
                         }
@@ -168,7 +168,7 @@ namespace RevitMCPAddin.Commands.Export
                     bool ok = TryExport(doc, workingView.Id, opt, desired, outputFolder, out var primaryError);
                     if (!ok)
                     {
-                        var fallback = MakeFallbackDwgPath(outputFolder, baseView.Id.IntegerValue, 1);
+                        var fallback = MakeFallbackDwgPath(outputFolder, baseView.Id.IntValue(), 1);
                         bool retry = TryExport(doc, workingView.Id, opt, fallback, outputFolder, out var fallbackError);
                         outPathFinal = retry ? fallback : null;
 
@@ -195,7 +195,7 @@ namespace RevitMCPAddin.Commands.Export
                         {
                             ok = true,
                             path = outPathFinal,
-                            viewId = baseView.Id.IntegerValue,
+                            viewId = baseView.Id.IntValue(),
                             reassignedCount = reassigned,
                             failedElementIds = failedIds,
                             createdWorksets,
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.Export
                 {
                     ok = true,
                     path = outPathFinal,
-                    viewId = baseView.Id.IntegerValue,
+                    viewId = baseView.Id.IntValue(),
                     reassignedCount = reassigned,
                     failedElementIds = failedIds,
                     createdWorksets,
@@ -346,7 +346,7 @@ namespace RevitMCPAddin.Commands.Export
             string viewUidIn = p.Value<string>("viewUniqueId");
 
             if (viewIdIn.HasValue && viewIdIn.Value > 0)
-                return doc.GetElement(new ElementId(viewIdIn.Value)) as View;
+                return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdIn.Value)) as View;
 
             if (!string.IsNullOrWhiteSpace(viewUidIn))
                 return doc.GetElement(viewUidIn) as View;
@@ -430,7 +430,7 @@ namespace RevitMCPAddin.Commands.Export
                         {
                             case StorageType.Double: return param.AsDouble().ToString(System.Globalization.CultureInfo.InvariantCulture);
                             case StorageType.Integer: return param.AsInteger().ToString();
-                            case StorageType.ElementId: return param.AsElementId().IntegerValue.ToString();
+                            case StorageType.ElementId: return param.AsElementId().IntValue().ToString();
                             case StorageType.String: return param.AsString() ?? "";
                             default: return "";
                         }
@@ -644,7 +644,7 @@ namespace RevitMCPAddin.Commands.Export
                 var p = elem.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
                 if (p != null && !p.IsReadOnly)
                 {
-                    var ok = p.Set(wsId.IntegerValue);
+                    var ok = p.Set(wsId.IntValue());
                     return ok;
                 }
             }
@@ -710,3 +710,5 @@ namespace RevitMCPAddin.Commands.Export
     }
 
 }
+
+

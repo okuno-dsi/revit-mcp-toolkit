@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Core/AuditCapture.cs
 // Purpose: “元に戻す手掛かり”としての前値を採取
 // ================================================================
@@ -27,9 +27,10 @@ namespace RevitMCPAddin.Core
                 case StorageType.Double: return ("Double", p.AsDouble());
                 case StorageType.Integer: return ("Integer", p.AsInteger());
                 case StorageType.String: return ("String", p.AsString());
-                case StorageType.ElementId: return ("ElementId", p.AsElementId()?.IntegerValue ?? 0);
+                case StorageType.ElementId: return ("ElementId", p.AsElementId()?.IntValue() ?? 0);
                 default: return ("None", null);
             }
         }
     }
 }
+

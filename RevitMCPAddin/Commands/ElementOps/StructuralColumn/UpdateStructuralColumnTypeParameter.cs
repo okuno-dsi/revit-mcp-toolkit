@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
 
             if (!p.TryGetValue("typeId", out var tidToken))
                 throw new InvalidOperationException("Parameter 'typeId' is required.");
-            var type = doc.GetElement(new ElementId(tidToken.Value<int>())) as FamilySymbol
+            var type = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tidToken.Value<int>())) as FamilySymbol
                        ?? throw new InvalidOperationException($"Structural column type not found: {tidToken.Value<int>()}");
 
             string paramName = p.Value<string>("paramName");
@@ -43,3 +43,4 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
         }
     }
 }
+

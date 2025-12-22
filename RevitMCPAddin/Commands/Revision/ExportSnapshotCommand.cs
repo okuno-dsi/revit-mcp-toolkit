@@ -248,9 +248,9 @@ namespace RevitMCPAddin.Commands.Revision
             {
                 var it = new SnapItem
                 {
-                    elementId = e.Id.IntegerValue,
+                    elementId = e.Id.IntValue(),
                     uniqueId = e.UniqueId ?? "",
-                    categoryId = e.Category?.Id.IntegerValue ?? 0
+                    categoryId = e.Category?.Id.IntValue() ?? 0
                 };
 
                 // Level
@@ -261,7 +261,7 @@ namespace RevitMCPAddin.Commands.Revision
                     if (lvlId != ElementId.InvalidElementId)
                     {
                         var lvl = doc.GetElement(lvlId) as Level;
-                        if (lvl != null) { it.levelId = lvl.Id.IntegerValue; it.levelName = lvl.Name ?? ""; }
+                        if (lvl != null) { it.levelId = lvl.Id.IntValue(); it.levelName = lvl.Name ?? ""; }
                     }
                 }
                 catch { }
@@ -271,7 +271,7 @@ namespace RevitMCPAddin.Commands.Revision
                 try
                 {
                     et = doc.GetElement(e.GetTypeId()) as ElementType;
-                    it.typeId = et?.Id.IntegerValue; it.typeName = et?.Name ?? ""; it.familyName = et?.FamilyName ?? "";
+                    it.typeId = et?.Id.IntValue(); it.typeName = et?.Name ?? ""; it.familyName = et?.FamilyName ?? "";
                 }
                 catch { }
 
@@ -407,19 +407,19 @@ namespace RevitMCPAddin.Commands.Revision
                                                      HashSet<BuiltInCategory> inc, HashSet<BuiltInCategory> exc)
         {
             FilteredElementCollector fc = (onlyInView && viewId > 0)
-                ? new FilteredElementCollector(doc, new ElementId(viewId))
+                ? new FilteredElementCollector(doc, Autodesk.Revit.DB.ElementIdCompat.From(viewId))
                 : new FilteredElementCollector(doc);
             fc = fc.WhereElementIsNotElementType();
 
             if (inc != null && inc.Count > 0)
             {
-                var bids = inc.Select(b => new ElementId((int)b)).ToList();
+                var bids = inc.Select(b => Autodesk.Revit.DB.ElementIdCompat.From((int)b)).ToList();
                 fc = fc.WherePasses(new ElementMulticategoryFilter(bids));
             }
 
             return fc.ToElements()
                      .Where(e => e?.Category != null)
-                     .Where(e => exc == null || !exc.Contains((BuiltInCategory)e.Category.Id.IntegerValue))
+                     .Where(e => exc == null || !exc.Contains((BuiltInCategory)e.Category.Id.IntValue()))
                      .ToList();
         }
 
@@ -445,7 +445,7 @@ namespace RevitMCPAddin.Commands.Revision
                 {
                     if (n.Equals(name, StringComparison.OrdinalIgnoreCase) || n.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        var bic = (BuiltInCategory)c.Id.IntegerValue;
+                        var bic = (BuiltInCategory)c.Id.IntValue();
                         outSet.Add(bic);
                         break;
                     }
@@ -474,7 +474,7 @@ namespace RevitMCPAddin.Commands.Revision
                         }
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String: return p.AsString() ?? string.Empty;
-                    case StorageType.ElementId: return p.AsElementId()?.IntegerValue ?? 0;
+                    case StorageType.ElementId: return p.AsElementId()?.IntValue() ?? 0;
                     default: return null;
                 }
             }
@@ -487,7 +487,7 @@ namespace RevitMCPAddin.Commands.Revision
             var dto = new ParamDto();
             try
             {
-                dto.id = p.Id.IntegerValue;
+                dto.id = p.Id.IntValue();
                 dto.name = p.Definition?.Name ?? "";
                 dto.storageType = p.StorageType.ToString();
                 dto.isReadOnly = p.IsReadOnly;
@@ -512,7 +512,7 @@ namespace RevitMCPAddin.Commands.Revision
                         }
                     case StorageType.Integer: val = p.AsInteger(); break;
                     case StorageType.String: val = p.AsString() ?? ""; break;
-                    case StorageType.ElementId: val = p.AsElementId()?.IntegerValue ?? 0; break;
+                    case StorageType.ElementId: val = p.AsElementId()?.IntValue() ?? 0; break;
                 }
                 dto.unit = unit;
                 dto.value = val;
@@ -559,7 +559,7 @@ namespace RevitMCPAddin.Commands.Revision
         private static Parameter? FindAnyParameterById(Element e, int paramId)
         {
             if (e == null) return null;
-            try { return e.Parameters.Cast<Parameter>().FirstOrDefault(pr => pr.Id.IntegerValue == paramId); }
+            try { return e.Parameters.Cast<Parameter>().FirstOrDefault(pr => pr.Id.IntValue() == paramId); }
             catch { return null; }
         }
 
@@ -575,3 +575,5 @@ namespace RevitMCPAddin.Commands.Revision
         }
     }
 }
+
+

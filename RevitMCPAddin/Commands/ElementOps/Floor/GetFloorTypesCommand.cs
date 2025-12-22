@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorTypesCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorTypesCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 };
 
             var ordered = filtered
-                .Select(t => new { t, fam = t.FamilyName ?? "", name = t.Name ?? "", id = t.Id.IntegerValue })
+                .Select(t => new { t, fam = t.FamilyName ?? "", name = t.Name ?? "", id = t.Id.IntValue() })
                 .OrderBy(x => x.fam)
                 .ThenBy(x => x.name)
                 .ThenBy(x => x.id)
@@ -85,7 +85,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
 
             if (idsOnly)
             {
-                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntegerValue).ToList();
+                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntValue()).ToList();
                 return new
                 {
                     ok = true,
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 .Take(limit)
                 .Select(ft => new
                 {
-                    typeId = ft.Id.IntegerValue,
+                    typeId = ft.Id.IntValue(),
                     uniqueId = ft.UniqueId,
                     typeName = ft.Name ?? "",
                     familyName = ft.FamilyName ?? ""
@@ -119,3 +119,4 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+

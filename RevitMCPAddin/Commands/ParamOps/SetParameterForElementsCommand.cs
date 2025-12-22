@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.ParamOps
 
                 foreach (var id in elementIds)
                 {
-                    var eid = new ElementId(id);
+                    var eid = Autodesk.Revit.DB.ElementIdCompat.From(id);
                     Element? e = null;
                     try { e = doc.GetElement(eid); } catch { }
 
@@ -291,4 +291,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
 

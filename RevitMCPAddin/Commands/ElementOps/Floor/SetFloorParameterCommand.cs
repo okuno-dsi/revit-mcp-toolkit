@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/SetFloorParameterCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/SetFloorParameterCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,9 +18,9 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
 
             if (!p.TryGetValue("elementId", out var idToken))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
-            var elementId = new ElementId(idToken.Value<int>());
+            var elementId = Autodesk.Revit.DB.ElementIdCompat.From(idToken.Value<int>());
             var el = doc.GetElement(elementId)
-                     ?? throw new InvalidOperationException($"Floor not found: {elementId.IntegerValue}");
+                     ?? throw new InvalidOperationException($"Floor not found: {elementId.IntValue()}");
 
             var prm = ParamResolver.ResolveByPayload(el, p, out var resolvedBy)
                       ?? throw new InvalidOperationException("Parameter not found (name/builtIn/guid).");
@@ -42,3 +42,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

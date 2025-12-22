@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                         var entry = new ViewWorkspaceViewEntry
                         {
                             ViewUniqueId = v.UniqueId ?? "",
-                            ViewIdInt = v.Id.IntegerValue,
+                            ViewIdInt = v.Id.IntValue(),
                             ViewName = v.Name ?? "",
                             ViewType = v.ViewType.ToString()
                         };
@@ -153,3 +153,4 @@ namespace RevitMCPAddin.Core.ViewWorkspace
         }
     }
 }
+

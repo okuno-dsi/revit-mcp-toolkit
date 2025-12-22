@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             var uiDoc = uiapp.ActiveUIDocument;
             var doc = uiDoc.Document;
             var view = uiDoc.ActiveView;
-            var wall = doc.GetElement(new ElementId(wallId)) as Autodesk.Revit.DB.Wall
+            var wall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wallId)) as Autodesk.Revit.DB.Wall
                        ?? throw new InvalidOperationException("Curtain wall not found");
             var grid = wall.CurtainGrid
                        ?? throw new InvalidOperationException("Curtain grid not found");
@@ -53,3 +53,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

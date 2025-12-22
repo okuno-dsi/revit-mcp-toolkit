@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/CreateCableTrayCommand.cs
+// RevitMCPAddin/Commands/MEPOps/CreateCableTrayCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
@@ -22,8 +22,8 @@ namespace RevitMCPAddin.Commands.MEPOps
             var start = UnitHelper.MmToXyz(s.Value<double>("x"), s.Value<double>("y"), s.Value<double>("z"));
             var end = UnitHelper.MmToXyz(e.Value<double>("x"), e.Value<double>("y"), e.Value<double>("z"));
 
-            var trayTypeId = new ElementId(p.Value<int>("trayTypeId"));
-            var levelId = new ElementId(p.Value<int>("levelId"));
+            var trayTypeId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("trayTypeId"));
+            var levelId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("levelId"));
 
             using (var tx = new Transaction(doc, "Create CableTray"))
             {
@@ -47,8 +47,8 @@ namespace RevitMCPAddin.Commands.MEPOps
                     return new
                     {
                         ok = true,
-                        elementId = tray.Id.IntegerValue,
-                        typeId = trayTypeId.IntegerValue,
+                        elementId = tray.Id.IntValue(),
+                        typeId = trayTypeId.IntValue(),
                         units = UnitHelper.DefaultUnitsMeta()
                     };
                 }
@@ -61,3 +61,5 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+
+

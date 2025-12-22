@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -52,7 +52,7 @@ namespace RevitMCPAddin.Commands.SiteOps
 
             int topoId = p.Value<int?>("topographyId") ?? 0;
             TopographySurface topo = null;
-            if (topoId > 0) topo = doc.GetElement(new ElementId(topoId)) as TopographySurface;
+            if (topoId > 0) topo = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(topoId)) as TopographySurface;
             if (topo == null)
             {
                 topo = new FilteredElementCollector(doc).OfClass(typeof(TopographySurface)).Cast<TopographySurface>().FirstOrDefault();
@@ -78,8 +78,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                     return new { ok = false, msg = "SiteSubRegion.Create not available." };
                 }
                 t.Commit();
-                LoggerProxy.Info($"[Site] SiteSubRegion created id={region.Id.IntegerValue} on topo={topo.Id.IntegerValue}");
-                return new { ok = true, elementId = region.Id.IntegerValue, topographyId = topo.Id.IntegerValue };
+                LoggerProxy.Info($"[Site] SiteSubRegion created id={region.Id.IntValue()} on topo={topo.Id.IntValue()}");
+                return new { ok = true, elementId = region.Id.IntValue(), topographyId = topo.Id.IntValue() };
             }
         }
 
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 int okCount = 0, ngCount = 0;
                 foreach (var id in list)
                 {
-                    try { var d = doc.Delete(new ElementId(id)); okCount += d.Count; }
+                    try { var d = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id)); okCount += d.Count; }
                     catch { ngCount++; }
                 }
                 t.Commit();
@@ -159,3 +159,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

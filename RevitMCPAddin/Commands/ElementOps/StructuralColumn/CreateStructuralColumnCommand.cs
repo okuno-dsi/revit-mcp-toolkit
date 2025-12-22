@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/StructuralColumn/CreateStructuralColumnCommand.cs
+// RevitMCPAddin/Commands/ElementOps/StructuralColumn/CreateStructuralColumnCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
@@ -23,8 +23,8 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
 
                 // Base Level 解決（alias: levelId/levelName も可）
                 ElementId baseLevelId = ElementId.InvalidElementId;
-                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = new ElementId(blid.Value<int>());
-                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = new ElementId(lid.Value<int>());
+                if (p.TryGetValue("baseLevelId", out var blid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(blid.Value<int>());
+                else if (p.TryGetValue("levelId", out var lid)) baseLevelId = Autodesk.Revit.DB.ElementIdCompat.From(lid.Value<int>());
 
                 Level baseLevel = null;
                 if (baseLevelId != ElementId.InvalidElementId) baseLevel = doc.GetElement(baseLevelId) as Level;
@@ -57,8 +57,8 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 }
                 if (symbol == null && p.TryGetValue("typeId", out var tid))
                 {
-                    var cand = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
-                    if (cand?.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralColumns) symbol = cand;
+                    var cand = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
+                    if (cand?.Category?.Id.IntValue() == (int)BuiltInCategory.OST_StructuralColumns) symbol = cand;
                 }
                 symbol ??= new FilteredElementCollector(doc)
                             .OfClass(typeof(FamilySymbol))
@@ -80,7 +80,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 Level topLevel = null;
                 if (hasTopLevel || isLevelToLevel)
                 {
-                    if (p.TryGetValue("topLevelId", out var tlid)) topLevel = doc.GetElement(new ElementId(tlid.Value<int>())) as Level;
+                    if (p.TryGetValue("topLevelId", out var tlid)) topLevel = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tlid.Value<int>())) as Level;
                     if (topLevel == null && p.TryGetValue("topLevelName", out var tlname))
                         topLevel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                             .FirstOrDefault(l => l.Name.Equals(tlname.Value<string>(), StringComparison.OrdinalIgnoreCase));
@@ -119,10 +119,10 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                     return new
                     {
                         ok = true,
-                        elementId = col.Id.IntegerValue,
-                        typeId = col.GetTypeId().IntegerValue,
-                        baseLevelId = baseLevel.Id.IntegerValue,
-                        topLevelId = useTopConstraint ? topLevel.Id.IntegerValue : baseLevel.Id.IntegerValue,
+                        elementId = col.Id.IntValue(),
+                        typeId = col.GetTypeId().IntValue(),
+                        baseLevelId = baseLevel.Id.IntValue(),
+                        topLevelId = useTopConstraint ? topLevel.Id.IntValue() : baseLevel.Id.IntValue(),
                         mode = useTopConstraint ? "top-constrained" : "base+offset"
                     };
                 }
@@ -131,3 +131,5 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
         }
     }
 }
+
+

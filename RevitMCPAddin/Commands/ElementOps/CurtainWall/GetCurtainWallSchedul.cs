@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallScheduleCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/GetCurtainWallScheduleCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 if (includeBreakdown)
                 {
                     string typeName = (doc.GetElement(panel.GetTypeId()) as ElementType)?.Name ?? "";
-                    panelBreakdown.Add(new { panelId = pid.IntegerValue, typeName, areaM2 = Math.Round(areaM2, 3) });
+                    panelBreakdown.Add(new { panelId = pid.IntValue(), typeName, areaM2 = Math.Round(areaM2, 3) });
                 }
             }
 
@@ -152,7 +152,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                 if (includeBreakdown)
                 {
                     string mullType = (doc.GetElement(mull.GetTypeId()) as ElementType)?.Name ?? "";
-                    mullionBreakdown.Add(new { mullionId = mid.IntegerValue, typeName = mullType, lengthM = Math.Round(lenM, 3) });
+                    mullionBreakdown.Add(new { mullionId = mid.IntValue(), typeName = mullType, lengthM = Math.Round(lenM, 3) });
                 }
             }
 
@@ -160,9 +160,9 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             return new
             {
                 ok = true,
-                elementId = wall.Id.IntegerValue,
+                elementId = wall.Id.IntValue(),
                 uniqueId = wall.UniqueId,
-                typeId = wall.GetTypeId().IntegerValue,
+                typeId = wall.GetTypeId().IntValue(),
                 typeName = (doc.GetElement(wall.GetTypeId()) as ElementType)?.Name ?? "",
                 schedule = new
                 {
@@ -176,3 +176,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

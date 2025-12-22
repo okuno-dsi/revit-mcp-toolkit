@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             var typeIdsTok = p["typeIds"] as JArray;
             if (typeIdsTok != null && typeIdsTok.Count > 0)
             {
-                foreach (var t in typeIdsTok) { try { typeIds.Add(new ElementId(Convert.ToInt32(t))); } catch { } }
+                foreach (var t in typeIdsTok) { try { typeIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(Convert.ToInt32(t))); } catch { } }
             }
             else
             {
@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                     var et = doc.GetElement(id) as ElementType;
                     if (et == null)
                     {
-                        items.Add(new { ok = false, typeId = id.IntegerValue, errors = new[] { "not_found" } });
+                        items.Add(new { ok = false, typeId = id.IntValue(), errors = new[] { "not_found" } });
                         continue;
                     }
                     var map = new Dictionary<string, object>();
@@ -94,9 +94,9 @@ namespace RevitMCPAddin.Commands.ParamOps
                     items.Add(new
                     {
                         ok = true,
-                        typeId = et.Id.IntegerValue,
+                        typeId = et.Id.IntValue(),
                         typeName = et.Name,
-                        categoryId = et.Category != null ? (int?)et.Category.Id.IntegerValue : null,
+                        categoryId = et.Category != null ? (int?)et.Category.Id.IntValue() : null,
                         @params = map,
                         display = disp.Count > 0 ? (object)disp : null,
                         errors = errors.Count > 0 ? errors : null
@@ -104,7 +104,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                 }
                 catch (Exception ex)
                 {
-                    items.Add(new { ok = false, typeId = id.IntegerValue, errors = new[] { ex.Message } });
+                    items.Add(new { ok = false, typeId = id.IntValue(), errors = new[] { ex.Message } });
                 }
             }
 
@@ -200,7 +200,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         case StorageType.String:
                             v = p.AsString(); break;
                         case StorageType.ElementId:
-                            v = p.AsElementId()?.IntegerValue; break;
+                            v = p.AsElementId()?.IntValue(); break;
                         default:
                             v = p.AsValueString() ?? p.ToString(); break;
                     }
@@ -287,7 +287,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                         case StorageType.String:
                             v = p.AsString(); break;
                         case StorageType.ElementId:
-                            v = p.AsElementId()?.IntegerValue; break;
+                            v = p.AsElementId()?.IntValue(); break;
                         default:
                             v = p.AsValueString() ?? p.ToString(); break;
                     }
@@ -337,3 +337,5 @@ namespace RevitMCPAddin.Commands.ParamOps
         }
     }
 }
+
+

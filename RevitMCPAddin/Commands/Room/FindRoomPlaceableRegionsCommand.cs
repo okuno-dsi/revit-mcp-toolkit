@@ -39,7 +39,7 @@ namespace RevitMCPAddin.Commands.Rooms
                 bool includeLabelPoint = Get(p, "includeLabelPoint", true);
                 bool debug = Get(p, "debug", false);
 
-                var level = doc.GetElement(new ElementId(levelId)) as Level;
+                var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
                 if (level == null)
                     return new { ok = false, msg = $"levelId={levelId} is not a Level.", code = "BAD_LEVEL" };
 
@@ -395,4 +395,5 @@ namespace RevitMCPAddin.Commands.Rooms
         }
     }
 }
+
 

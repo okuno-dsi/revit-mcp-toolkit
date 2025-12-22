@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var b = (byte)(colorObj?["b"]?.Value<int?>() ?? 215);
             var col = new Color(r, g, b);
 
-            View view = viewId.HasValue ? doc.GetElement(new ElementId(viewId.Value)) as View
+            View view = viewId.HasValue ? doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View
                                         : (uiapp.ActiveUIDocument?.ActiveGraphicalView as View) ?? doc.ActiveView;
             if (view == null) return Err("対象ビューが見つかりません。");
 
@@ -45,11 +45,11 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var ids = new List<ElementId>();
             if (p["elementIds"] is JArray arr)
             {
-                foreach (var it in arr) ids.Add(new ElementId(it.Value<int>()));
+                foreach (var it in arr) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>()));
             }
             else if (p["elementId"] != null)
             {
-                ids.Add(new ElementId(p.Value<int>("elementId")));
+                ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             }
             else
             {
@@ -110,9 +110,9 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                         }
 
                         // 4) DirectShape 作成（GenericModel）
-                        var ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                        var ds = DirectShape.CreateElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(BuiltInCategory.OST_GenericModel));
                         ds.ApplicationId = "RevitMCP";
-                        ds.ApplicationDataId = host.UniqueId ?? host.Id.IntegerValue.ToString();
+                        ds.ApplicationDataId = host.UniqueId ?? host.Id.IntValue().ToString();
 
                         var shape = new List<GeometryObject>(solids);
                         ds.SetShape(shape);
@@ -130,15 +130,15 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
                         created.Add(new JObject
                         {
-                            ["hostId"] = hostId.IntegerValue,
-                            ["directShapeId"] = ds.Id.IntegerValue
+                            ["hostId"] = hostId.IntValue(),
+                            ["directShapeId"] = ds.Id.IntValue()
                         });
                     }
                     catch (Exception ex)
                     {
                         errors.Add(new JObject
                         {
-                            ["hostId"] = hostId.IntegerValue,
+                            ["hostId"] = hostId.IntValue(),
                             ["message"] = ex.Message
                         });
                     }
@@ -159,7 +159,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var result = new JObject
             {
                 ["ok"] = true,
-                ["viewId"] = view.Id.IntegerValue,
+                ["viewId"] = view.Id.IntValue(),
                 ["created"] = created,
                 ["skipped"] = skipped,
                 ["errors"] = errors,
@@ -178,7 +178,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         private static JObject Err(string msg) => new JObject { ["ok"] = false, ["msg"] = msg };
 
         private static JObject Skip(ElementId id, string reason)
-            => new JObject { ["hostId"] = id.IntegerValue, ["reason"] = reason };
+            => new JObject { ["hostId"] = id.IntValue(), ["reason"] = reason };
 
         /// <summary>
         /// Room/Space の境界を CurveLoop 群で取得（内部単位 ft）
@@ -282,3 +282,5 @@ namespace RevitMCPAddin.Commands.VisualizationOps
         }
     }
 }
+
+

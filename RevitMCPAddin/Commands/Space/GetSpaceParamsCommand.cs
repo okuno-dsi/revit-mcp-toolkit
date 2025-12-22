@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.Space
                 return new { ok = false, message = "Parameter 'elementId' is required." };
             int elementId = eidToken.Value<int>();
 
-            var space = doc.GetElement(new ElementId(elementId)) as MechSpace;
+            var space = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as MechSpace;
             if (space == null)
                 return new { ok = false, message = $"Space not found: {elementId}" };
 
@@ -98,7 +98,7 @@ namespace RevitMCPAddin.Commands.Space
                             break;
 
                         case StorageType.ElementId:
-                            val = prm.AsElementId().IntegerValue;
+                            val = prm.AsElementId().IntValue();
                             break;
                     }
 
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.Space
                     var item = new
                     {
                         name = prm.Definition?.Name ?? "(no name)",
-                        id = prm.Id.IntegerValue,
+                        id = prm.Id.IntValue(),
                         storageType = prm.StorageType.ToString(),
                         isReadOnly = prm.IsReadOnly,
                         dataType,            // ★追加：Forge Spec TypeId
@@ -146,3 +146,5 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+
+

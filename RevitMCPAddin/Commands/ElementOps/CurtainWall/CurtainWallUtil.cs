@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CurtainWallUtil.cs
+// File: RevitMCPAddin/Commands/ElementOps/CurtainWall/CurtainWallUtil.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             string familyName = p.Value<string>("familyName");
 
             FamilySymbol sym = null;
-            if (typeId > 0) sym = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            if (typeId > 0) sym = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
                 var q = new FilteredElementCollector(doc)
@@ -62,7 +62,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             int typeId = p.Value<int?>("mullionTypeId") ?? 0;
             string typeName = p.Value<string>("typeName");
             MullionType t = null;
-            if (typeId > 0) t = doc.GetElement(new ElementId(typeId)) as MullionType;
+            if (typeId > 0) t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as MullionType;
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
                 t = new FilteredElementCollector(doc).OfClass(typeof(MullionType)).Cast<MullionType>()
@@ -74,7 +74,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         public static CurtainGridLine ResolveGridLine(Autodesk.Revit.DB.Wall wall, Document doc, JObject p)
         {
             int glid = p.Value<int?>("gridLineId") ?? 0;
-            if (glid > 0) return doc.GetElement(new ElementId(glid)) as CurtainGridLine;
+            if (glid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(glid)) as CurtainGridLine;
 
             string ori = p.Value<string>("orientation"); // "U" | "V"
             int idx = p.Value<int?>("gridLineIndex") ?? -1;
@@ -93,3 +93,4 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+

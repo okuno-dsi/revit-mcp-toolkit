@@ -86,7 +86,7 @@ namespace RevitMCPAddin.Commands.Area
             foreach (var id in ids ?? Enumerable.Empty<ElementId>())
             {
                 if (id == null || id == ElementId.InvalidElementId) continue;
-                if (seen.Add(id.IntegerValue)) list.Add(id);
+                if (seen.Add(id.IntValue())) list.Add(id);
             }
             return list;
         }
@@ -106,14 +106,14 @@ namespace RevitMCPAddin.Commands.Area
             if (tok.Type == JTokenType.Integer)
             {
                 var v = tok.Value<int>();
-                if (v != 0) yield return new ElementId(v);
+                if (v != 0) yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
                 yield break;
             }
 
             if (tok.Type == JTokenType.String)
             {
                 if (int.TryParse(tok.Value<string>(), out var v) && v != 0)
-                    yield return new ElementId(v);
+                    yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
                 yield break;
             }
 
@@ -126,7 +126,7 @@ namespace RevitMCPAddin.Commands.Area
                     ?? jo.Value<int?>("roomId")
                     ?? jo.Value<int?>("wallId")
                     ?? 0;
-                if (v != 0) yield return new ElementId(v);
+                if (v != 0) yield return Autodesk.Revit.DB.ElementIdCompat.From(v);
             }
         }
 
@@ -417,7 +417,7 @@ namespace RevitMCPAddin.Commands.Area
                             foreach (var i in snap.Ids)
                             {
                                 if (i == 0) continue;
-                                snapIds.Add(new ElementId(i));
+                                snapIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(i));
                             }
                             AddRoomIdsFromElementSelection(doc, snapIds, roomIds);
                             roomIds = DistinctIds(roomIds);
@@ -435,7 +435,7 @@ namespace RevitMCPAddin.Commands.Area
                     var r = doc.GetElement(rid) as Autodesk.Revit.DB.Architecture.Room;
                     if (r == null) continue;
                     if (r.LevelId == null || r.LevelId == ElementId.InvalidElementId) continue;
-                    if (r.LevelId.IntegerValue != level.Id.IntegerValue) continue;
+                    if (r.LevelId.IntValue() != level.Id.IntValue()) continue;
                     roomsResolved.Add(r);
                 }
 
@@ -443,7 +443,7 @@ namespace RevitMCPAddin.Commands.Area
                 roomsResolved = roomsResolved
                     .OrderBy(r => r.Number ?? "")
                     .ThenBy(r => r.Name ?? "")
-                    .ThenBy(r => r.Id.IntegerValue)
+                    .ThenBy(r => r.Id.IntValue())
                     .ToList();
 
                 if (roomsResolved.Count == 0)
@@ -526,7 +526,7 @@ namespace RevitMCPAddin.Commands.Area
                     // We also keep a flat list for final CurveEquals check within bucket
                     foreach (var room in roomsBatch)
                     {
-                        int roomId = room.Id.IntegerValue;
+                        int roomId = room.Id.IntValue();
                         string roomName = room.Name ?? "";
                         string roomNumber = room.Number ?? "";
                         double roomAreaM2 = Math.Round(UnitHelper.ToExternal(room.Area, SpecTypeId.Area) ?? 0.0, 3);
@@ -568,7 +568,7 @@ namespace RevitMCPAddin.Commands.Area
                                             {
                                                 var eid = seg.ElementId;
                                                 if (eid != null && eid != ElementId.InvalidElementId)
-                                                    boundaryCollectedWalls.Add(eid.IntegerValue);
+                                                    boundaryCollectedWalls.Add(eid.IntValue());
                                             }
                                             catch { }
                                         }
@@ -618,7 +618,7 @@ namespace RevitMCPAddin.Commands.Area
                                         }
 
                                         var ceNew = doc.Create.NewAreaBoundaryLine(sp, cFlat, vp);
-                                        createdBoundaryLineIds.Add(ceNew.Id.IntegerValue);
+                                        createdBoundaryLineIds.Add(ceNew.Id.IntValue());
                                         createdLinesForRoom++;
 
                                         // Update bucket
@@ -658,8 +658,8 @@ namespace RevitMCPAddin.Commands.Area
                                 {
                                     var uv = new UV(rp.X, rp.Y);
                                     var area = doc.Create.NewArea(vp, uv);
-                                    areaIdCreated = area.Id.IntegerValue;
-                                    createdAreaIds.Add(area.Id.IntegerValue);
+                                    areaIdCreated = area.Id.IntValue();
+                                    createdAreaIds.Add(area.Id.IntValue());
                                 }
                                 catch (Exception ex)
                                 {
@@ -699,10 +699,10 @@ namespace RevitMCPAddin.Commands.Area
                         foreach (var wi in boundaryCollectedWalls)
                         {
                             if (wset.Contains(wi)) continue;
-                            var e = doc.GetElement(new ElementId(wi));
+                            var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wi));
                             if (e is Autodesk.Revit.DB.Wall) wset.Add(wi);
                         }
-                        wallIds = wset.Select(x => new ElementId(x)).ToList();
+                        wallIds = wset.Select(x => Autodesk.Revit.DB.ElementIdCompat.From(x)).ToList();
                     }
                 }
 
@@ -724,10 +724,10 @@ namespace RevitMCPAddin.Commands.Area
 
                     var adjustParams = new JObject
                     {
-                        ["viewId"] = vp.Id.IntegerValue,
-                        ["materialId"] = materialId.IntegerValue,
+                        ["viewId"] = vp.Id.IntValue(),
+                        ["materialId"] = materialId.IntValue(),
                         ["area_element_ids"] = new JArray(createdAreaIds),
-                        ["wall_element_ids"] = new JArray(wallIds.Select(x => x.IntegerValue)),
+                        ["wall_element_ids"] = new JArray(wallIds.Select(x => x.IntValue())),
                         ["refreshView"] = false
                     };
 
@@ -818,7 +818,7 @@ namespace RevitMCPAddin.Commands.Area
 
                     foreach (var aid in createdAreaIds)
                     {
-                        var area = doc.GetElement(new ElementId(aid)) as Autodesk.Revit.DB.Area;
+                        var area = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(aid)) as Autodesk.Revit.DB.Area;
                         if (area == null) continue;
 
                         double aM2 = Math.Round(UnitHelper.ToExternal(area.Area, SpecTypeId.Area) ?? 0.0, 3);
@@ -904,11 +904,11 @@ namespace RevitMCPAddin.Commands.Area
                 return new
                 {
                     ok = true,
-                    viewId = vp.Id.IntegerValue,
-                    levelId = level.Id.IntegerValue,
+                    viewId = vp.Id.IntValue(),
+                    levelId = level.Id.IntValue(),
                     boundaryLocation = roomBoundaryOpts.SpatialElementBoundaryLocation.ToString(),
                     boundaryCurveSource = boundaryCurveSource.ToString(),
-                    materialId = adjustBoundaries ? materialId.IntegerValue : (int?)null,
+                    materialId = adjustBoundaries ? materialId.IntValue() : (int?)null,
                     materialName = adjustBoundaries ? materialName : null,
                     requestedRooms = roomsResolved.Count,
                     processedRooms = roomsBatch.Count,
@@ -916,7 +916,7 @@ namespace RevitMCPAddin.Commands.Area
                     nextIndex,
                     createdAreaIds,
                     createdBoundaryLineIds,
-                    wallsForAdjust = wallIds.Select(x => x.IntegerValue).ToList(),
+                    wallsForAdjust = wallIds.Select(x => x.IntValue()).ToList(),
                     roomResults,
                     areaMetrics,
                     areaRoomComparisonSummary,
@@ -946,3 +946,5 @@ namespace RevitMCPAddin.Commands.Area
         }
     }
 }
+
+

@@ -75,7 +75,7 @@ namespace RevitMCPAddin.Commands.DocumentOps
 
                 items.Add(new
                 {
-                    elementId = fpElem.Id.IntegerValue,
+                    elementId = fpElem.Id.IntValue(),
                     name = fpElem.Name,
                     isSolid = pat.IsSolidFill,
                     target = pat.Target.ToString()
@@ -91,4 +91,5 @@ namespace RevitMCPAddin.Commands.DocumentOps
         }
     }
 }
+
 

@@ -1,4 +1,4 @@
-﻿// RenameFloorTypeCommand.cs
+// RenameFloorTypeCommand.cs
 using System;
 using ARDB = Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -15,7 +15,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         {
             ARDB.Document doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
-            var id = new ARDB.ElementId(p.Value<int>("floorTypeId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("floorTypeId"));
             var ft = doc.GetElement(id) as ARDB.FloorType
                      ?? throw new global::System.InvalidOperationException("FloorType not found.");
 
@@ -29,3 +29,4 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ScheduleOps/DeleteScheduleCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/ScheduleOps/DeleteScheduleCommand.cs (UnitHelper対応)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -16,7 +16,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             int id = p.Value<int>("scheduleViewId");
 
             Document doc = uiapp.ActiveUIDocument.Document;
-            var elem = doc.GetElement(new ElementId(id));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
             if (elem == null)
                 return new { ok = false, message = $"ScheduleView {id} not found.", units = UnitHelper.DefaultUnitsMeta() };
 
@@ -29,3 +29,4 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+

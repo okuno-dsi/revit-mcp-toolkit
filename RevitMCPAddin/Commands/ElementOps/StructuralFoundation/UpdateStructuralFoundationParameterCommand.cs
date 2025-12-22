@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Foundation/UpdateStructuralFoundationParameterCommand.cs (UnitHelper対応版)
 // - Double は Definition.GetDataType() を使い spec 依存で mm/m2/m3/deg → 内部へ
 // ================================================================
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             if (!p.TryGetValue("value", out var valueToken))
                 return ResultUtil.Err("Parameter 'value' is required.");
 
-            var element = doc.GetElement(new ElementId(elementId));
+            var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (element == null) return ResultUtil.Err($"Element not found: {elementId}");
 
             var param = ParamResolver.ResolveByPayload(element, p, out var resolvedBy);
@@ -81,7 +81,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                         case StorageType.String:
                             success = param.Set(valueToken.Value<string>() ?? ""); break;
                         case StorageType.ElementId:
-                            success = param.Set(new ElementId(valueToken.Value<int>())); break;
+                            success = param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valueToken.Value<int>())); break;
                         default:
                             success = false; break;
                     }
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                         catch (Exception ex)
                         {
                             // 位置移動に失敗してもパラメータ更新自体は成功させる
-                            RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_foundation_parameter: move by offset failed for element {element.Id.IntegerValue}: {ex.Message}");
+                            RevitMCPAddin.Core.RevitLogger.Warn($"update_structural_foundation_parameter: move by offset failed for element {element.Id.IntValue()}: {ex.Message}");
                         }
                     }
                 }
@@ -115,3 +115,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
         }
     }
 }
+
+

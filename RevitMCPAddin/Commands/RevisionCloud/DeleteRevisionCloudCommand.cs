@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/RevisionCloud/DeleteRevisionCloudCommand.cs
+// File: RevitMCPAddin/Commands/RevisionCloud/DeleteRevisionCloudCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             using (var tx = new Transaction(doc, "Delete Revision Cloud"))
             {
                 tx.Start();
-                doc.Delete(new ElementId(id));
+                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 tx.Commit();
             }
 
@@ -26,3 +26,4 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+

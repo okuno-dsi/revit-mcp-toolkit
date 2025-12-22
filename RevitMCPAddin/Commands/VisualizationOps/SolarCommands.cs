@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.IO;
 using System.Linq;
@@ -129,8 +129,8 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
     internal class ElementIdComparer : IEqualityComparer<Element>
     {
-        public bool Equals(Element? x, Element? y) => x?.Id.IntegerValue == y?.Id.IntegerValue;
-        public int GetHashCode(Element obj) => obj.Id.IntegerValue.GetHashCode();
+        public bool Equals(Element? x, Element? y) => x?.Id.IntValue() == y?.Id.IntValue();
+        public int GetHashCode(Element obj) => obj.Id.IntValue().GetHashCode();
     }
 
     // =====================================================================
@@ -227,7 +227,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
             return ResultUtil.Ok(new
             {
-                viewId = view3D.Id.IntegerValue,
+                viewId = view3D.Id.IntValue(),
                 viewName = view3D.Name,
                 settings = new
                 {
@@ -363,11 +363,11 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var entries = new List<JObject>();
             foreach (var e in rooms.Concat(spaces))
             {
-                var name = e.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? e.Name ?? e.Id.IntegerValue.ToString();
+                var name = e.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? e.Name ?? e.Id.IntValue().ToString();
                 var bb = e.get_BoundingBox(view);
                 if (bb == null)
                 {
-                    entries.Add(new JObject { ["elementId"] = e.Id.IntegerValue, ["name"] = name, ["level"] = "", ["areaM2"] = 0.0, ["score"] = 0.0, ["class"] = "N/A" });
+                    entries.Add(new JObject { ["elementId"] = e.Id.IntValue(), ["name"] = name, ["level"] = "", ["areaM2"] = 0.0, ["score"] = 0.0, ["class"] = "N/A" });
                     continue;
                 }
                 double sizeX = bb.Max.X - bb.Min.X, sizeY = bb.Max.Y - bb.Min.Y;
@@ -380,7 +380,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
                 entries.Add(new JObject
                 {
-                    ["elementId"] = e.Id.IntegerValue,
+                    ["elementId"] = e.Id.IntValue(),
                     ["name"] = name,
                     ["level"] = e.get_Parameter(BuiltInParameter.ROOM_LEVEL_ID)?.AsValueString() ?? "",
                     ["areaM2"] = Math.Round(areaM2, 3),
@@ -414,7 +414,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                         int k = Array.IndexOf(classLabels, j.Value<string>("class"));
                         var c = colors[Math.Max(0, k)];
                         int tr = (int)(20 + 40.0 * (double)k / Math.Max(1, bins - 1));
-                        var el = doc.GetElement(new ElementId(id));
+                        var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                         if (el == null) continue;
                         SolarUtil.ApplyElementOverride(doc, view, el, c.r, c.g, c.b, tr);
                     }
@@ -429,7 +429,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     t.Start();
                     foreach (var j in entries)
                     {
-                        var el = doc.GetElement(new ElementId(j.Value<int>("elementId")));
+                        var el = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(j.Value<int>("elementId")));
                         var param = el?.LookupParameter("Department") ?? el?.LookupParameter("Comments");
                         if (param != null && !param.IsReadOnly) param.Set(j.Value<string>("class"));
                     }
@@ -470,7 +470,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             SolarUtil.Info($"[Sunlight] targets={entries.Count}, csv={csvPath}, json={jsonPath}");
             return ResultUtil.Ok(new
             {
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 mode,
                 targetCount = entries.Count,
                 report = new { csvPath, jsonPath },
@@ -480,8 +480,10 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 
         private static View? ResolveView(Document doc, UIDocument? uidoc, int? viewId)
         {
-            if (viewId.HasValue) return doc.GetElement(new ElementId(viewId.Value)) as View;
+            if (viewId.HasValue) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             return uidoc?.ActiveView;
         }
     }
 }
+
+

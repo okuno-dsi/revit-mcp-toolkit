@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 // ================================================================
 // File: Commands/ParamOps/GetParamValuesCommand.cs
 // Purpose : JSON-RPC "get_param_values" をピンポイント高速実装
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                             var eid = ToElementId(p["elementId"]);
                             if (eid == null) return ResultUtil.Err("mode=element には elementId が必要です");
                             instElem = doc.GetElement(eid);
-                            if (instElem == null) return ResultUtil.Err($"要素が見つかりません: elementId={eid.IntegerValue}");
+                            if (instElem == null) return ResultUtil.Err($"要素が見つかりません: elementId={eid.IntValue()}");
                             typeElem = doc.GetElement(instElem.GetTypeId());
                             break;
                         }
@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                             var tid = ToElementId(p["typeId"]);
                             if (tid == null) return ResultUtil.Err("mode=type には typeId が必要です");
                             typeElem = doc.GetElement(tid);
-                            if (typeElem == null) return ResultUtil.Err($"タイプ要素が見つかりません: typeId={tid.IntegerValue}");
+                            if (typeElem == null) return ResultUtil.Err($"タイプ要素が見つかりません: typeId={tid.IntValue()}");
                             break;
                         }
                     case "category":
@@ -205,7 +205,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                 {
                     case StorageType.String: dto["value"] = prm.AsString() ?? ""; break;
                     case StorageType.Integer: dto["value"] = prm.AsInteger(); break;
-                    case StorageType.ElementId: dto["value"] = prm.AsElementId()?.IntegerValue ?? -1; break;
+                    case StorageType.ElementId: dto["value"] = prm.AsElementId()?.IntValue() ?? -1; break;
                     case StorageType.Double: dto["value"] = prm.AsDouble(); break; // 内部値
                     default: dto["value"] = null; break;
                 }
@@ -233,7 +233,7 @@ namespace RevitMCPAddin.Commands.ParamOps
             string catName = e.Category?.Name ?? "";
             try
             {
-                var bic = (BuiltInCategory)(e.Category?.Id?.IntegerValue ?? 0);
+                var bic = (BuiltInCategory)(e.Category?.Id?.IntValue() ?? 0);
                 if (Enum.IsDefined(typeof(BuiltInCategory), bic))
                     catName = $"OST_{bic}";
             }
@@ -241,9 +241,9 @@ namespace RevitMCPAddin.Commands.ParamOps
 
             return new JObject
             {
-                ["id"] = e.Id.IntegerValue,
+                ["id"] = e.Id.IntValue(),
                 ["uniqueId"] = e.UniqueId ?? "",
-                ["typeId"] = (e is ElementType) ? e.Id.IntegerValue : e.GetTypeId()?.IntegerValue ?? -1,
+                ["typeId"] = (e is ElementType) ? e.Id.IntValue() : e.GetTypeId()?.IntValue() ?? -1,
                 ["category"] = catName,
                 ["name"] = e.Name ?? ""
             };
@@ -266,8 +266,8 @@ namespace RevitMCPAddin.Commands.ParamOps
         private static ElementId? ToElementId(JToken? t)
         {
             if (t == null) return null;
-            if (t.Type == JTokenType.Integer) return new ElementId(t.Value<int>());
-            if (t.Type == JTokenType.String && int.TryParse(t.Value<string>(), out var iv)) return new ElementId(iv);
+            if (t.Type == JTokenType.Integer) return Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>());
+            if (t.Type == JTokenType.String && int.TryParse(t.Value<string>(), out var iv)) return Autodesk.Revit.DB.ElementIdCompat.From(iv);
             return null;
         }
 
@@ -342,7 +342,7 @@ namespace RevitMCPAddin.Commands.ParamOps
                     switch (prm.StorageType)
                     {
                         case StorageType.Integer: return prm.AsInteger().ToString() == wantStr;
-                        case StorageType.ElementId: return (prm.AsElementId()?.IntegerValue ?? -1).ToString() == wantStr;
+                        case StorageType.ElementId: return (prm.AsElementId()?.IntValue() ?? -1).ToString() == wantStr;
                         case StorageType.Double: return prm.AsDouble().ToString() == wantStr;
                         case StorageType.String: return (prm.AsString() ?? "") == wantStr;
                     }
@@ -362,7 +362,9 @@ namespace RevitMCPAddin.Commands.ParamOps
 
         private static int ParamIdGuess(Parameter p)
         {
-            try { return p.Id?.IntegerValue ?? 0; } catch { return 0; }
+            try { return p.Id?.IntValue() ?? 0; } catch { return 0; }
         }
     }
 }
+
+

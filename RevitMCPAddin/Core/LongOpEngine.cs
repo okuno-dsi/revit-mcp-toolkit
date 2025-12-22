@@ -47,7 +47,7 @@ namespace RevitMCPAddin.Core
         private static UIApplication _uiapp;
 
         // 節度付き tick ログ（有効にするなら true に）
-        private const bool LOG_TICK = false;
+        private static readonly bool LOG_TICK = false;
         private static long _lastTickLogMs = 0;
 
         // /post_result 宛て HTTP クライアント（BaseAddress は Initialize で設定）
@@ -155,7 +155,7 @@ namespace RevitMCPAddin.Core
                     job.Processed += result.processed;
 
                     // 進捗または完了を返す
-                    PostResult(job.RpcId, new
+                    var payload = new
                     {
                         ok = result.ok,
                         outputs = result.outputs,
@@ -168,7 +168,8 @@ namespace RevitMCPAddin.Core
                         phase = result.phase,
                         msg = result.msg,
                         jobId = job.JobId
-                    });
+                    };
+                    PostResult(job.RpcId, job.Method, payload, revitMs: result.elapsedMs);
 
                     if (!result.done)
                     {
@@ -185,25 +186,26 @@ namespace RevitMCPAddin.Core
                 else
                 {
                     // 未対応メソッド
-                    PostResult(job.RpcId, new { ok = false, msg = "Unsupported async method: " + job.Method, jobId = job.JobId });
+                    PostResult(job.RpcId, job.Method, new { ok = false, msg = "Unsupported async method: " + job.Method, jobId = job.JobId }, revitMs: 0);
                     Job _; _active.TryRemove(job.JobId, out _);
                 }
             }
             catch (Exception ex)
             {
                 job.Error = ex.Message;
-                PostResult(job.RpcId, new { ok = false, msg = ex.Message, jobId = job.JobId });
+                PostResult(job.RpcId, job.Method, new { ok = false, msg = ex.Message, jobId = job.JobId }, revitMs: 0);
                 Job _; _active.TryRemove(job.JobId, out _);
                 RevitLogger.Warn($"[ASYNC] Job error {job.JobId}: {ex}");
             }
         }
 
         // ------------------ /post_result 送信 ------------------
-        private static void PostResult(long rpcId, object payload)
+        private static void PostResult(long rpcId, string method, object payload, long revitMs)
         {
             try
             {
-                var body = new JObject { ["jsonrpc"] = "2.0", ["id"] = rpcId, ["result"] = JToken.FromObject(payload) };
+                var standardized = RpcResultEnvelope.StandardizePayload(payload, _uiapp, method, revitMs);
+                var body = new JObject { ["jsonrpc"] = "2.0", ["id"] = rpcId, ["result"] = standardized };
                 var json = JsonConvert.SerializeObject(body, Formatting.None);
                 using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
                 {
@@ -216,7 +218,13 @@ namespace RevitMCPAddin.Core
             {
                 RevitLogger.Warn("[ASYNC] post_result failed (fallback to store): " + ex.Message);
                 // ★ フォールバック保存（pull用）
-                var jobId = (payload as JObject)?["jobId"]?.ToString();
+                string jobId = null;
+                try
+                {
+                    var jo = payload as JObject ?? JObject.FromObject(payload);
+                    jobId = jo["jobId"] != null ? jo["jobId"].ToString() : null;
+                }
+                catch { jobId = null; }
                 if (!string.IsNullOrEmpty(jobId)) ResultStore.Put(jobId, payload);
             }
         }

@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/Door/GetDoorOrientationHandler.cs
+// RevitMCPAddin/Commands/ElementOps/Door/GetDoorOrientationHandler.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             var el = DoorUtil.ResolveElement(doc, cmd.Params);
             var inst = el as FamilyInstance;
             if (inst == null) return new { ok = false, msg = "FamilyInstance が見つかりません（elementId/uniqueId）。" };
-            if (inst.Category?.Id.IntegerValue != (int)BuiltInCategory.OST_Doors)
+            if (inst.Category?.Id.IntValue() != (int)BuiltInCategory.OST_Doors)
                 return new { ok = false, msg = "対象はドアではありません。" };
 
             XYZ hand = inst.HandOrientation ?? XYZ.BasisX;
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
 
             int? hostWallId = null;
             XYZ wallNormal = null;
-            if (inst.Host is Autodesk.Revit.DB.Wall w) { hostWallId = w.Id.IntegerValue; wallNormal = w.Orientation; }
+            if (inst.Host is Autodesk.Revit.DB.Wall w) { hostWallId = w.Id.IntValue(); wallNormal = w.Orientation; }
 
             Func<XYZ, double?> yawDeg = v => v == null ? (double?)null : Math.Atan2(v.Y, v.X) * 180.0 / Math.PI;
 
@@ -63,9 +63,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
-                typeId = inst.Symbol?.Id.IntegerValue,
+                typeId = inst.Symbol?.Id.IntValue(),
                 typeName = inst.Symbol?.Name ?? "",
                 familyName = inst.Symbol?.Family?.Name ?? "",
                 hostWallId,
@@ -82,3 +82,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Door
         }
     }
 }
+

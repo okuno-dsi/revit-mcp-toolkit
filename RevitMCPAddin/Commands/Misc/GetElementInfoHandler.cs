@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/GetElementInfoHandler.cs
 // Purpose : elementId/uniqueId系から要素情報を取得（mm/ft両立）
 // Changes :
@@ -83,7 +83,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         foreach (var uid in arrUids.Where(s => !string.IsNullOrWhiteSpace(s)))
                         {
                             var e = doc.GetElement(uid);
-                            if (e != null) ids.Add(e.Id.IntegerValue);
+                            if (e != null) ids.Add(e.Id.IntValue());
                         }
                     }
                 }
@@ -93,7 +93,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     if (!string.IsNullOrWhiteSpace(uid))
                     {
                         var e = doc.GetElement(uid);
-                        if (e != null) ids.Add(e.Id.IntegerValue);
+                        if (e != null) ids.Add(e.Id.IntValue());
                     }
                 }
 
@@ -106,7 +106,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                 foreach (int id in ids)
                 {
-                    var elem = doc.GetElement(new ElementId(id));
+                    var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     if (elem == null) continue;
 
                     // 既存（後方互換）
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         var sym = fi.Symbol;
                         familyName = sym?.Family?.Name ?? "";
                         typeName = sym?.Name ?? "";
-                        if (sym != null) typeId = sym.Id.IntegerValue;
+                        if (sym != null) typeId = sym.Id.IntValue();
                     }
                     else
                     {
@@ -128,7 +128,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         typeName = elem.Name ?? "";
 
                         var et = doc.GetElement(elem.GetTypeId()) as ElementType;
-                        if (et != null) typeId = et.Id.IntegerValue;
+                        if (et != null) typeId = et.Id.IntValue();
                     }
 
                     string levelName = "";
@@ -136,7 +136,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                     if (elem is FamilyInstance fi2 && fi2.LevelId != ElementId.InvalidElementId)
                     {
-                        levelId = fi2.LevelId.IntegerValue;
+                        levelId = fi2.LevelId.IntValue();
                         var lvl = doc.GetElement(fi2.LevelId) as Level;
                         levelName = lvl?.Name ?? "";
                     }
@@ -217,7 +217,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         TryAdd(info, "uniqueId", elem.UniqueId);
                         TryAdd(info, "className", elem.GetType().Name);
                         if (elem.Category != null)
-                            TryAdd(info, "categoryId", elem.Category.Id.IntegerValue);
+                            TryAdd(info, "categoryId", elem.Category.Id.IntValue());
                         if (typeId.HasValue)
                             TryAdd(info, "typeId", typeId.Value);
                         if (levelId.HasValue)
@@ -249,7 +249,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         {
                             var grp = doc.GetElement(grpId) as Group;
                             info["isInGroup"] = true;
-                            info["groupId"] = grpId.IntegerValue;
+                            info["groupId"] = grpId.IntValue();
                             info["groupName"] = grp?.Name ?? "";
                         }
                         else
@@ -261,7 +261,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                         if (elem is RevitLinkInstance rli)
                         {
                             info["isLinkInstance"] = true;
-                            info["linkTypeId"] = rli.GetTypeId().IntegerValue;
+                            info["linkTypeId"] = rli.GetTypeId().IntValue();
                             var ldoc = rli.GetLinkDocument();
                             if (ldoc != null) info["linkDocTitle"] = ldoc.Title;
                         }
@@ -270,11 +270,11 @@ namespace RevitMCPAddin.Commands.ElementOps
                         // host / owner view
                         if (elem is FamilyInstance fi4 && fi4.Host != null)
                         {
-                            info["hostId"] = fi4.Host.Id.IntegerValue;
+                            info["hostId"] = fi4.Host.Id.IntValue();
                             info["hostCategory"] = fi4.Host.Category?.Name ?? "";
                         }
                         info["viewSpecific"] = elem.ViewSpecific;
-                        if (elem.ViewSpecific) info["ownerViewId"] = elem.OwnerViewId.IntegerValue;
+                        if (elem.ViewSpecific) info["ownerViewId"] = elem.OwnerViewId.IntValue();
 
                         // phases
                         info["phaseCreated"] = GetPhaseName(elem, BuiltInParameter.PHASE_CREATED, doc);
@@ -282,9 +282,9 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                         // workset
                         var wsId = elem.WorksetId;
-                        if (wsId != null && wsId.IntegerValue > 0)
+                        if (wsId != null && wsId.IntValue() > 0)
                         {
-                            info["worksetId"] = wsId.IntegerValue;
+                            info["worksetId"] = wsId.IntValue();
                             try
                             {
                                 var ws = doc.GetWorksetTable()?.GetWorkset(wsId);
@@ -300,7 +300,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                             var doId = doParam.AsElementId();
                             if (doId != ElementId.InvalidElementId)
                             {
-                                info["designOptionId"] = doId.IntegerValue;
+                                info["designOptionId"] = doId.IntValue();
                                 var dop = doc.GetElement(doId) as DesignOption;
                                 if (dop != null) info["designOptionName"] = dop.Name;
                             }
@@ -322,12 +322,12 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                             if (baseL != null && baseL != ElementId.InvalidElementId)
                             {
-                                wallObj["baseLevelId"] = baseL.IntegerValue;
+                                wallObj["baseLevelId"] = baseL.IntValue();
                                 wallObj["baseLevelName"] = (doc.GetElement(baseL) as Level)?.Name ?? "";
                             }
                             if (topL != null && topL != ElementId.InvalidElementId)
                             {
-                                wallObj["topLevelId"] = topL.IntegerValue;
+                                wallObj["topLevelId"] = topL.IntValue();
                                 wallObj["topLevelName"] = (doc.GetElement(topL) as Level)?.Name ?? "";
                             }
 
@@ -348,12 +348,12 @@ namespace RevitMCPAddin.Commands.ElementOps
                             var colObj = new JObject();
                             if (baseL != null && baseL != ElementId.InvalidElementId)
                             {
-                                colObj["baseLevelId"] = baseL.IntegerValue;
+                                colObj["baseLevelId"] = baseL.IntValue();
                                 colObj["baseLevelName"] = (doc.GetElement(baseL) as Level)?.Name ?? "";
                             }
                             if (topL != null && topL != ElementId.InvalidElementId)
                             {
-                                colObj["topLevelId"] = topL.IntegerValue;
+                                colObj["topLevelId"] = topL.IntValue();
                                 colObj["topLevelName"] = (doc.GetElement(topL) as Level)?.Name ?? "";
                             }
                             colObj["baseOffsetMm"] = Math.Round(UnitHelper.InternalToMm(baseOff), 3);
@@ -386,7 +386,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             {
                 if (viewId.HasValue && viewId.Value > 0)
                 {
-                    var v = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                     if (v != null && !v.IsTemplate) return v;
                 }
                 return doc.ActiveView;
@@ -430,13 +430,13 @@ namespace RevitMCPAddin.Commands.ElementOps
 
         private static bool IsArchitecturalColumn(FamilyInstance fi)
         {
-            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_Columns; }
+            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntValue() == (int)BuiltInCategory.OST_Columns; }
             catch { return false; }
         }
 
         private static bool IsStructuralColumn(FamilyInstance fi)
         {
-            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_StructuralColumns; }
+            try { return fi.Symbol?.Family?.FamilyCategory?.Id.IntValue() == (int)BuiltInCategory.OST_StructuralColumns; }
             catch { return false; }
         }
 
@@ -471,7 +471,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             // 窓・ドア
             if (elem is FamilyInstance fi)
             {
-                var catId = fi.Category?.Id.IntegerValue ?? 0;
+                var catId = fi.Category?.Id.IntValue() ?? 0;
                 if (catId == (int)BuiltInCategory.OST_Windows)
                     hints.Add("get_window_parameters");
                 if (catId == (int)BuiltInCategory.OST_Doors)
@@ -555,10 +555,12 @@ namespace RevitMCPAddin.Commands.ElementOps
                     var pi = typeof(OverrideGraphicSettings).GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
                     if (pi == null) return 0;
                     var id = pi.GetValue(ogs) as ElementId;
-                    return id?.IntegerValue ?? 0;
+                    return id?.IntValue() ?? 0;
                 }
                 catch { return 0; }
             }
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 return new { ok = false, msg = "levelName is required." };
 
             var symbols = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                          .Where(s => s.Category != null && s.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Parking);
+                          .Where(s => s.Category != null && s.Category.Id.IntValue() == (int)BuiltInCategory.OST_Parking);
 
             if (!string.IsNullOrWhiteSpace(typeName))
                 symbols = symbols.Where(s => string.Equals(s.Name, typeName, StringComparison.OrdinalIgnoreCase));
@@ -98,8 +98,8 @@ namespace RevitMCPAddin.Commands.SiteOps
                 }
 
                 t.Commit();
-                LoggerProxy.Info($"[Site] Parking placed id={fi.Id.IntegerValue} type='{symbol.Name}'");
-                return new { ok = true, elementId = fi.Id.IntegerValue, type = symbol.Name, family = symbol.FamilyName, level = level.Name };
+                LoggerProxy.Info($"[Site] Parking placed id={fi.Id.IntValue()} type='{symbol.Name}'");
+                return new { ok = true, elementId = fi.Id.IntValue(), type = symbol.Name, family = symbol.FamilyName, level = level.Name };
             }
         }
 
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Commands.SiteOps
         private object List(Document doc)
         {
             var fis = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
-                      .Where(fi => fi.Category != null && fi.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Parking);
+                      .Where(fi => fi.Category != null && fi.Category.Id.IntValue() == (int)BuiltInCategory.OST_Parking);
 
             var list = new List<object>();
             foreach (var fi in fis)
@@ -116,7 +116,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 var pt = (lp != null) ? lp.Point : null;
                 list.Add(new
                 {
-                    id = fi.Id.IntegerValue,
+                    id = fi.Id.IntValue(),
                     type = fi.Symbol?.Name,
                     family = fi.Symbol?.Family?.Name,
                     level = doc.GetElement(fi.LevelId) is Level lv ? lv.Name : null,
@@ -142,7 +142,7 @@ namespace RevitMCPAddin.Commands.SiteOps
                 int okCount = 0, ngCount = 0;
                 foreach (var id in list)
                 {
-                    try { var d = doc.Delete(new ElementId(id)); okCount += d.Count; }
+                    try { var d = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id)); okCount += d.Count; }
                     catch { ngCount++; }
                 }
                 t.Commit();
@@ -206,3 +206,5 @@ namespace RevitMCPAddin.Commands.SiteOps
         }
     }
 }
+
+

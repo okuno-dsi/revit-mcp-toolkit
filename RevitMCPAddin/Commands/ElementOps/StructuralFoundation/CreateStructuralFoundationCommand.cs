@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/CreateStructuralFoundationCommand.cs (UnitHelper対応)
+// File: Commands/ElementOps/Foundation/CreateStructuralFoundationCommand.cs (UnitHelper対応)
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
@@ -28,9 +28,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             double yMm = loc.Value<double>("y");
             double zMm = loc.Value<double>("z");
 
-            var symbol = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             if (symbol == null) return ResultUtil.Err($"FamilySymbol が見つかりません: {typeId}");
-            var level = doc.GetElement(new ElementId(levelId)) as Level;
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
             if (level == null) return ResultUtil.Err($"Level が見つかりません: {levelId}");
 
             FamilyInstance instance;
@@ -48,12 +48,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             return new
             {
                 ok = true,
-                elementId = instance.Id.IntegerValue,
+                elementId = instance.Id.IntValue(),
                 uniqueId = instance.UniqueId,
-                typeId = instance.GetTypeId()?.IntegerValue,
+                typeId = instance.GetTypeId()?.IntValue(),
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
             };
         }
     }
 }
+
+

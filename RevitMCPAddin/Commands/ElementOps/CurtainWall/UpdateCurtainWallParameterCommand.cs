@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -17,7 +17,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
             var valueTok = p["value"]!; // SI 入力（mm/m2/m3/deg 等）を期待
 
             var doc = uiapp.ActiveUIDocument.Document;
-            var elem = doc.GetElement(new ElementId(id))
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id))
                        ?? throw new InvalidOperationException("Element not found");
 
             var prm = ParamResolver.ResolveByPayload(elem, p, out var resolvedBy)
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
                     catch (Exception ex)
                     {
                         // 位置移動に失敗してもパラメータ更新自体は成功させる
-                        RevitMCPAddin.Core.RevitLogger.Warn($"update_curtain_wall_parameter: move by offset failed for element {elem.Id.IntegerValue}: {ex.Message}");
+                        RevitMCPAddin.Core.RevitLogger.Warn($"update_curtain_wall_parameter: move by offset failed for element {elem.Id.IntValue()}: {ex.Message}");
                     }
                 }
 
@@ -79,3 +79,5 @@ namespace RevitMCPAddin.Commands.ElementOps.CurtainWall
         }
     }
 }
+
+

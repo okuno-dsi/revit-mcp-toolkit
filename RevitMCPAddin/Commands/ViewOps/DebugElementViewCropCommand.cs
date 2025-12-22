@@ -31,15 +31,15 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (elementIdInt <= 0)
                 return new { ok = false, msg = "elementId を指定してください。" };
 
-            int viewIdInt = p.Value<int?>("viewId") ?? uidoc.ActiveView?.Id.IntegerValue ?? -1;
+            int viewIdInt = p.Value<int?>("viewId") ?? uidoc.ActiveView?.Id.IntValue() ?? -1;
             if (viewIdInt <= 0)
                 return new { ok = false, msg = "viewId を解決できませんでした。" };
 
-            var viewElem = doc.GetElement(new ElementId(viewIdInt)) as View;
+            var viewElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View;
             if (viewElem == null)
                 return new { ok = false, msg = $"viewId={viewIdInt} の View が見つかりません。" };
 
-            var elem = doc.GetElement(new ElementId(elementIdInt));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementIdInt));
             if (elem == null)
                 return new { ok = false, msg = $"elementId={elementIdInt} の要素が見つかりません。" };
 
@@ -196,4 +196,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

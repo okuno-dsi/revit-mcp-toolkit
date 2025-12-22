@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Method : estimate_illuminance_in_room (rough)
 // ================================================================
 #nullable enable
@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.LightingOps
                 double heightM = ReqShim.Get<double?>(p, "heightM", null) ?? 0.8;
                 double lmPerW = ReqShim.Get<double?>(p, "lmPerW", null) ?? 80.0;
 
-                var se = LightingCommon.GetSpatialElement(doc, new ElementId(id));
+                var se = LightingCommon.GetSpatialElement(doc, Autodesk.Revit.DB.ElementIdCompat.From(id));
                 if (se == null) return new { ok = false, msg = "Not a Room/Space" };
 
                 var fixtures = LightingCommon.CollectFixtures(doc).Where(f =>
@@ -105,3 +105,4 @@ namespace RevitMCPAddin.Commands.LightingOps
         }
     }
 }
+

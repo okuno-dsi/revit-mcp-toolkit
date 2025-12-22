@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/DuplicateMassTypeCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/DuplicateMassTypeCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             // typeId の取得
             if (!p.TryGetValue("typeId", out var typeTok))
                 throw new InvalidOperationException("Parameter 'typeId' is required.");
-            var typeId = new ElementId(typeTok.Value<int>());
+            var typeId = Autodesk.Revit.DB.ElementIdCompat.From(typeTok.Value<int>());
 
             // 要素取得＆型チェック
             var elem = doc.GetElement(typeId);
@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
                 return new
                 {
                     ok = false,
-                    message = $"Element {typeId.IntegerValue} is not a Mass FamilySymbol and cannot be duplicated."
+                    message = $"Element {typeId.IntValue()} is not a Mass FamilySymbol and cannot be duplicated."
                 };
             }
 
@@ -46,9 +46,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             return new
             {
                 ok = true,
-                newTypeId = newSym.Id.IntegerValue,
+                newTypeId = newSym.Id.IntValue(),
                 newName
             };
         }
     }
 }
+
+

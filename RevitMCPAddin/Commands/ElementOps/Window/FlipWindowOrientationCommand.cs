@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/WindowOps/FlipWindowOrientationCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 窓(Window: OST_Windows) の Hand/Facing 反転・任意ミラー・任意回転
@@ -28,14 +28,14 @@ namespace RevitMCPAddin.Commands.WindowOps
             // ---- 1) ターゲット特定
             Element? elem = null;
             if (p.TryGetValue("elementId", out var vId) && vId.Type == JTokenType.Integer)
-                elem = doc.GetElement(new ElementId(vId.Value<int>()));
+                elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vId.Value<int>()));
             else if (p.TryGetValue("uniqueId", out var vUid) && vUid.Type == JTokenType.String)
                 elem = doc.GetElement(vUid.Value<string>());
 
             if (elem == null) return Err("要素が見つかりません（elementId/uniqueId を確認）。");
 
             // 窓カテゴリ判定 (OST_Windows)
-            if (elem.Category == null || elem.Category.Id.IntegerValue != (int)BuiltInCategory.OST_Windows)
+            if (elem.Category == null || elem.Category.Id.IntValue() != (int)BuiltInCategory.OST_Windows)
                 return Err("対象が窓ではありません（categoryId != OST_Windows）。");
 
             var fi = elem as FamilyInstance;
@@ -186,7 +186,7 @@ namespace RevitMCPAddin.Commands.WindowOps
             return new
             {
                 ok = true,
-                elementId = fi.Id.IntegerValue,
+                elementId = fi.Id.IntValue(),
                 applied,
                 before,
                 after = new { handFlipped = afterHand, facingFlipped = afterFacing, mirrored = afterMirrored, yawDeg = afterYawDeg },
@@ -251,3 +251,5 @@ namespace RevitMCPAddin.Commands.WindowOps
         }
     }
 }
+
+

@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 ViewSchedule vs = null;
                 if (id > 0)
                 {
-                    vs = doc.GetElement(new ElementId(id)) as ViewSchedule;
+                    vs = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewSchedule;
                 }
                 else if (!string.IsNullOrWhiteSpace(title))
                 {
@@ -120,7 +120,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 return new
                 {
                     ok = true,
-                    scheduleViewId = vs.Id.IntegerValue,
+                    scheduleViewId = vs.Id.IntValue(),
                     title = vs.Name,
                     fields,
                     totalRows
@@ -152,4 +152,6 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         }
     }
 }
+
+
 

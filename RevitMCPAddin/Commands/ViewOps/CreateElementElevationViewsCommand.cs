@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         ? ((JObject)t).Value<int>("elementId")
                         : t.Value<int>();
                     if (id > 0)
-                        elementIds.Add(new ElementId(id));
+                        elementIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(id));
                 }
                 catch
                 {
@@ -198,7 +198,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var elem = doc.GetElement(eid);
                     if (elem == null)
                     {
-                        skipped.Add(new { elementId = eid.IntegerValue, reason = "要素が見つかりませんでした。" });
+                        skipped.Add(new { elementId = eid.IntValue(), reason = "要素が見つかりませんでした。" });
                         continue;
                     }
 
@@ -207,7 +207,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var refPt = SpatialUtils.GetReferencePoint(doc, elem, out refMsg);
                     if (refPt == null)
                     {
-                        skipped.Add(new { elementId = eid.IntegerValue, reason = "代表点を取得できませんでした。" });
+                        skipped.Add(new { elementId = eid.IntValue(), reason = "代表点を取得できませんでした。" });
                         continue;
                     }
 
@@ -216,7 +216,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var dir = ResolveDirection(elem, orientationMode, customDir, out orientationError);
                     if (dir == null || dir.IsZeroLength())
                     {
-                        skipped.Add(new { elementId = eid.IntegerValue, reason = orientationError ?? "有効な向きベクトルを決定できませんでした。" });
+                        skipped.Add(new { elementId = eid.IntValue(), reason = orientationError ?? "有効な向きベクトルを決定できませんでした。" });
                         continue;
                     }
 
@@ -224,7 +224,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var fiDoor = elem as FamilyInstance;
                     if (fiDoor != null &&
                         fiDoor.Category != null &&
-                        fiDoor.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Doors)
+                        fiDoor.Category.Id.IntValue() == (int)BuiltInCategory.OST_Doors)
                     {
                         try
                         {
@@ -316,7 +316,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                 if (elevVft == null)
                                 {
                                     var reason = (localReason ?? "") + " / ElevationMarker 用 ViewFamilyType (Elevation) が解決できませんでした。";
-                                    skipped.Add(new { elementId = eid.IntegerValue, reason = reason });
+                                    skipped.Add(new { elementId = eid.IntValue(), reason = reason });
                                     continue;
                                 }
 
@@ -330,7 +330,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                     var reason = (localReason ?? "SectionBox 失敗") +
                                                  " / ElevationMarker 例外: " + exElev.GetType().Name +
                                                  (string.IsNullOrEmpty(exElev.Message) ? "" : " - " + exElev.Message);
-                                    skipped.Add(new { elementId = eid.IntegerValue, reason = reason });
+                                    skipped.Add(new { elementId = eid.IntValue(), reason = reason });
                                     continue;
                                 }
                             }
@@ -345,7 +345,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             skipped.Add(new
                             {
-                                elementId = eid.IntegerValue,
+                                elementId = eid.IntValue(),
                                 reason = localReason ?? "ビュー作成に失敗しました。"
                             });
                             continue;
@@ -361,7 +361,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         try
                         {
                             string suffix = string.Equals(modeUsed, "SectionBox", StringComparison.OrdinalIgnoreCase) ? "_Sec" : "_Elev";
-                            string baseName = "Element_" + eid.IntegerValue + suffix;
+                            string baseName = "Element_" + eid.IntValue() + suffix;
                             view.Name = MakeUniqueViewName(doc, baseName);
                         }
                         catch { }
@@ -381,15 +381,15 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                         created.Add(new
                         {
-                            elementId = eid.IntegerValue,
-                            viewId = view.Id.IntegerValue,
+                            elementId = eid.IntValue(),
+                            viewId = view.Id.IntValue(),
                             viewName = view.Name,
                             mode = modeUsed
                         });
                     }
                     catch (Exception exElem)
                     {
-                        skipped.Add(new { elementId = eid.IntegerValue, reason = exElem.Message });
+                        skipped.Add(new { elementId = eid.IntValue(), reason = exElem.Message });
                     }
                 }
 
@@ -523,7 +523,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return explicitDoorWidth;
             }
 
-            int cid = cat.Id.IntegerValue;
+            int cid = cat.Id.IntValue();
             bool doorLike =
                 cid == (int)BuiltInCategory.OST_Doors ||
                 cid == (int)BuiltInCategory.OST_Windows ||
@@ -1049,7 +1049,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 if (fi == null || fi.Category == null)
                     return false;
 
-                int catId = fi.Category.Id.IntegerValue;
+                int catId = fi.Category.Id.IntValue();
                 bool isDoor = catId == (int)BuiltInCategory.OST_Doors;
                 bool isWindow = catId == (int)BuiltInCategory.OST_Windows;
                 bool isCurtainPanel = catId == (int)BuiltInCategory.OST_CurtainWallPanels;
@@ -1329,3 +1329,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

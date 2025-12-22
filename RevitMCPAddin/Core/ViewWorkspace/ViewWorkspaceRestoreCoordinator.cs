@@ -148,7 +148,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
             {
                 if (entry.ViewIdInt > 0)
                 {
-                    var v1 = doc.GetElement(new ElementId(entry.ViewIdInt)) as View;
+                    var v1 = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(entry.ViewIdInt)) as View;
                     if (v1 != null) return v1;
                 }
             }
@@ -222,7 +222,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                         {
                             try
                             {
-                                if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntegerValue != v.Id.IntegerValue)
+                                if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntValue() != v.Id.IntValue())
                                     uidoc.ActiveView = v;
                             }
                             catch
@@ -268,7 +268,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                 {
                     try
                     {
-                        if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntegerValue != target.Id.IntegerValue)
+                        if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntValue() != target.Id.IntValue())
                         {
                             try
                             {
@@ -283,7 +283,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                     }
                     catch (Exception ex)
                     {
-                        s.Warnings.Add($"Activate view failed: {target.Id.IntegerValue} {target.Name}: {ex.Message}");
+                        s.Warnings.Add($"Activate view failed: {target.Id.IntValue()} {target.Name}: {ex.Message}");
                     }
 
                     // give UI a tick to stabilize
@@ -298,7 +298,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                     // Ensure active view is the one we expect (some environments need extra ticks)
                     try
                     {
-                        if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntegerValue != target.Id.IntegerValue)
+                        if (uidoc.ActiveView == null || uidoc.ActiveView.Id.IntValue() != target.Id.IntValue())
                         {
                             s.StableTicksWait++;
                             if (s.StableTicksWait < 3) return;
@@ -315,7 +315,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                             {
                                 var open = uidoc.GetOpenUIViews();
                                 if (open != null)
-                                    uiv = open.FirstOrDefault(x => x != null && x.ViewId.IntegerValue == target.Id.IntegerValue);
+                                    uiv = open.FirstOrDefault(x => x != null && x.ViewId.IntValue() == target.Id.IntValue());
                             }
                             catch { uiv = null; }
 
@@ -329,7 +329,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                         }
                         catch (Exception ex)
                         {
-                            s.Warnings.Add($"Zoom restore failed: {target.Id.IntegerValue} {target.Name}: {ex.Message}");
+                            s.Warnings.Add($"Zoom restore failed: {target.Id.IntValue()} {target.Name}: {ex.Message}");
                         }
                     }
 
@@ -350,7 +350,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                         }
                         catch (Exception ex)
                         {
-                            s.Warnings.Add($"3D orientation restore failed: {target.Id.IntegerValue} {target.Name}: {ex.Message}");
+                            s.Warnings.Add($"3D orientation restore failed: {target.Id.IntValue()} {target.Name}: {ex.Message}");
                         }
                     }
 
@@ -368,3 +368,5 @@ namespace RevitMCPAddin.Core.ViewWorkspace
         }
     }
 }
+
+

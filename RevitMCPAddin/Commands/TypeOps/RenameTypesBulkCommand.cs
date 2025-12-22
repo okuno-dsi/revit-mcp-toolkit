@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         ElementType et = null;
                         if (it.TypeId.HasValue)
                         {
-                            et = doc.GetElement(new ElementId(it.TypeId.Value)) as ElementType;
+                            et = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.TypeId.Value)) as ElementType;
                         }
                         if (et == null && !string.IsNullOrWhiteSpace(it.UniqueId))
                         {
@@ -79,15 +79,15 @@ namespace RevitMCPAddin.Commands.TypeOps
                         string oldName = et.Name ?? string.Empty;
                         if (string.IsNullOrWhiteSpace(newName) || string.Equals(newName, oldName, StringComparison.Ordinal))
                         {
-                            skipped++; resultItems.Add(new { ok = true, typeId = et.Id.IntegerValue, oldName, reason = "no_change" });
+                            skipped++; resultItems.Add(new { ok = true, typeId = et.Id.IntValue(), oldName, reason = "no_change" });
                             continue;
                         }
 
-                        int catId = et.Category?.Id?.IntegerValue ?? 0;
+                        int catId = et.Category?.Id?.IntValue() ?? 0;
                         if (catId != 0 && !nameSets.TryGetValue(catId, out var set))
                         {
                             set = new HashSet<string>(StringComparer.Ordinal);
-                            foreach (var t in new FilteredElementCollector(doc).WhereElementIsElementType().Where(e => e.Category != null && e.Category.Id.IntegerValue == catId))
+                            foreach (var t in new FilteredElementCollector(doc).WhereElementIsElementType().Where(e => e.Category != null && e.Category.Id.IntValue() == catId))
                             {
                                 try { set.Add(((ElementType)t).Name); } catch { }
                             }
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         string resolvedName = ResolveConflict(newName, nameSets.ContainsKey(catId) ? nameSets[catId] : null, conflictPolicy);
                         if (resolvedName == null)
                         {
-                            skipped++; resultItems.Add(new { ok = false, typeId = et.Id.IntegerValue, oldName, reason = "name_conflict" });
+                            skipped++; resultItems.Add(new { ok = false, typeId = et.Id.IntValue(), oldName, reason = "name_conflict" });
                             continue;
                         }
 
@@ -108,7 +108,7 @@ namespace RevitMCPAddin.Commands.TypeOps
                         }
 
                         renamed++;
-                        resultItems.Add(new { ok = true, typeId = et.Id.IntegerValue, oldName, newName = resolvedName });
+                        resultItems.Add(new { ok = true, typeId = et.Id.IntValue(), oldName, newName = resolvedName });
                     }
                     catch (Exception ex)
                     {
@@ -163,4 +163,6 @@ namespace RevitMCPAddin.Commands.TypeOps
         }
     }
 }
+
+
 

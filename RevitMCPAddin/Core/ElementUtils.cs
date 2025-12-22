@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +13,7 @@ public static class ElementUtils
 
     // ★ C#8 互換：T? を返したいので where T: class 制約を付ける
     public static T GetElement<T>(Document doc, int id) where T : class
-        => doc.GetElement(new ElementId(id)) as T;
+        => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as T;
 
     public static bool EnsureClosed2D(IList<XYZ> poly)
         => poly != null && poly.Count >= 3 && poly.First().IsAlmostEqualTo(poly.Last());
@@ -26,3 +26,4 @@ public static class ElementUtils
         return list;
     }
 }
+

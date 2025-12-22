@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Ceiling/GetCeilingBoundariesCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Ceiling/GetCeilingBoundariesCommand.cs
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -34,7 +34,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             Element elem = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) elem = doc.GetElement(new ElementId(eid));
+            if (eid > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) elem = doc.GetElement(uid);
 
             var ceiling = elem as Autodesk.Revit.DB.Ceiling;
@@ -156,7 +156,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
             return new
             {
                 ok = true,
-                elementId = ceiling.Id.IntegerValue,
+                elementId = ceiling.Id.IntValue(),
                 uniqueId = ceiling.UniqueId,
                 faceSelection = faceSel,
                 totalLoops = boundaries.Count,
@@ -328,3 +328,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Ceiling
         }
     }
 }
+
+

@@ -89,7 +89,9 @@ namespace RevitMCPAddin.ExternalEvents
             catch (Exception ex)
             {
                 SafeWarn("[EXEC] route exception: " + ex);
-                resultObj = new { ok = false, msg = "Unhandled exception in command.", detail = ex.ToString() };
+                var fail = RpcResultEnvelope.Fail("UNHANDLED_EXCEPTION", "Unhandled exception in command.", data: new { exception = ex.GetType().Name });
+                fail["detail"] = ex.ToString();
+                resultObj = RpcResultEnvelope.StandardizePayload(fail, app, cmd.Command, revitMs: 0);
             }
 
             // JSON-RPC result
@@ -182,7 +184,8 @@ namespace RevitMCPAddin.ExternalEvents
             try
             {
                 var p = @params ?? new JObject();
-                switch ((command ?? string.Empty).ToLowerInvariant())
+                var leaf = CommandNaming.Leaf(command ?? string.Empty).ToLowerInvariant();
+                switch (leaf)
                 {
                     case "get_project_info":
                         return "プロジェクト情報を取得";

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/ElementOps/FloorOps/CreateFloorCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: 柔軟 boundary 入力と親切エラー、Floor.Create を使用
@@ -9,6 +9,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using ARDB = Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
@@ -81,9 +82,9 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
 
                     return ResultUtil.Ok(new
                     {
-                        elementId = created.Id.IntegerValue,
-                        levelId = level.Id.IntegerValue,
-                        floorTypeId = floorType.Id.IntegerValue
+                        elementId = created.Id.IntValue(),
+                        levelId = level.Id.IntValue(),
+                        floorTypeId = floorType.Id.IntValue()
                     });
                 }
             }
@@ -119,7 +120,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             why = "";
             if (TryReadInt(p, "levelId", out int levelId))
             {
-                var lvl = doc.GetElement(new ARDB.ElementId(levelId)) as ARDB.Level;
+                var lvl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as ARDB.Level;
                 if (lvl != null) return lvl;
                 why = $"Level not found by id={levelId}.";
                 return null;
@@ -144,7 +145,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             why = "";
             if (TryReadInt(p, "floorTypeId", out int typeId) || TryReadInt(p, "typeId", out typeId))
             {
-                var ft = doc.GetElement(new ARDB.ElementId(typeId)) as ARDB.FloorType;
+                var ft = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ARDB.FloorType;
                 if (ft != null) return ft;
                 why = $"FloorType not found by id={typeId}.";
                 return null;
@@ -271,3 +272,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

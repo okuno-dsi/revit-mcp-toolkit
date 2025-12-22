@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.ViewOps
         {
             int vid = p.Value<int?>("viewId") ?? 0;
             string vuid = p.Value<string>("uniqueId");
-            if (vid > 0) return doc.GetElement(new ElementId(vid)) as View;
+            if (vid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
             if (!string.IsNullOrWhiteSpace(vuid)) return doc.GetElement(vuid) as View;
             return null;
         }
@@ -47,7 +47,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             string tname = p.Value<string>("templateName");
             if (tid > 0)
             {
-                var v = doc.GetElement(new ElementId(tid)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as View;
                 if (v != null && v.IsTemplate) return v;
             }
             if (!string.IsNullOrWhiteSpace(tname))
@@ -65,7 +65,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             string name = p.Value<string>("newViewTypeName") ?? p.Value<string>("viewTypeName");
             if (id > 0)
             {
-                var t = doc.GetElement(new ElementId(id)) as ViewFamilyType;
+                var t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ViewFamilyType;
                 if (t != null) return t;
             }
             if (!string.IsNullOrWhiteSpace(name))
@@ -236,7 +236,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             o["hasValue"] = hasVal;
                             if (hasVal || includeEmpty)
                             {
-                                o["value"] = id.IntegerValue;
+                                o["value"] = id.IntValue();
                                 string refName = null;
                                 try
                                 {
@@ -393,7 +393,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 if (deleted != null)
                 {
                     deletedCount = deleted.Count;
-                    foreach (var id in deleted) deletedIds.Add(id.IntegerValue);
+                    foreach (var id in deleted) deletedIds.Add(id.IntValue());
                 }
             }
 
@@ -433,7 +433,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = targetId.IntegerValue,
+                viewId = targetId.IntValue(),
                 deletedCount,
                 deletedElementIds = deletedIds,
                 elapsedMs = sw.ElapsedMilliseconds,
@@ -493,8 +493,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             ok = false,
                             msg = "ビュー テンプレートの適用に失敗しました: " + ex.Message,
-                            viewId = view.Id.IntegerValue,
-                            templateViewId = tmpl.Id.IntegerValue
+                            viewId = view.Id.IntValue(),
+                            templateViewId = tmpl.Id.IntValue()
                         };
                     }
                 }
@@ -524,9 +524,9 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 templateApplied = view.ViewTemplateId != ElementId.InvalidElementId,
-                templateViewId = view.ViewTemplateId.IntegerValue,
+                templateViewId = view.ViewTemplateId.IntValue(),
                 refreshedActiveView = refreshed
             };
         }
@@ -571,7 +571,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 try { dup.Name = newName; } catch { /* 重複時はRevitが自動サフィックス */ }
                 tx.Commit();
 
-                return new { ok = true, templateViewId = dup.Id.IntegerValue, templateName = dup.Name };
+                return new { ok = true, templateViewId = dup.Id.IntValue(), templateName = dup.Name };
             }
         }
     }
@@ -601,7 +601,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 try { tmpl.Name = newName; } catch { /* 重複時は自動サフィックス */ }
                 tx.Commit();
             }
-            return new { ok = true, templateViewId = tmpl.Id.IntegerValue, templateName = tmpl.Name };
+            return new { ok = true, templateViewId = tmpl.Id.IntValue(), templateName = tmpl.Name };
         }
     }
 
@@ -643,9 +643,9 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
-                oldViewTypeId = oldType.IntegerValue,
-                newViewTypeId = targetType.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
+                oldViewTypeId = oldType.IntValue(),
+                newViewTypeId = targetType.Id.IntValue(),
                 newViewTypeName = targetType.Name
             };
         }
@@ -709,7 +709,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             pr.Set(vtok.Type == JTokenType.Null ? string.Empty : (vtok.Value<string>() ?? string.Empty));
                             break;
                         case StorageType.ElementId:
-                            pr.Set(new ElementId(vtok.Value<int>()));
+                            pr.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>()));
                             break;
                         default:
                             tx.RollBack();
@@ -725,7 +725,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             }
 
             // 返却は入力値をそのまま返す（確認用）
-            return new { ok = true, viewId = view.Id.IntegerValue, paramName = paramName, value = vtok };
+            return new { ok = true, viewId = view.Id.IntValue(), paramName = paramName, value = vtok };
         }
     }
 
@@ -793,7 +793,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     var typeElem = doc.GetElement(view.GetTypeId()) as ViewFamilyType;
                     if (typeElem != null)
                     {
-                        viewTypeId = typeElem.Id.IntegerValue;
+                        viewTypeId = typeElem.Id.IntValue();
                         viewTypeName = typeElem.Name;
                         var list = new List<JObject>();
                         foreach (Parameter pr in typeElem.Parameters)
@@ -817,7 +817,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             var result = new JObject
             {
                 ["ok"] = true,
-                ["viewId"] = view.Id.IntegerValue,
+                ["viewId"] = view.Id.IntValue(),
                 ["viewName"] = view.Name ?? "",
                 ["parameters"] = new JArray(instList)
             };
@@ -850,7 +850,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new { ok = false, msg = "View not found (viewId/uniqueId)." };
 
             if (view.ViewTemplateId == ElementId.InvalidElementId)
-                return new { ok = true, msg = "すでにテンプレートは設定されていません。", viewId = view.Id.IntegerValue };
+                return new { ok = true, msg = "すでにテンプレートは設定されていません。", viewId = view.Id.IntValue() };
 
             using (var tx = new Transaction(doc, "Clear View Template"))
             {
@@ -862,12 +862,14 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 templateCleared = true
             };
         }
     }
 
 }
+
+
 
 

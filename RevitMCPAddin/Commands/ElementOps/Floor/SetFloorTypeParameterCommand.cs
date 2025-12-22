@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/SetFloorTypeParameterCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/SetFloorTypeParameterCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
 
             if (!p.TryGetValue("typeId", out var typeIdToken))
                 throw new InvalidOperationException("Parameter 'typeId' is required.");
-            var ft = doc.GetElement(new ElementId(typeIdToken.Value<int>())) as FloorType
+            var ft = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeIdToken.Value<int>())) as FloorType
                      ?? throw new InvalidOperationException($"FloorType not found: {typeIdToken.Value<int>()}");
 
             string paramName = p.Value<string>("paramName");
@@ -43,3 +43,4 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+

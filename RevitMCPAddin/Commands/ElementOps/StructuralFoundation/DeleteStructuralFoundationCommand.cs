@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/DeleteStructuralFoundationCommand.cs (UnitHelper対応/返却整備)
+// File: Commands/ElementOps/Foundation/DeleteStructuralFoundationCommand.cs (UnitHelper対応/返却整備)
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -26,7 +26,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = e.Id.IntegerValue, uniqueId = e.UniqueId };
+            return new { ok = true, elementId = e.Id.IntValue(), uniqueId = e.UniqueId };
         }
     }
 }
+

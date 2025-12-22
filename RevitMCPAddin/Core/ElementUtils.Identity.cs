@@ -1,4 +1,4 @@
-﻿using Autodesk.Revit.DB;
+using Autodesk.Revit.DB;
 using RevitMCP.Abstractions.Models;
 
 namespace RevitMCPAddin.Core
@@ -15,14 +15,14 @@ namespace RevitMCPAddin.Core
                       ?? (e as ElementType)?.FamilyName ?? "";
             var typ = (e as FamilyInstance)?.Symbol?.Name
                       ?? (e as ElementType)?.Name ?? e.Name;
-            var lvl = (e as FamilyInstance)?.LevelId is ElementId lid && lid.IntegerValue > 0
+            var lvl = (e as FamilyInstance)?.LevelId is ElementId lid && lid.IntValue() > 0
                         ? doc.GetElement(lid)?.Name
                         : (e.LevelId != ElementId.InvalidElementId ? doc.GetElement(e.LevelId)?.Name : null);
 
             return new ElementIdentity
             {
                 UniqueId = e.UniqueId,
-                ElementId = e.Id.IntegerValue,
+                ElementId = e.Id.IntValue(),
                 Category = cat,
                 FamilyName = fam,
                 TypeName = typ,
@@ -60,3 +60,4 @@ namespace RevitMCPAddin.Core
         }
     }
 }
+

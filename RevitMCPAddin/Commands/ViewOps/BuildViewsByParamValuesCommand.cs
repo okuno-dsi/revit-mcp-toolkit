@@ -60,7 +60,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 bool ensureUnique = naming.Value<bool?>("ensureUnique") ?? true;
 
                 View baseView = null;
-                if (sourceViewId > 0) baseView = doc.GetElement(new ElementId(sourceViewId)) as View;
+                if (sourceViewId > 0) baseView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceViewId)) as View;
                 else baseView = uidoc?.ActiveView;
                 if (baseView == null) return new { ok = false, msg = "対象ビューが見つかりません。" };
                 if (baseView is ViewSheet) return new { ok = false, msg = "シートビューは対象外です。" };
@@ -90,7 +90,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 }
                 catch { }
 
-                if (values.Count == 0) return new { ok = true, baseViewId = baseView.Id.IntegerValue, created = 0, views = new object[0], msg = "指定パラメータの値が見つかりませんでした。" };
+                if (values.Count == 0) return new { ok = true, baseViewId = baseView.Id.IntValue(), created = 0, views = new object[0], msg = "指定パラメータの値が見つかりませんでした。" };
 
                 // 2) Duplicate per value and isolate
                 var created = new List<object>();
@@ -135,7 +135,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                         var subParams = new JObject
                         {
-                            ["viewId"] = newView.Id.IntegerValue,
+                            ["viewId"] = newView.Id.IntValue(),
                             ["detachViewTemplate"] = false,
                             ["reset"] = true,
                             ["keepAnnotations"] = keepAnnotations,
@@ -168,10 +168,10 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
                     catch { }
 
-                    created.Add(new { viewId = newView.Id.IntegerValue, name = newView.Name ?? string.Empty, value = val });
+                    created.Add(new { viewId = newView.Id.IntValue(), name = newView.Name ?? string.Empty, value = val });
                 }
 
-                return new { ok = true, baseViewId = baseView.Id.IntegerValue, created = created.Count, views = created };
+                return new { ok = true, baseViewId = baseView.Id.IntValue(), created = created.Count, views = created };
             }
             catch (Exception ex)
             {
@@ -246,3 +246,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

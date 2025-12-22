@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/RenameMassTypeCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/RenameMassTypeCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -27,7 +27,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             string newName = nameTok.Value<string>();
 
             // 要素取得
-            var elem = doc.GetElement(new ElementId(typeId));
+            var elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId));
             if (!(elem is FamilySymbol symbol))
             {
                 return new { ok = false, message = $"Element {typeId} is not a Mass FamilySymbol and cannot be renamed." };
@@ -43,3 +43,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
         }
     }
 }
+

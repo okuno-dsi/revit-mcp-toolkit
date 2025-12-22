@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/MEPOps/GetMepParametersCommand.cs (UnitHelper対応)
+// RevitMCPAddin/Commands/MEPOps/GetMepParametersCommand.cs (UnitHelper対応)
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.MEPOps
 
             Element target = null;
             if (p.TryGetValue("elementId", out var eidTok))
-                target = doc.GetElement(new ElementId(eidTok.Value<int>()));
+                target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eidTok.Value<int>()));
             if (target == null) return new { ok = false, msg = "Element not found." };
 
             // UnitHelper で出力モードを決定
@@ -51,3 +51,4 @@ namespace RevitMCPAddin.Commands.MEPOps
         }
     }
 }
+

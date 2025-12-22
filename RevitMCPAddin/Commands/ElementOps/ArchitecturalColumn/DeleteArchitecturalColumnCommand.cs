@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/DeleteArchitecturalColumnCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/DeleteArchitecturalColumnCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -18,10 +18,11 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
             using var tx = new Transaction(doc, "Delete Architectural Column");
             tx.Start();
-            doc.Delete(new ElementId(id));
+            doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
             tx.Commit();
 
             return new { ok = true, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 }
+

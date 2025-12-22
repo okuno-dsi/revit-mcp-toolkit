@@ -74,8 +74,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int elementIdInt = elemId1 ?? elemId2!.Value;
             int typeIdInt = typeId1 ?? typeId2!.Value;
 
-            var elementId = new ElementId(elementIdInt);
-            var targetTypeId = new ElementId(typeIdInt);
+            var elementId = Autodesk.Revit.DB.ElementIdCompat.From(elementIdInt);
+            var targetTypeId = Autodesk.Revit.DB.ElementIdCompat.From(typeIdInt);
 
             var elem = doc.GetElement(elementId);
             if (elem == null)
@@ -92,7 +92,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             try
             {
                 var cat = elem.Category;
-                if (cat == null || cat.Id.IntegerValue != (int)BuiltInCategory.OST_LegendComponents)
+                if (cat == null || cat.Id.IntValue() != (int)BuiltInCategory.OST_LegendComponents)
                 {
                     return new
                     {
@@ -136,7 +136,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 if (expectedBic.HasValue)
                 {
                     var tc = targetTypeElem.Category;
-                    if (tc == null || tc.Id.IntegerValue != (int)expectedBic.Value)
+                    if (tc == null || tc.Id.IntValue() != (int)expectedBic.Value)
                     {
                         return new
                         {
@@ -195,7 +195,7 @@ namespace RevitMCPAddin.Commands.AnnotationOps
 
                 try
                 {
-                    if (oldTypeId != null && oldTypeId.IntegerValue == typeIdInt)
+                    if (oldTypeId != null && oldTypeId.IntValue() == typeIdInt)
                     {
                         // 既に同じタイプであれば何もしない
                         tx.Commit();
@@ -240,10 +240,12 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     ? "Legend コンポーネントのタイプを変更しました。"
                     : "Legend コンポーネントは既に指定されたタイプです。",
                 elementId = elementIdInt,
-                oldTypeId = oldTypeId != null ? oldTypeId.IntegerValue : -1,
+                oldTypeId = oldTypeId != null ? oldTypeId.IntValue() : -1,
                 newTypeId = typeIdInt,
                 changed
             };
         }
     }
 }
+
+

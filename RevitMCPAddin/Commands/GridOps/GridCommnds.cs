@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/DatumOps/GridCommands.cs  (UnitHelper 統一版)
 // Purpose : Grid(通り芯) 取得/作成/改名/移動/削除
 // Target  : .NET Framework 4.8 / C# 8 / Revit 2023 API
@@ -62,8 +62,8 @@ namespace RevitMCPAddin.Commands.DatumOps
             // gridId 優先 → uniqueId
             if (p.TryGetValue("gridId", StringComparison.OrdinalIgnoreCase, out var gidTok))
             {
-                var id = new ElementId(GridUnit.ToInt(gidTok, 0));
-                if (id.IntegerValue > 0)
+                var id = Autodesk.Revit.DB.ElementIdCompat.From(GridUnit.ToInt(gidTok, 0));
+                if (id.IntValue() > 0)
                 {
                     var g = doc.GetElement(id) as Grid;
                     if (g != null) return g;
@@ -147,7 +147,7 @@ namespace RevitMCPAddin.Commands.DatumOps
                     e = c.GetEndPoint(1);
                 }
 
-                int eid = g.Id.IntegerValue;
+                int eid = g.Id.IntValue();
                 return new
                 {
                     gridId = eid,                 // 既存フィールド
@@ -275,8 +275,8 @@ namespace RevitMCPAddin.Commands.DatumOps
 
                             created.Add(new
                             {
-                                gridId = grid.Id.IntegerValue,
-                                elementId = grid.Id.IntegerValue,
+                                gridId = grid.Id.IntValue(),
+                                elementId = grid.Id.IntValue(),
                                 uniqueId = grid.UniqueId,
                                 name = grid.Name
                             });
@@ -310,8 +310,8 @@ namespace RevitMCPAddin.Commands.DatumOps
 
                             created.Add(new
                             {
-                                gridId = grid.Id.IntegerValue,
-                                elementId = grid.Id.IntegerValue,
+                                gridId = grid.Id.IntValue(),
+                                elementId = grid.Id.IntValue(),
                                 uniqueId = grid.UniqueId,
                                 name = grid.Name
                             });
@@ -365,7 +365,7 @@ namespace RevitMCPAddin.Commands.DatumOps
                 {
                     GridNaming.SafeRename(g, newName);
                     t.Commit();
-                    return new { ok = true, gridId = g.Id.IntegerValue, elementId = g.Id.IntegerValue, uniqueId = g.UniqueId, name = g.Name };
+                    return new { ok = true, gridId = g.Id.IntValue(), elementId = g.Id.IntValue(), uniqueId = g.UniqueId, name = g.Name };
                 }
                 catch (Exception ex)
                 {
@@ -404,7 +404,7 @@ namespace RevitMCPAddin.Commands.DatumOps
                     var v = GridUnit.Mm(dx, dy, dz);
                     ElementTransformUtils.MoveElement(doc, g.Id, v);
                     t.Commit();
-                    return new { ok = true, gridId = g.Id.IntegerValue, elementId = g.Id.IntegerValue, uniqueId = g.UniqueId };
+                    return new { ok = true, gridId = g.Id.IntValue(), elementId = g.Id.IntValue(), uniqueId = g.UniqueId };
                 }
                 catch (Exception ex)
                 {
@@ -432,8 +432,8 @@ namespace RevitMCPAddin.Commands.DatumOps
             ElementId? targetId = null;
             if (p.TryGetValue("gridId", StringComparison.OrdinalIgnoreCase, out var gidTok))
             {
-                var eid = new ElementId(GridUnit.ToInt(gidTok, 0));
-                if (eid.IntegerValue > 0) targetId = eid;
+                var eid = Autodesk.Revit.DB.ElementIdCompat.From(GridUnit.ToInt(gidTok, 0));
+                if (eid.IntValue() > 0) targetId = eid;
             }
             if (targetId == null && p.TryGetValue("uniqueId", StringComparison.OrdinalIgnoreCase, out var uidTok))
             {
@@ -466,3 +466,5 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+
+

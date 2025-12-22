@@ -1,4 +1,4 @@
-﻿// File: Commands/ElementOps/Foundation/ListStructuralFoundationParametersCommand.cs (UnitHelper対応/返却整備)
+// File: Commands/ElementOps/Foundation/ListStructuralFoundationParametersCommand.cs (UnitHelper対応/返却整備)
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -28,15 +28,15 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (target.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
 
-            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntegerValue : null;
-            int? typeIdOut = scope == "type" ? target.Id.IntegerValue
+            int? elementIdOut = scope == "instance" ? (int?)target.Id.IntValue() : null;
+            int? typeIdOut = scope == "type" ? target.Id.IntValue()
                                : (target.GetTypeId() != null && target.GetTypeId() != ElementId.InvalidElementId
-                                  ? (int?)target.GetTypeId().IntegerValue : null);
+                                  ? (int?)target.GetTypeId().IntValue() : null);
 
             if (count == 0)
                 return new { ok = true, scope, elementId = elementIdOut, typeId = typeIdOut, uniqueId = target.UniqueId, totalCount, inputUnits = FoundationUnits.InputUnits(), internalUnits = FoundationUnits.InternalUnits() };
@@ -54,10 +54,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Foundation
                 string dataType = null;
                 try { dataType = prm.Definition?.GetDataType()?.TypeId; } catch { dataType = null; }
 
-                defs.Add(new { name = prm.Definition?.Name ?? "", id = prm.Id.IntegerValue, storageType = prm.StorageType.ToString(), dataType, isReadOnly = prm.IsReadOnly });
+                defs.Add(new { name = prm.Definition?.Name ?? "", id = prm.Id.IntValue(), storageType = prm.StorageType.ToString(), dataType, isReadOnly = prm.IsReadOnly });
             }
 
             return new { ok = true, scope, elementId = elementIdOut, typeId = typeIdOut, uniqueId = target.UniqueId, totalCount, definitions = defs, inputUnits = FoundationUnits.InputUnits(), internalUnits = FoundationUnits.InternalUnits() };
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/GetInplaceFamiliesCommand.cs (UnitHelper対応・完全版)
 // 概要: モデル内のインプレースファミリ一覧を取得（読み取り専用）
 // 仕様: elementId/uniqueId ターゲット、family/type/category/level フィルタ、
@@ -66,15 +66,15 @@ namespace RevitMCPAddin.Commands.ElementOps
                 .ToList();
 
             // キャッシュ: type / level
-            var typeIds = all.Select(x => x.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(x => x.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, FamilySymbol>(typeIds.Count);
             foreach (var id in typeIds)
-                typeMap[id] = doc.GetElement(new ElementId(id)) as FamilySymbol;
+                typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilySymbol;
 
-            var levelIds = all.Select(x => x.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(x => x.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
             foreach (var id in levelIds)
-                levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+                levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<FamilyInstance> q = all;
 
@@ -84,7 +84,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 FamilyInstance target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as FamilyInstance;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as FamilyInstance;
                 else target = doc.GetElement(targetUid) as FamilyInstance;
 
                 // In-Place でなければ除外
@@ -107,12 +107,12 @@ namespace RevitMCPAddin.Commands.ElementOps
                 q = q.Where(fi => string.Equals(fi.Category?.Name ?? "", filterCategory, StringComparison.OrdinalIgnoreCase));
 
             if (filterLevelId > 0)
-                q = q.Where(fi => fi.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(fi => fi.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
                 q = q.Where(fi =>
                 {
-                    levelMap.TryGetValue(fi.LevelId.IntegerValue, out var lv);
+                    levelMap.TryGetValue(fi.LevelId.IntValue(), out var lv);
                     return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
 
@@ -136,7 +136,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     fi,
                     fam = fi.Symbol?.Family?.Name ?? "",
                     typ = fi.Symbol?.Name ?? "",
-                    id = fi.Id.IntegerValue
+                    id = fi.Id.IntValue()
                 })
                 .OrderBy(x => x.fam)
                 .ThenBy(x => x.typ)
@@ -195,7 +195,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (idsOnly)
             {
-                var ids = seq.Select(fi => fi.Id.IntegerValue).ToList();
+                var ids = seq.Select(fi => fi.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids, inputUnits = UnitHelper.InputUnitsMeta(), internalUnits = UnitHelper.InternalUnitsMeta() };
             }
 
@@ -204,14 +204,14 @@ namespace RevitMCPAddin.Commands.ElementOps
             var inplaceFamilies = page.Select(fi =>
             {
                 // level
-                levelMap.TryGetValue(fi.LevelId.IntegerValue, out var lv);
+                levelMap.TryGetValue(fi.LevelId.IntValue(), out var lv);
                 string levelName = lv?.Name ?? "";
 
                 // category
                 string categoryName = fi.Category?.Name ?? "";
 
                 // type/family
-                typeMap.TryGetValue(fi.GetTypeId().IntegerValue, out var sym);
+                typeMap.TryGetValue(fi.GetTypeId().IntValue(), out var sym);
                 string familyName = sym?.Family?.Name ?? "";
                 string typeName = sym?.Name ?? "";
 
@@ -251,13 +251,13 @@ namespace RevitMCPAddin.Commands.ElementOps
 
                 return new
                 {
-                    elementId = fi.Id.IntegerValue,
+                    elementId = fi.Id.IntValue(),
                     uniqueId = fi.UniqueId,
-                    typeId = fi.GetTypeId().IntegerValue,
+                    typeId = fi.GetTypeId().IntValue(),
                     familyName,
                     typeName,
                     category = categoryName,
-                    levelId = fi.LevelId.IntegerValue,
+                    levelId = fi.LevelId.IntValue(),
                     levelName,
                     location
                 };
@@ -274,3 +274,5 @@ namespace RevitMCPAddin.Commands.ElementOps
         }
     }
 }
+
+

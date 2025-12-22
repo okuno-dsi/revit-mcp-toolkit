@@ -96,7 +96,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 q = q.Where(m => string.Equals(m.MaterialClass ?? "", filterClass, StringComparison.OrdinalIgnoreCase));
 
             var ordered = q
-                .Select(m => new { m, name = m.Name ?? "", id = m.Id.IntegerValue })
+                .Select(m => new { m, name = m.Name ?? "", id = m.Id.IntValue() })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.m)
                 .ToList();
@@ -115,14 +115,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             // idsOnly path
             if (idsOnly)
             {
-                var materialIds = ordered.Skip(skip).Take(limit).Select(m => m.Id.IntegerValue).ToList();
+                var materialIds = ordered.Skip(skip).Take(limit).Select(m => m.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, materialIds, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
             }
 
             var materials = ordered.Skip(skip).Take(limit)
                 .Select(m => new
                 {
-                    materialId = m.Id.IntegerValue,
+                    materialId = m.Id.IntValue(),
                     uniqueId = m.UniqueId,
                     materialName = m.Name ?? "",
                     materialClass = m.MaterialClass ?? ""
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -161,7 +161,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
 
             var ordered = (material.Parameters?.Cast<ARDB.Parameter>() ?? Enumerable.Empty<ARDB.Parameter>())
-                .Select(prm => new { prm, name = prm?.Definition?.Name ?? "", id = prm?.Id.IntegerValue ?? -1 })
+                .Select(prm => new { prm, name = prm?.Definition?.Name ?? "", id = prm?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.prm).ToList();
 
@@ -172,7 +172,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 return new
                 {
                     ok = true,
-                    materialId = material.Id.IntegerValue,
+                    materialId = material.Id.IntValue(),
                     uniqueId = material.UniqueId,
                     totalCount,
                     inputUnits = MatUnits.InputUnits(),
@@ -186,7 +186,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 return new
                 {
                     ok = true,
-                    materialId = material.Id.IntegerValue,
+                    materialId = material.Id.IntValue(),
                     uniqueId = material.UniqueId,
                     totalCount,
                     names,
@@ -211,7 +211,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         case ARDB.StorageType.String: value = prm.AsString() ?? string.Empty; break;
                         case ARDB.StorageType.Integer: value = prm.AsInteger(); break;
                         case ARDB.StorageType.Double: value = MatUnits.ConvertDoubleBySpec(prm.AsDouble(), fdt); break;
-                        case ARDB.StorageType.ElementId: value = prm.AsElementId()?.IntegerValue ?? -1; break;
+                        case ARDB.StorageType.ElementId: value = prm.AsElementId()?.IntValue() ?? -1; break;
                     }
                 }
                 catch { value = null; }
@@ -219,7 +219,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 parameters.Add(new
                 {
                     name = prm.Definition?.Name ?? "",
-                    id = prm.Id.IntegerValue,
+                    id = prm.Id.IntValue(),
                     storageType = prm.StorageType.ToString(),
                     isReadOnly = prm.IsReadOnly,
                     dataType,
@@ -230,7 +230,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 totalCount,
                 parameters,
@@ -253,7 +253,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -263,19 +263,19 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (material.Parameters?.Cast<ARDB.Parameter>() ?? Enumerable.Empty<ARDB.Parameter>())
-                .Select(prm => new { prm, name = prm?.Definition?.Name ?? "", id = prm?.Id.IntegerValue ?? -1 })
+                .Select(prm => new { prm, name = prm?.Definition?.Name ?? "", id = prm?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.prm).ToList();
 
             int totalCount = ordered.Count;
 
             if (count == 0)
-                return new { ok = true, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId, totalCount, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
+                return new { ok = true, materialId = material.Id.IntValue(), uniqueId = material.UniqueId, totalCount, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
 
             if (namesOnly)
             {
                 var names = ordered.Skip(skip).Take(count).Select(prm => prm?.Definition?.Name ?? "").ToList();
-                return new { ok = true, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId, totalCount, names, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
+                return new { ok = true, materialId = material.Id.IntValue(), uniqueId = material.UniqueId, totalCount, names, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
             }
 
             var page = ordered.Skip(skip).Take(count);
@@ -288,14 +288,14 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 parameterDefinitions.Add(new
                 {
                     name = prm.Definition?.Name ?? "",
-                    id = prm.Id.IntegerValue,
+                    id = prm.Id.IntValue(),
                     storageType = prm.StorageType.ToString(),
                     dataType,
                     isReadOnly = prm.IsReadOnly
                 });
             }
 
-            return new { ok = true, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId, totalCount, parameterDefinitions, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
+            return new { ok = true, materialId = material.Id.IntValue(), uniqueId = material.UniqueId, totalCount, parameterDefinitions, inputUnits = MatUnits.InputUnits(), internalUnits = MatUnits.InternalUnits() };
         }
     }
 
@@ -312,7 +312,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -350,7 +350,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                             }
 
                         case ARDB.StorageType.ElementId:
-                            param.Set(new ElementId(valToken.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valToken.Value<int>()));
                             break;
 
                         default:
@@ -365,7 +365,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 }
             }
 
-            return new { ok = true, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId };
+            return new { ok = true, materialId = material.Id.IntValue(), uniqueId = material.UniqueId };
         }
     }
 
@@ -384,7 +384,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             string newName = p.Value<string>("newName");
 
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -399,7 +399,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 tx.Commit();
             }
 
-            return new { ok = true, newMaterialId = newMat.Id.IntegerValue, newMaterialName = newMat.Name, uniqueId = newMat.UniqueId };
+            return new { ok = true, newMaterialId = newMat.Id.IntValue(), newMaterialName = newMat.Name, uniqueId = newMat.UniqueId };
         }
     }
 
@@ -418,7 +418,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             string newName = p.Value<string>("newName");
 
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -432,7 +432,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 tx.Commit();
             }
 
-            return new { ok = true, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId, materialName = newName };
+            return new { ok = true, materialId = material.Id.IntValue(), uniqueId = material.UniqueId, materialName = newName };
         }
     }
 
@@ -449,7 +449,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -464,8 +464,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             }
 
             bool success = deletedIds != null && deletedIds.Contains(material.Id);
-            var idList = deletedIds?.Select(x => x.IntegerValue).ToList() ?? new List<int>();
-            return new { ok = success, materialId = material.Id.IntegerValue, uniqueId = material.UniqueId, deletedCount = idList.Count, deletedElementIds = idList };
+            var idList = deletedIds?.Select(x => x.IntValue()).ToList() ?? new List<int>();
+            return new { ok = success, materialId = material.Id.IntValue(), uniqueId = material.UniqueId, deletedCount = idList.Count, deletedElementIds = idList };
         }
     }
 
@@ -492,7 +492,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             }
 
             var mat = doc.GetElement(newMatId) as ARDB.Material;
-            return new { ok = true, materialId = newMatId.IntegerValue, uniqueId = mat?.UniqueId, materialName = name };
+            return new { ok = true, materialId = newMatId.IntValue(), uniqueId = mat?.UniqueId, materialName = name };
         }
     }
 
@@ -510,7 +510,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             Element elem = null;
             int elementId = p.Value<int?>("elementId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (elementId > 0) elem = doc.GetElement(new ElementId(elementId));
+            if (elementId > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             else if (!string.IsNullOrWhiteSpace(uniqueId)) elem = doc.GetElement(uniqueId);
             if (elem == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
@@ -529,12 +529,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             {
                 tx.Start();
                 TxnUtil.ConfigureProceedWithWarnings(tx);
-                try { param.Set(new ARDB.ElementId(materialId)); }
+                try { param.Set(Autodesk.Revit.DB.ElementIdCompat.From(materialId)); }
                 catch (Exception ex) { tx.RollBack(); return new { ok = false, msg = ex.Message }; }
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = elem.Id.IntegerValue, uniqueId = elem.UniqueId, materialId };
+            return new { ok = true, elementId = elem.Id.IntValue(), uniqueId = elem.UniqueId, materialId };
         }
     }
 
@@ -552,7 +552,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             Element elem = null;
             int elementId = p.Value<int?>("elementId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (elementId > 0) elem = doc.GetElement(new ElementId(elementId));
+            if (elementId > 0) elem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             else if (!string.IsNullOrWhiteSpace(uniqueId)) elem = doc.GetElement(uniqueId);
             if (elem == null) return new { ok = false, msg = "要素が見つかりません（elementId/uniqueId）。" };
 
@@ -571,9 +571,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                elementId = elem.Id.IntegerValue,
+                elementId = elem.Id.IntValue(),
                 uniqueId = elem.UniqueId,
-                materialId = matId?.IntegerValue ?? -1,
+                materialId = matId?.IntValue() ?? -1,
                 materialName = mat?.Name ?? ""
             };
         }
@@ -592,7 +592,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -612,7 +612,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             {
                 structural = new
                 {
-                    assetId = structuralElem.Id.IntegerValue,
+                    assetId = structuralElem.Id.IntValue(),
                     name = structuralElem.Name ?? string.Empty,
                     kind = "structural"
                 };
@@ -623,7 +623,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             {
                 thermal = new
                 {
-                    assetId = thermalElem.Id.IntegerValue,
+                    assetId = thermalElem.Id.IntValue(),
                     name = thermalElem.Name ?? string.Empty,
                     kind = "thermal"
                 };
@@ -632,7 +632,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 structural,
                 thermal
@@ -685,7 +685,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 q = q.Where(x => (x.Name ?? string.Empty).IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
             var ordered = q
-                .Select(x => new { x, name = x.Name ?? string.Empty, id = x.Id.IntegerValue })
+                .Select(x => new { x, name = x.Name ?? string.Empty, id = x.Id.IntValue() })
                 .OrderBy(x => x.name)
                 .ThenBy(x => x.id)
                 .Select(x => x.x)
@@ -700,7 +700,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             var pageSeq = ordered.Skip(skip).Take(limit);
             var assets = pageSeq.Select(x => new
             {
-                assetId = x.Id.IntegerValue,
+                assetId = x.Id.IntValue(),
                 name = x.Name ?? string.Empty,
                 kind = "structural"
             }).ToList();
@@ -752,7 +752,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                 q = q.Where(x => (x.Name ?? string.Empty).IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
             var ordered = q
-                .Select(x => new { x, name = x.Name ?? string.Empty, id = x.Id.IntegerValue })
+                .Select(x => new { x, name = x.Name ?? string.Empty, id = x.Id.IntValue() })
                 .OrderBy(x => x.name)
                 .ThenBy(x => x.id)
                 .Select(x => x.x)
@@ -767,7 +767,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             var pageSeq = ordered.Skip(skip).Take(limit);
             var assets = pageSeq.Select(x => new
             {
-                assetId = x.Id.IntegerValue,
+                assetId = x.Id.IntValue(),
                 name = x.Name ?? string.Empty,
                 kind = "thermal"
             }).ToList();
@@ -790,7 +790,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -815,7 +815,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             PropertySetElement targetAsset = null;
             if (assetId > 0)
             {
-                targetAsset = doc.GetElement(new ElementId(assetId)) as PropertySetElement;
+                targetAsset = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(assetId)) as PropertySetElement;
             }
             else if (!string.IsNullOrWhiteSpace(assetName))
             {
@@ -874,10 +874,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 assetKind = isStructural ? "structural" : "thermal",
-                assetId = targetAsset.Id.IntegerValue,
+                assetId = targetAsset.Id.IntValue(),
                 assetName = targetAsset.Name ?? string.Empty
             };
         }
@@ -896,7 +896,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -972,7 +972,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 value = lambda
             };
@@ -992,7 +992,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -1013,7 +1013,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         {
                             structural = new
                             {
-                                assetId = pse.Id.IntegerValue,
+                                assetId = pse.Id.IntValue(),
                                 name = pse.Name ?? string.Empty,
                                 kind = "structural",
                                 properties = BuildAssetProperties(asset, "structural")
@@ -1037,7 +1037,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         {
                             thermal = new
                             {
-                                assetId = pse.Id.IntegerValue,
+                                assetId = pse.Id.IntValue(),
                                 name = pse.Name ?? string.Empty,
                                 kind = "thermal",
                                 properties = BuildAssetProperties(asset, "thermal")
@@ -1050,7 +1050,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 structural,
                 thermal
@@ -1191,7 +1191,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null) return new { ok = false, msg = "Material が見つかりません（materialId/uniqueId）。" };
@@ -1275,7 +1275,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 assetKind = isStructural ? "structural" : "thermal",
                 newName
@@ -1296,7 +1296,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
             ARDB.Material material = null;
-            if (materialId > 0) material = doc.GetElement(new ElementId(materialId)) as ARDB.Material;
+            if (materialId > 0) material = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(materialId)) as ARDB.Material;
             else if (!string.IsNullOrWhiteSpace(matUid)) material = doc.GetElement(matUid) as ARDB.Material;
 
             if (material == null)
@@ -1357,7 +1357,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                     else
                         material.SetMaterialAspectByPropertySet(MaterialAspect.Thermal, dup.Id);
 
-                    newAssetIdInt = dup.Id.IntegerValue;
+                    newAssetIdInt = dup.Id.IntValue();
                     tx.Commit();
                 }
                 catch (Exception ex)
@@ -1370,13 +1370,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             return new
             {
                 ok = true,
-                materialId = material.Id.IntegerValue,
+                materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
                 assetKind = isStructural ? "structural" : "thermal",
-                oldAssetId = assetId.IntegerValue,
+                oldAssetId = assetId.IntValue(),
                 newAssetId = newAssetIdInt,
                 newName
             };
         }
     }
 }
+
+
+

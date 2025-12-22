@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/GetLevelParametersCommand.cs (UnitHelper統一版)
 // - Parameter列挙は UnitHelper.MapParameter(..., mode) に統一
 // - unitsMode: "SI" | "Project" | "Raw" | "Both"（未指定は SI）
@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.DatumOps
             var p = (JObject)(cmd.Params ?? new JObject());
 
             int levelId = p.Value<int>("levelId");
-            var level = doc.GetElement(new ElementId(levelId)) as Level
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level
                         ?? throw new InvalidOperationException($"Level not found: {levelId}");
 
             var mode = UnitHelper.ResolveUnitsMode(doc, p);
@@ -43,3 +43,4 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Space/CreateSpaceCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: create_space（InputPointReader対応＋高さ設定＋ComputeVolumes ON）
@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.Space
                           ?? p.SelectToken("level.id")?.Value<int?>()
                           ?? 0;
             if (levelId == 0) return ResultUtil.Err("levelId is required.");
-            var level = doc.GetElement(new ElementId(levelId)) as Level;
+            var level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
             if (level == null) return ResultUtil.Err($"Level not found: {levelId}");
 
             // ---- 入力XY（mm）読取（location/point/pt/[x,y] 等も可） ----
@@ -143,7 +143,7 @@ namespace RevitMCPAddin.Commands.Space
                             if (pNum != null && !pNum.IsReadOnly) pNum.Set(numberIn);
                         }
 
-                        newId = space.Id.IntegerValue;
+                        newId = space.Id.IntValue();
                         tx.Commit();
 
                         var pos = ((LocationPoint)space.Location).Point;
@@ -245,3 +245,5 @@ namespace RevitMCPAddin.Commands.Space
         }
     }
 }
+
+

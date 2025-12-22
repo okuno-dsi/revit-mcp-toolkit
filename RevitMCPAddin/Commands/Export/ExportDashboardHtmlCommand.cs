@@ -48,7 +48,7 @@ namespace RevitMCPAddin.Commands.Export
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                 .Select(l => new
                 {
-                    id = l.Id.IntegerValue,
+                    id = l.Id.IntValue(),
                     name = l.Name,
                     elevation = Math.Round(UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Meters), 6)
                 })
@@ -219,3 +219,4 @@ namespace RevitMCPAddin.Commands.Export
         private static string E(string s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
     }
 }
+

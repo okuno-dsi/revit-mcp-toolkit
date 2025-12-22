@@ -66,7 +66,7 @@ namespace RevitMCPAddin.Commands.Room
                 return ResultUtil.Err("roomId is required.");
 
             int roomId = roomToken.Value<int>();
-            var room = doc.GetElement(new ElementId(roomId)) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(roomId)) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null)
                 return ResultUtil.Err($"Room not found: roomId={roomId}");
 
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.Room
                     if (t.Type == JTokenType.Integer)
                     {
                         int id = t.Value<int>();
-                        if (id > 0) columnIds.Add(new ElementId(id));
+                        if (id > 0) columnIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(id));
                     }
                 }
             }
@@ -161,7 +161,7 @@ namespace RevitMCPAddin.Commands.Room
                                 try
                                 {
                                     pRoomBound.Set(1);
-                                    toggledColumnIds.Add(id.IntegerValue);
+                                    toggledColumnIds.Add(id.IntValue());
                                 }
                                 catch
                                 {
@@ -303,7 +303,7 @@ namespace RevitMCPAddin.Commands.Room
                     useBuiltInPerimeterIfAvailable,
                     autoDetectColumnsInRoom = autoDetectColumns,
                     searchMarginMm,
-                    autoDetectedColumnIds = autoDetectedColumns.Select(x => x.IntegerValue).ToArray(),
+                    autoDetectedColumnIds = autoDetectedColumns.Select(x => x.IntValue()).ToArray(),
                     toggledColumnIds = toggledColumnIds,
                     includeWallMatches,
                     wallMaxOffsetMm,
@@ -354,7 +354,7 @@ namespace RevitMCPAddin.Commands.Room
                     {
                         candidateWallCount = 0,
                         matchedWallCount = 0,
-                        levelId = room.LevelId.IntegerValue,
+                        levelId = room.LevelId.IntValue(),
                         levelElevationMm = levelElevMm,
                         maxOffsetMm,
                         minOverlapMm,
@@ -528,7 +528,7 @@ namespace RevitMCPAddin.Commands.Room
 
                         // ここまで来たら、この壁はこの境界線分とマッチ
 
-                        int wid = wall.Id.IntegerValue;
+                        int wid = wall.Id.IntValue();
                         if (!wallMatches.TryGetValue(wid, out var match))
                         {
                             var wt = wall.WallType;
@@ -536,7 +536,7 @@ namespace RevitMCPAddin.Commands.Room
                             {
                                 WallId = wid,
                                 UniqueId = wall.UniqueId,
-                                TypeId = wt != null ? wt.Id.IntegerValue : 0,
+                                TypeId = wt != null ? wt.Id.IntValue() : 0,
                                 TypeName = wt != null ? wt.Name ?? string.Empty : string.Empty,
                                 StartFt = p0,
                                 EndFt = p1,
@@ -604,7 +604,7 @@ namespace RevitMCPAddin.Commands.Room
                 {
                     candidateWallCount = candidateWalls.Count,
                     matchedWallCount = wallsOut.Length,
-                    levelId = room.LevelId.IntegerValue,
+                    levelId = room.LevelId.IntValue(),
                     levelElevationMm = levelElevMm,
                     maxOffsetMm,
                     minOverlapMm,
@@ -697,3 +697,5 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+
+

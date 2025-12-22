@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnTypesCommand.cs
+// RevitMCPAddin/Commands/ElementOps/ArchitecturalColumn/GetArchitecturalColumnTypesCommand.cs
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -29,11 +29,11 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
             var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
-                .Where(sym => sym?.Family?.FamilyCategory?.Id.IntegerValue == (int)BuiltInCategory.OST_Columns)
+                .Where(sym => sym?.Family?.FamilyCategory?.Id.IntValue() == (int)BuiltInCategory.OST_Columns)
                 .ToList();
 
             var ordered = all
-                .Select(s => new { s, name = s.Name ?? string.Empty, fam = s.Family?.Name ?? string.Empty, id = s.Id.IntegerValue })
+                .Select(s => new { s, name = s.Name ?? string.Empty, fam = s.Family?.Name ?? string.Empty, id = s.Id.IntValue() })
                 .OrderBy(x => x.fam).ThenBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.s)
                 .ToList();
@@ -50,15 +50,16 @@ namespace RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn
 
             if (idsOnly)
             {
-                var ids = ordered.Skip(skip).Take(limit).Select(s => s.Id.IntegerValue).ToList();
+                var ids = ordered.Skip(skip).Take(limit).Select(s => s.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds = ids, units = UnitHelper.DefaultUnitsMeta() };
             }
 
             var types = ordered.Skip(skip).Take(limit)
-                .Select(sym => new { typeId = sym.Id.IntegerValue, typeName = sym.Name ?? string.Empty, familyName = sym.Family?.Name ?? string.Empty })
+                .Select(sym => new { typeId = sym.Id.IntValue(), typeName = sym.Name ?? string.Empty, familyName = sym.Family?.Name ?? string.Empty })
                 .ToList();
 
             return new { ok = true, totalCount, types, units = UnitHelper.DefaultUnitsMeta() };
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/RevisionCloud/UpdateRevisionCommand.cs
+// File: RevitMCPAddin/Commands/RevisionCloud/UpdateRevisionCommand.cs
 using System;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             Autodesk.Revit.DB.Revision revElem = null;
             int revIdInt = p.Value<int?>("revisionId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (revIdInt > 0) revElem = doc.GetElement(new ElementId(revIdInt)) as Autodesk.Revit.DB.Revision;
+            if (revIdInt > 0) revElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(revIdInt)) as Autodesk.Revit.DB.Revision;
             else if (!string.IsNullOrWhiteSpace(uniqueId)) revElem = doc.GetElement(uniqueId) as Autodesk.Revit.DB.Revision;
             if (revElem == null) return new { ok = false, msg = (revIdInt > 0 ? $"Revision not found: {revIdInt}" : $"Revision not found by uniqueId: '{uniqueId}'") };
 
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     // 番号シーケンス（Id 直接 or 名前解決）
                     if (p.TryGetValue("revisionNumberingSequenceId", out JToken seqTok) && seqTok.Type == JTokenType.Integer)
                     {
-                        TrySetSequenceIdSafe(revElem, new ElementId(seqTok.Value<int>()));
+                        TrySetSequenceIdSafe(revElem, Autodesk.Revit.DB.ElementIdCompat.From(seqTok.Value<int>()));
                     }
                     else if (p.TryGetValue("revisionNumberingSequenceName", out JToken nameTok) && nameTok.Type == JTokenType.String)
                     {
@@ -81,7 +81,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 }
             }
 
-            return new { ok = true, revisionId = revElem.Id.IntegerValue };
+            return new { ok = true, revisionId = revElem.Id.IntValue() };
         }
 
         private static ElementId FindSequenceIdByName(Document doc, string name)
@@ -108,10 +108,12 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             if (newSeqId == null || newSeqId == ElementId.InvalidElementId) return;
             try
             {
-                if (rev.RevisionNumberingSequenceId != null && rev.RevisionNumberingSequenceId.IntegerValue == newSeqId.IntegerValue) return;
+                if (rev.RevisionNumberingSequenceId != null && rev.RevisionNumberingSequenceId.IntValue() == newSeqId.IntValue()) return;
                 rev.RevisionNumberingSequenceId = newSeqId;
             }
             catch { /* setter 非対応環境ではスキップ */ }
         }
     }
 }
+
+

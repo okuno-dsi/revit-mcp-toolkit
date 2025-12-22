@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             FamilySymbol symbol = null;
             if (p.TryGetValue("typeId", out var tid))
-                symbol = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             else if (p.TryGetValue("typeName", out var tn))
                 symbol = symbols.FirstOrDefault(s => s.Name == tn.Value<string>());
 
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
 
             // 2) Host Wall
             var wallId = p.Value<int>("wallId");
-            var hostWall = doc.GetElement(new ElementId(wallId)) as Autodesk.Revit.DB.Wall
+            var hostWall = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wallId)) as Autodesk.Revit.DB.Wall
                           ?? throw new InvalidOperationException($"Wall not found: {wallId}");
 
             // 3) レベル
@@ -69,9 +69,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
-                typeId = symbol.Id.IntegerValue
+                elementId = inst.Id.IntValue(),
+                typeId = symbol.Id.IntValue()
             };
         }
     }
 }
+
+

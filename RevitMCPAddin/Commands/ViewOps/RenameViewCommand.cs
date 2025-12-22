@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File   : Commands/ViewOps/RenameViewCommand.cs
 // Target : .NET Framework 4.8 / Revit 2023+
 // Purpose: Safely rename a view by setting View.Name (NOT a Parameter)
@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // ---- resolve target view ----
             View? v = null;
             if (viewId.HasValue)
-                v = doc.GetElement(new ElementId(viewId.Value)) as View;
+                v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
             else if (!string.IsNullOrEmpty(viewUid))
                 v = doc.GetElement(viewUid) as View;
 
@@ -59,7 +59,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     .Cast<View>()
                     .Any(x => !x.IsTemplate &&
                               string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) &&
-                              x.Id.IntegerValue != v.Id.IntegerValue);
+                              x.Id.IntValue() != v.Id.IntValue());
 
             string EnsureUnique(string baseName)
             {
@@ -119,7 +119,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = v.Id.IntegerValue,
+                viewId = v.Id.IntValue(),
                 oldName,
                 newName,
                 conflictResolvedBy = replacedOldName != null ? "replace"
@@ -167,3 +167,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

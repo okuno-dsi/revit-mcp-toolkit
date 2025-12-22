@@ -2803,6 +2803,26 @@
     "importance": "high",
     "kind": "read"
   },
+  "help.get_context": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "read"
+  },
+  "get_context": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "read"
+  },
+  "revit.batch": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "write"
+  },
+  "revit_batch": {
+    "category": "MetaOps",
+    "importance": "high",
+    "kind": "write"
+  },
   "string (\"bbox\" or \"solid\")": {
     "category": "Other",
     "importance": "high",

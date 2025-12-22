@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/ShowAllInViewCommand.cs
 // Purpose : "show_all_in_view" non-freezing + UI-like unhide (batched) + always Regenerate
 // Target  : Revit 2023+ compatible (no GetHiddenElementIds / IsElementHidden)
@@ -32,9 +32,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var p = (JObject?)(cmd.Params ?? new JObject());
 
                 // ---- required ----
-                var viewId = new ElementId(p!.Value<int>("viewId"));
+                var viewId = Autodesk.Revit.DB.ElementIdCompat.From(p!.Value<int>("viewId"));
                 var view = doc.GetElement(viewId) as View;
-                if (view == null) return new { ok = false, msg = $"viewId={viewId.IntegerValue} not found." };
+                if (view == null) return new { ok = false, msg = $"viewId={viewId.IntValue()} not found." };
 
                 // ---- fast defaults (軽量パス) ----
                 bool detachViewTemplate = p.Value<bool?>("detachViewTemplate") ?? true;
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                     view.SetFilterOverrides(fid, ogsEmpty);
                                     shownFilters++;
                                 }
-                                catch (Exception ex) { RevitLogger.Error($"Filter reset failed: {fid.IntegerValue}", ex); }
+                                catch (Exception ex) { RevitLogger.Error($"Filter reset failed: {fid.IntValue()}", ex); }
                             }
                         }
                         catch (Exception ex) { RevitLogger.Error("GetFilters failed.", ex); }
@@ -150,7 +150,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                                     view.SetWorksetVisibility(ws.Id, WorksetVisibility.Visible);
                                     shownWorksets++;
                                 }
-                                catch (Exception ex) { RevitLogger.Error($"SetWorksetVisibility failed: {ws.Id.IntegerValue}", ex); }
+                                catch (Exception ex) { RevitLogger.Error($"SetWorksetVisibility failed: {ws.Id.IntValue()}", ex); }
                             }
                         }
                         catch (Exception ex) { RevitLogger.Error("Workset visibility reset failed.", ex); }
@@ -189,7 +189,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             foreach (var id in batch)
                             {
                                 try { view.SetElementOverrides(id, ogsEmpty); clearedElementOverrides++; }
-                                catch (Exception ex) { RevitLogger.Error($"SetElementOverrides failed: {id.IntegerValue}", ex); }
+                                catch (Exception ex) { RevitLogger.Error($"SetElementOverrides failed: {id.IntValue()}", ex); }
                             }
                         }
 
@@ -268,7 +268,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             private static readonly Dictionary<string, WeakReference<List<ElementId>>> _store = new Dictionary<string, WeakReference<List<ElementId>>>();
 
             private static string Key(Document doc, View view)
-                => doc.GetHashCode().ToString() + ":" + (view?.Id.IntegerValue ?? 0).ToString();
+                => doc.GetHashCode().ToString() + ":" + (view?.Id.IntValue() ?? 0).ToString();
 
             public static List<ElementId> GetOrBuild(Document doc, View view, bool forceRebuild)
             {
@@ -309,7 +309,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 var e = doc.GetElement(id);
                 if (e == null)
                 {
-                    errors.Add(new JObject { ["elementId"] = id.IntegerValue, ["reason"] = "element not found" });
+                    errors.Add(new JObject { ["elementId"] = id.IntValue(), ["reason"] = "element not found" });
                     continue;
                 }
 
@@ -329,9 +329,9 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             skipped.Add(new JObject
                             {
-                                ["elementId"] = id.IntegerValue,
+                                ["elementId"] = id.IntValue(),
                                 ["reason"] = "category hidden in view",
-                                ["categoryId"] = cat.Id.IntegerValue,
+                                ["categoryId"] = cat.Id.IntValue(),
                                 ["categoryName"] = cat.Name
                             });
                             continue;
@@ -339,7 +339,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
                     catch (Exception ex)
                     {
-                        RevitLogger.Info($"GetCategoryHidden failed: cat={cat.Id.IntegerValue}, reason={ex.Message}");
+                        RevitLogger.Info($"GetCategoryHidden failed: cat={cat.Id.IntValue()}, reason={ex.Message}");
                         // try unhide anyway
                     }
                 }
@@ -362,7 +362,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         try { view.UnhideElements(new List<ElementId> { id }); unhidden++; }
                         catch (Exception ex1)
                         {
-                            errors.Add(new JObject { ["elementId"] = id.IntegerValue, ["reason"] = ex1.Message });
+                            errors.Add(new JObject { ["elementId"] = id.IntValue(), ["reason"] = ex1.Message });
                         }
                     }
                     RevitLogger.Error($"UnhideElements bulk-apply failed. Fallback to per-item. reason={ex.Message}");
@@ -389,3 +389,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

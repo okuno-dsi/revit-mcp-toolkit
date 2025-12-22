@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // Revision Cloud Look&Feel (type-side) for Revit 2023-safe
 //  - List types / Read type params / Set type param / Change cloud's type
 //  - Use ElementType filtered by BuiltInCategory.OST_RevisionClouds
@@ -31,16 +31,16 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 .WhereElementIsElementType()
                 .Cast<ElementType>()
                 .Where(et => et.Category != null
-                          && et.Category.Id.IntegerValue == (int)BuiltInCategory.OST_RevisionClouds)
+                          && et.Category.Id.IntValue() == (int)BuiltInCategory.OST_RevisionClouds)
                 .OrderBy(et => et.Name)
                 .ToList();
         }
 
         public static ElementType GetCloudTypeById(Document doc, int typeId)
         {
-            var et = doc.GetElement(new ElementId(typeId)) as ElementType;
+            var et = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
             if (et != null && et.Category != null
-                && et.Category.Id.IntegerValue == (int)BuiltInCategory.OST_RevisionClouds)
+                && et.Category.Id.IntValue() == (int)BuiltInCategory.OST_RevisionClouds)
                 return et;
             return null;
         }
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 return new { ok = true, totalCount };
 
             var types = all.Skip(skip).Take(count)
-                           .Select(t => new { typeId = t.Id.IntegerValue, typeName = t.Name })
+                           .Select(t => new { typeId = t.Id.IntValue(), typeName = t.Name })
                            .ToList();
             return new { ok = true, totalCount, types };
         }
@@ -98,12 +98,12 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 .Select(pa => new
                 {
                     name = pa.Definition.Name,
-                    id = pa.Id.IntegerValue,
+                    id = pa.Id.IntValue(),
                     storageType = pa.StorageType.ToString(),
                     isReadOnly = pa.IsReadOnly,
                     value = pa.AsValueString() ?? pa.AsString()
                           ?? (pa.StorageType == StorageType.Integer ? pa.AsInteger().ToString()
-                           : pa.StorageType == StorageType.ElementId ? pa.AsElementId().IntegerValue.ToString()
+                           : pa.StorageType == StorageType.ElementId ? pa.AsElementId().IntValue().ToString()
                            : string.Empty)
                 })
                 .ToList();
@@ -159,7 +159,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                             param.Set(RcUnits.MmToFt(valTok.Value<double>()));
                             break;
                         case StorageType.ElementId:
-                            param.Set(new ElementId(valTok.Value<int>()));
+                            param.Set(Autodesk.Revit.DB.ElementIdCompat.From(valTok.Value<int>()));
                             break;
                         default:
                             tx.RollBack();
@@ -190,7 +190,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
             int elemId = p.Value<int>("elementId");
             int typeId = p.Value<int>("typeId");
 
-            var cloud = doc.GetElement(new ElementId(elemId)) as Autodesk.Revit.DB.RevisionCloud;
+            var cloud = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elemId)) as Autodesk.Revit.DB.RevisionCloud;
             if (cloud == null) return new { ok = false, msg = $"Revision Cloud not found: {elemId}" };
 
             var et = RcFind.GetCloudTypeById(doc, typeId);
@@ -214,3 +214,5 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+
+

@@ -190,11 +190,11 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 ok = true,
                 msg = string.Format("Legend view '{0}' created from '{1}'.", newView.Name, baseView.Name),
-                legendViewId = newView.Id.IntegerValue,
-                baseLegendViewId = baseView.Id.IntegerValue,
+                legendViewId = newView.Id.IntValue(),
+                baseLegendViewId = baseView.Id.IntValue(),
                 wasCleared = clearContents,
                 appliedTemplateId = appliedTemplateId != ElementId.InvalidElementId
-                    ? (int?)appliedTemplateId.IntegerValue
+                    ? (int?)appliedTemplateId.IntValue()
                     : null
             };
         }
@@ -317,8 +317,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             ok = false,
                             msg = string.Format("No legend components found in source legend view '{0}'.", sourceName),
-                            sourceLegendViewId = sourceView.Id.IntegerValue,
-                            targetLegendViewId = targetView.Id.IntegerValue,
+                            sourceLegendViewId = sourceView.Id.IntValue(),
+                            targetLegendViewId = targetView.Id.IntValue(),
                             copiedCount = 0
                         };
                     }
@@ -355,8 +355,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                 ok = true,
                 msg = string.Format("Copied {0} legend component(s) from '{1}' to '{2}'.",
                     copiedCount, sourceName, targetName),
-                sourceLegendViewId = sourceView.Id.IntegerValue,
-                targetLegendViewId = targetView.Id.IntegerValue,
+                sourceLegendViewId = sourceView.Id.IntValue(),
+                targetLegendViewId = targetView.Id.IntValue(),
                 copiedCount = copiedCount
             };
         }
@@ -407,7 +407,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             View view = null;
             if (viewIdInt > 0)
             {
-                view = doc.GetElement(new ElementId(viewIdInt)) as View;
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewIdInt)) as View;
             }
             if (view == null && !string.IsNullOrWhiteSpace(viewName))
             {
@@ -450,7 +450,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 .WhereElementIsNotElementType()
                 .OfCategory(BuiltInCategory.OST_LegendComponents)
                 .ToElements()
-                .OrderBy(e => e.Id.IntegerValue)
+                .OrderBy(e => e.Id.IntValue())
                 .ToList();
 
             if (elems.Count == 0)
@@ -459,7 +459,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 {
                     ok = false,
                     msg = "指定ビュー内に凡例コンポーネントがありません。",
-                    viewId = view.Id.IntegerValue
+                    viewId = view.Id.IntValue()
                 };
             }
 
@@ -518,7 +518,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 movedCount = moved,
                 msg = string.Format("Repositioned {0} legend component(s) in view '{1}'.", moved, view.Name)
             };
@@ -553,3 +553,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+

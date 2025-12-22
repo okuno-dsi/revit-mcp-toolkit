@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ViewOps/ResizeSectionBoxCommand.cs
 // 機能: 3Dビューの切断ボックス(Section Box)をXYZ方向に拡大/縮小
 // 入力: { viewId?:int, deltaMm?:{x?:double,y?:double,z?:double},
@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // 1) 対象 3D ビューの解決（未指定ならアクティブビュー）
             View3D view3d = null;
             if (p.TryGetValue("viewId", out var vidTok))
-                view3d = doc.GetElement(new ElementId(vidTok.Value<int>())) as View3D;
+                view3d = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vidTok.Value<int>())) as View3D;
             else
                 view3d = uidoc?.ActiveView as View3D;
 
@@ -132,7 +132,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     return new
                     {
                         ok = true,
-                        viewId = view3d.Id.IntegerValue,
+                        viewId = view3d.Id.IntValue(),
                         sectionBox = new
                         {
                             min = new
@@ -176,3 +176,5 @@ namespace RevitMCPAddin.Commands.ViewOps
         private static double RoundMm(double ft) => Math.Round(FtToMm(ft), 3);
     }
 }
+
+

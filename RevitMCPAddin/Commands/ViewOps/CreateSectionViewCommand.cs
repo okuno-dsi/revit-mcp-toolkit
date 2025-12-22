@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -57,7 +57,8 @@ namespace RevitMCPAddin.Commands.ViewOps
             viewSection.Name = p.Value<string>("name") ?? "Section";
             tx.Commit();
 
-            return new { viewId = viewSection.Id.IntegerValue, name = viewSection.Name };
+            return new { viewId = viewSection.Id.IntValue(), name = viewSection.Name };
         }
     }
 }
+

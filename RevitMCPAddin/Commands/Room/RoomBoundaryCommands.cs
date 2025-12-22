@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/RoomOps/RoomBoundaryCommands.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8
 // Purpose: Room Separation Lines（部屋境界線）の作成・削除・移動・トリム・延長・クリーニング・一覧
@@ -79,7 +79,7 @@ namespace RevitMCPAddin.Commands.RoomOps
                     reason = "viewId は整数で指定してください。";
                     return false;
                 }
-                var v = doc.GetElement(new ElementId(vid)) as View;
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vid)) as View;
                 if (v == null) { reason = $"viewId={vid} のビューが見つかりません。"; return false; }
                 if (v.IsTemplate) { reason = "ビュー テンプレートには操作できません。"; return false; }
                 view = v;
@@ -126,7 +126,7 @@ namespace RevitMCPAddin.Commands.RoomOps
 
         public static bool IsRoomSeparationLine(Element e)
             => e is CurveElement ce
-               && ce.Category?.Id.IntegerValue == (int)BuiltInCategory.OST_RoomSeparationLines;
+               && ce.Category?.Id.IntValue() == (int)BuiltInCategory.OST_RoomSeparationLines;
 
         public static IEnumerable<CurveElement> GetRoomSeparationLines(Document doc)
         {
@@ -141,7 +141,7 @@ namespace RevitMCPAddin.Commands.RoomOps
         {
             ce = null!;
             reason = "";
-            var e = doc.GetElement(new ElementId(elementId));
+            var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (e == null) { reason = $"elementId={elementId} が見つかりません。"; return false; }
             if (!IsRoomSeparationLine(e)) { reason = $"elementId={elementId} は Room Separation Line ではありません。"; return false; }
             ce = (CurveElement)e;
@@ -234,7 +234,7 @@ namespace RevitMCPAddin.Commands.RoomOps
                 ModelCurveArray created = doc.Create.NewRoomBoundaryLines(sp, ca, view);
 
                 var ids = new List<int>();
-                foreach (ModelCurve mc in created) ids.Add(mc.Id.IntegerValue);
+                foreach (ModelCurve mc in created) ids.Add(mc.Id.IntValue());
 
                 tx.Commit();
                 return ResultUtil.Ok(new { created = ids, count = ids.Count });
@@ -285,7 +285,7 @@ namespace RevitMCPAddin.Commands.RoomOps
                 foreach (var id in okIds)
                 {
                     var res = doc.Delete(id);
-                    foreach (var rid in res) deleted.Add(rid.IntegerValue);
+                    foreach (var rid in res) deleted.Add(rid.IntValue());
                 }
                 tx.Commit();
 
@@ -611,7 +611,7 @@ namespace RevitMCPAddin.Commands.RoomOps
 
                 return ResultUtil.Ok(new
                 {
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     adjusted,
                     merged,
                     deleted,
@@ -650,7 +650,7 @@ namespace RevitMCPAddin.Commands.RoomOps
                     var e = line.GetEndPoint(1);
                     list.Add(new
                     {
-                        elementId = ce.Id.IntegerValue,
+                        elementId = ce.Id.IntValue(),
                         kind = "Line",
                         start = PointConv.PointToMm(s),
                         end = PointConv.PointToMm(e),
@@ -661,7 +661,7 @@ namespace RevitMCPAddin.Commands.RoomOps
                 {
                     list.Add(new
                     {
-                        elementId = ce.Id.IntegerValue,
+                        elementId = ce.Id.IntValue(),
                         kind = c.GetType().Name,
                         curve = RoomBoundaryUtil.CurveToMm(c)
                     });
@@ -670,7 +670,7 @@ namespace RevitMCPAddin.Commands.RoomOps
 
             return ResultUtil.Ok(new
             {
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 total = list.Count,
                 lines = list,
                 units = new { Length = "mm" }
@@ -678,3 +678,5 @@ namespace RevitMCPAddin.Commands.RoomOps
         }
     }
 }
+
+

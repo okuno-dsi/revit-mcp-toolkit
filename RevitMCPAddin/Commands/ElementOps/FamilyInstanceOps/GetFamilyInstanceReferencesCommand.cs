@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             Element target = null;
             int elementId = p.Value<int?>("elementId") ?? 0;
             string uniqueId = p.Value<string>("uniqueId");
-            if (elementId > 0) target = doc.GetElement(new ElementId(elementId));
+            if (elementId > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             else if (!string.IsNullOrWhiteSpace(uniqueId)) target = doc.GetElement(uniqueId);
             else
             {
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 {
                     ok = false,
                     msg = "指定要素は FamilyInstance ではありません。",
-                    elementId = target.Id.IntegerValue,
+                    elementId = target.Id.IntValue(),
                     uniqueId = target.UniqueId,
                     categoryName = target.Category?.Name ?? ""
                 };
@@ -141,12 +141,12 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             return new
             {
                 ok = true,
-                elementId = fi.Id.IntegerValue,
+                elementId = fi.Id.IntValue(),
                 uniqueId = fi.UniqueId,
-                categoryId = fi.Category?.Id?.IntegerValue,
+                categoryId = fi.Category?.Id?.IntValue(),
                 categoryName = fi.Category?.Name ?? "",
                 familyName = sym?.Family?.Name ?? "",
-                typeId = sym?.Id.IntegerValue,
+                typeId = sym?.Id.IntValue(),
                 typeName = sym?.Name ?? "",
                 includeStable,
                 includeGeometry,
@@ -207,3 +207,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
         }
     }
 }
+
+

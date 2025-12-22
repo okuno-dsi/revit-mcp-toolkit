@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/CreateMassInstanceCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/CreateMassInstanceCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
@@ -26,13 +26,13 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
 
             FamilySymbol symbol = null;
             if (p.TryGetValue("typeId", out var tid))
-                symbol = doc.GetElement(new ElementId(tid.Value<int>())) as FamilySymbol;
+                symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid.Value<int>())) as FamilySymbol;
             symbol ??= symbols.FirstOrDefault()
                      ?? throw new InvalidOperationException("Mass FamilySymbol が見つかりません");
 
             Level level;
             if (p.TryGetValue("levelId", out var lid))
-                level = doc.GetElement(new ElementId(lid.Value<int>())) as Level
+                level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(lid.Value<int>())) as Level
                         ?? throw new InvalidOperationException($"Level not found: {lid}");
             else
                 level = new FilteredElementCollector(doc)
@@ -58,9 +58,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
-                typeId = symbol.Id.IntegerValue
+                elementId = inst.Id.IntValue(),
+                typeId = symbol.Id.IntValue()
             };
         }
     }
 }
+
+

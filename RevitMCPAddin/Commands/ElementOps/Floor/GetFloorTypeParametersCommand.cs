@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorTypeParametersCommand.cs
+// RevitMCPAddin/Commands/ElementOps/FloorOps/GetFloorTypeParametersCommand.cs
 using System.Linq;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             string typeName = p.Value<string>("typeName");
             string familyName = p.Value<string>("familyName");
 
-            if (typeId > 0) ft = doc.GetElement(new ElementId(typeId)) as FloorType;
+            if (typeId > 0) ft = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FloorType;
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
                 var q = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).WhereElementIsElementType()
@@ -37,7 +37,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 Element inst = null;
                 int eid = p.Value<int?>("elementId") ?? 0;
                 string uid = p.Value<string>("uniqueId");
-                if (eid > 0) inst = doc.GetElement(new ElementId(eid));
+                if (eid > 0) inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 else if (!string.IsNullOrWhiteSpace(uid)) inst = doc.GetElement(uid);
                 if (inst is Autodesk.Revit.DB.Floor f) ft = f.FloorType;
             }
@@ -49,7 +49,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             bool namesOnly = p.Value<bool?>("namesOnly") ?? false;
 
             var ordered = (ft.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.pa).ToList();
 
             int totalCount = ordered.Count;
@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 return new
                 {
                     ok = true,
-                    typeId = ft.Id.IntegerValue,
+                    typeId = ft.Id.IntValue(),
                     uniqueId = ft.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.DefaultUnitsMeta(),
@@ -71,7 +71,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 return new
                 {
                     ok = true,
-                    typeId = ft.Id.IntegerValue,
+                    typeId = ft.Id.IntValue(),
                     uniqueId = ft.UniqueId,
                     totalCount,
                     names,
@@ -88,7 +88,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             return new
             {
                 ok = true,
-                typeId = ft.Id.IntegerValue,
+                typeId = ft.Id.IntValue(),
                 uniqueId = ft.UniqueId,
                 totalCount,
                 parameters = list,
@@ -98,3 +98,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

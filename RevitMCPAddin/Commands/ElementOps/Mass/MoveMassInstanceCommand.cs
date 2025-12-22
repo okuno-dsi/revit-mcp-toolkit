@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/MoveMassInstanceCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/MoveMassInstanceCommand.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             if (!p.TryGetValue("elementId", out var elemTok))
                 throw new InvalidOperationException("Parameter 'elementId' is required.");
             int elementId = elemTok.Value<int>();
-            var element = doc.GetElement(new ElementId(elementId));
+            var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (element == null)
                 return new { ok = false, message = $"Element not found: {elementId}" };
 
@@ -46,3 +46,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
         }
     }
 }
+

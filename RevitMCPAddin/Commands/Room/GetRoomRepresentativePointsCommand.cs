@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomRepresentativePointsCommand.cs
 // Purpose : 体積重心(既存)に加えて、2D平面重心・ラベル位置を取得できるようにする
 // Commands: get_room_planar_centroid, get_room_label_point
@@ -56,7 +56,7 @@ namespace RevitMCPAddin.Commands.Room
             if (!p.TryGetValue("elementId", out var idTok))
                 return ResultUtil.Err("elementId を指定してください。");
 
-            var room = doc.GetElement(new ElementId(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return ResultUtil.Err("Room が見つかりません。");
 
             var opts = new SpatialElementBoundaryOptions();
@@ -118,7 +118,7 @@ namespace RevitMCPAddin.Commands.Room
             if (!p.TryGetValue("elementId", out var idTok))
                 return ResultUtil.Err("elementId を指定してください。");
 
-            var room = doc.GetElement(new ElementId(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return ResultUtil.Err("Room が見つかりません。");
 
             XYZ pt = null;
@@ -150,3 +150,4 @@ namespace RevitMCPAddin.Commands.Room
         }
     }
 }
+

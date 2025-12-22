@@ -1,4 +1,4 @@
-﻿// RevitMCPAddin/Commands/ElementOps/GetWindowOrientationHandler.cs
+// RevitMCPAddin/Commands/ElementOps/GetWindowOrientationHandler.cs
 using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -19,7 +19,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             int id = cmd.Params.Value<int?>("elementId")
                      ?? cmd.Params.Value<int?>("windowId") ?? 0;
-            if (id > 0) inst = doc.GetElement(new ElementId(id)) as FamilyInstance;
+            if (id > 0) inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as FamilyInstance;
 
             if (inst == null)
             {
@@ -61,10 +61,10 @@ namespace RevitMCPAddin.Commands.ElementOps
             return new
             {
                 ok = true,
-                elementId = inst.Id.IntegerValue,
+                elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
-                typeId = inst.GetTypeId().IntegerValue,
-                hostWallId = (inst.Host as Element)?.Id?.IntegerValue,
+                typeId = inst.GetTypeId().IntValue(),
+                hostWallId = (inst.Host as Element)?.Id?.IntValue(),
 
                 direction = direction == null ? null : new { x = direction.X, y = direction.Y, z = direction.Z },
                 facingOrientation = new { x = face.X, y = face.Y, z = face.Z },
@@ -94,3 +94,5 @@ namespace RevitMCPAddin.Commands.ElementOps
             => v == null || (Math.Abs(v.X) < 1e-9 && Math.Abs(v.Y) < 1e-9 && Math.Abs(v.Z) < 1e-9);
     }
 }
+
+

@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/ElementOps/Mass/DeleteMassInstanceCommand.cs
+// File: RevitMCPAddin/Commands/ElementOps/Mass/DeleteMassInstanceCommand.cs
 using System;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             int elementId = elemTok.Value<int>();
 
             // 要素取得
-            var element = doc.GetElement(new ElementId(elementId));
+            var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             if (element == null)
             {
                 return new { ok = false, message = $"Element not found: {elementId}" };
@@ -32,11 +32,11 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
             // トランザクションで削除実施
             using var tx = new Transaction(doc, "Delete Mass Element");
             tx.Start();
-            var deletedIds = doc.Delete(new ElementId(elementId));
+            var deletedIds = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(elementId));
             tx.Commit();
 
             // 削除結果の判定
-            bool ok = deletedIds.Any(d => d.IntegerValue == elementId);
+            bool ok = deletedIds.Any(d => d.IntValue() == elementId);
             string message = ok
                 ? string.Empty
                 : $"Element {elementId} の削除に失敗しました。";
@@ -45,3 +45,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Mass
         }
     }
 }
+
+

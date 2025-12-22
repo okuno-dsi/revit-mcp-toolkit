@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/MetaOps/AgentBootstrapHandler.cs
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8.0
 // Purpose: JSON-RPC "agent_bootstrap" handler (Add-in側実体)
@@ -50,7 +50,7 @@ namespace RevitMCPAddin.Commands.MetaOps
                         input = new { Length = "mm", Angle = "deg", Area = "m2", Volume = "m3" },
                         internal_ = new { Length = "ft", Angle = "rad", Area = "ft2", Volume = "ft3" }
                     },
-                    activeViewId = uidoc != null && uidoc.ActiveView != null ? uidoc.ActiveView.Id.IntegerValue : 0,
+                    activeViewId = uidoc != null && uidoc.ActiveView != null ? uidoc.ActiveView.Id.IntValue() : 0,
                     activeViewName = uidoc != null && uidoc.ActiveView != null ? uidoc.ActiveView.Name : null
                 };
 
@@ -150,3 +150,4 @@ namespace RevitMCPAddin.Commands.MetaOps
         }
     }
 }
+

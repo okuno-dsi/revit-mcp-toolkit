@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -24,7 +24,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
             if (string.IsNullOrWhiteSpace(newName))
                 return new { ok = false, msg = "New type name cannot be empty." };
 
-            var symbol = doc.GetElement(new ElementId(typeId)) as FamilySymbol;
+            var symbol = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as FamilySymbol;
             if (symbol == null)
                 return new { ok = false, msg = $"Window type not found: {typeId}" };
 
@@ -44,3 +44,4 @@ namespace RevitMCPAddin.Commands.ElementOps.Window
         }
     }
 }
+

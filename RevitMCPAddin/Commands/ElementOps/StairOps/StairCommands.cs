@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: RevitMCPAddin/Commands/ElementOps/StairOps/StairCommands.cs
 // Target : Revit 2023 / .NET Framework 4.8 / C# 8
 // Policy : 単位・表示・パラメータ変換は 100% UnitHelper に委譲
@@ -81,14 +81,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 .ToList();
 
             // タイプ名キャッシュ
-            var typeIds = all.Select(s => s.GetTypeId().IntegerValue).Distinct().ToList();
+            var typeIds = all.Select(s => s.GetTypeId().IntValue()).Distinct().ToList();
             var typeMap = new Dictionary<int, ElementType>(typeIds.Count);
-            foreach (var id in typeIds) typeMap[id] = doc.GetElement(new ElementId(id)) as ElementType;
+            foreach (var id in typeIds) typeMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as ElementType;
 
             // レベル名キャッシュ
-            var levelIds = all.Select(s => s.LevelId.IntegerValue).Distinct().ToList();
+            var levelIds = all.Select(s => s.LevelId.IntValue()).Distinct().ToList();
             var levelMap = new Dictionary<int, Level>(levelIds.Count);
-            foreach (var id in levelIds) levelMap[id] = doc.GetElement(new ElementId(id)) as Level;
+            foreach (var id in levelIds) levelMap[id] = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)) as Level;
 
             IEnumerable<Stairs> q = all;
 
@@ -96,29 +96,29 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 Stairs target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as Stairs;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as Stairs;
                 else target = doc.GetElement(targetUid) as Stairs;
                 q = target == null ? Enumerable.Empty<Stairs>() : new[] { target };
             }
 
             // フィルタ適用
             if (filterTypeId > 0)
-                q = q.Where(s => s.GetTypeId().IntegerValue == filterTypeId);
+                q = q.Where(s => s.GetTypeId().IntValue() == filterTypeId);
 
             if (!string.IsNullOrWhiteSpace(filterTypeName))
                 q = q.Where(s =>
                 {
-                    typeMap.TryGetValue(s.GetTypeId().IntegerValue, out var et);
+                    typeMap.TryGetValue(s.GetTypeId().IntValue(), out var et);
                     return et != null && string.Equals(et.Name ?? "", filterTypeName, StringComparison.OrdinalIgnoreCase);
                 });
 
             if (filterLevelId > 0)
-                q = q.Where(s => s.LevelId.IntegerValue == filterLevelId);
+                q = q.Where(s => s.LevelId.IntValue() == filterLevelId);
 
             if (!string.IsNullOrWhiteSpace(filterLevelName))
                 q = q.Where(s =>
                 {
-                    levelMap.TryGetValue(s.LevelId.IntegerValue, out var lv);
+                    levelMap.TryGetValue(s.LevelId.IntValue(), out var lv);
                     return lv != null && string.Equals(lv.Name ?? "", filterLevelName, StringComparison.OrdinalIgnoreCase);
                 });
 
@@ -127,19 +127,19 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 {
                     var n = s.Name ?? "";
                     if (n.IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    typeMap.TryGetValue(s.GetTypeId().IntegerValue, out var et);
+                    typeMap.TryGetValue(s.GetTypeId().IntValue(), out var et);
                     return (et?.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0;
                 });
 
             // 並び: typeName → elementId
             var ordered = q.Select(s =>
             {
-                typeMap.TryGetValue(s.GetTypeId().IntegerValue, out var et);
+                typeMap.TryGetValue(s.GetTypeId().IntValue(), out var et);
                 string tName = et?.Name ?? "";
                 return new { s, tName };
             })
             .OrderBy(x => x.tName)
-            .ThenBy(x => x.s.Id.IntegerValue)
+            .ThenBy(x => x.s.Id.IntValue())
             .Select(x => x.s)
             .ToList();
 
@@ -162,7 +162,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 {
                     var n = s.Name ?? "";
                     if (!string.IsNullOrEmpty(n)) return n;
-                    typeMap.TryGetValue(s.GetTypeId().IntegerValue, out var et);
+                    typeMap.TryGetValue(s.GetTypeId().IntValue(), out var et);
                     return et?.Name ?? "";
                 }).ToList();
 
@@ -183,7 +183,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
 
             if (idsOnly)
             {
-                var ids = paged.Select(st => st.Id.IntegerValue).ToList();
+                var ids = paged.Select(st => st.Id.IntValue()).ToList();
                 return new
                 {
                     ok = true,
@@ -204,16 +204,16 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                         else if (st.Location is LocationCurve lc) origin = lc.Curve?.GetEndPoint(0);
                     }
 
-                    typeMap.TryGetValue(st.GetTypeId().IntegerValue, out var et);
-                    levelMap.TryGetValue(st.LevelId.IntegerValue, out var lv);
+                    typeMap.TryGetValue(st.GetTypeId().IntValue(), out var et);
+                    levelMap.TryGetValue(st.LevelId.IntValue(), out var lv);
 
                     return new
                     {
-                        elementId = st.Id.IntegerValue,
+                        elementId = st.Id.IntValue(),
                         uniqueId = st.UniqueId,
-                        typeId = st.GetTypeId().IntegerValue,
+                        typeId = st.GetTypeId().IntValue(),
                         typeName = et?.Name ?? "",
-                        levelId = st.LevelId.IntegerValue,
+                        levelId = st.LevelId.IntValue(),
                         levelName = lv?.Name ?? "",
                         location = StairLocFmt.ToMmXYZ(origin)
                     };
@@ -247,7 +247,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             var st = src as Stairs;
             if (st == null) return new { ok = false, msg = "Stair が見つかりません（elementId/uniqueId）。" };
@@ -279,7 +279,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 return new
                 {
                     ok = true,
-                    newElementId = pick.IntegerValue,
+                    newElementId = pick.IntValue(),
                     newUniqueId = newSt?.UniqueId,
                     inputUnits = UnitHelper.InputUnitsMeta(),
                     internalUnits = UnitHelper.InternalUnitsMeta()
@@ -306,7 +306,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             if (!(src is Stairs st)) return new { ok = false, msg = "Stair が見つかりません。" };
 
@@ -335,7 +335,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             return new
             {
                 ok = true,
-                elementId = st.Id.IntegerValue,
+                elementId = st.Id.IntValue(),
                 uniqueId = st.UniqueId,
                 inputUnits = UnitHelper.InputUnitsMeta(),
                 internalUnits = UnitHelper.InternalUnitsMeta()
@@ -359,7 +359,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             if (!(src is Stairs st)) return new { ok = false, msg = "Stair が見つかりません。" };
 
@@ -391,7 +391,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             if (src == null) return new { ok = false, msg = "Stair が見つかりません（elementId/uniqueId）。" };
 
@@ -410,7 +410,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
 
             var ordered = (src.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -420,7 +420,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 return new
                 {
                     ok = true,
-                    elementId = src.Id.IntegerValue,
+                    elementId = src.Id.IntValue(),
                     uniqueId = src.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.InputUnitsMeta(),
@@ -433,7 +433,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 return new
                 {
                     ok = true,
-                    elementId = src.Id.IntegerValue,
+                    elementId = src.Id.IntValue(),
                     uniqueId = src.UniqueId,
                     totalCount,
                     names,
@@ -453,7 +453,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             return new
             {
                 ok = true,
-                elementId = src.Id.IntegerValue,
+                elementId = src.Id.IntValue(),
                 uniqueId = src.UniqueId,
                 totalCount,
                 parameters = list,
@@ -479,7 +479,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             if (src == null) return new { ok = false, msg = "Stair が見つかりません（elementId/uniqueId）。" };
 
@@ -502,7 +502,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 }
                 tx.Commit();
             }
-            return new { ok = true, elementId = src.Id.IntegerValue, uniqueId = src.UniqueId };
+            return new { ok = true, elementId = src.Id.IntValue(), uniqueId = src.UniqueId };
         }
     }
 
@@ -546,7 +546,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             if (!string.IsNullOrWhiteSpace(nameContains))
                 q = q.Where(t => (t.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0);
 
-            var ordered = q.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntegerValue })
+            var ordered = q.Select(t => new { t, name = t.Name ?? "", id = t.Id.IntValue() })
                            .OrderBy(x => x.name).ThenBy(x => x.id).Select(x => x.t).ToList();
 
             int totalCount = ordered.Count;
@@ -562,12 +562,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
 
             if (idsOnly)
             {
-                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntegerValue).ToList();
+                var typeIds = ordered.Skip(skip).Take(limit).Select(t => t.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, typeIds, inputUnits = UnitHelper.InputUnitsMeta(), internalUnits = UnitHelper.InternalUnitsMeta() };
             }
 
             var list = ordered.Skip(skip).Take(limit)
-                .Select(t => new { typeId = t.Id.IntegerValue, uniqueId = t.UniqueId, typeName = t.Name ?? "" })
+                .Select(t => new { typeId = t.Id.IntValue(), uniqueId = t.UniqueId, typeName = t.Name ?? "" })
                 .ToList();
 
             return new { ok = true, totalCount, types = list, inputUnits = UnitHelper.InputUnitsMeta(), internalUnits = UnitHelper.InternalUnitsMeta() };
@@ -591,7 +591,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             string newName = p.Value<string>("newTypeName");
             if (string.IsNullOrWhiteSpace(newName)) return new { ok = false, msg = "newTypeName が必要です。" };
 
-            var src = doc.GetElement(new ElementId(srcId)) as StairsType;
+            var src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(srcId)) as StairsType;
             if (src == null) return new { ok = false, msg = $"StairsType not found: {srcId}" };
 
             StairsType dup = null;
@@ -603,7 +603,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             }
             if (dup == null) return new { ok = false, msg = "タイプの複製に失敗しました。" };
 
-            return new { ok = true, newTypeId = dup.Id.IntegerValue, newTypeName = dup.Name, uniqueId = dup.UniqueId };
+            return new { ok = true, newTypeId = dup.Id.IntValue(), newTypeName = dup.Name, uniqueId = dup.UniqueId };
         }
     }
 
@@ -621,7 +621,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             var p = (JObject)cmd.Params ?? new JObject();
 
             int typeId = p.Value<int>("typeId");
-            var id = new ElementId(typeId);
+            var id = Autodesk.Revit.DB.ElementIdCompat.From(typeId);
             var t = doc.GetElement(id) as StairsType;
             if (t == null) return new { ok = false, msg = $"StairsType not found: {typeId}" };
 
@@ -651,7 +651,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             var st = src as Stairs;
             if (st == null) return new { ok = false, msg = "Stair が見つかりません。" };
@@ -660,7 +660,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             int newTypeId = p.Value<int?>("newTypeId") ?? 0;
             if (newTypeId > 0)
             {
-                newType = doc.GetElement(new ElementId(newTypeId)) as StairsType;
+                newType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newTypeId)) as StairsType;
             }
             else
             {
@@ -682,7 +682,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 st.ChangeTypeId(newType.Id);
                 tx.Commit();
             }
-            return new { ok = true, elementId = st.Id.IntegerValue, uniqueId = st.UniqueId, typeId = st.GetTypeId().IntegerValue };
+            return new { ok = true, elementId = st.Id.IntValue(), uniqueId = st.UniqueId, typeId = st.GetTypeId().IntValue() };
         }
     }
 
@@ -705,7 +705,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             string typeName = p.Value<string>("typeName");
             if (typeId > 0)
             {
-                t = doc.GetElement(new ElementId(typeId)) as ElementType;
+                t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
             }
             else if (!string.IsNullOrWhiteSpace(typeName))
             {
@@ -720,7 +720,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 Element inst = null;
                 int eid = p.Value<int?>("elementId") ?? 0;
                 string uid = p.Value<string>("uniqueId");
-                if (eid > 0) inst = doc.GetElement(new ElementId(eid));
+                if (eid > 0) inst = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
                 else if (!string.IsNullOrWhiteSpace(uid)) inst = doc.GetElement(uid);
                 if (inst != null)
                 {
@@ -745,7 +745,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
 
             var ordered = (t.Parameters?.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
-                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntegerValue ?? -1 })
+                .Select(pa => new { pa, name = pa?.Definition?.Name ?? "", id = pa?.Id.IntValue() ?? -1 })
                 .OrderBy(x => x.name).ThenBy(x => x.id)
                 .Select(x => x.pa).ToList();
 
@@ -756,7 +756,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 {
                     ok = true,
                     scope = "type",
-                    typeId = t.Id.IntegerValue,
+                    typeId = t.Id.IntValue(),
                     uniqueId = t.UniqueId,
                     totalCount,
                     inputUnits = UnitHelper.InputUnitsMeta(),
@@ -770,7 +770,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 {
                     ok = true,
                     scope = "type",
-                    typeId = t.Id.IntegerValue,
+                    typeId = t.Id.IntValue(),
                     uniqueId = t.UniqueId,
                     totalCount,
                     names,
@@ -790,7 +790,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             {
                 ok = true,
                 scope = "type",
-                typeId = t.Id.IntegerValue,
+                typeId = t.Id.IntValue(),
                 uniqueId = t.UniqueId,
                 totalCount,
                 parameters = list,
@@ -817,7 +817,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             int typeId = p.Value<int?>("typeId") ?? 0;
             string typeName = p.Value<string>("typeName");
             if (typeId > 0)
-                t = doc.GetElement(new ElementId(typeId)) as ElementType;
+                t = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as ElementType;
             else if (!string.IsNullOrWhiteSpace(typeName))
                 t = new FilteredElementCollector(doc).OfClass(typeof(StairsType)).WhereElementIsElementType().Cast<ElementType>()
                      .FirstOrDefault(x => string.Equals(x.Name ?? "", typeName, StringComparison.OrdinalIgnoreCase));
@@ -842,7 +842,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 }
                 tx.Commit();
             }
-            return new { ok = true, typeId = t.Id.IntegerValue, uniqueId = t.UniqueId };
+            return new { ok = true, typeId = t.Id.IntValue(), uniqueId = t.UniqueId };
         }
     }
 
@@ -862,7 +862,7 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             Element src = null;
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) src = doc.GetElement(new ElementId(eid));
+            if (eid > 0) src = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             else if (!string.IsNullOrWhiteSpace(uid)) src = doc.GetElement(uid);
             var st = src as Stairs;
             if (st == null) return new { ok = false, msg = "Stair が見つかりません。" };
@@ -878,14 +878,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 flights.Add(new
                 {
                     flightIndex = i,
-                    runId = runIds[i].IntegerValue,
+                    runId = runIds[i].IntValue(),
                     runUniqueId = runEl?.UniqueId,
                     riserCount = risers,
                     treadCount = treads
                 });
             }
 
-            return new { ok = true, elementId = st.Id.IntegerValue, uniqueId = st.UniqueId, flights };
+            return new { ok = true, elementId = st.Id.IntValue(), uniqueId = st.UniqueId, flights };
         }
     }
 
@@ -908,14 +908,14 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
             if (string.IsNullOrWhiteSpace(paramName)) return new { ok = false, msg = "paramName が必要です。" };
             if (!p.TryGetValue("value", out var vtok)) return new { ok = false, msg = "value が必要です。" };
 
-            var st = doc.GetElement(new ElementId(elementId)) as Stairs;
+            var st = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(elementId)) as Stairs;
             if (st == null) return new { ok = false, msg = $"Stair not found: {elementId}" };
 
             var runIds = st.GetStairsRuns().Cast<ElementId>().ToList();
             if (flightIndex < 0 || flightIndex >= runIds.Count) return new { ok = false, msg = $"flightIndex {flightIndex} は範囲外です。" };
 
             var runEl = doc.GetElement(runIds[flightIndex]);
-            if (runEl == null) return new { ok = false, msg = $"StairsRun not found: {runIds[flightIndex].IntegerValue}" };
+            if (runEl == null) return new { ok = false, msg = $"StairsRun not found: {runIds[flightIndex].IntValue()}" };
 
             var pa = ParamResolver.ResolveByPayload(runEl, p, out var resolvedBy3);
             if (pa == null) return new { ok = false, msg = $"Parameter '{paramName}' not found on run." };
@@ -932,7 +932,9 @@ namespace RevitMCPAddin.Commands.ElementOps.StairOps
                 }
                 tx.Commit();
             }
-            return new { ok = true, elementId = st.Id.IntegerValue, uniqueId = st.UniqueId, flightIndex };
+            return new { ok = true, elementId = st.Id.IntValue(), uniqueId = st.UniqueId, flightIndex };
         }
     }
 }
+
+

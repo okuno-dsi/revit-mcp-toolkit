@@ -1,4 +1,4 @@
-﻿// File: RevitMCPAddin/Commands/RevisionCloud/MoveRevisionCloudCommand.cs
+// File: RevitMCPAddin/Commands/RevisionCloud/MoveRevisionCloudCommand.cs
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -25,7 +25,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 tx.Start();
                 ElementTransformUtils.MoveElement(
                     doc,
-                    new ElementId(id),
+                    Autodesk.Revit.DB.ElementIdCompat.From(id),
                     new XYZ(dx, dy, dz)
                 );
                 tx.Commit();
@@ -35,3 +35,4 @@ namespace RevitMCPAddin.Commands.RevisionCloud
         }
     }
 }
+

@@ -43,7 +43,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 int? viewId = p.Value<int?>("viewId");
                 if (viewId.HasValue && viewId.Value > 0)
                 {
-                    view = doc.GetElement(new ElementId(viewId.Value)) as View;
+                    view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId.Value)) as View;
                 }
             }
             catch
@@ -118,7 +118,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
             Dictionary<int, Level> levelById = new Dictionary<int, Level>();
             foreach (Level l in levels)
             {
-                levelById[l.Id.IntegerValue] = l;
+                levelById[l.Id.IntValue()] = l;
             }
 
             // Room コレクション
@@ -156,7 +156,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                     {
                         try
                         {
-                            return elementFilterIds.Contains(f.Id.IntegerValue);
+                            return elementFilterIds.Contains(f.Id.IntValue());
                         }
                         catch
                         {
@@ -175,7 +175,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                         {
                             ElementId lid = f.LevelId;
                             return lid != null && lid != ElementId.InvalidElementId &&
-                                   levelFilterIds.Contains(lid.IntegerValue);
+                                   levelFilterIds.Contains(lid.IntValue());
                         }
                         catch
                         {
@@ -198,7 +198,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                     ElementId lid = floor.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId)
                     {
-                        levelId = lid.IntegerValue;
+                        levelId = lid.IntValue();
                         if (!levelById.TryGetValue(levelId, out level))
                         {
                             level = doc.GetElement(lid) as Level;
@@ -313,7 +313,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 {
                     // レベルに応じて上側・下側に見る Room を切り替える
                     var roomsAtLevel = (levelId != 0)
-                        ? rooms.Where(r => r.LevelId.IntegerValue == levelId).ToList()
+                        ? rooms.Where(r => r.LevelId.IntValue() == levelId).ToList()
                         : new List<Autodesk.Revit.DB.Architecture.Room>();
 
                     Level levelBelow = null;
@@ -331,10 +331,10 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                     }
 
                     var roomsBelowLevel = (levelBelow != null)
-                        ? rooms.Where(r => r.LevelId.IntegerValue == levelBelow.Id.IntegerValue).ToList()
+                        ? rooms.Where(r => r.LevelId.IntValue() == levelBelow.Id.IntValue()).ToList()
                         : new List<Autodesk.Revit.DB.Architecture.Room>();
                     var roomsAboveLevel = (levelAbove != null)
-                        ? rooms.Where(r => r.LevelId.IntegerValue == levelAbove.Id.IntegerValue).ToList()
+                        ? rooms.Where(r => r.LevelId.IntValue() == levelAbove.Id.IntValue()).ToList()
                         : new List<Autodesk.Revit.DB.Architecture.Room>();
 
                     IList<Autodesk.Revit.DB.Architecture.Room> roomsForTop;
@@ -438,7 +438,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                     }
                 }
 
-                int eid = floor.Id.IntegerValue;
+                int eid = floor.Id.IntValue();
                 int typeId = 0;
                 string typeName = "";
                 try
@@ -446,7 +446,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                     ElementId tid = floor.GetTypeId();
                     if (tid != null && tid != ElementId.InvalidElementId)
                     {
-                        typeId = tid.IntegerValue;
+                        typeId = tid.IntValue();
                         ElementType t = doc.GetElement(tid) as ElementType;
                         if (t != null) typeName = t.Name ?? "";
                     }
@@ -533,3 +533,5 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
         }
     }
 }
+
+

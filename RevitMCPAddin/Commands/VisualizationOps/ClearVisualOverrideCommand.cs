@@ -26,7 +26,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             ElementId viewId = ElementId.InvalidElementId;
             if (reqViewId > 0)
             {
-                viewId = new ElementId(reqViewId);
+                viewId = Autodesk.Revit.DB.ElementIdCompat.From(reqViewId);
                 view = doc.GetElement(viewId) as View;
             }
             if (view == null)
@@ -80,7 +80,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             // View Template �Ή�
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? false;
             bool templateApplied = view.ViewTemplateId != ElementId.InvalidElementId;
-            int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntegerValue : null;
+            int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntValue() : null;
             if (templateApplied && detachTemplate)
             {
                 using (var tx0 = new Transaction(doc, "Detach View Template (ClearOverride)"))
@@ -105,7 +105,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntegerValue,
+                    viewId = view.Id.IntValue(),
                     count = 0,
                     skipped = 0,
                     completed = true,
@@ -124,11 +124,11 @@ namespace RevitMCPAddin.Commands.ViewOps
             if (p["elementIds"] != null)
             {
                 foreach (var v in (JArray)p["elementIds"])
-                    ids.Add(new ElementId(v.Value<int>()));
+                    ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(v.Value<int>()));
             }
             else if (p["elementId"] != null)
             {
-                ids.Add(new ElementId(p.Value<int>("elementId")));
+                ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             }
             if (ids.Count == 0) return new { ok = false, msg = "elementId(s) ������܂���B" };
 
@@ -161,7 +161,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                             catch (Exception ex)
                             {
                                 skipped++;
-                                RevitLogger.Error($"Clear SetElementOverrides failed: eid={eid.IntegerValue}", ex);
+                                RevitLogger.Error($"Clear SetElementOverrides failed: eid={eid.IntValue()}", ex);
                             }
                         }
                         tx.Commit();
@@ -185,7 +185,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = viewId.IntegerValue,
+                viewId = viewId.IntValue(),
                 count,
                 skipped,
                 completed = nextIndex >= ids.Count,
@@ -210,4 +210,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

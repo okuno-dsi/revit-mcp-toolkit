@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/GeneralOps/SelectElementsByFilterByIdCommand.cs
 // 機能 : すべて ID 指定のみで要素を検索し、UI の選択に反映
 // 依存 : Revit 2023+ / .NET Framework 4.8
@@ -43,7 +43,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             FilteredElementCollector col;
             if (p.TryGetValue("viewId", out var vtok))
             {
-                var view = doc.GetElement(new ElementId(vtok.Value<int>())) as View;
+                var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>())) as View;
                 if (view == null) return new { ok = false, msg = $"View not found: {vtok}" };
                 col = new FilteredElementCollector(doc, view.Id);
             }
@@ -77,7 +77,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                     if (prop != null)
                     {
                         var eid = prop.GetValue(e) as ElementId;
-                        if (eid != null && eid.IntegerValue == levelId) return true;
+                        if (eid != null && eid.IntValue() == levelId) return true;
                     }
                 }
                 catch { /* ignore */ }
@@ -87,7 +87,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 {
                     var pLevel = e.get_Parameter(BuiltInParameter.LEVEL_PARAM);
                     if (pLevel != null && pLevel.StorageType == StorageType.ElementId)
-                        return (pLevel.AsElementId()?.IntegerValue ?? 0) == levelId;
+                        return (pLevel.AsElementId()?.IntValue() ?? 0) == levelId;
                 }
                 catch { /* ignore */ }
 
@@ -134,19 +134,19 @@ namespace RevitMCPAddin.Commands.GeneralOps
             if (!dryRun)
             {
                 var current = uidoc!.Selection.GetElementIds() ?? new List<ElementId>();
-                var cur = new HashSet<int>(current.Select(x => x.IntegerValue));
+                var cur = new HashSet<int>(current.Select(x => x.IntValue()));
 
                 if (selectionMode == "add")
                 {
-                    foreach (var id in matches) cur.Add(id.IntegerValue);
-                    var next = cur.Select(i => new ElementId(i)).ToList();
+                    foreach (var id in matches) cur.Add(id.IntValue());
+                    var next = cur.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList();
                     uidoc.Selection.SetElementIds(next);
                     applied = next.Count;
                 }
                 else if (selectionMode == "remove")
                 {
-                    foreach (var id in matches) cur.Remove(id.IntegerValue);
-                    var next = cur.Select(i => new ElementId(i)).ToList();
+                    foreach (var id in matches) cur.Remove(id.IntValue());
+                    var next = cur.Select(i => Autodesk.Revit.DB.ElementIdCompat.From(i)).ToList();
                     uidoc.Selection.SetElementIds(next);
                     applied = next.Count;
                 }
@@ -164,7 +164,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 appliedSelectionCount = dryRun ? (int?)null : applied,
                 selectionMode = dryRun ? null : selectionMode,
                 limited = (matches.Count >= maxCount),
-                elementIds = matches.Select(x => x.IntegerValue).ToList()
+                elementIds = matches.Select(x => x.IntValue()).ToList()
             };
         }
 
@@ -200,7 +200,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 Parameter p = null;
                 if (pId != 0)
                 {
-                    try { p = tgt.Parameters?.Cast<Parameter>()?.FirstOrDefault(x => x.Id.IntegerValue == pId); } catch { }
+                    try { p = tgt.Parameters?.Cast<Parameter>()?.FirstOrDefault(x => x.Id.IntValue() == pId); } catch { }
                 }
                 else
                 {
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                             break;
 
                         case StorageType.ElementId:
-                            if (CompareNumber(p.AsElementId()?.IntegerValue ?? 0, op, valTok)) return true;
+                            if (CompareNumber(p.AsElementId()?.IntValue() ?? 0, op, valTok)) return true;
                             break;
 
                         case StorageType.Double:
@@ -310,3 +310,5 @@ namespace RevitMCPAddin.Commands.GeneralOps
         }
     }
 }
+
+

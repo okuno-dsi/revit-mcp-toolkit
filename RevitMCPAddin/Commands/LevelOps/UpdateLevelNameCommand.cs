@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/DatumOps/UpdateLevelNameCommand.cs
 // ================================================================
 using Autodesk.Revit.DB;
@@ -17,7 +17,7 @@ namespace RevitMCPAddin.Commands.DatumOps
         {
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)(cmd.Params ?? new JObject());
-            var id = new ElementId((int)p.Value<long>("levelId"));
+            var id = Autodesk.Revit.DB.ElementIdCompat.From((int)p.Value<long>("levelId"));
             var newNm = p.Value<string>("name") ?? string.Empty;
 
             using (var tx = new Transaction(doc, "Update Level Name"))
@@ -33,3 +33,4 @@ namespace RevitMCPAddin.Commands.DatumOps
         }
     }
 }
+

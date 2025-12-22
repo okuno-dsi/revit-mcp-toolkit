@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/Room/GetRoomOpeningsCommand.cs  (Revit 2023 / .NET 4.8)
 // Fixes : FromRoom/ToRoom はインデクサではなく getter メソッドを使用
 //         → fi.get_FromRoom(targetPhase) / fi.get_ToRoom(targetPhase)
@@ -32,7 +32,7 @@ namespace RevitMCPAddin.Commands.Room
             if (!p.TryGetValue("roomId", out var idTok))
                 return ResultUtil.Err("roomId を指定してください。");
 
-            var room = doc.GetElement(new ElementId(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
+            var room = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idTok.Value<int>())) as Autodesk.Revit.DB.Architecture.Room;
             if (room == null) return ResultUtil.Err("Room が見つかりません。");
 
             // ---------- Phase の解決 ----------
@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.Room
 
             // 1) 明示指定
             if (p.TryGetValue("phaseId", out var phaseTok))
-                phaseId = new ElementId(phaseTok.Value<int>());
+                phaseId = Autodesk.Revit.DB.ElementIdCompat.From(phaseTok.Value<int>());
 
             // 2) Room の 'ROOM_PHASE' パラメータ
             if (phaseId == ElementId.InvalidElementId)
@@ -100,9 +100,9 @@ namespace RevitMCPAddin.Commands.Room
 
                     var dto = new
                     {
-                        elementId = fi.Id.IntegerValue,
+                        elementId = fi.Id.IntValue(),
                         uniqueId = fi.UniqueId ?? "",
-                        typeId = fi.GetTypeId().IntegerValue,
+                        typeId = fi.GetTypeId().IntValue(),
                         category = bic.ToString(),
                         direction = (from?.Id == room.Id && to?.Id == room.Id) ? "through" :
                                     (from?.Id == room.Id) ? "from" :
@@ -127,11 +127,13 @@ namespace RevitMCPAddin.Commands.Room
 
             return ResultUtil.Ok(new
             {
-                room = new { roomId = room.Id.IntegerValue, name = room.Name ?? "" },
-                phase = new { phaseId = targetPhase.Id.IntegerValue, name = targetPhase.Name ?? "" },
+                room = new { roomId = room.Id.IntValue(), name = room.Name ?? "" },
+                phase = new { phaseId = targetPhase.Id.IntValue(), name = targetPhase.Name ?? "" },
                 openings = result,
                 units = UnitHelper.DefaultUnitsMeta()
             });
         }
     }
 }
+
+

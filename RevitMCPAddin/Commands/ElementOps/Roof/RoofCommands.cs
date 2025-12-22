@@ -1,4 +1,4 @@
-﻿// ================================================================
+// ================================================================
 // File: Commands/ElementOps/Roof/RoofCommands.cs (UnitHelper対応版)
 // 仕様: 入出力の単位変換は UnitHelper に全面委譲（mm/deg ⇄ 内部単位）
 // Revit 2023 / .NET Framework 4.8 / C# 8
@@ -63,7 +63,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             level = null;
             int levelId = p.Value<int?>("levelId") ?? 0;
             string levelName = p.Value<string>("levelName");
-            if (levelId > 0) level = doc.GetElement(new ElementId(levelId)) as Level;
+            if (levelId > 0) level = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(levelId)) as Level;
             if (level == null && !string.IsNullOrWhiteSpace(levelName))
             {
                 level = new FilteredElementCollector(doc)
@@ -79,7 +79,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             int typeId = p.Value<int?>("roofTypeId") ?? p.Value<int?>("typeId") ?? 0;
             string typeName = p.Value<string>("typeName");
             string familyName = p.Value<string>("familyName");
-            if (typeId > 0) rt = doc.GetElement(new ElementId(typeId)) as RoofType;
+            if (typeId > 0) rt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId)) as RoofType;
             if (rt == null && !string.IsNullOrWhiteSpace(typeName))
             {
                 var q = new FilteredElementCollector(doc).OfClass(typeof(RoofType)).OfCategory(BuiltInCategory.OST_Roofs).Cast<RoofType>()
@@ -95,7 +95,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
         {
             int eid = p.Value<int?>("elementId") ?? 0;
             string uid = p.Value<string>("uniqueId");
-            if (eid > 0) return doc.GetElement(new ElementId(eid));
+            if (eid > 0) return doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
             if (!string.IsNullOrWhiteSpace(uid)) return doc.GetElement(uid);
             return null;
         }
@@ -161,10 +161,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             return new
             {
                 ok = true,
-                elementId = roof.Id.IntegerValue,
+                elementId = roof.Id.IntValue(),
                 uniqueId = roof.UniqueId,
-                typeId = roof.RoofType?.Id.IntegerValue,
-                levelId = roof.LevelId?.IntegerValue,
+                typeId = roof.RoofType?.Id.IntValue(),
+                levelId = roof.LevelId?.IntValue(),
                 inputUnits = RoofUnits.InputUnits(),
                 internalUnits = RoofUnits.InternalUnits()
             };
@@ -188,10 +188,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
 
             // Roof かどうか判定（FootPrintRoof または Roof カテゴリ）
             bool isRoof = target is FootPrintRoof
-                       || (target.Category != null && target.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Roofs);
+                       || (target.Category != null && target.Category.Id.IntValue() == (int)BuiltInCategory.OST_Roofs);
             if (!isRoof) return ResultUtil.Err("対象は Roof ではありません。");
 
-            int targetId = target.Id.IntegerValue;
+            int targetId = target.Id.IntValue();
             string targetUid = target.UniqueId;
 
             ICollection<ElementId> deleted;
@@ -210,7 +210,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 tx.Commit();
             }
 
-            var deletedIds = deleted != null ? deleted.Select(x => x.IntegerValue).ToList() : new List<int>();
+            var deletedIds = deleted != null ? deleted.Select(x => x.IntValue()).ToList() : new List<int>();
 
             return new
             {
@@ -250,7 +250,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             return new
             {
                 ok = true,
-                elementId = el.Id.IntegerValue,
+                elementId = el.Id.IntValue(),
                 uniqueId = el.UniqueId,
                 inputUnits = new { Length = "mm" },
                 internalUnits = new { Length = "ft" }
@@ -299,9 +299,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             return new
             {
                 ok = true,
-                elementId = newRoof.Id.IntegerValue,
+                elementId = newRoof.Id.IntValue(),
                 uniqueId = newRoof.UniqueId,
-                typeId = newRoof.RoofType?.Id.IntegerValue
+                typeId = newRoof.RoofType?.Id.IntValue()
             };
         }
     }
@@ -348,7 +348,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                             }
                         case StorageType.Integer: pa.Set(vtok.Value<int>()); break;
                         case StorageType.String: pa.Set(vtok.Value<string>() ?? string.Empty); break;
-                        case StorageType.ElementId: pa.Set(new ElementId(vtok.Value<int>())); break;
+                        case StorageType.ElementId: pa.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>())); break;
                         default:
                             tx.RollBack();
                             return ResultUtil.Err($"Unsupported StorageType: {pa.StorageType}");
@@ -362,7 +362,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 tx.Commit();
             }
 
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId };
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId };
         }
     }
 
@@ -408,7 +408,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                             }
                         case StorageType.Integer: pa.Set(vtok.Value<int>()); break;
                         case StorageType.String: pa.Set(vtok.Value<string>() ?? string.Empty); break;
-                        case StorageType.ElementId: pa.Set(new ElementId(vtok.Value<int>())); break;
+                        case StorageType.ElementId: pa.Set(Autodesk.Revit.DB.ElementIdCompat.From(vtok.Value<int>())); break;
                         default:
                             tx.RollBack();
                             return ResultUtil.Err($"Unsupported StorageType: {pa.StorageType}");
@@ -422,7 +422,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 tx.Commit();
             }
 
-            return new { ok = true, typeId = rt.Id.IntegerValue, uniqueId = rt.UniqueId };
+            return new { ok = true, typeId = rt.Id.IntValue(), uniqueId = rt.UniqueId };
         }
     }
 
@@ -453,7 +453,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             return new
             {
                 ok = true,
-                elementId = el.Id.IntegerValue,
+                elementId = el.Id.IntValue(),
                 uniqueId = el.UniqueId,
                 slopeDeg = valUser, // 仕様上 deg 返却
                 inputUnits = new { Angle = "deg" },
@@ -492,7 +492,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 pa.Set(slopeInternal);
                 tx.Commit();
             }
-            return new { ok = true, elementId = el.Id.IntegerValue, uniqueId = el.UniqueId };
+            return new { ok = true, elementId = el.Id.IntValue(), uniqueId = el.UniqueId };
         }
     }
 
@@ -515,7 +515,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             if (target == null) return ResultUtil.Err("Roof 要素が見つかりません（elementId/uniqueId）。");
 
             bool isRoof = target is FootPrintRoof
-                          || (target.Category != null && target.Category.Id.IntegerValue == (int)BuiltInCategory.OST_Roofs);
+                          || (target.Category != null && target.Category.Id.IntValue() == (int)BuiltInCategory.OST_Roofs);
             if (!isRoof) return ResultUtil.Err("対象は Roof ではありません。");
 
             // 新タイプ解決
@@ -527,7 +527,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
 
             if (newTypeId > 0)
             {
-                newType = doc.GetElement(new ElementId(newTypeId)) as RoofType;
+                newType = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(newTypeId)) as RoofType;
                 if (newType == null) return ResultUtil.Err($"RoofType(typeId={newTypeId}) が見つかりません。");
             }
             else
@@ -553,10 +553,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 if (newType == null)
                     return ResultUtil.Err("新しい RoofType が見つかりません（newTypeId / typeName(+familyName) を確認）。");
 
-                newTypeId = newType.Id.IntegerValue;
+                newTypeId = newType.Id.IntValue();
             }
 
-            int oldTypeId = target.GetTypeId()?.IntegerValue ?? -1;
+            int oldTypeId = target.GetTypeId()?.IntValue() ?? -1;
 
             using (var tx = new Transaction(doc, "Change Roof Type"))
             {
@@ -576,10 +576,10 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             return new
             {
                 ok = true,
-                elementId = target.Id.IntegerValue,
+                elementId = target.Id.IntValue(),
                 uniqueId = target.UniqueId,
                 oldTypeId = oldTypeId,
-                typeId = target.GetTypeId()?.IntegerValue
+                typeId = target.GetTypeId()?.IntValue()
             };
         }
     }
@@ -636,12 +636,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             if (targetEid > 0 || !string.IsNullOrWhiteSpace(targetUid))
             {
                 RoofBase target = null;
-                if (targetEid > 0) target = doc.GetElement(new ElementId(targetEid)) as RoofBase;
+                if (targetEid > 0) target = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(targetEid)) as RoofBase;
                 else target = doc.GetElement(targetUid) as RoofBase;
                 q = target == null ? Enumerable.Empty<RoofBase>() : new[] { target };
             }
 
-            if (typeId > 0) q = q.Where(r => r.GetTypeId().IntegerValue == typeId);
+            if (typeId > 0) q = q.Where(r => r.GetTypeId().IntValue() == typeId);
             if (!string.IsNullOrWhiteSpace(typeName) || !string.IsNullOrWhiteSpace(familyName))
             {
                 q = q.Where(r =>
@@ -654,7 +654,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 });
             }
 
-            if (levelId > 0) q = q.Where(r => r.LevelId.IntegerValue == levelId);
+            if (levelId > 0) q = q.Where(r => r.LevelId.IntValue() == levelId);
             if (!string.IsNullOrWhiteSpace(levelName))
             {
                 q = q.Where(r =>
@@ -684,16 +684,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
             // precompute type/family names
             var typeNameMap = new Dictionary<int, string>();
             var familyNameMap = new Dictionary<int, string>();
-            foreach (var tid in filtered.Select(r => r.GetTypeId().IntegerValue).Distinct())
+            foreach (var tid in filtered.Select(r => r.GetTypeId().IntValue()).Distinct())
             {
-                var rt = doc.GetElement(new ElementId(tid)) as RoofType;
+                var rt = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(tid)) as RoofType;
                 typeNameMap[tid] = rt?.Name ?? string.Empty;
                 familyNameMap[tid] = rt?.FamilyName ?? string.Empty;
             }
 
             var ordered = filtered
-                .OrderBy(r => typeNameMap.TryGetValue(r.GetTypeId().IntegerValue, out var tn) ? tn : string.Empty)
-                .ThenBy(r => r.Id.IntegerValue)
+                .OrderBy(r => typeNameMap.TryGetValue(r.GetTypeId().IntValue(), out var tn) ? tn : string.Empty)
+                .ThenBy(r => r.Id.IntValue())
                 .ToList();
 
             if (namesOnly)
@@ -702,7 +702,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 {
                     var n = r.Name ?? string.Empty;
                     if (!string.IsNullOrEmpty(n)) return n;
-                    var tid2 = r.GetTypeId().IntegerValue;
+                    var tid2 = r.GetTypeId().IntValue();
                     return typeNameMap.TryGetValue(tid2, out var tn2) ? tn2 : string.Empty;
                 }).ToList();
 
@@ -716,7 +716,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
 
             if (idsOnly)
             {
-                var ids = paged.Select(r => r.Id.IntegerValue).ToList();
+                var ids = paged.Select(r => r.Id.IntValue()).ToList();
                 return new { ok = true, totalCount, elementIds = ids };
             }
 
@@ -739,18 +739,18 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
                 }
 
                 var lv = doc.GetElement(r.LevelId) as Level;
-                var tid = r.GetTypeId().IntegerValue;
+                var tid = r.GetTypeId().IntValue();
                 var tName = typeNameMap.TryGetValue(tid, out var tnm) ? tnm : string.Empty;
                 var fName = familyNameMap.TryGetValue(tid, out var fnm) ? fnm : string.Empty;
 
                 return new
                 {
-                    elementId = r.Id.IntegerValue,
+                    elementId = r.Id.IntValue(),
                     uniqueId = r.UniqueId,
                     typeId = tid,
                     typeName = tName,
                     familyName = fName,
-                    levelId = r.LevelId.IntegerValue,
+                    levelId = r.LevelId.IntValue(),
                     levelName = lv?.Name ?? string.Empty,
                     location
                 };
@@ -760,3 +760,5 @@ namespace RevitMCPAddin.Commands.ElementOps.Roof
         }
     }
 }
+
+

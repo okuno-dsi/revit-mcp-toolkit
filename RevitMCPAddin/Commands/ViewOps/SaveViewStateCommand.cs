@@ -33,12 +33,12 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             bool includeHiddenElements = p.Value<bool?>("includeHiddenElements") ?? false;
 
-            int viewId = view.Id.IntegerValue;
+            int viewId = view.Id.IntValue();
             string viewName = view.Name ?? string.Empty;
             string viewType = view.ViewType.ToString();
 
             // template / temp mode
-            int templateViewId = view.ViewTemplateId != null ? view.ViewTemplateId.IntegerValue : -1;
+            int templateViewId = view.ViewTemplateId != null ? view.ViewTemplateId.IntValue() : -1;
             bool tempHideIsolate = false;
             try { tempHideIsolate = view.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate); } catch { tempHideIsolate = false; }
 
@@ -54,7 +54,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     if (!canHide) continue;
                     bool hidden = false;
                     try { hidden = view.GetCategoryHidden(c.Id); } catch { hidden = false; }
-                    catList.Add(new { categoryId = c.Id.IntegerValue, hidden });
+                    catList.Add(new { categoryId = c.Id.IntValue(), hidden });
                 }
             }
             catch { /* best effort */ }
@@ -69,7 +69,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     foreach (var fid in fids)
                     {
                         bool vis = true; try { vis = view.GetFilterVisibility(fid); } catch { vis = true; }
-                        filters.Add(new { filterId = fid.IntegerValue, visible = vis });
+                        filters.Add(new { filterId = fid.IntValue(), visible = vis });
                     }
                 }
             }
@@ -86,7 +86,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     {
                         WorksetVisibility vis = WorksetVisibility.UseGlobalSetting;
                         try { vis = view.GetWorksetVisibility(ws.Id); } catch { vis = WorksetVisibility.UseGlobalSetting; }
-                        worksets.Add(new { worksetId = ws.Id.IntegerValue, visibility = vis.ToString() });
+                        worksets.Add(new { worksetId = ws.Id.IntValue(), visibility = vis.ToString() });
                     }
                 }
             }
@@ -107,7 +107,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         bool canHide = false; try { canHide = e.CanBeHidden(view); } catch { canHide = false; }
                         if (!canHide) continue;
                         bool isHidden = false; try { isHidden = e.IsHidden(view); } catch { isHidden = false; }
-                        if (isHidden) hiddenElements.Add(id.IntegerValue);
+                        if (isHidden) hiddenElements.Add(id.IntValue());
                     }
                 }
                 catch { /* best effort */ }
@@ -134,3 +134,4 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+

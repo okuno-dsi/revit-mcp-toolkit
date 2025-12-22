@@ -43,7 +43,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 View scopeView = null;
                 if (viewId > 0)
                 {
-                    scopeView = doc.GetElement(new ElementId(viewId)) as View;
+                    scopeView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
                     if (scopeView == null)
                         return ResultUtil.Err($"View not found: {viewId}");
                 }
@@ -96,7 +96,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         ok = true,
                         dryRun = true,
                         scope = (scopeView != null) ? "view" : "document",
-                        viewId = (scopeView != null) ? (int?)scopeView.Id.IntegerValue : null,
+                        viewId = (scopeView != null) ? (int?)scopeView.Id.IntValue() : null,
                         scannedMarkers = markers.Count,
                         orphanCount = orphanTotal,
                         orphanCountSelected = orphanIds.Count,
@@ -122,7 +122,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         {
                             try
                             {
-                                doc.Delete(new ElementId(markerId));
+                                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(markerId));
                                 deleted.Add(markerId);
                             }
                             catch (Exception ex)
@@ -142,7 +142,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     ok = true,
                     dryRun = false,
                     scope = (scopeView != null) ? "view" : "document",
-                    viewId = (scopeView != null) ? (int?)scopeView.Id.IntegerValue : null,
+                    viewId = (scopeView != null) ? (int?)scopeView.Id.IntValue() : null,
                     scannedMarkers = markers.Count,
                     orphanCount = orphanTotal,
                     deletedCount = deleted.Count,
@@ -194,7 +194,7 @@ namespace RevitMCPAddin.Commands.ViewOps
         {
             var scan = new MarkerScan
             {
-                MarkerId = marker.Id.IntegerValue
+                MarkerId = marker.Id.IntValue()
             };
 
             // ElevationMarker supports up to 4 elevation slots (0..3).
@@ -204,7 +204,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                 try
                 {
                     var vid = marker.GetViewId(i);
-                    rawId = (vid != null) ? vid.IntegerValue : 0;
+                    rawId = (vid != null) ? vid.IntValue() : 0;
                 }
                 catch
                 {
@@ -217,7 +217,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
                 try
                 {
-                    var v = doc.GetElement(new ElementId(rawId)) as View;
+                    var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(rawId)) as View;
                     if (v != null)
                         scan.LiveViewIds.Add(rawId);
                     else
@@ -233,4 +233,6 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
+
+
 

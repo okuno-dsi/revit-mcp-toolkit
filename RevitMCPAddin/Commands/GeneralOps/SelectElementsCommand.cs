@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
 
             foreach (var i in ids.Distinct())
             {
-                var e = doc.GetElement(new ElementId(i));
+                var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(i));
                 if (e == null)
                 {
                     notFound.Add(i);
@@ -110,10 +110,12 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 ok = true,
                 requested = ids.Count,
                 selected = found.Count,
-                elementIds = found.Select(eid => eid.IntegerValue).ToList(),
+                elementIds = found.Select(eid => eid.IntValue()).ToList(),
                 notFound,
                 notSelectable
             };
         }
     }
 }
+
+
