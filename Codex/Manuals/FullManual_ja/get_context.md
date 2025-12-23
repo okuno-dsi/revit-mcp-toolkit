@@ -52,7 +52,13 @@
     "activeViewType": "FloorPlan",
     "selectionCount": 2,
     "selectionIdsTruncated": false,
-    "selectionIds": [1001, 1002]
+    "selectionIds": [1001, 1002],
+    "terminology": {
+      "ok": true,
+      "term_map_version": "xxxxxxxx",
+      "defaults": ["断面 => SECTION_VERTICAL (create_section)"],
+      "disambiguation": ["SECTION_vs_PLAN: prefer SECTION_VERTICAL; override PLAN if 平断面/…"]
+    }
   }
 }
 ```
@@ -67,4 +73,3 @@
 
 注意:
 - `help.get_context` / `get_context` は、誤って `expectedContextToken` を付けても必ず実行されるため、復旧（トークン再取得）が可能です。
-

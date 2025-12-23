@@ -736,6 +736,7 @@
 - [set_view_workspace_autosave](set_view_workspace_autosave.md)
 - [set_visual_override](set_visual_override.md)
 - [set_wall_variable_layer](set_wall_variable_layer.md)
+- [set_wall_top_to_overhead](set_wall_top_to_overhead.md)
 - [set_zone_param](set_zone_param.md)
 
 ## show

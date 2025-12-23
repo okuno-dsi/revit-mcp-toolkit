@@ -1,4 +1,4 @@
-# get_material_asset_properties
+﻿# get_material_asset_properties
 
 - カテゴリ: ElementOps
 - 目的: マテリアルに紐づく構造／熱アセットの物性値（パラメータ名・単位・値・ID）を取得します。
@@ -34,4 +34,3 @@
 - list_physical_assets
 - list_thermal_assets
 - set_material_thermal_conductivity
-

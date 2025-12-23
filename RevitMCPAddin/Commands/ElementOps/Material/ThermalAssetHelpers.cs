@@ -153,6 +153,22 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             string rhoUnits = p.Value<string>("densityUnits") ?? "kg/m3";
             string cUnits = p.Value<string>("specificHeatUnits") ?? "J/(kg·K)";
 
+            // NOTE: 現状の実装は SI 入力（kg/m3, J/(kg·K)）を前提に内部単位へ変換する。
+            // 単位の拡張が必要になった場合はここで分岐を追加する。
+            string norm(string u)
+            {
+                return (u ?? string.Empty)
+                    .Replace(" ", "")
+                    .Replace("・", "·")
+                    .ToLowerInvariant();
+            }
+            var rhoU = norm(rhoUnits);
+            if (rhoU.Length > 0 && rhoU != "kg/m3" && rhoU != "kg/m^3")
+                return new { ok = false, msg = "densityUnits は 'kg/m3'（SI）を指定してください。" };
+            var cU = norm(cUnits);
+            if (cU.Length > 0 && cU != "j/(kg·k)" && cU != "j/(kg*k)" && cU != "j/kgk")
+                return new { ok = false, msg = "specificHeatUnits は 'J/(kg·K)'（SI）を指定してください。" };
+
             using (var tx = new ARDB.Transaction(doc, "Set Material Thermal Properties"))
             {
                 tx.Start();
@@ -169,46 +185,53 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         out duplicated,
                         preferredBaseName: (material.Name ?? "Mat") + "_Thermal");
 
-                    double? setK = null, setRho = null, setC = null;
+                    double? setKInternal = null, setRhoInternal = null, setCInternal = null;
+                    double? setKUser = null, setRhoUser = null, setCUser = null;
 
                     if (props.TryGetValue("ThermalConductivity", out var vK) ||
                         props.TryGetValue("thermalConductivity", out vK) ||
                         props.TryGetValue("lambda", out vK))
                     {
                         // 1) ユーザー入力を W/(m·K) に正規化
-                        var wPerMK = ThermalUnitUtil.ToWPerMeterK(vK.Value<double>(), kUnits);
-                        setK = ARDB.UnitUtils.ConvertToInternalUnits(
-                            wPerMK,
+                        setKUser = ThermalUnitUtil.ToWPerMeterK(vK.Value<double>(), kUnits);
+                        setKInternal = ARDB.UnitUtils.ConvertToInternalUnits(
+                            setKUser.Value,
                             ARDB.UnitTypeId.WattsPerMeterKelvin);
 
                         // 2) ThermalAsset.ThermalConductivity は W/(m·K) を期待すると仮定し、そのまま書き込む
                         // ThermalAsset has no Duplicate(); use existing instance
-                        asset.ThermalConductivity = setK.Value;
+                        asset.ThermalConductivity = setKInternal.Value;
                     }
 
                     if (props.TryGetValue("Density", out var vRho) ||
                         props.TryGetValue("density", out vRho))
                     {
-                        // SI 入力前提（kg/m3）。必要であれば ToKgPerM3 を拡張。
-                        setRho = vRho.Value<double>();
-                        asset.Density = setRho.Value;
+                        // SI 入力前提（kg/m3）。Revit 内部単位へ変換して書き込む。
+                        setRhoUser = vRho.Value<double>();
+                        setRhoInternal = ARDB.UnitUtils.ConvertToInternalUnits(
+                            setRhoUser.Value,
+                            ARDB.UnitTypeId.KilogramsPerCubicMeter);
+                        asset.Density = setRhoInternal.Value;
                     }
 
                     if (props.TryGetValue("SpecificHeat", out var vC) ||
                         props.TryGetValue("specificHeat", out vC) ||
                         props.TryGetValue("Cp", out vC))
                     {
-                        // SI 入力前提（J/(kg·K)）。必要であれば ToJPerKgK を拡張。
-                        setC = vC.Value<double>();
-                        asset.SpecificHeat = setC.Value;
+                        // SI 入力前提（J/(kg·K)）。Revit 内部単位へ変換して書き込む。
+                        setCUser = vC.Value<double>();
+                        setCInternal = ARDB.UnitUtils.ConvertToInternalUnits(
+                            setCUser.Value,
+                            ARDB.UnitTypeId.JoulesPerKilogramDegreeCelsius);
+                        asset.SpecificHeat = setCInternal.Value;
                     }
 
                     pse.SetThermalAsset(asset);
 
                     // 最低限の検証（ThermalConductivity のみ）
                     var verify = pse.GetThermalAsset();
-                    bool needDup = setK.HasValue &&
-                                   (verify == null || !ThermalAssetUtil.NearlyEqual(verify.ThermalConductivity, setK.Value));
+                    bool needDup = setKInternal.HasValue &&
+                                   (verify == null || !ThermalAssetUtil.NearlyEqual(verify.ThermalConductivity, setKInternal.Value));
 
                     if (needDup)
                     {
@@ -220,9 +243,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                             out duplicated,
                             preferredBaseName: (material.Name ?? "Mat") + "_Thermal");
 
-                        if (setK.HasValue) asset.ThermalConductivity = setK.Value;
-                        if (setRho.HasValue) asset.Density = setRho.Value;
-                        if (setC.HasValue) asset.SpecificHeat = setC.Value;
+                        if (setKInternal.HasValue) asset.ThermalConductivity = setKInternal.Value;
+                        if (setRhoInternal.HasValue) asset.Density = setRhoInternal.Value;
+                        if (setCInternal.HasValue) asset.SpecificHeat = setCInternal.Value;
 
                         pse.SetThermalAsset(asset);
                     }
@@ -236,9 +259,12 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         uniqueId = material.UniqueId,
                         updated = new
                         {
-                            ThermalConductivity_W_per_mK = setK,
-                            Density_kg_per_m3 = setRho,
-                            SpecificHeat_J_per_kgK = setC
+                            ThermalConductivity_W_per_mK = setKUser,
+                            ThermalConductivity_internal = setKInternal,
+                            Density_kg_per_m3 = setRhoUser,
+                            Density_internal = setRhoInternal,
+                            SpecificHeat_J_per_kgK = setCUser,
+                            SpecificHeat_internal = setCInternal
                         },
                         duplicatedAsset = duplicated
                     };

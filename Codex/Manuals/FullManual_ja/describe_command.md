@@ -9,6 +9,7 @@ Add-in が保持するランタイムのコマンドメタ情報レジストリ�
 - `paramsSchema` / `resultSchema`（JSON Schema。現状は緩いフォールバック）
 - `exampleJsonRpc`
 - `commonErrorCodes`
+- （任意）`term_map_ja.json` が利用できる場合は `terminology`（同義語 / 除外語 / 出典）
 
 - エイリアス: `help.describe_command`
 - Step 4: `data.name` は **ドメイン先頭の正規名**です。従来名（例: `get_project_info`）で指定しても同じ結果に解決され、`data.aliases` に残ります。
@@ -54,7 +55,13 @@ Add-in が保持するランタイムのコマンドメタ情報レジストリ�
     "commonErrorCodes": [
       { "code": "INVALID_PARAMS", "msg": "Missing/invalid parameters" },
       { "code": "UNKNOWN_COMMAND", "msg": "No such command" }
-    ]
+    ],
+    "terminology": {
+      "term_map_version": "xxxxxxxx",
+      "synonyms": ["断面", "セクション"],
+      "negative_terms": ["平断面"],
+      "sources": ["view:SECTION_VERTICAL"]
+    }
   }
 }
 ```

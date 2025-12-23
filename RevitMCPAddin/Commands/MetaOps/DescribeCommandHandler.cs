@@ -59,6 +59,20 @@ namespace RevitMCPAddin.Commands.MetaOps
                 data["resultSchema"] = BuildLooseObjectSchema();
                 data["commonErrorCodes"] = BuildCommonErrorCodes();
 
+                // Optional terminology hints (data-driven).
+                // Useful for disambiguation such as: 断面(=vertical section) vs 平断面(=plan).
+                if (TermMapService.TryGetCommandLexicon(meta.name, out var lex))
+                {
+                    var st = TermMapService.GetStatus();
+                    data["terminology"] = new JObject
+                    {
+                        ["term_map_version"] = st.term_map_version,
+                        ["synonyms"] = new JArray(lex.synonyms ?? Array.Empty<string>()),
+                        ["negative_terms"] = new JArray(lex.negative_terms ?? Array.Empty<string>()),
+                        ["sources"] = new JArray(lex.sources ?? Array.Empty<string>())
+                    };
+                }
+
                 return new JObject
                 {
                     ["ok"] = true,

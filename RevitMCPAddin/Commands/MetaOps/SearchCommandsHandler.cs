@@ -72,6 +72,12 @@ namespace RevitMCPAddin.Commands.MetaOps
                     qtokens = nq.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 }
 
+                // Term map synonyms (data-driven; best-effort). This allows Japanese architectural terms
+                // like "断面/平断面/立面/RCP" to rank the correct view commands.
+                var termHits = !string.IsNullOrWhiteSpace(query)
+                    ? TermMapService.SearchSynonyms(query)
+                    : (IReadOnlyDictionary<string, TermMapMatch>)new Dictionary<string, TermMapMatch>(StringComparer.OrdinalIgnoreCase);
+
                 IEnumerable<RpcCommandMeta> pool = all;
                 if (!string.IsNullOrWhiteSpace(p.category))
                     pool = pool.Where(r => ContainsIgnoreCase(r.category, p.category!));
@@ -82,38 +88,57 @@ namespace RevitMCPAddin.Commands.MetaOps
                 var riskMax = !string.IsNullOrWhiteSpace(p.riskMax) ? NormalizeRisk(p.riskMax) : null;
 
                 bool prefixOnly = p.prefixOnly == true;
-                var scored = new List<Tuple<double, RpcCommandMeta>>(256);
+                var scored = new List<ScoredItem>(256);
                 foreach (var r in pool)
                 {
                     double s = Score(r, qtokens, reqTags, prefixOnly, riskMax);
-                    if (s > 0.0) scored.Add(Tuple.Create(s, r));
+                    termHits.TryGetValue(r.name, out var tm);
+                    if (tm != null) s += tm.score;
+
+                    if (s > 0.0)
+                        scored.Add(new ScoredItem { score = s, meta = r, termMatch = tm });
                 }
 
                 int top = Math.Max(1, Math.Min(200, p.limit ?? p.top ?? 10));
                 var items = scored
-                    .OrderByDescending(x => x.Item1)
-                    .ThenBy(x => x.Item2.name, StringComparer.OrdinalIgnoreCase)
+                    .OrderByDescending(x => x.score)
+                    .ThenBy(x => x.meta.name, StringComparer.OrdinalIgnoreCase)
                     .Take(top)
-                    .Select(x => new JObject
+                    .Select(x =>
                     {
-                        ["name"] = x.Item2.name,
-                        ["score"] = Math.Round(Score01(x.Item1), 3),
-                        ["scoreRaw"] = Math.Round(x.Item1, 3),
-                        ["summary"] = x.Item2.summary ?? "",
-                        ["risk"] = x.Item2.risk,
-                        ["tags"] = new JArray((x.Item2.tags ?? Array.Empty<string>()).ToArray()),
+                        var jo = new JObject
+                        {
+                            ["name"] = x.meta.name,
+                            ["score"] = Math.Round(Score01(x.score), 3),
+                            ["scoreRaw"] = Math.Round(x.score, 3),
+                            ["summary"] = x.meta.summary ?? "",
+                            ["risk"] = x.meta.risk,
+                            ["tags"] = new JArray((x.meta.tags ?? Array.Empty<string>()).ToArray()),
 
-                        // extra fields (non-breaking; useful for agents)
-                        ["category"] = x.Item2.category,
-                        ["kind"] = x.Item2.kind,
-                        ["importance"] = x.Item2.importance,
-                        ["aliases"] = new JArray((x.Item2.aliases ?? Array.Empty<string>()).ToArray())
+                            // extra fields (non-breaking; useful for agents)
+                            ["category"] = x.meta.category,
+                            ["kind"] = x.meta.kind,
+                            ["importance"] = x.meta.importance,
+                            ["aliases"] = new JArray((x.meta.aliases ?? Array.Empty<string>()).ToArray())
+                        };
+
+                        if (x.termMatch != null)
+                        {
+                            jo["termScore"] = Math.Round(x.termMatch.score, 3);
+                            jo["matched"] = new JArray((x.termMatch.matched ?? Array.Empty<string>()).ToArray());
+                            if (!string.IsNullOrWhiteSpace(x.termMatch.hint)) jo["hint"] = x.termMatch.hint;
+                            if (x.termMatch.suggestedParams != null) jo["suggestedParams"] = x.termMatch.suggestedParams;
+                        }
+                        return jo;
                     })
                     .ToList();
 
                 var data = new JObject
                 {
-                    ["items"] = new JArray(items.ToArray())
+                    ["items"] = new JArray(items.ToArray()),
+                    ["termMap"] = TermMapService.GetStatus().ok
+                        ? TermMapService.BuildTerminologyContextBlock(maxDefaults: 4, maxRules: 4)
+                        : JObject.FromObject(TermMapService.GetStatus())
                 };
 
                 // Step 3 spec shape (+ backward compatible keys)
@@ -276,6 +301,13 @@ namespace RevitMCPAddin.Commands.MetaOps
                 case "medium": return 1;
                 default: return 0;
             }
+        }
+
+        private sealed class ScoredItem
+        {
+            public double score;
+            public RpcCommandMeta meta = null!;
+            public TermMapMatch? termMatch;
         }
     }
 }

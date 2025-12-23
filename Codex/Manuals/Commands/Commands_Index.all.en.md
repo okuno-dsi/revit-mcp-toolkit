@@ -12,6 +12,7 @@ Notes:
   - `update_project_info` — write
 - (normal)
   - `ping_server` — write
+  - `revit.status` — read
 
 ## Curtain Walls
 - (high)
@@ -565,6 +566,8 @@ Notes:
 - (high)
   - `get_elements_in_view` — read
   - `get_types_in_view` — read
+  - `view.diagnose_visibility` — read
+  - `sheet.inspect` — read
   - `reset_all_view_overrides` — write
   - `set_category_override` — write
   - `set_visual_override` — write
@@ -579,6 +582,7 @@ Notes:
   - `clear_scope_box` — write
   - `clear_visual_override` — write
   - `create_3d_view` — write
+  - `create_focus_3d_view_from_selection` — write
   - `create_curtain_wall_elevation_view` — write
   - `create_elevation_view` — write
   - `create_perspective_view` — write
@@ -653,6 +657,7 @@ Notes:
   - `rename_wall_type` — write
   - `replace_stacked_wall_part_type` — write
   - `set_curtain_wall_panel_type` — write
+  - `set_wall_top_to_overhead` — write
   - `set_wall_variable_layer` — write
   - `swap_wall_layer_materials` — write
   - `update_curtain_wall_geometry` — write

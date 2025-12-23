@@ -1,4 +1,4 @@
-# set_material_asset / set_material_structural_asset / set_material_thermal_asset
+﻿# set_material_asset / set_material_structural_asset / set_material_thermal_asset
 
 - カテゴリ: ElementOps
 - 目的: マテリアルに構造アセットまたは熱アセットを割り当てます。
@@ -45,8 +45,12 @@
 ## 制限事項・推奨運用
 
 - 一部の標準マテリアル／ライブラリアセットについては、MCP 経由でアセットを割り当てても、
-  その後の物性値編集（熱伝導率など）が Revit 側の内部エラーで拒否される場合があります。
+  その後の物性値編集が Revit 側の内部エラーで拒否される場合があります。
 - とくに熱環境（Thermal）タブに関しては、
   - **どの Thermal アセットを使うか・どの値にするか** の決定は、基本的に **Revit の UI（マテリアルブラウザ）で行う** ことを前提にしてください。
   - `set_material_asset` は、ユーザーが UI で作成・複製したアセットを「紐づけ直す」「一括適用する」ための補助的なコマンドと考えてください。
   - コマンド実行後、期待どおり UI 上の挙動になっていない場合は、必ず UI でマテリアルのアセット状態を確認し、必要なら UI 側の操作を優先してください。
+
+補足:
+- `set_material_thermal_conductivity` は 3 段階フォールバック（direct_edit / duplicate_rebind / create_new）で λ の更新を試みるため、
+  標準アセットで direct_edit が内部エラーになるケースでも、**新規アセット作成＋再バインド**により反映できる場合があります。

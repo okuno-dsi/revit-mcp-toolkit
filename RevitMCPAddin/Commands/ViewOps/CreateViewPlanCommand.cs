@@ -19,6 +19,21 @@ namespace RevitMCPAddin.Commands.ViewOps
             string viewName = p.Value<string>("name") ?? "New Plan";
             string levelName = p.Value<string>("levelName") ?? "";
 
+            // Optional: allow creating other plan families (e.g., CeilingPlan for RCP).
+            // Supported keys: viewFamily / view_family (e.g., "FloorPlan" | "CeilingPlan").
+            string viewFamilyRaw = p.Value<string>("viewFamily") ?? p.Value<string>("view_family") ?? "";
+            ViewFamily desiredFamily = ViewFamily.FloorPlan;
+            if (!string.IsNullOrWhiteSpace(viewFamilyRaw))
+            {
+                var vf = (viewFamilyRaw ?? "").Trim();
+                if (vf.Equals("CeilingPlan", StringComparison.OrdinalIgnoreCase) ||
+                    vf.Equals("Ceiling", StringComparison.OrdinalIgnoreCase) ||
+                    vf.Equals("RCP", StringComparison.OrdinalIgnoreCase))
+                {
+                    desiredFamily = ViewFamily.CeilingPlan;
+                }
+            }
+
             // レベル取得
             var level = new FilteredElementCollector(doc)
                             .OfClass(typeof(Level))
@@ -31,9 +46,9 @@ namespace RevitMCPAddin.Commands.ViewOps
             var viewFamilyType = new FilteredElementCollector(doc)
                                     .OfClass(typeof(ViewFamilyType))
                                     .Cast<ViewFamilyType>()
-                                    .FirstOrDefault(vft => vft.ViewFamily == ViewFamily.FloorPlan);
+                                    .FirstOrDefault(vft => vft.ViewFamily == desiredFamily);
             if (viewFamilyType == null)
-                throw new InvalidOperationException("No FloorPlan ViewFamilyType found.");
+                throw new InvalidOperationException("No ViewFamilyType found for: " + desiredFamily);
 
             using var tx = new Transaction(doc, "Create View Plan");
             tx.Start();

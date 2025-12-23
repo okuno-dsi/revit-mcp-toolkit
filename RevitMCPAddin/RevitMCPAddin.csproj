@@ -214,6 +214,7 @@
     <Compile Include="Commands\ElementOps\Wall\GetCandidateExteriorWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\FindWallsNearSegmentsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\RejoinWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\SetWallTopToOverheadCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\WallJoinCommands.cs" />
     <Compile Include="Commands\ExcelPlan\ExcelPlanImporterCommand.cs" />
     <Compile Include="Commands\Export\ExportDashboardHtmlCommand.cs" />
@@ -359,6 +360,7 @@
     <Compile Include="Commands\TypeOps\RenameTypesByParameterCommand.cs" />
     <Compile Include="Commands\ViewOps\3DViewCommands.cs" />
     <Compile Include="Commands\ViewOps\AuditHiddenInViewHandler.cs" />
+    <Compile Include="Commands\ViewOps\DiagnoseViewVisibilityCommand.cs" />
     <Compile Include="Commands\ViewOps\BuildViewsByRulesetCommand.cs" />
     <Compile Include="Commands\ViewOps\CreateElementElevationViewsCommand.cs" />
     <Compile Include="Commands\ViewOps\DeleteOrphanElevationMarkersCommand.cs" />
@@ -378,8 +380,10 @@
     <Compile Include="Commands\ViewOps\ScopeBoxCommands.cs" />
     <Compile Include="Commands\ViewOps\SetCategoryVisibilityCommand.cs" />
     <Compile Include="Commands\ViewOps\SetSectionBoxByElementsCommand.cs" />
+    <Compile Include="Commands\ViewOps\CreateFocus3DViewFromSelectionCommand.cs" />
     <Compile Include="Commands\ViewOps\SheetCommands.cs" />
     <Compile Include="Commands\ViewOps\SheetAutoCommands.cs" />
+    <Compile Include="Commands\ViewOps\SheetInspectCommand.cs" />
     <Compile Include="Commands\ViewOps\ViewportAutoCommands.cs" />
     <Compile Include="Commands\ViewOps\ShowAllInViewCommand.cs" />
     <Compile Include="Commands\ViewOps\SyncViewStateCommand.cs" />
@@ -460,6 +464,7 @@
     <Compile Include="Core\RpcResultEnvelope.cs" />
     <Compile Include="Core\RevitLogger.cs" />
     <Compile Include="Core\SettingsHelper.cs" />
+    <Compile Include="Core\TermMapService.cs" />
     <Compile Include="Core\Ledger\LedgerDocKeyProvider.cs" />
     <Compile Include="Core\ViewWorkspace\ViewWorkspaceModels.cs" />
     <Compile Include="Core\ViewWorkspace\ViewWorkspaceStore.cs" />
@@ -681,6 +686,7 @@
     <Compile Include="Commands\WorksetOps\GetWorksetsCommand.cs" />
     <Compile Include="Core\FaceHostHelper.cs" />
     <Compile Include="Core\PaintHelper.cs" />
+    <Compile Include="Core\ConfirmTokenService.cs" />
     <Compile Include="RevitMcpWorker.cs" />
     <Compile Include="Core\RequestCommand.cs" />
     <Compile Include="Core\CommandRouter.cs" />

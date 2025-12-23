@@ -890,8 +890,9 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var doc = uiapp.ActiveUIDocument.Document;
-            var p = (JObject)cmd.Params;
+            var doc = uiapp?.ActiveUIDocument?.Document;
+            if (doc == null) return new { ok = false, msg = "アクティブドキュメントがありません。" };
+            var p = (JObject)(cmd.Params ?? new JObject());
 
             int materialId = p.Value<int?>("materialId") ?? 0;
             string matUid = p.Value<string>("uniqueId");
@@ -907,7 +908,26 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             catch { return new { ok = false, msg = "value は数値(double)で指定してください。" }; }
 
             // 単位（省略時は W/(m・K) とみなす）
-            string units = p.Value<string>("units") ?? "W/(m・K)";
+            string units = p.Value<string>("units") ?? "W/(m·K)";
+
+            // value / units から W/(m·K) に正規化
+            double wPerMK;
+            try { wPerMK = ThermalUnitUtil.ToWPerMeterK(lambda, units); }
+            catch (Exception ex) { return new { ok = false, msg = ex.Message }; }
+
+            // W/(m·K) → Revit 内部単位
+            double internalK;
+            try
+            {
+                internalK = ARDB.UnitUtils.ConvertToInternalUnits(
+                    wPerMK,
+                    ARDB.UnitTypeId.WattsPerMeterKelvin);
+            }
+            catch
+            {
+                // 万が一 UnitTypeId が解決できない/例外の場合は、生値で通す
+                internalK = wPerMK;
+            }
 
             // Thermal アセット取得
             var thermalId = material.ThermalAssetId;
@@ -917,65 +937,330 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
             var pse = doc.GetElement(thermalId) as PropertySetElement;
             if (pse == null) return new { ok = false, msg = "PropertySetElement(Thermal) が取得できません。" };
 
+            var debug = new List<object>();
+            int oldAssetId = 0;
+            string oldAssetName = string.Empty;
+            double? beforeInternal = null;
+            double? beforeWPerMK = null;
+
+            try
+            {
+                oldAssetId = thermalId.IntValue();
+                oldAssetName = pse.Name ?? string.Empty;
+                var before = pse.GetThermalAsset();
+                if (before != null)
+                {
+                    beforeInternal = before.ThermalConductivity;
+                    try
+                    {
+                        beforeWPerMK = ARDB.UnitUtils.ConvertFromInternalUnits(
+                            beforeInternal.Value,
+                            ARDB.UnitTypeId.WattsPerMeterKelvin);
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+            catch { /* ignore */ }
+
             using (var tx = new ARDB.Transaction(doc, "Set Material Thermal Conductivity"))
             {
                 tx.Start();
                 TxnUtil.ConfigureProceedWithWarnings(tx);
                 try
                 {
-                    // Revit API の ThermalAsset.ThermalConductivity は W/(m·K) 単位を想定
-                    var asset = pse.GetThermalAsset();
-                    if (asset == null)
-                        throw new InvalidOperationException("ThermalAsset が取得できません。");
+                    // 3段フォールバック:
+                    //  1) 既存アセットを直接編集
+                    //  2) PropertySetElement を複製して編集し、SetMaterialAspectByPropertySet で再割当
+                    //  3) 新規 ThermalAsset + 新規 PropertySetElement を作成して割当
 
+                    string lastError = null;
+
+                    // --- 1) Direct edit ---
                     try
                     {
-                        // value / units から W/(m·K) に正規化し、そのまま書き込む
-                        var wPerMK = ThermalUnitUtil.ToWPerMeterK(lambda, units);
-                        var internalK = ARDB.UnitUtils.ConvertToInternalUnits(
-                            wPerMK,
-                            ARDB.UnitTypeId.WattsPerMeterKelvin);
+                        var strategy = "direct_edit";
+                        debug.Add(new { strategy, msg = "try" });
+
+                        var asset = pse.GetThermalAsset();
+                        if (asset == null)
+                            throw new InvalidOperationException("ThermalAsset が取得できません。");
+
                         asset.ThermalConductivity = internalK;
                         pse.SetThermalAsset(asset);
+
+                        if (TryVerifyThermalConductivity(pse, internalK, out var storedInternal))
+                        {
+                            tx.Commit();
+                            return BuildThermalConductivityResult(
+                                material,
+                                pse,
+                                lambda,
+                                units,
+                                wPerMK,
+                                internalK,
+                                storedInternal,
+                                strategy,
+                                debug,
+                                oldAssetId,
+                                oldAssetName,
+                                beforeWPerMK,
+                                beforeInternal);
+                        }
+
+                        throw new InvalidOperationException("Verification failed after direct edit.");
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // 一部の標準アセットは直接編集できないため、複製してから適用する
-                        var newName = (pse.Name ?? "ThermalAsset") + "_Custom";
-                        // Revit 2023 API: Duplicate(Document, string)
+                        lastError = ex.Message;
+                        debug.Add(new { strategy = "direct_edit", ok = false, error = ex.Message });
+                    }
+
+                    // --- 2) Duplicate + rebind (SetMaterialAspectByPropertySet) ---
+                    try
+                    {
+                        var strategy = "duplicate_rebind";
+                        debug.Add(new { strategy, msg = "try" });
+
+                        var newName = MakeUniquePropertySetName(doc, (pse.Name ?? "ThermalAsset") + "_Custom");
                         var dup = pse.Duplicate(doc, newName) as PropertySetElement;
                         if (dup == null)
-                            throw;
+                            throw new InvalidOperationException("Thermal asset duplication failed.");
 
                         var asset2 = dup.GetThermalAsset();
                         if (asset2 == null)
                             throw new InvalidOperationException("複製した ThermalAsset が取得できません。");
 
-                        var wPerMK = ThermalUnitUtil.ToWPerMeterK(lambda, units);
-                        var internalK = ARDB.UnitUtils.ConvertToInternalUnits(
-                            wPerMK,
-                            ARDB.UnitTypeId.WattsPerMeterKelvin);
                         asset2.ThermalConductivity = internalK;
                         dup.SetThermalAsset(asset2);
-                        material.ThermalAssetId = dup.Id;
+
+                        // IMPORTANT: ThermalAssetId 直代入は反映されないことがあるため、SetMaterialAspectByPropertySet を使用する
+                        material.SetMaterialAspectByPropertySet(MaterialAspect.Thermal, dup.Id);
+
+                        if (TryVerifyThermalConductivity(dup, internalK, out var storedInternal2))
+                        {
+                            tx.Commit();
+                            return BuildThermalConductivityResult(
+                                material,
+                                dup,
+                                lambda,
+                                units,
+                                wPerMK,
+                                internalK,
+                                storedInternal2,
+                                strategy,
+                                debug,
+                                oldAssetId,
+                                oldAssetName,
+                                beforeWPerMK,
+                                beforeInternal);
+                        }
+
+                        throw new InvalidOperationException("Verification failed after duplicate/rebind.");
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        debug.Add(new { strategy = "duplicate_rebind", ok = false, error = ex.Message });
                     }
 
-                    tx.Commit();
+                    // --- 3) Create new ThermalAsset + PropertySetElement + rebind ---
+                    try
+                    {
+                        var strategy = "create_new";
+                        debug.Add(new { strategy, msg = "try" });
+
+                        var srcAsset = pse.GetThermalAsset();
+                        var tmt = ThermalMaterialType.Solid;
+                        try
+                        {
+                            if (srcAsset != null) tmt = srcAsset.ThermalMaterialType;
+                        }
+                        catch { /* ignore */ }
+
+                        var baseName = (material.Name ?? "Material") + "_Thermal";
+                        var newPseName = MakeUniquePropertySetName(doc, baseName);
+                        var newAsset = new ThermalAsset(newPseName, tmt);
+                        if (srcAsset != null)
+                            TryCopyThermalAssetWritableProperties(srcAsset, newAsset, debug);
+
+                        newAsset.ThermalConductivity = internalK;
+
+                        var created = PropertySetElement.Create(doc, newAsset);
+                        try { created.Name = newPseName; } catch { /* ignore */ }
+                        material.SetMaterialAspectByPropertySet(MaterialAspect.Thermal, created.Id);
+
+                        if (TryVerifyThermalConductivity(created, internalK, out var storedInternal3))
+                        {
+                            tx.Commit();
+                            return BuildThermalConductivityResult(
+                                material,
+                                created,
+                                lambda,
+                                units,
+                                wPerMK,
+                                internalK,
+                                storedInternal3,
+                                strategy,
+                                debug,
+                                oldAssetId,
+                                oldAssetName,
+                                beforeWPerMK,
+                                beforeInternal);
+                        }
+
+                        throw new InvalidOperationException("Verification failed after create-new.");
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        debug.Add(new { strategy = "create_new", ok = false, error = ex.Message });
+                    }
+
+                    tx.RollBack();
+                    return new
+                    {
+                        ok = false,
+                        msg = lastError ?? "Failed to set ThermalConductivity (all strategies failed).",
+                        debug
+                    };
                 }
                 catch (Exception ex)
                 {
                     tx.RollBack();
-                    return new { ok = false, msg = ex.Message };
+                    return new { ok = false, msg = ex.Message, debug };
                 }
             }
+        }
+
+        private static bool TryVerifyThermalConductivity(PropertySetElement pse, double expectedInternal, out double storedInternal)
+        {
+            storedInternal = 0.0;
+            try
+            {
+                var got = pse?.GetThermalAsset();
+                if (got == null) return false;
+                storedInternal = got.ThermalConductivity;
+                return ThermalAssetUtil.NearlyEqual(storedInternal, expectedInternal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static object BuildThermalConductivityResult(
+            ARDB.Material material,
+            PropertySetElement pse,
+            double inputValue,
+            string inputUnits,
+            double normalizedWPerMK,
+            double expectedInternal,
+            double storedInternal,
+            string strategy,
+            List<object> debug,
+            int oldAssetId,
+            string oldAssetName,
+            double? beforeWPerMK,
+            double? beforeInternal)
+        {
+            double storedWPerMK = storedInternal;
+            try
+            {
+                storedWPerMK = ARDB.UnitUtils.ConvertFromInternalUnits(
+                    storedInternal,
+                    ARDB.UnitTypeId.WattsPerMeterKelvin);
+            }
+            catch { /* ignore */ }
 
             return new
             {
                 ok = true,
                 materialId = material.Id.IntValue(),
                 uniqueId = material.UniqueId,
-                value = lambda
+                strategy,
+                input = new { value = inputValue, units = inputUnits },
+                normalized = new { W_per_mK = normalizedWPerMK },
+                stored = new { W_per_mK = Math.Round(storedWPerMK, 6), internalValue = storedInternal },
+                expected = new { internalValue = expectedInternal },
+                thermalAsset = new { assetId = pse.Id.IntValue(), assetName = pse.Name ?? string.Empty },
+                previous = new
+                {
+                    assetId = oldAssetId,
+                    assetName = oldAssetName,
+                    ThermalConductivity_W_per_mK = beforeWPerMK.HasValue ? Math.Round(beforeWPerMK.Value, 6) : (double?)null,
+                    ThermalConductivity_internal = beforeInternal
+                },
+                debug
             };
+        }
+
+        private static string MakeUniquePropertySetName(ARDB.Document doc, string baseName)
+        {
+            string Sanitize(string s)
+            {
+                if (string.IsNullOrWhiteSpace(s)) return "ThermalAsset";
+                var bad = new[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*', '[', ']', '{', '}', ';' };
+                foreach (var c in bad) s = s.Replace(c, '_');
+                return s.Trim();
+            }
+
+            var safe = Sanitize(baseName ?? "ThermalAsset");
+
+            HashSet<string> names;
+            try
+            {
+                names = new FilteredElementCollector(doc)
+                    .OfClass(typeof(PropertySetElement))
+                    .Cast<PropertySetElement>()
+                    .Select(x => x.Name ?? string.Empty)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (!names.Contains(safe)) return safe;
+
+            int i = 2;
+            string name;
+            do { name = $"{safe}_{i++}"; } while (names.Contains(name));
+            return name;
+        }
+
+        private static void TryCopyThermalAssetWritableProperties(ARDB.ThermalAsset src, ARDB.ThermalAsset dst, List<object> debug)
+        {
+            if (src == null || dst == null) return;
+
+            var t = typeof(ARDB.ThermalAsset);
+            var props = t.GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+
+            foreach (var pi in props)
+            {
+                try
+                {
+                    if (!pi.CanRead || !pi.CanWrite) continue;
+                    if (string.Equals(pi.Name, "Name", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (string.Equals(pi.Name, "ThermalMaterialType", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (string.Equals(pi.Name, "IsValidObject", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    object val;
+                    try { val = pi.GetValue(src, null); }
+                    catch { continue; }
+                    if (val == null) continue;
+
+                    try { pi.SetValue(dst, val, null); }
+                    catch (Exception ex)
+                    {
+                        if (debug != null)
+                            debug.Add(new { copyProp = pi.Name, error = ex.Message });
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -1084,14 +1369,34 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
 
                     // Thermal / Structural アセットの代表的な物性値については、
                     // Revit 内部単位から人間向け単位に変換して返す。
-                    if (assetKind == "thermal" && pi.Name == "ThermalConductivity")
+                    if (assetKind == "thermal")
                     {
-                        // 内部値 → W/(m・K)
-                        var wPerMK = ARDB.UnitUtils.ConvertFromInternalUnits(
-                            d,
-                            ARDB.UnitTypeId.WattsPerMeterKelvin);
-                        valueOut = Math.Round(wPerMK, 6);
-                        unit = "W/(m・K)";
+                        double outVal = d;
+                        try
+                        {
+                            if (pi.Name == "ThermalConductivity")
+                                outVal = ARDB.UnitUtils.ConvertFromInternalUnits(d, ARDB.UnitTypeId.WattsPerMeterKelvin);
+                            else if (pi.Name == "Density")
+                                outVal = ARDB.UnitUtils.ConvertFromInternalUnits(d, ARDB.UnitTypeId.KilogramsPerCubicMeter);
+                            else if (pi.Name == "SpecificHeat")
+                                outVal = ARDB.UnitUtils.ConvertFromInternalUnits(d, ARDB.UnitTypeId.JoulesPerKilogramDegreeCelsius);
+                            else if (pi.Name == "Permeability")
+                                outVal = ARDB.UnitUtils.ConvertFromInternalUnits(d, ARDB.UnitTypeId.NanogramsPerPascalSecondSquareMeter);
+                        }
+                        catch
+                        {
+                            // ignore and keep raw internal value
+                        }
+
+                        valueOut = Math.Round(outVal, 6);
+                        unit = GuessAssetUnit(assetKind, pi.Name);
+                    }
+                    else if (assetKind == "structural" && pi.Name == "Density")
+                    {
+                        double outVal = d;
+                        try { outVal = ARDB.UnitUtils.ConvertFromInternalUnits(d, ARDB.UnitTypeId.KilogramsPerCubicMeter); } catch { }
+                        valueOut = Math.Round(outVal, 6);
+                        unit = GuessAssetUnit(assetKind, pi.Name);
                     }
                     else
                     {
@@ -1146,6 +1451,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                         return "kg/m3";
                     case "SpecificHeat":
                         return "J/(kg·K)";
+                    case "Permeability":
+                        return "ng/(Pa·s·m²)";
                     default:
                         return "raw";
                 }
@@ -1251,7 +1558,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                             if (s2 == null) throw new InvalidOperationException("複製した StructuralAsset が取得できません。");
                             s2.Name = newName;
                             dup.SetStructuralAsset(s2);
-                            material.StructuralAssetId = dup.Id;
+                            // IMPORTANT: 直代入では反映されないことがあるため、SetMaterialAspectByPropertySet を使用する
+                            material.SetMaterialAspectByPropertySet(MaterialAspect.Structural, dup.Id);
                         }
                         else
                         {
@@ -1259,7 +1567,8 @@ namespace RevitMCPAddin.Commands.ElementOps.Material
                             if (t2 == null) throw new InvalidOperationException("複製した ThermalAsset が取得できません。");
                             t2.Name = newName;
                             dup.SetThermalAsset(t2);
-                            material.ThermalAssetId = dup.Id;
+                            // IMPORTANT: 直代入では反映されないことがあるため、SetMaterialAspectByPropertySet を使用する
+                            material.SetMaterialAspectByPropertySet(MaterialAspect.Thermal, dup.Id);
                         }
                     }
 

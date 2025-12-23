@@ -292,6 +292,7 @@ See also: `Manuals/ConnectionGuide/Revitデータ取得完全ガイド.md` (“�
 - [update_wall_geometry](update_wall_geometry.md)
 - [change_wall_type](change_wall_type.md)
 - [update_wall_parameter](update_wall_parameter.md)
+- [set_wall_top_to_overhead](set_wall_top_to_overhead.md)
 - [duplicate_wall_type](duplicate_wall_type.md)
 - [rename_wall_type](rename_wall_type.md)
 - [get_wall_parameter](get_wall_parameter.md)

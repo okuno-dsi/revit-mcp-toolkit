@@ -9,6 +9,29 @@ Add-in のランタイムコマンドメタ情報レジストリを使って、�
 - エイリアス: `help.search_commands`
 - Step 4: 検索結果の `name` は **ドメイン先頭の正規名**（例: `doc.get_project_info`）になり、従来名は `aliases` として残り、引き続き呼び出せます。
 
+## 用語・同義語に強い検索（term_map_ja.json）
+`term_map_ja.json` が利用できる場合、`search_commands` は日本語の同義語と曖昧さ解消ルールで順位付けを補強します。
+
+代表例:
+- `断面` / `セクション` ⇒ `create_section`（立断面）
+- `平断面` / `平面図` / `伏図` ⇒ `create_view_plan`（平面）
+- `立面` ⇒ `create_elevation_view`
+- `RCP` / `天井伏図` ⇒ `create_view_plan`（必要なら `suggestedParams` に `view_family=CeilingPlan` 等のヒントが入ります）
+
+### term_map_ja.json の配置場所
+Add-in は次の順に `term_map_ja.json` を探します（見つかったものを使用）:
+- `%LOCALAPPDATA%\RevitMCP\term_map_ja.json`
+- `%USERPROFILE%\Documents\Codex\Design\term_map_ja.json`
+- `<AddinFolder>\Resources\term_map_ja.json`
+- `<AddinFolder>\term_map_ja.json`
+- もしくは環境変数 `REVITMCP_TERM_MAP_JA_PATH`
+
+### 戻り値の追加フィールド
+用語マップがヒットした場合、`data.items[]` に次のフィールドが追加されることがあります:
+- `termScore` / `matched` / `hint` / `suggestedParams`
+
+また、`data.termMap` に `term_map_version` と、簡潔な既定/曖昧さ解消サマリが入ります。
+
 ## 使い方
 - メソッド: `search_commands`
 
@@ -58,3 +81,6 @@ Add-in のランタイムコマンドメタ情報レジストリを使って、�
   }
 }
 ```
+
+### 簡易テスト用スクリプト
+- `Manuals/Scripts/test_terminology_routing.ps1 -Port 5210`

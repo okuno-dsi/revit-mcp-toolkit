@@ -14,6 +14,8 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 |---|---|---|---|
 | levelName | string | no/depends |  |
 | name | string | no/depends | New Plan |
+| viewFamily | string | no | FloorPlan |
+| view_family | string | no (compat) |  |
 
 ### Example Request
 ```json
@@ -48,6 +50,14 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
     },
     "levelName": {
       "type": "string"
+    },
+    "viewFamily": {
+      "type": "string",
+      "description": "Optional. e.g. \"FloorPlan\" (default) or \"CeilingPlan\" (RCP)."
+    },
+    "view_family": {
+      "type": "string",
+      "description": "Compatibility alias for viewFamily."
     }
   }
 }

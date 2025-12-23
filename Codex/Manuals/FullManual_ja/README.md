@@ -447,6 +447,7 @@
 - [update_wall_geometry](update_wall_geometry.md)
 - [update_wall_layer](update_wall_layer.md)
 - [update_wall_parameter](update_wall_parameter.md)
+- [set_wall_top_to_overhead](set_wall_top_to_overhead.md)
 - [update_wall_type_parameter](update_wall_type_parameter.md)
 - [update_window_parameter](update_window_parameter.md)
 - [set_parameter_for_elements](set_parameter_for_elements.md)

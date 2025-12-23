@@ -24,6 +24,8 @@ using System.Collections.Concurrent;  // NEW
 using System.Threading;               // NEW
 using System.Diagnostics;             // Step1 timings
 using System.Reflection;              // Step2 command metadata (aliases)
+using System.Security.Cryptography;   // Step9 confirmToken fingerprint
+using System.Text;                    // Step9 confirmToken fingerprint
 
 namespace RevitMCPAddin.Core
 {
@@ -369,18 +371,119 @@ namespace RevitMCPAddin.Core
                     // CommandRouter.Route is invoked from RevitCommandExecutor (ExternalEvent) and therefore already runs
                     // in a valid Revit API context (UI thread). Using UiEventPump.InvokeSmart here can mask real exceptions
                     // and cause long timeouts due to nested ExternalEvent waits. Execute directly and surface errors.
-                    var sw = Stopwatch.StartNew();
-                    var exec = McpLedgerEngine.ExecuteWithLedger(uiapp, cmd, handler);
-                    sw.Stop();
 
-                    var raw = exec != null ? exec.RawResult : null;
-                    var ledger = exec != null ? (object)exec.LedgerInfo : null;
+                    var pObjLocal = cmd.Params as JObject ?? new JObject();
+                    bool dryRunRequested = IsDryRunRequested(pObjLocal);
+
+                    RpcCommandMeta meta = null;
+                    try { CommandMetadataRegistry.TryGet(methodEcho, out meta); } catch { meta = null; }
+                    bool isHighRisk = (meta != null && string.Equals(meta.risk, "high", StringComparison.OrdinalIgnoreCase))
+                        || LooksLikeHighRiskMethod(methodEcho);
+                    string confirmMethod = meta != null && !string.IsNullOrWhiteSpace(meta.name) ? meta.name : methodEcho;
+                    string confirmFingerprint = isHighRisk ? ComputeConfirmFingerprint(pObjLocal) : string.Empty;
+
+                    bool requireConfirmToken = isHighRisk && IsRequireConfirmToken(pObjLocal);
+                    string confirmToken = isHighRisk ? ExtractConfirmToken(pObjLocal) : string.Empty;
+                    bool confirmTokenAccepted = false;
+
+                    // Optional confirmation handshake for high-risk commands.
+                    if (!dryRunRequested && requireConfirmToken && string.IsNullOrWhiteSpace(confirmToken))
+                    {
+                        var fail = RpcResultEnvelope.Fail(
+                            code: "CONFIRMATION_REQUIRED",
+                            msg: $"{confirmMethod}: confirmToken is required. Call with dryRun=true to obtain a token, then retry with requireConfirmToken=true and confirmToken."
+                        );
+                        fail["data"] = new JObject
+                        {
+                            ["method"] = confirmMethod
+                        };
+                        fail["nextActions"] = new JArray
+                        {
+                            new JObject
+                            {
+                                ["method"] = confirmMethod,
+                                ["reason"] = "Preview and obtain confirmToken via dryRun.",
+                                ["params"] = new JObject { ["dryRun"] = true }
+                            }
+                        };
+                        var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                        if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                        if (translated) cmd.Command = invokedMethod;
+                        return WrapJsonRpcIfNeeded(cmd, stdFail, ledger: null);
+                    }
+
+                    if (!dryRunRequested && !string.IsNullOrWhiteSpace(confirmToken))
+                    {
+                        var docForConfirm = uiapp?.ActiveUIDocument?.Document;
+                        if (docForConfirm == null)
+                        {
+                            var fail = RpcResultEnvelope.Fail("PRECONDITION_FAILED", "No active document for confirmToken validation.");
+                            var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                            if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                            if (translated) cmd.Command = invokedMethod;
+                            return WrapJsonRpcIfNeeded(cmd, stdFail, ledger: null);
+                        }
+
+                        if (!ConfirmTokenService.TryValidate(confirmToken, confirmMethod, docForConfirm, confirmFingerprint, out var ctErr))
+                        {
+                            var fail = RpcResultEnvelope.Fail("CONFIRMATION_INVALID", ctErr, data: new { method = confirmMethod });
+                            var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                            if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                            if (translated) cmd.Command = invokedMethod;
+                            return WrapJsonRpcIfNeeded(cmd, stdFail, ledger: null);
+                        }
+                        confirmTokenAccepted = true;
+                    }
+
+                    // DryRun wrapper (high-risk): execute within an outer TransactionGroup and rollback.
+                    TransactionGroup dryGroup = null;
+                    bool dryRunApplied = false;
+                    object raw = null;
+                    object ledger = null;
+                    long revitMs = 0;
+                    try
+                    {
+                        if (dryRunRequested && isHighRisk)
+                        {
+                            var docForDryRun = uiapp?.ActiveUIDocument?.Document;
+                            if (docForDryRun == null)
+                            {
+                                var fail = RpcResultEnvelope.Fail("PRECONDITION_FAILED", "No active document for dryRun.");
+                                var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                                if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                                if (translated) cmd.Command = invokedMethod;
+                                return WrapJsonRpcIfNeeded(cmd, stdFail, ledger: null);
+                            }
+
+                            dryGroup = new TransactionGroup(docForDryRun, "[MCP] DryRun");
+                            dryGroup.Start();
+                            dryRunApplied = true;
+                        }
+
+                        var sw = Stopwatch.StartNew();
+                        var exec = McpLedgerEngine.ExecuteWithLedger(uiapp, cmd, handler);
+
+                        if (dryRunApplied)
+                        {
+                            try { dryGroup.RollBack(); } catch { /* ignore */ }
+                        }
+
+                        sw.Stop();
+                        revitMs = sw.ElapsedMilliseconds;
+
+                        raw = exec != null ? exec.RawResult : null;
+                        ledger = exec != null ? (object)exec.LedgerInfo : null;
+                    }
+                    finally
+                    {
+                        try { dryGroup?.Dispose(); } catch { /* ignore */ }
+                    }
 
                     // Step 7: bump context revision after successful *write* execution (prevents drift).
                     try
                     {
                         var okFlag = ExtractOkFlag(raw);
-                        if (okFlag != false && ShouldBumpContextRevision(methodEcho))
+                        if (!dryRunRequested && okFlag != false && ShouldBumpContextRevision(methodEcho))
                         {
                             var doc = uiapp?.ActiveUIDocument?.Document;
                             if (doc != null) ContextTokenService.BumpRevision(doc, "CommandExecuted");
@@ -389,7 +492,39 @@ namespace RevitMCPAddin.Core
                     catch { /* best-effort */ }
 
                     // Step 1: Standardize payload (non-breaking additive fields)
-                    var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, sw.ElapsedMilliseconds);
+                    var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, revitMs);
+
+                    // Step 9: annotate dryRun + confirmation details for agents.
+                    if (dryRunRequested)
+                    {
+                        standardized["dryRunRequested"] = true;
+                        if (dryRunApplied)
+                        {
+                            standardized["dryRun"] = true;
+                            standardized["dryRunApplied"] = "transactionGroup.rollback";
+                            try { (standardized["warnings"] as JArray)?.Add("DryRun: executed and rolled back (no model changes persisted)."); } catch { /* ignore */ }
+                        }
+                        else if (standardized.Value<bool?>("dryRun") != true)
+                        {
+                            try { (standardized["warnings"] as JArray)?.Add("dryRun=true was requested, but no rollback was applied (command may not support dryRun)."); } catch { /* ignore */ }
+                        }
+                    }
+
+                    if (confirmTokenAccepted)
+                        standardized["confirmTokenAccepted"] = true;
+
+                    if (dryRunRequested && isHighRisk && standardized.Value<bool?>("ok") == true)
+                    {
+                        var doc = uiapp?.ActiveUIDocument?.Document;
+                        if (doc != null)
+                        {
+                            var issued = ConfirmTokenService.Issue(confirmMethod, doc, confirmFingerprint);
+                            standardized["confirmToken"] = issued.Token;
+                            standardized["confirmTokenExpiresAtUtc"] = issued.ExpiresAtUtc.ToString("o");
+                            standardized["confirmTokenTtlSec"] = issued.TtlSec;
+                            standardized["confirmTokenMethod"] = confirmMethod;
+                        }
+                    }
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                     if (translated) cmd.Command = invokedMethod;
 
@@ -539,6 +674,54 @@ namespace RevitMCPAddin.Core
                 // ⑤ ディスパッチ（No gate / No ledger）
                 if (_handlers.TryGetValue(cmd.Command, out var handler))
                 {
+                    var pObjLocal = cmd.Params as JObject ?? new JObject();
+                    bool dryRunRequested = IsDryRunRequested(pObjLocal);
+
+                    RpcCommandMeta meta = null;
+                    try { CommandMetadataRegistry.TryGet(methodEcho, out meta); } catch { meta = null; }
+                    bool isHighRisk = (meta != null && string.Equals(meta.risk, "high", StringComparison.OrdinalIgnoreCase))
+                        || LooksLikeHighRiskMethod(methodEcho);
+                    string confirmMethod = meta != null && !string.IsNullOrWhiteSpace(meta.name) ? meta.name : methodEcho;
+                    string confirmFingerprint = isHighRisk ? ComputeConfirmFingerprint(pObjLocal) : string.Empty;
+
+                    bool requireConfirmToken = isHighRisk && IsRequireConfirmToken(pObjLocal);
+                    string confirmToken = isHighRisk ? ExtractConfirmToken(pObjLocal) : string.Empty;
+                    bool confirmTokenAccepted = false;
+
+                    if (!dryRunRequested && requireConfirmToken && string.IsNullOrWhiteSpace(confirmToken))
+                    {
+                        var fail = RpcResultEnvelope.Fail(
+                            code: "CONFIRMATION_REQUIRED",
+                            msg: $"{confirmMethod}: confirmToken is required. Call with dryRun=true to obtain a token, then retry with requireConfirmToken=true and confirmToken."
+                        );
+                        fail["data"] = new JObject { ["method"] = confirmMethod };
+                        var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                        if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                        return stdFail;
+                    }
+
+                    if (!dryRunRequested && !string.IsNullOrWhiteSpace(confirmToken))
+                    {
+                        var docForConfirm = uiapp?.ActiveUIDocument?.Document;
+                        if (docForConfirm == null)
+                        {
+                            var fail = RpcResultEnvelope.Fail("PRECONDITION_FAILED", "No active document for confirmToken validation.");
+                            var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                            if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                            return stdFail;
+                        }
+
+                        if (!ConfirmTokenService.TryValidate(confirmToken, confirmMethod, docForConfirm, confirmFingerprint, out var ctErr))
+                        {
+                            var fail = RpcResultEnvelope.Fail("CONFIRMATION_INVALID", ctErr, data: new { method = confirmMethod });
+                            var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                            if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                            return stdFail;
+                        }
+
+                        confirmTokenAccepted = true;
+                    }
+
                     var sw = Stopwatch.StartNew();
                     object raw;
                     try
@@ -554,7 +737,7 @@ namespace RevitMCPAddin.Core
                     try
                     {
                         var okFlag = ExtractOkFlag(raw);
-                        if (okFlag != false && ShouldBumpContextRevision(methodEcho))
+                        if (!dryRunRequested && okFlag != false && ShouldBumpContextRevision(methodEcho))
                         {
                             var doc = uiapp?.ActiveUIDocument?.Document;
                             if (doc != null) ContextTokenService.BumpRevision(doc, "CommandExecuted");
@@ -563,6 +746,8 @@ namespace RevitMCPAddin.Core
                     catch { /* ignore */ }
 
                     var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, sw.ElapsedMilliseconds);
+                    if (dryRunRequested) standardized["dryRunRequested"] = true;
+                    if (confirmTokenAccepted) standardized["confirmTokenAccepted"] = true;
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                     return standardized;
                 }
@@ -738,6 +923,103 @@ namespace RevitMCPAddin.Core
                 if (ctx["dispatchMethod"] == null) ctx["dispatchMethod"] = dispatch ?? "";
             }
             catch { /* ignore */ }
+        }
+
+        // ----------------------------------------------------------------
+        // Step 9 helpers: dryRun + confirmToken (high-risk safety)
+        // ----------------------------------------------------------------
+
+        private static bool IsDryRunRequested(JObject p)
+        {
+            try { return (p?.Value<bool?>("dryRun") ?? p?.Value<bool?>("dry_run") ?? false); }
+            catch { return false; }
+        }
+
+        private static bool IsRequireConfirmToken(JObject p)
+        {
+            try { return (p?.Value<bool?>("requireConfirmToken") ?? p?.Value<bool?>("require_confirm_token") ?? false); }
+            catch { return false; }
+        }
+
+        private static bool LooksLikeHighRiskMethod(string method)
+        {
+            try
+            {
+                var leaf = CommandNaming.Leaf(method ?? string.Empty).ToLowerInvariant();
+                return leaf.StartsWith("delete_")
+                    || leaf.StartsWith("remove_")
+                    || leaf.StartsWith("reset_")
+                    || leaf.StartsWith("clear_")
+                    || leaf.StartsWith("purge_");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string ExtractConfirmToken(JObject p)
+        {
+            try { return ((p?.Value<string>("confirmToken") ?? p?.Value<string>("confirm_token")) ?? string.Empty).Trim(); }
+            catch { return string.Empty; }
+        }
+
+        private static string ComputeConfirmFingerprint(JObject p)
+        {
+            try
+            {
+                if (p == null) return string.Empty;
+
+                var clone = (JObject)p.DeepClone();
+                clone.Remove("confirmToken");
+                clone.Remove("confirm_token");
+                clone.Remove("requireConfirmToken");
+                clone.Remove("require_confirm_token");
+                clone.Remove("dryRun");
+                clone.Remove("dry_run");
+
+                var normalized = SortJToken(clone);
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(normalized);
+
+                using (var sha = SHA256.Create())
+                {
+                    var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
+                    var hex = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                    if (hex.Length > 32) hex = hex.Substring(0, 32);
+                    return "fp-" + hex;
+                }
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static JToken SortJToken(JToken token)
+        {
+            if (token == null) return JValue.CreateNull();
+
+            if (token is JObject obj)
+            {
+                var ordered = new JObject();
+                foreach (var prop in obj.Properties().OrderBy(p => p.Name, StringComparer.Ordinal))
+                {
+                    ordered[prop.Name] = SortJToken(prop.Value);
+                }
+                return ordered;
+            }
+
+            if (token is JArray arr)
+            {
+                var a = new JArray();
+                foreach (var item in arr)
+                {
+                    a.Add(SortJToken(item));
+                }
+                return a;
+            }
+
+            return token;
         }
 
         // ----------------------------------------------------------------
@@ -1060,7 +1342,11 @@ namespace RevitMCPAddin.Core
         {
             private static readonly HashSet<string> CommonOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "documentPath", "debug", "dryRun", "scope", "where", "target", "targets",
+                "documentPath", "debug",
+                "dryRun", "dry_run",
+                "confirmToken", "confirm_token",
+                "requireConfirmToken", "require_confirm_token",
+                "scope", "where", "target", "targets",
                 "expectedContextToken", "__expectedContextToken"
             };
 

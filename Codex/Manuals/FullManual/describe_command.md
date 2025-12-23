@@ -9,6 +9,7 @@ plus agent-friendly hints:
 - `paramsSchema` / `resultSchema` (JSON Schema, currently a permissive fallback)
 - `exampleJsonRpc`
 - `commonErrorCodes`
+ - (optional) `terminology` when `term_map_ja.json` is available (synonyms / negative_terms / sources)
 
 - Alias: `help.describe_command`
 - Step 4: `data.name` is the **canonical domain-first name**; legacy names (e.g., `get_project_info`) resolve to the same entry and appear in `data.aliases`.
@@ -54,7 +55,13 @@ Notes:
     "commonErrorCodes": [
       { "code": "INVALID_PARAMS", "msg": "Missing/invalid parameters" },
       { "code": "UNKNOWN_COMMAND", "msg": "No such command" }
-    ]
+    ],
+    "terminology": {
+      "term_map_version": "xxxxxxxx",
+      "synonyms": ["断面", "セクション"],
+      "negative_terms": ["平断面"],
+      "sources": ["view:SECTION_VERTICAL"]
+    }
   }
 }
 ```

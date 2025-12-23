@@ -31,6 +31,10 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 
 Existing clients that read `project.*` and `environment.*` continue to work; new clients should prefer `document.*`.
 
+## Terminology (optional)
+If `term_map_ja.json` is available, `agent_bootstrap` includes a compact `terminology` block:
+- `term_map_version` / `defaults` / `disambiguation`
+
 ## Related
 - search_commands
 - start_command_logging

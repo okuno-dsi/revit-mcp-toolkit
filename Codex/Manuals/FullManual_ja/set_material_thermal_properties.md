@@ -1,4 +1,4 @@
-# set_material_thermal_properties
+﻿# set_material_thermal_properties
 
 - カテゴリ: ElementOps
 - 役割: マテリアルに紐づく Thermal アセットの **熱伝導率・密度・比熱** を一括で設定します。
@@ -28,8 +28,8 @@ Thermal アセットがライブラリ由来などで「読み取り専用」の
 | `uniqueId`          | string  | ◯\* | 対象マテリアルの uniqueId                  | `"dc8a1c6b-..."`       |
 | `properties`        | object  | ◯    | 設定したい物性値をまとめたオブジェクト      | 下記参照                |
 | `conductivityUnits` | string  | 任意 | 熱伝導率の単位。省略時は W/(m·K)           | `"W/(m·K)"`, `"BTU/(h·ft·°F)"` |
-| `densityUnits`      | string  | 任意 | 密度の単位。現状は `"kg/m3"` 前提           | `"kg/m3"`               |
-| `specificHeatUnits` | string  | 任意 | 比熱の単位。現状は `"J/(kg·K)"` 前提        | `"J/(kg·K)"`            |
+| `densityUnits`      | string  | 任意 | 密度の単位（現状は `"kg/m3"` / `"kg/m^3"` のみ） | `"kg/m3"`               |
+| `specificHeatUnits` | string  | 任意 | 比熱の単位（現状は `"J/(kg·K)"` 系のみ）     | `"J/(kg·K)"`            |
 
 `materialId` / `uniqueId` はどちらか一方があれば足ります。
 
@@ -44,11 +44,11 @@ Thermal アセットがライブラリ由来などで「読み取り専用」の
 - 密度
   - キー候補: `"Density"`, `"density"`
   - 値: 数値（double）
-  - 単位: `densityUnits`（現状 `"kg/m3"` 前提でそのまま反映）
+  - 単位: `densityUnits`（現状は SI 入力 `"kg/m3"` 前提で、内部単位へ変換して反映）
 - 比熱
   - キー候補: `"SpecificHeat"`, `"specificHeat"`, `"Cp"`
   - 値: 数値（double）
-  - 単位: `specificHeatUnits`（現状 `"J/(kg·K)"` 前提でそのまま反映）
+  - 単位: `specificHeatUnits`（現状は SI 入力 `"J/(kg·K)"` 前提で、内部単位へ変換して反映）
 
 ## 例: 熱伝導率だけを 1.6 W/(m·K) に設定
 
@@ -115,7 +115,9 @@ Thermal アセットがライブラリ由来などで「読み取り専用」の
 
 - Thermal アセットがまだ割り当てられていないマテリアルに対しては、先に `set_material_asset` で
   `assetKind = "thermal"` のアセットを割り当てておいてください。
-- 熱伝導率は `conductivityUnits` に応じて SI に変換されますが、密度・比熱は現状 SI 値（kg/m3, J/(kg·K)）を想定しています。
+- 熱伝導率・密度・比熱は入力単位（現状は SI 想定）から Revit 内部単位へ変換して書き込みます。
+  - `densityUnits` は現状 `"kg/m3"` / `"kg/m^3"` のみ対応です。
+  - `specificHeatUnits` は現状 `"J/(kg·K)"`（および表記揺れ）を想定しています。
 - `get_material_asset_properties` と組み合わせると、設定した値が Revit API 上どう見えているか確認できます。
 
 ## 関連コマンド

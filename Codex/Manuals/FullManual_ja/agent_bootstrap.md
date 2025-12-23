@@ -1,17 +1,32 @@
 # agent_bootstrap
 
-- �J�e�S��: MetaOps
-- �ړI: ���̃R�}���h�́wagent_bootstrap�x�����s���܂��B
+- カテゴリ: MetaOps
+- 目的: 起動直後の初期コンテキストをまとめて取得する（ウォームアップ用）
 
-## �T�v
-���̃R�}���h�� JSON-RPC ��ʂ��Ď��s����A�ړI�ɋL�ڂ̏������s���܂��B�g�����̃Z�N�V�������Q�l�Ƀ��N�G�X�g���쐬���Ă��������B
+## 概要
+`agent_bootstrap` は、Revit プロセス/アクティブドキュメント/アクティブビュー/単位など、エージェントが最初に必要とする情報をまとめて返します。
 
-## �g����
-- ���\�b�h: agent_bootstrap
+- メソッド: `agent_bootstrap`
+- パラメータ: なし
 
-- �p�����[�^: �Ȃ�
+主な戻り値:
+- `server`: Revit プロセス情報（`product`, `process.pid`）
+- `project`: 互換用のプロジェクト/ドキュメント情報（name, number, filePath など）
+- `environment`: 互換用の環境情報（units, activeViewId, activeViewName）
+- `document`: 新規クライアント向けの統合コンテキスト（`project` + `environment` を統合）
+- `commands`: よく使うコマンドのリストなど（`hot`）
+- `policies`: エージェント向けの運用ポリシー（例: `idFirst`）
+- `knownErrors`: よくあるエラーコードのヒント
 
-### ���N�G�X�g��
+既存クライアントは `project.*` / `environment.*` を読み続けても動作し、新規クライアントは `document.*` を優先することを推奨します。
+
+## 用語（任意）
+`term_map_ja.json` が利用できる場合、`terminology` が追加されます。
+- `term_map_version`
+- `defaults`（例: `断面 => SECTION_VERTICAL (create_section)`）
+- `disambiguation`（例: `SECTION_vs_PLAN: prefer SECTION_VERTICAL; override PLAN if 平断面/…`）
+
+## リクエスト例
 ```json
 {
   "jsonrpc": "2.0",
@@ -21,17 +36,9 @@
 }
 ```
 
-## ���ʃ��Z�b�g�̕���
-- `server`: Revit�v���Z�X�̏�܂��̃��C�e�B (`product`, `process.pid` �Ȃ�)�B
-- `project`: ���O�ɐݒ肵��v���W�F�N�g/�h�L�������g���� (name, number, filePath, revitVersion, documentGuid, message �Ȃ�)�B
-- `environment`: ���O�ɐݒ肵��Ԓn/�P�ʂȊw�K��� (units, activeViewId, activeViewName �Ȃ�)�B
-- `document`: v���W�F�N�g�������w�K���͂��₷�A�g�p����̂������̂Q�l�ȃR���e�L�X�g�ł��B
-  - `ok`, `name`, `number`, `filePath`, `revitVersion`, `documentGuid`
-  - `activeViewId`, `activeViewName`
-  - `units`: `{ input, internalUnits }`
-
-���݂̃N���C�A���g�� `project.*` �や `environment.*` ���g���Ă����̂܂܁A�݌v�͂Ȃ��܂��B�V�K�̃N���C�A���g�́A`document.*` ���K�v�Ɏg�����ɂ���Ę����Ă��������B
-
-## �֘A�R�}���h
+## 関連
+- help.get_context
+- help.search_commands
+- help.describe_command
 - start_command_logging
 - stop_command_logging

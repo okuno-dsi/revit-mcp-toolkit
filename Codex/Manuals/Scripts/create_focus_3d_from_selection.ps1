@@ -31,6 +31,30 @@ if(!(Test-Path $logs)){ [void](New-Item -ItemType Directory -Path $logs) }
 
 function Get-JsonPayload($obj){ if($obj.result){ if($obj.result.result){ return $obj.result.result } return $obj.result } return $obj }
 
+function ConvertFrom-JsonSafe {
+  param([Parameter(Mandatory=$true)][string]$Json)
+  if([string]::IsNullOrWhiteSpace($Json)){ return $null }
+
+  # PowerShell 7+: ConvertFrom-Json supports -Depth; Windows PowerShell 5.1 does not.
+  try {
+    $cmd = Get-Command ConvertFrom-Json -ErrorAction Stop
+    if($cmd -and $cmd.Parameters -and $cmd.Parameters.ContainsKey('Depth')){
+      return ($Json | ConvertFrom-Json -Depth 400)
+    }
+  } catch {}
+
+  # Windows PowerShell 5.1 fallback (deep JSON)
+  try {
+    Add-Type -AssemblyName System.Web.Extensions -ErrorAction Stop | Out-Null
+    $ser = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $ser.MaxJsonLength = 2147483647
+    return $ser.DeserializeObject($Json)
+  } catch {
+    # last resort
+    return ($Json | ConvertFrom-Json)
+  }
+}
+
 function Call-Mcp {
   param([string]$Method,[hashtable]$Params,[int]$Wait=$WaitSec,[int]$JobSec=$JobTimeoutSec,[switch]$Force)
   if(-not $Params){ $Params = @{} }
@@ -46,7 +70,7 @@ function Call-Mcp {
   if(Test-Path $tmp){ Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
   if($code -ne 0){ throw "MCP call failed ($Method): $txt" }
   if([string]::IsNullOrWhiteSpace($txt)){ throw "Empty response from MCP ($Method)" }
-  return ($txt | ConvertFrom-Json -Depth 400)
+  return (ConvertFrom-JsonSafe -Json $txt)
 }
 
 # 1) Selected element ids
@@ -55,6 +79,31 @@ $s = Get-JsonPayload $sel
 $ids = @(); try { $ids = @($s.elementIds | ForEach-Object { [int]$_ }) } catch {}
 if($ids.Count -eq 0){ Write-Error 'No elements selected in Revit.'; exit 3 }
 Write-Host ("[Selection] Count={0}" -f $ids.Count) -ForegroundColor Cyan
+
+# Decide whether to run visibility reset (ShowAll). StrictMode requires initialization before use.
+$doShowAll = $false
+if ($PSBoundParameters.ContainsKey('ShowAll') -and $ShowAll.IsPresent) { $doShowAll = $true }
+
+# Fast path: single RPC (create+activate+sectionbox) when optional heavy steps are not requested.
+if(-not $doShowAll -and -not $HideNonSelected.IsPresent){
+  try {
+    $r = Call-Mcp 'create_focus_3d_view_from_selection' @{ viewNamePrefix=$ViewNamePrefix; paddingMm=$PaddingMm; activate=$true; __smoke_ok=$true } 240 360 -Force
+    $rp = Get-JsonPayload $r
+    $viewId = 0; try { $viewId = [int]$rp.viewId } catch {}
+    $name = ''; try { $name = [string]$rp.name } catch {}
+    if($viewId -le 0){ throw "create_focus_3d_view_from_selection did not return viewId." }
+    try { [void](Call-Mcp 'view_fit' @{ viewId=$viewId } 60 120 -Force) } catch {}
+    Write-Host ("[Done] Focus 3D view ready. viewId={0} name='{1}'" -f $viewId, $name) -ForegroundColor Green
+    exit 0
+  } catch {
+    $msg = ($_ | Out-String)
+    # Fallback only when command is unavailable (older add-in).
+    if($msg -notmatch 'UNKNOWN_COMMAND' -and $msg -notmatch 'Unknown command'){
+      throw
+    }
+    Write-Host "[Fallback] create_focus_3d_view_from_selection is not available. Running legacy multi-step flow..." -ForegroundColor Yellow
+  }
+}
 
 # 2) Create a 3D view and activate
 $name = ($ViewNamePrefix + (Get-Date -Format 'yyyyMMdd_HHmmss'))

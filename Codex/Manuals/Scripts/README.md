@@ -1,6 +1,7 @@
 # Scripts
 
 - test_connection.ps1: Ping and bootstrap; saves Work/<Project>_<Port>/Logs/agent_bootstrap.json
+- test_terminology_routing.ps1: Validates terminology-aware `help.search_commands` ranking (断面/平断面/立面/RCP)
 - list_elements_in_view.ps1: Uses activeViewId to list element IDs; saves Work/<Project>_<Port>/Logs/elements_in_view.json
 - add_door_size_dimensions_in_active_view.ps1: Add associative door width/height dimensions (supports stacked offsets, side selection, optional overrides)
 - get_family_instance_references_for_selection.ps1: List `FamilyInstanceReferenceType` references (stable strings) for the selected FamilyInstance (for advanced dimensioning)

@@ -68,4 +68,7 @@ This command assigns an existing PropertySetElement asset (structural or thermal
   - attach a custom asset that you created/duplicated in the UI, or
   - batch rewire many materials to an already‑configured asset.
 
+Tip:
+- `set_material_thermal_conductivity` uses a multi-step fallback (including “create a new ThermalAsset + rebind”) and can often update λ even when direct edits fail with “An internal error has occurred.”
+
 Always verify the result in the Material Browser. If Revit’s UI and MCP disagree, **prefer the UI** and adjust assets there first, then use this command as a helper only where it behaves reliably.

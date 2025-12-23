@@ -52,7 +52,13 @@ Most commands also echo `contextToken` in `result.context.contextToken` (unified
     "activeViewType": "FloorPlan",
     "selectionCount": 2,
     "selectionIdsTruncated": false,
-    "selectionIds": [1001, 1002]
+    "selectionIds": [1001, 1002],
+    "terminology": {
+      "ok": true,
+      "term_map_version": "xxxxxxxx",
+      "defaults": ["断面 => SECTION_VERTICAL (create_section)"],
+      "disambiguation": ["SECTION_vs_PLAN: prefer SECTION_VERTICAL; override PLAN if 平断面/…"]
+    }
   }
 }
 ```
@@ -67,4 +73,3 @@ Many commands accept an optional `expectedContextToken` in `params`.
 
 Notes:
 - `help.get_context` / `get_context` always runs even if you mistakenly pass `expectedContextToken` (so recovery is possible).
-

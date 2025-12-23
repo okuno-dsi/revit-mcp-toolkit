@@ -19,6 +19,11 @@ Updates the Thermal asset assigned to a material, with best-effort handling for 
 | densityUnits | string | no | kg/m3 |
 | specificHeatUnits | string | no | J/(kg·K) |
 
+Notes:
+- Inputs are converted to Revit internal units before writing.
+- `densityUnits` currently supports SI only: `"kg/m3"` / `"kg/m^3"`.
+- `specificHeatUnits` currently supports SI only: `"J/(kg·K)"` (and common variants like `"J/kgK"`).
+
 `properties` keys (case-insensitive; only include what you want to change):
 - Thermal conductivity (λ):
   - `ThermalConductivity` / `thermalConductivity` / `lambda`
@@ -45,4 +50,3 @@ Updates the Thermal asset assigned to a material, with best-effort handling for 
 - set_material_asset
 - set_material_thermal_conductivity
 - get_material_asset_properties
-

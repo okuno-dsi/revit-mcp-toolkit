@@ -2813,6 +2813,26 @@
     "importance": "high",
     "kind": "read"
   },
+  "view.diagnose_visibility": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
+  "diagnose_visibility": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
+  "sheet.inspect": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
+  "sheet_inspect": {
+    "category": "Views/Graphics",
+    "importance": "high",
+    "kind": "read"
+  },
   "revit.batch": {
     "category": "MetaOps",
     "importance": "high",
@@ -3714,6 +3734,11 @@
     "kind": "write"
   },
   "set_wall_miter_joint": {
+    "category": "Walls",
+    "importance": "normal",
+    "kind": "write"
+  },
+  "set_wall_top_to_overhead": {
     "category": "Walls",
     "importance": "normal",
     "kind": "write"

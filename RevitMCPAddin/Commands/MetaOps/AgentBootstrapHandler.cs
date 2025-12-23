@@ -108,6 +108,8 @@ namespace RevitMCPAddin.Commands.MetaOps
                     new { code = "NO_LOCATION",       msg = "Element has no Location; cannot move" }
                 };
 
+                var terminology = RevitMCPAddin.Core.TermMapService.BuildTerminologyContextBlock();
+
                 var response = new
                 {
                     ok = true,
@@ -127,6 +129,7 @@ namespace RevitMCPAddin.Commands.MetaOps
                     commands = commands,
                     policies = policies,
                     knownErrors = knownErrors,
+                    terminology = terminology,
                     warnings = new string[0]
                 };
 

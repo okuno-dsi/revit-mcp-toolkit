@@ -37,14 +37,16 @@ namespace RevitMCPAddin.Commands.MetaOps
 
             var snap = ContextTokenService.Capture(uiapp, includeSelectionIds: includeSelectionIds, maxSelectionIds: maxSelectionIds);
 
+            var data = JObject.FromObject(snap);
+            data["terminology"] = TermMapService.BuildTerminologyContextBlock();
+
             return new JObject
             {
                 ["ok"] = true,
                 ["code"] = "OK",
                 ["msg"] = "Context",
-                ["data"] = JObject.FromObject(snap)
+                ["data"] = data
             };
         }
     }
 }
-

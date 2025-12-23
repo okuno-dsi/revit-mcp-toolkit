@@ -8,11 +8,82 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.Manifest
 {
     public static class ManifestExporter
     {
+        public static List<DocMethodLite> BuildFromCommandMetadataRegistry()
+        {
+            try
+            {
+                var metas = CommandMetadataRegistry.GetAll();
+                if (metas == null || metas.Count == 0) return new List<DocMethodLite>();
+
+                var tmp = new List<DocMethodLite>(metas.Count * 2);
+                foreach (var meta in metas)
+                {
+                    if (meta == null) continue;
+                    if (string.IsNullOrWhiteSpace(meta.name)) continue;
+
+                    var name = meta.name.Trim();
+                    var tags = meta.tags ?? new string[0];
+                    var summary = meta.summary ?? string.Empty;
+
+                    tmp.Add(new DocMethodLite
+                    {
+                        Name = name,
+                        Summary = summary,
+                        Tags = tags
+                    });
+
+                    if (meta.aliases != null)
+                    {
+                        foreach (var a in meta.aliases)
+                        {
+                            var alias = (a ?? string.Empty).Trim();
+                            if (alias.Length == 0) continue;
+                            tmp.Add(new DocMethodLite
+                            {
+                                Name = alias,
+                                Summary = summary,
+                                Tags = AppendAliasTag(tags)
+                            });
+                        }
+                    }
+                }
+
+                // De-dup by method name (prefer first).
+                var dict = new Dictionary<string, DocMethodLite>(StringComparer.OrdinalIgnoreCase);
+                foreach (var m in tmp)
+                {
+                    if (m == null || string.IsNullOrWhiteSpace(m.Name)) continue;
+                    if (!dict.ContainsKey(m.Name)) dict[m.Name] = m;
+                }
+                return dict.Values.ToList();
+            }
+            catch
+            {
+                return new List<DocMethodLite>();
+            }
+        }
+
+        private static string[] AppendAliasTag(string[] tags)
+        {
+            try
+            {
+                tags = tags ?? new string[0];
+                if (tags.Any(t => string.Equals(t, "alias", StringComparison.OrdinalIgnoreCase)))
+                    return tags;
+                return tags.Concat(new[] { "alias" }).ToArray();
+            }
+            catch
+            {
+                return tags ?? new string[0];
+            }
+        }
+
         /// <summary>
         /// アドイン内のコマンド（CommandName + Execute(...) を持つ）を列挙してマニフェストを作成。
         /// </summary>
@@ -65,7 +136,9 @@ namespace RevitMCPAddin.Manifest
             try
             {
                 var asm = Assembly.GetExecutingAssembly();
-                var cmds = BuildFromAssembly(asm);
+                var cmds = BuildFromCommandMetadataRegistry();
+                if (cmds == null || cmds.Count == 0)
+                    cmds = BuildFromAssembly(asm);
                 if (cmds.Count == 0) return false;
 
                 var manifest = new

@@ -21,7 +21,11 @@ namespace RevitMCPAddin.Core
         // 共通で黙認するオプションキー（任意）
         private static readonly HashSet<string> CommonOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "documentPath", "debug", "dryRun", "scope", "where", "target", "targets"
+            "documentPath", "debug",
+            "dryRun", "dry_run",
+            "confirmToken", "confirm_token",
+            "requireConfirmToken", "require_confirm_token",
+            "scope", "where", "target", "targets"
         };
 
         // メソッド別プロファイル

@@ -9,6 +9,29 @@ Searches available command method names using the add-in’s runtime command met
 - Alias: `help.search_commands`
 - Step 4: results use **canonical domain-first names** (e.g., `doc.get_project_info`); legacy names remain callable and appear in `aliases`.
 
+## Terminology-Aware Search (term_map_ja.json)
+If `term_map_ja.json` is available, `search_commands` boosts results using Japanese synonyms and disambiguation rules.
+
+Typical examples:
+- `断面` / `セクション` ⇒ `create_section` (vertical section / 立断面)
+- `平断面` / `平面図` / `伏図` ⇒ `create_view_plan` (plan)
+- `立面` ⇒ `create_elevation_view`
+- `RCP` / `天井伏図` ⇒ `create_view_plan` with `suggestedParams` hints (e.g. `view_family=CeilingPlan`) if supported
+
+### Term Map File Locations
+The add-in searches for `term_map_ja.json` in this order (first match wins):
+- `%LOCALAPPDATA%\RevitMCP\term_map_ja.json`
+- `%USERPROFILE%\Documents\Codex\Design\term_map_ja.json`
+- `<AddinFolder>\Resources\term_map_ja.json`
+- `<AddinFolder>\term_map_ja.json`
+- Or set the env var `REVITMCP_TERM_MAP_JA_PATH`
+
+### Extra Fields in Results
+When a term map match is used, each `data.items[]` entry may include:
+- `termScore` / `matched` / `hint` / `suggestedParams`
+
+Also, `data.termMap` includes `term_map_version` plus compact default/disambiguation summaries for agents.
+
 ## Usage
 - Method: `search_commands`
 
@@ -58,6 +81,9 @@ Notes:
   }
 }
 ```
+
+### Smoke Test Script
+- `Manuals/Scripts/test_terminology_routing.ps1 -Port 5210`
 
 ## Related
 - start_command_logging
