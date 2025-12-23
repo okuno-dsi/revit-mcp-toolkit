@@ -93,6 +93,13 @@ This repository centers on Revit MCP and can host related components under the s
 
 ---
 
+## Build
+
+- See `BUILD.en.md` for build steps.
+- Japanese version: `BUILD.md`
+
+---
+
 ## Security & Operational Notes (important)
 
 - This project provides powerful automation. Operate it under the **principle of least privilege**.
