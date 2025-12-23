@@ -42,12 +42,6 @@ Example use-case patterns:
 
 ---
 
-## Demo (one-screen impact)
-
-- Consider placing images under `assets/` and referencing them from the README
-
----
-
 ## Quick Start (shortest path)
 
 1. Follow `Codex/START_HERE.md` to **check the connection** (shortest path)
