@@ -19,6 +19,9 @@ When someone asks you to read/write a parameter, **confirm the parameter identit
 
 See also: `Manuals/ConnectionGuide/Revitデータ取得完全ガイド.md` (“パラメータ入出力依頼時の事前確認ルール（Snoop 推奨）”).
 
+## Important: Batch safety (`failureHandling`)
+For batch-like commands (heuristic: `elementIds` count >= 5), the router may return `code: FAILURE_HANDLING_CONFIRMATION_REQUIRED` unless you explicitly set `params.failureHandling`. See: [failure_handling](failure_handling.md)
+
 ## AnalysisOps
 - [summarize_elements_by_category](summarize_elements_by_category.md)
 - [summarize_family_types_by_category](summarize_family_types_by_category.md)

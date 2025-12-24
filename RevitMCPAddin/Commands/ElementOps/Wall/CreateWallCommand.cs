@@ -138,6 +138,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                 using (var tx = new Transaction(doc, "Create Wall"))
                 {
                     tx.Start();
+                    TxnUtil.ConfigureProceedWithWarnings(tx);
 
                     var line = Line.CreateBound(start, end);
 
@@ -177,7 +178,17 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         if (pUnconn != null && !pUnconn.IsReadOnly) pUnconn.Set(unconnHeightFt);
                     }
 
-                    tx.Commit();
+                    var txStatus = tx.Commit();
+                    if (txStatus != TransactionStatus.Committed)
+                    {
+                        return new
+                        {
+                            ok = false,
+                            code = "TX_NOT_COMMITTED",
+                            msg = "Transaction did not commit.",
+                            detail = new { transactionStatus = txStatus.ToString() }
+                        };
+                    }
 
                     return new
                     {

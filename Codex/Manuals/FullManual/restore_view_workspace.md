@@ -20,6 +20,7 @@ Execution model:
 
 Auto behavior:
 - Auto-restore is **enabled by default** when you open a project (can be disabled via `%LOCALAPPDATA%\\RevitMCP\\settings.json` → `viewWorkspace.autoRestoreEnabled`).
+- If the snapshot file does not exist yet (first run for that `doc_key`), or it cannot be loaded (corrupted JSON), auto-restore is skipped and the add-in captures a **baseline snapshot** so the next session can restore.
 
 ## Parameters
 | Name | Type | Required | Default |

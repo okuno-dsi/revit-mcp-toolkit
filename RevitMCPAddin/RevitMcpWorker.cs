@@ -601,6 +601,7 @@ namespace RevitMCPAddin
                 new SetRoomParamCommand(),
                 new GetRoomBoundaryCommand(),
                 new GetRoomPerimeterWithColumnsAndWallsCommand(),
+                new GetRoomFinishTakeoffContextCommand(),
                 new GetRoomPerimeterWithColumnsCommand(),
                 new GetRoomInnerWallsByBaselineCommand(),
                 new CreateRoomCommand(),

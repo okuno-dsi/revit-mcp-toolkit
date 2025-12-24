@@ -18,19 +18,23 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
             if (doc == null) return new { ok = false, msg = "アクティブドキュメントがありません。" };
 
             var p = (JObject)(cmd.Params ?? new JObject());
-            int elementId = p.Value<int>("elementId");
+            int elementId = p.Value<int?>("elementId") ?? 0;
+            if (elementId <= 0) return new { ok = false, code = "INVALID_INPUT", msg = "elementId が必要です。" };
             var id = Autodesk.Revit.DB.ElementIdCompat.From(elementId);
 
             var wall = doc.GetElement(id) as Autodesk.Revit.DB.Wall;
             if (wall == null)
             {
-                return new { ok = false, msg = $"Wall with ElementId {elementId} not found." };
+                return new { ok = false, code = "NOT_FOUND", msg = $"Wall with ElementId {elementId} not found." };
             }
 
             using var tx = new Transaction(doc, "Delete Wall");
             tx.Start();
             try
             {
+                // Avoid modal warning dialogs during automation.
+                TxnUtil.ConfigureProceedWithWarnings(tx);
+
                 var deleted = doc.Delete(id);
                 if (!deleted.Contains(id))
                 {
@@ -38,13 +42,29 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                     return new { ok = false, msg = $"Failed to delete Wall {elementId}." };
                 }
 
-                tx.Commit();
-                return new { ok = true, inputUnits = UnitHelper.InputUnitsMeta(), internalUnits = UnitHelper.InternalUnitsMeta() };
+                var txStatus = tx.Commit();
+                if (txStatus != TransactionStatus.Committed)
+                {
+                    return new
+                    {
+                        ok = false,
+                        code = "TX_NOT_COMMITTED",
+                        msg = "Transaction did not commit.",
+                        detail = new { transactionStatus = txStatus.ToString() }
+                    };
+                }
+
+                return new
+                {
+                    ok = true,
+                    inputUnits = UnitHelper.InputUnitsMeta(),
+                    internalUnits = UnitHelper.InternalUnitsMeta()
+                };
             }
             catch (Exception ex)
             {
                 tx.RollBack();
-                return new { ok = false, msg = $"Error deleting Wall {elementId}: {ex.Message}" };
+                return new { ok = false, code = "EXCEPTION", msg = $"Error deleting Wall {elementId}: {ex.Message}" };
             }
         }
     }

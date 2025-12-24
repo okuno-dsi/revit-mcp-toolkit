@@ -115,15 +115,8 @@ namespace RevitMCPAddin.Commands.Room
             {
                 tx.Start();
 
-                // 警告のモーダル抑制（失敗しても無視）
-                try
-                {
-                    var opts = tx.GetFailureHandlingOptions();
-                    opts.SetClearAfterRollback(true);
-                    opts.SetFailuresPreprocessor(new SuppressWarningsPreprocessor());
-                    tx.SetFailureHandlingOptions(opts);
-                }
-                catch { }
+                // FailureHandlingOptions (centralized)
+                try { TxnUtil.ConfigureProceedWithWarnings(tx); } catch { }
 
                 Autodesk.Revit.DB.Architecture.Room? room = null;
                 try
@@ -206,7 +199,17 @@ namespace RevitMCPAddin.Commands.Room
                     }
                 }
 
-                tx.Commit();
+                var txStatus = tx.Commit();
+                if (txStatus != TransactionStatus.Committed)
+                {
+                    return new
+                    {
+                        ok = false,
+                        code = "TX_NOT_COMMITTED",
+                        msg = "Transaction did not commit.",
+                        detail = new { transactionStatus = txStatus.ToString() }
+                    };
+                }
 
                 return new
                 {

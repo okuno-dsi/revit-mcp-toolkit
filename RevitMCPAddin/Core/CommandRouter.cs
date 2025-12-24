@@ -26,6 +26,7 @@ using System.Diagnostics;             // Step1 timings
 using System.Reflection;              // Step2 command metadata (aliases)
 using System.Security.Cryptography;   // Step9 confirmToken fingerprint
 using System.Text;                    // Step9 confirmToken fingerprint
+using RevitMCPAddin.Core.Failures;    // FailureHandling (whitelist)
 
 namespace RevitMCPAddin.Core
 {
@@ -435,14 +436,73 @@ namespace RevitMCPAddin.Core
                         confirmTokenAccepted = true;
                     }
 
+                    // Step 10: batch failure-handling confirmation gate (>= 5 targets)
+                    const int FAILURE_HANDLING_CONFIRM_THRESHOLD = 5;
+                    int targetCount = EstimateProcessingTargetCount(pObjLocal);
+                    var fhReq = FailureHandlingRequest.Parse(pObjLocal);
+                    if (!dryRunRequested && targetCount >= FAILURE_HANDLING_CONFIRM_THRESHOLD && !fhReq.ExplicitProvided)
+                    {
+                        var st = FailureWhitelistService.GetStatus();
+
+                        var fail = RpcResultEnvelope.Fail(
+                            code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED",
+                            msg: $"{methodEcho}: processing {targetCount} targets. Confirm failureHandling before execution (default=rollback)."
+                        );
+                        fail["data"] = new JObject
+                        {
+                            ["targetCount"] = targetCount,
+                            ["threshold"] = FAILURE_HANDLING_CONFIRM_THRESHOLD,
+                            ["defaultMode"] = "rollback",
+                            ["whitelist"] = JObject.FromObject(st)
+                        };
+                        fail["nextActions"] = new JArray
+                        {
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Run without failureHandling (not recommended for large batches).",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = false } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: rollback on any non-whitelisted failure (recommended default).",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "rollback" } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: delete whitelisted warnings; rollback on others.",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "delete" } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: try resolve (whitelist); fallback rollback when unresolved.",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "resolve" } }
+                            }
+                        };
+
+                        var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                        if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                        if (translated) cmd.Command = invokedMethod;
+                        return WrapJsonRpcIfNeeded(cmd, stdFail, ledger: null);
+                    }
+
                     // DryRun wrapper (high-risk): execute within an outer TransactionGroup and rollback.
                     TransactionGroup dryGroup = null;
                     bool dryRunApplied = false;
                     object raw = null;
                     object ledger = null;
                     long revitMs = 0;
+                    FailureHandlingScope fhScope = null;
                     try
                     {
+                        // Always capture failures/dialogs for this command.
+                        // When mode=Off (failureHandling disabled), the scope is "capture-only" and does not alter behavior.
+                        if (uiapp != null)
+                            fhScope = new FailureHandlingScope(uiapp, fhReq.Mode);
+
                         if (dryRunRequested && isHighRisk)
                         {
                             var docForDryRun = uiapp?.ActiveUIDocument?.Document;
@@ -476,6 +536,7 @@ namespace RevitMCPAddin.Core
                     }
                     finally
                     {
+                        try { fhScope?.Dispose(); } catch { /* ignore */ }
                         try { dryGroup?.Dispose(); } catch { /* ignore */ }
                     }
 
@@ -493,6 +554,26 @@ namespace RevitMCPAddin.Core
 
                     // Step 1: Standardize payload (non-breaking additive fields)
                     var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, revitMs);
+
+                    // Step 10: attach failureHandling diagnostics (agent-friendly, additive)
+                    if (fhReq.ExplicitProvided)
+                    {
+                        standardized["failureHandling"] = new JObject
+                        {
+                            ["enabled"] = fhReq.Enabled,
+                            ["mode"] = fhReq.Enabled ? fhReq.Mode.ToString().ToLowerInvariant() : "off",
+                            ["targetCount"] = targetCount,
+                            ["threshold"] = FAILURE_HANDLING_CONFIRM_THRESHOLD,
+                            ["whitelist"] = JObject.FromObject(FailureWhitelistService.GetStatus())
+                        };
+                        if (fhReq.Enabled && fhScope != null)
+                        {
+                            try { ((JObject)standardized["failureHandling"])["issues"] = JObject.FromObject(fhScope.Issues); } catch { /* ignore */ }
+                        }
+                    }
+
+                    // Always record failure details when rollback (or tx-not-committed) occurs.
+                    TryAttachFailureIssuesOnRollback(standardized, methodEcho, fhReq, targetCount, FAILURE_HANDLING_CONFIRM_THRESHOLD, fhScope);
 
                     // Step 9: annotate dryRun + confirmation details for agents.
                     if (dryRunRequested)
@@ -722,14 +803,70 @@ namespace RevitMCPAddin.Core
                         confirmTokenAccepted = true;
                     }
 
+                    // Step 10: batch failure-handling confirmation gate (>= 5 targets)
+                    const int FAILURE_HANDLING_CONFIRM_THRESHOLD = 5;
+                    int targetCount = EstimateProcessingTargetCount(pObjLocal);
+                    var fhReq = FailureHandlingRequest.Parse(pObjLocal);
+                    if (!dryRunRequested && targetCount >= FAILURE_HANDLING_CONFIRM_THRESHOLD && !fhReq.ExplicitProvided)
+                    {
+                        var st = FailureWhitelistService.GetStatus();
+                        var fail = RpcResultEnvelope.Fail(
+                            code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED",
+                            msg: $"{methodEcho}: processing {targetCount} targets. Confirm failureHandling before execution (default=rollback)."
+                        );
+                        fail["data"] = new JObject
+                        {
+                            ["targetCount"] = targetCount,
+                            ["threshold"] = FAILURE_HANDLING_CONFIRM_THRESHOLD,
+                            ["defaultMode"] = "rollback",
+                            ["whitelist"] = JObject.FromObject(st)
+                        };
+                        fail["nextActions"] = new JArray
+                        {
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Run without failureHandling (not recommended for large batches).",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = false } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: rollback on any non-whitelisted failure (recommended default).",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "rollback" } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: delete whitelisted warnings; rollback on others.",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "delete" } }
+                            },
+                            new JObject
+                            {
+                                ["method"] = methodEcho,
+                                ["reason"] = "Enable failureHandling: try resolve (whitelist); fallback rollback when unresolved.",
+                                ["params"] = new JObject { ["failureHandling"] = new JObject { ["enabled"] = true, ["mode"] = "resolve" } }
+                            }
+                        };
+                        var stdFail = RpcResultEnvelope.StandardizePayload(fail, uiapp, methodEcho, revitMs: 0);
+                        if (translated) TryAnnotateDispatch(stdFail, invokedMethod, dispatchMethod);
+                        return stdFail;
+                    }
+
+                    FailureHandlingScope fhScope = null;
                     var sw = Stopwatch.StartNew();
                     object raw;
                     try
                     {
+                        // Always capture failures/dialogs for this command.
+                        // When mode=Off (failureHandling disabled), the scope is "capture-only" and does not alter behavior.
+                        if (uiapp != null)
+                            fhScope = new FailureHandlingScope(uiapp, fhReq.Mode);
                         raw = handler.Execute(uiapp, cmd);
                     }
                     finally
                     {
+                        try { fhScope?.Dispose(); } catch { /* ignore */ }
                         sw.Stop();
                     }
 
@@ -746,6 +883,24 @@ namespace RevitMCPAddin.Core
                     catch { /* ignore */ }
 
                     var standardized = RpcResultEnvelope.StandardizePayload(raw, uiapp, methodEcho, sw.ElapsedMilliseconds);
+                    if (fhReq.ExplicitProvided)
+                    {
+                        standardized["failureHandling"] = new JObject
+                        {
+                            ["enabled"] = fhReq.Enabled,
+                            ["mode"] = fhReq.Enabled ? fhReq.Mode.ToString().ToLowerInvariant() : "off",
+                            ["targetCount"] = targetCount,
+                            ["threshold"] = FAILURE_HANDLING_CONFIRM_THRESHOLD,
+                            ["whitelist"] = JObject.FromObject(FailureWhitelistService.GetStatus())
+                        };
+                        if (fhReq.Enabled && fhScope != null)
+                        {
+                            try { ((JObject)standardized["failureHandling"])["issues"] = JObject.FromObject(fhScope.Issues); } catch { /* ignore */ }
+                        }
+                    }
+
+                    // Always record failure details when rollback (or tx-not-committed) occurs.
+                    TryAttachFailureIssuesOnRollback(standardized, methodEcho, fhReq, targetCount, FAILURE_HANDLING_CONFIRM_THRESHOLD, fhScope);
                     if (dryRunRequested) standardized["dryRunRequested"] = true;
                     if (confirmTokenAccepted) standardized["confirmTokenAccepted"] = true;
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
@@ -877,6 +1032,135 @@ namespace RevitMCPAddin.Core
             }
         }
 
+        private static void TryAttachFailureIssuesOnRollback(
+            JObject standardized,
+            string methodEcho,
+            FailureHandlingRequest fhReq,
+            int targetCount,
+            int threshold,
+            FailureHandlingScope fhScope)
+        {
+            if (standardized == null) return;
+            if (fhScope == null) return;
+
+            var issues = fhScope.Issues;
+            if (issues == null) return;
+
+            int failureCount = 0;
+            int dialogCount = 0;
+            try { failureCount = (issues.failures != null ? issues.failures.Count : 0); } catch { failureCount = 0; }
+            try { dialogCount = (issues.dialogs != null ? issues.dialogs.Count : 0); } catch { dialogCount = 0; }
+            if (failureCount == 0 && dialogCount == 0) return;
+
+            bool rollbackLike = false;
+            try
+            {
+                if (issues.rollbackRequested) rollbackLike = true;
+            }
+            catch { /* ignore */ }
+
+            string code = string.Empty;
+            try { code = (standardized.Value<string>("code") ?? string.Empty).Trim(); } catch { code = string.Empty; }
+
+            if (!rollbackLike)
+            {
+                if (string.Equals(code, "TX_NOT_COMMITTED", StringComparison.OrdinalIgnoreCase))
+                    rollbackLike = true;
+                else if (code.IndexOf("ROLLBACK", StringComparison.OrdinalIgnoreCase) >= 0)
+                    rollbackLike = true;
+            }
+
+            if (!rollbackLike)
+            {
+                try
+                {
+                    // Detect common "transactionStatus != Committed" shape.
+                    if (standardized["detail"] is JObject detailObj)
+                    {
+                        var ts = (detailObj.Value<string>("transactionStatus") ?? string.Empty).Trim();
+                        if (ts.Length > 0 && !string.Equals(ts, "Committed", StringComparison.OrdinalIgnoreCase))
+                            rollbackLike = true;
+                    }
+                }
+                catch { /* ignore */ }
+            }
+
+            if (!rollbackLike)
+            {
+                // Best-effort inference: if an Error severity failure was captured, attach diagnostics.
+                try
+                {
+                    for (int i = 0; i < issues.failures.Count; i++)
+                    {
+                        var s = (issues.failures[i].severity ?? string.Empty).Trim();
+                        if (string.Equals(s, "Error", StringComparison.OrdinalIgnoreCase))
+                        {
+                            rollbackLike = true;
+                            break;
+                        }
+                    }
+                }
+                catch { /* ignore */ }
+            }
+
+            if (!rollbackLike) return;
+
+            // Ensure failureHandling block exists even when not explicitly requested,
+            // so rollback diagnostics are always recorded in the job result.
+            JObject fhObj = standardized["failureHandling"] as JObject;
+            if (fhObj == null)
+            {
+                fhObj = new JObject();
+                standardized["failureHandling"] = fhObj;
+            }
+
+            try { if (fhObj["enabled"] == null) fhObj["enabled"] = fhReq.Enabled; } catch { /* ignore */ }
+            try { if (fhObj["mode"] == null) fhObj["mode"] = fhReq.Enabled ? fhReq.Mode.ToString().ToLowerInvariant() : "off"; } catch { /* ignore */ }
+            try { if (fhObj["targetCount"] == null) fhObj["targetCount"] = targetCount; } catch { /* ignore */ }
+            try { if (fhObj["threshold"] == null) fhObj["threshold"] = threshold; } catch { /* ignore */ }
+            try { if (fhObj["whitelist"] == null) fhObj["whitelist"] = JObject.FromObject(FailureWhitelistService.GetStatus()); } catch { /* ignore */ }
+
+            try { if (fhObj["issues"] == null) fhObj["issues"] = JObject.FromObject(issues); } catch { /* ignore */ }
+            try { if (fhObj["rollbackDetected"] == null) fhObj["rollbackDetected"] = true; } catch { /* ignore */ }
+
+            try
+            {
+                if (fhObj["rollbackReason"] == null)
+                {
+                    string reason = string.Empty;
+                    try { reason = (issues.rollbackReason ?? string.Empty).Trim(); } catch { reason = string.Empty; }
+                    if (string.IsNullOrWhiteSpace(reason)) reason = (string.IsNullOrWhiteSpace(code) ? "RollbackDetected" : code);
+                    fhObj["rollbackReason"] = reason;
+                }
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                if (fhReq.ExplicitProvided)
+                {
+                    // Keep explicit mode as-is.
+                }
+                else
+                {
+                    if (fhObj["autoCaptured"] == null) fhObj["autoCaptured"] = true;
+                }
+            }
+            catch { /* ignore */ }
+
+            // Also emit a concise line to addin log (easy to find without digging jobs.db).
+            try
+            {
+                RevitLogger.Warn(
+                    "Rollback detected: method={0} code={1} failures={2} dialogs={3}",
+                    methodEcho ?? "",
+                    code,
+                    failureCount,
+                    dialogCount);
+            }
+            catch { /* ignore */ }
+        }
+
         private static bool ShouldBumpContextRevision(string method)
         {
             try
@@ -933,6 +1217,87 @@ namespace RevitMCPAddin.Core
         {
             try { return (p?.Value<bool?>("dryRun") ?? p?.Value<bool?>("dry_run") ?? false); }
             catch { return false; }
+        }
+
+        private static int EstimateProcessingTargetCount(JObject p)
+        {
+            // Conservative heuristic: count elementIds/elementId in top-level and in target/targets containers.
+            // (Designed only for the ">=5" confirmation gate, so false positives are acceptable but false negatives should be minimized.)
+            int c = 0;
+            if (p == null) return 0;
+
+            c += CountIdsToken(p["elementIds"]);
+            c += CountIdsToken(p["elementId"]);
+
+            try
+            {
+                if (p["target"] is JObject tgt)
+                {
+                    c += CountIdsToken(tgt["elementIds"]);
+                    c += CountIdsToken(tgt["elementId"]);
+                }
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                if (p["targets"] is JArray arr)
+                {
+                    foreach (var item in arr)
+                    {
+                        if (item == null) continue;
+                        if (item.Type == JTokenType.Integer || item.Type == JTokenType.Float)
+                        {
+                            c += 1;
+                            continue;
+                        }
+                        if (item is JObject jo)
+                        {
+                            c += CountIdsToken(jo["elementIds"]);
+                            c += CountIdsToken(jo["elementId"]);
+                        }
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            return c;
+        }
+
+        private static int CountIdsToken(JToken tok)
+        {
+            if (tok == null) return 0;
+            try
+            {
+                if (tok.Type == JTokenType.Integer || tok.Type == JTokenType.Float) return 1;
+                if (tok.Type == JTokenType.String)
+                {
+                    var s = (tok.Value<string>() ?? string.Empty).Trim();
+                    if (s.Length == 0) return 0;
+                    // Support comma-separated ids: "1,2,3"
+                    var parts = s.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    int n = 0;
+                    foreach (var p in parts)
+                    {
+                        if (int.TryParse(p.Trim(), out var _)) n++;
+                    }
+                    return n;
+                }
+                var arr = tok as JArray;
+                if (arr != null)
+                {
+                    int n = 0;
+                    foreach (var t in arr)
+                    {
+                        if (t == null) continue;
+                        if (t.Type == JTokenType.Integer || t.Type == JTokenType.Float) { n++; continue; }
+                        if (t.Type == JTokenType.String && int.TryParse((t.Value<string>() ?? "").Trim(), out var _)) n++;
+                    }
+                    return n;
+                }
+            }
+            catch { /* ignore */ }
+            return 0;
         }
 
         private static bool IsRequireConfirmToken(JObject p)
@@ -1346,6 +1711,8 @@ namespace RevitMCPAddin.Core
                 "dryRun", "dry_run",
                 "confirmToken", "confirm_token",
                 "requireConfirmToken", "require_confirm_token",
+                "failureHandling", "failure_handling",
+                "failureHandlingMode", "failure_handling_mode",
                 "scope", "where", "target", "targets",
                 "expectedContextToken", "__expectedContextToken"
             };

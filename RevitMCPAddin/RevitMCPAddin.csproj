@@ -230,6 +230,7 @@
     <Compile Include="Commands\RevisionCloud\CreateRevisionCircleCommand.cs" />
     <Compile Include="Commands\RevisionCloud\CreateRevisionCloudFromCurvesCommand.cs" />
     <Compile Include="Commands\Room\FindRoomPlaceableRegionsCommand.cs" />
+    <Compile Include="Commands\Room\GetRoomFinishTakeoffContextCommand.cs" />
     <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsAndWallsCommand.cs" />
     <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsCommand.cs" />
     <Compile Include="Commands\Room\GetRoomInnerWallsByBaselineCommand.cs" />
@@ -429,6 +430,11 @@
     <Compile Include="Core\ExportDwgByParamGroupsTick.cs" />
     <Compile Include="Core\Failures\FailureCaptureScope.cs" />
     <Compile Include="Core\Failures\FailureRecord.cs" />
+    <Compile Include="Core\Failures\FailureHandlingContext.cs" />
+    <Compile Include="Core\Failures\FailureHandlingFailuresPreprocessor.cs" />
+    <Compile Include="Core\Failures\FailureHandlingParam.cs" />
+    <Compile Include="Core\Failures\FailureHandlingScope.cs" />
+    <Compile Include="Core\Failures\FailureWhitelistService.cs" />
     <Compile Include="Core\GeometryJsonHelper.cs" />
     <Compile Include="Core\GeometryUtils.cs" />
     <Compile Include="Core\Geometry\AnalyzeSegmentsCommand.cs" />

@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using RevitMCPAddin.Core.Failures;
 
 namespace RevitMCPAddin.Core
 {
@@ -10,7 +11,13 @@ namespace RevitMCPAddin.Core
             try
             {
                 var opts = tx.GetFailureHandlingOptions();
-                opts = opts.SetFailuresPreprocessor(new ProceedWithWarningsFailuresPreprocessor());
+
+                // When the router has enabled failureHandling for this command, switch to the whitelist-aware preprocessor.
+                if (FailureHandlingContext.Enabled)
+                    opts = opts.SetFailuresPreprocessor(new FailureHandlingFailuresPreprocessor());
+                else
+                    opts = opts.SetFailuresPreprocessor(new ProceedWithWarningsFailuresPreprocessor());
+
                 opts = opts.SetClearAfterRollback(true);
                 tx.SetFailureHandlingOptions(opts);
             }
@@ -18,4 +25,3 @@ namespace RevitMCPAddin.Core
         }
     }
 }
-

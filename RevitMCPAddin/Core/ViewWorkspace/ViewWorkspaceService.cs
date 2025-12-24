@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Timers;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
@@ -21,6 +22,8 @@ namespace RevitMCPAddin.Core.ViewWorkspace
 
         // Auto-restore set: docKey -> attempt count (best-effort)
         private static readonly Dictionary<string, int> _pendingRestoreAttempts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // Throttle auto-restore attempts (Idling can fire very frequently)
+        private static readonly Dictionary<string, DateTime> _pendingRestoreLastAttemptUtc = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
         // Last seen UIApplication (captured on Idling)
         private static UIApplication? _lastUiapp;
@@ -201,6 +204,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                     if (!_pendingRestoreAttempts.ContainsKey(docKey))
                     {
                         _pendingRestoreAttempts[docKey] = 0;
+                        _pendingRestoreLastAttemptUtc[docKey] = DateTime.MinValue;
                     }
                 }
 
@@ -333,29 +337,103 @@ namespace RevitMCPAddin.Core.ViewWorkspace
 
                         if (!string.IsNullOrEmpty(queued))
                         {
-                            // Try a few times in case the document isn't ready for UI operations yet.
-                            int attempts;
-                            lock (_gate)
-                            {
-                                attempts = _pendingRestoreAttempts[docKey];
-                                _pendingRestoreAttempts[docKey] = attempts + 1;
-                            }
+                            bool skipAttempt = false;
 
-                            if (attempts > 30)
+                            // If snapshot file does not exist, do not spam retry logs.
+                            // This typically means the project has never saved a workspace snapshot yet.
+                            try
                             {
-                                lock (_gate)
+                                var expectedPath = ViewWorkspaceStore.GetWorkspaceFilePath(docKey);
+                                bool canRestore = true;
+                                string? skipReason = null;
+
+                                if (!File.Exists(expectedPath))
                                 {
-                                    _pendingRestoreAttempts.Remove(docKey);
+                                    canRestore = false;
+                                    skipReason = "snapshot file not found";
                                 }
-                                RevitLogger.Warn("ViewWorkspace: auto-restore gave up (too many attempts). docKey=" + docKey);
-                            }
-                            else
-                            {
-                                if (TryStartRestoreForActiveDoc(uiapp, docKey, isAuto: true))
+                                else
+                                {
+                                    // Also treat "cannot load" as missing (corrupted/invalid JSON), and capture a baseline snapshot to recover.
+                                    try
+                                    {
+                                        if (!ViewWorkspaceStore.TryLoadFromFile(docKey, out var loaded, out var loadedPath, out var loadErr))
+                                        {
+                                            canRestore = false;
+                                            skipReason = "snapshot load failed: " + (loadErr ?? "");
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        canRestore = false;
+                                        skipReason = "snapshot load threw an exception";
+                                    }
+                                }
+
+                                if (!canRestore)
                                 {
                                     lock (_gate)
                                     {
                                         _pendingRestoreAttempts.Remove(docKey);
+                                        _pendingRestoreLastAttemptUtc.Remove(docKey);
+                                    }
+
+                                    RevitLogger.Warn("ViewWorkspace: auto-restore skipped (" + (skipReason ?? "unknown") + "). docKey=" + docKey + " path=" + expectedPath + " -> capturing baseline snapshot now.");
+                                    TrySaveSnapshotForDoc(doc, reason: "AutoRestoreSnapshotMissing");
+                                    skipAttempt = true;
+                                }
+                            }
+                            catch { /* ignore */ }
+
+                            if (!skipAttempt)
+                            {
+                                // Throttle: avoid consuming all attempts within a single second.
+                                bool allowAttempt = true;
+                                try
+                                {
+                                    var nowUtc = DateTime.UtcNow;
+                                    lock (_gate)
+                                    {
+                                        DateTime lastUtc;
+                                        if (_pendingRestoreLastAttemptUtc.TryGetValue(docKey, out lastUtc))
+                                        {
+                                            if ((nowUtc - lastUtc).TotalMilliseconds < 500)
+                                                allowAttempt = false;
+                                        }
+                                        if (allowAttempt) _pendingRestoreLastAttemptUtc[docKey] = nowUtc;
+                                    }
+                                }
+                                catch { /* ignore */ }
+
+                                if (allowAttempt)
+                                {
+                                    // Try a few times in case the document isn't ready for UI operations yet.
+                                    int attempts;
+                                    lock (_gate)
+                                    {
+                                        attempts = _pendingRestoreAttempts[docKey];
+                                        _pendingRestoreAttempts[docKey] = attempts + 1;
+                                    }
+
+                                    if (attempts > 30)
+                                    {
+                                        lock (_gate)
+                                        {
+                                            _pendingRestoreAttempts.Remove(docKey);
+                                            _pendingRestoreLastAttemptUtc.Remove(docKey);
+                                        }
+                                        RevitLogger.Warn("ViewWorkspace: auto-restore gave up (too many attempts). docKey=" + docKey);
+                                    }
+                                    else
+                                    {
+                                        if (TryStartRestoreForActiveDoc(uiapp, docKey, isAuto: true))
+                                        {
+                                            lock (_gate)
+                                            {
+                                                _pendingRestoreAttempts.Remove(docKey);
+                                                _pendingRestoreLastAttemptUtc.Remove(docKey);
+                                            }
+                                        }
                                     }
                                 }
                             }
