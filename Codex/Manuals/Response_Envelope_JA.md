@@ -32,6 +32,20 @@ RevitMCP はすべてのコマンド応答に **共通フィールド** を付�
 
 多くのコマンドに `params.expectedContextToken` を渡すと、トークン不一致時に `code: PRECONDITION_FAILED` で早期に失敗します。
 
+## 失敗処理（failureHandling）確認ゲート（Step 10）
+バッチ的な操作（目安: `elementIds` が 5 件以上）の場合、ルータが実行前に確認を要求し、次を返すことがあります:
+- `code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED"`
+
+続行するには、同じコマンドを再実行し、`params.failureHandling` を明示指定してください:
+- オフ: `{ "failureHandling": { "enabled": false } }`
+- ロールバック（既定）: `{ "failureHandling": { "enabled": true, "mode": "rollback" } }`
+- 削除（whitelist 警告のみ）: `{ "failureHandling": { "enabled": true, "mode": "delete" } }`
+- 解決（whitelist のみ）: `{ "failureHandling": { "enabled": true, "mode": "resolve" } }`
+
+`failureHandling` を明示した場合、応答ペイロードに `failureHandling` ブロック（whitelist 読み込み状態・捕捉した失敗 `issues` など）が付与されることがあります。
+
+また、**ロールバック／トランザクション未コミット**（例: `code: "TX_NOT_COMMITTED"`）が発生した場合は、`failureHandling` を明示していなくても、警告詳細を必ず記録するために `failureHandling` の診断情報（`issues`, `rollbackDetected` など）が付与されることがあります。
+
 ## timings
 - `timings.queueWaitMs`: キュー待ち時間（サーバー算出）
 - `timings.revitMs`: Revit 内の実行時間（アドイン計測。未設定時はサーバーが補完）

@@ -15,6 +15,9 @@
 
 詳細: `Manuals/ConnectionGuide/Revitデータ取得完全ガイド.md` の「6. パラメータ入出力依頼時の事前確認ルール（Snoop 推奨）」。
 
+## 重要: バッチ安全策（`failureHandling`）
+バッチ的な操作（目安: `elementIds` が 5 件以上）の場合、`params.failureHandling` を明示していないと `code: FAILURE_HANDLING_CONFIRMATION_REQUIRED` が返り、実行前に確認を要求することがあります。詳細: [failure_handling](failure_handling.md)
+
 ## AnalysisOps
 - [check_clashes](check_clashes.md)
 - [diff_elements](diff_elements.md)

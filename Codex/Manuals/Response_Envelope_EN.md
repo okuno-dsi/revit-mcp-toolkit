@@ -30,6 +30,20 @@ Some async/utility paths may return payload at:
 
 If you pass `params.expectedContextToken` to many commands, the add-in will fail fast with `code: PRECONDITION_FAILED` when the token does not match.
 
+## Failure handling gate (Step 10)
+For batch-like operations (heuristic: `elementIds` count >= 5), the router may refuse to execute and return:
+- `code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED"`
+
+To proceed, re-run the same command and explicitly set `params.failureHandling`:
+- off: `{ "failureHandling": { "enabled": false } }`
+- rollback (default): `{ "failureHandling": { "enabled": true, "mode": "rollback" } }`
+- delete: `{ "failureHandling": { "enabled": true, "mode": "delete" } }`
+- resolve: `{ "failureHandling": { "enabled": true, "mode": "resolve" } }`
+
+When `failureHandling` is explicitly provided, the payload may include a `failureHandling` block with whitelist load status and captured failures (`issues`).
+
+Additionally, when a command results in rollback / transaction-not-committed (e.g. `code: "TX_NOT_COMMITTED"`), the router may attach rollback diagnostics (`failureHandling.issues`, `failureHandling.rollbackDetected`, etc.) even if `failureHandling` was not explicitly provided, so warning details are always recorded.
+
 ## Timings
 - `timings.queueWaitMs`: time waiting in the durable queue (server-derived)
 - `timings.revitMs`: time spent executing in Revit (add-in measurement; server fills if missing)

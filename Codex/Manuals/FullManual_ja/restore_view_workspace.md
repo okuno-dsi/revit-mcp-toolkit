@@ -20,6 +20,7 @@
 
 自動動作:
 - プロジェクトを開いたときの自動restoreは **デフォルトON** です（`%LOCALAPPDATA%\\RevitMCP\\settings.json` の `viewWorkspace.autoRestoreEnabled` でOFF可）。
+- まだスナップショットファイルが存在しない場合（その `doc_key` で初回など）や、スナップショットが読み込めない場合（JSON破損など）は、自動restoreはスキップされ、次回以降に復元できるよう **ベースラインのスナップショットを自動保存**します。
 
 ## パラメータ
 | 名前 | 型 | 必須 | 既定値 |
