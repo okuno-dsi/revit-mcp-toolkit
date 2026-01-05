@@ -92,8 +92,8 @@ Get-NetTCPConnection -LocalPort 5210,5211,5212 -State Listen | Select-Object Loc
 ```
 
 ## 8) Scale Further (Multi‑Revit & Recording/Replay)
-- Stable multi‑instance chain: Client → Proxy(5221) → Playbook(5209) → RevitMCP(5210+)
-- Routing pattern: `POST http://127.0.0.1:5221/t/{revitPort}/rpc`
+- Stable multi‑instance chain: Client → Playbook(5209) → RevitMCP(5210+)
+- Routing pattern: `POST http://127.0.0.1:5209/t/{revitPort}/rpc`
 - Details: `Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md`
 
 ## 9) Next Reads (Source Guides)
