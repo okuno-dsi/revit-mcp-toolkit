@@ -90,8 +90,9 @@ if ($logs -and $logs.Count -gt 0) {
   try {
     $json = Get-Content -Raw -Encoding UTF8 -Path $latest | ConvertFrom-Json
     $activeViewId = $json.result.result.environment.activeViewId
-    if ($activeViewId -is [int] -and $activeViewId -gt 0) {
-      Write-Host "Active View ID: $activeViewId" -ForegroundColor Green
+    $activeViewIdLong = 0L
+    if ([long]::TryParse("$activeViewId", [ref]$activeViewIdLong) -and $activeViewIdLong -gt 0) {
+      Write-Host "Active View ID: $activeViewIdLong" -ForegroundColor Green
     } else {
       Write-Host "Active View ID not found or invalid in the bootstrap JSON." -ForegroundColor Yellow
     }
@@ -106,4 +107,3 @@ Write-Host "[Next] List elements in active view:" -ForegroundColor Cyan
 Write-Host "  pwsh -ExecutionPolicy Bypass -File ./Manuals/Scripts/list_elements_in_view.ps1 -Port $usePort" -ForegroundColor Gray
 
 Write-Host "Done." -ForegroundColor Cyan
-

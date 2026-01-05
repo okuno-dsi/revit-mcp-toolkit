@@ -34,6 +34,31 @@ namespace RevitMCPAddin.Commands.Room
     {
         public string CommandName => "get_room_finish_takeoff_context";
 
+        // Default: "takeoff objects" (not drafting/reference lines).
+        // Used only when includeInteriorElements=true and interiorCategories is omitted/empty.
+        private static readonly BuiltInCategory[] DefaultInteriorElementCategoriesForTakeoff = new[]
+        {
+            BuiltInCategory.OST_Walls,
+            BuiltInCategory.OST_Floors,
+            BuiltInCategory.OST_Ceilings,
+            BuiltInCategory.OST_Roofs,
+            BuiltInCategory.OST_Doors,
+            BuiltInCategory.OST_Windows,
+            BuiltInCategory.OST_Columns,
+            BuiltInCategory.OST_StructuralColumns,
+            BuiltInCategory.OST_StructuralFraming,
+            BuiltInCategory.OST_Furniture,
+            BuiltInCategory.OST_FurnitureSystems,
+            BuiltInCategory.OST_Casework,
+            BuiltInCategory.OST_SpecialityEquipment,
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_PlumbingFixtures,
+            BuiltInCategory.OST_LightingFixtures,
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_ElectricalFixtures,
+        };
+
         private sealed class BoundarySegmentInfo
         {
             public int LoopIndex { get; }
@@ -115,6 +140,8 @@ namespace RevitMCPAddin.Commands.Room
             public int TypeId { get; set; }
             public string TypeName { get; set; } = string.Empty;
             public string CategoryName { get; set; } = string.Empty;
+            public int LevelId { get; set; }
+            public string LevelName { get; set; } = string.Empty;
             public BoundingBoxXYZ? BBox { get; set; }
             public double HeightFromRoomLevelMm { get; set; }
         }
@@ -191,6 +218,16 @@ namespace RevitMCPAddin.Commands.Room
             bool includeFloorCeilingInfo = p.Value<bool?>("includeFloorCeilingInfo") ?? true;
             double floorCeilingSearchMarginMm = p.Value<double?>("floorCeilingSearchMarginMm") ?? 1000.0;
             double segmentInteriorInsetMm = p.Value<double?>("segmentInteriorInsetMm") ?? 100.0;
+            bool floorCeilingSameLevelOnly = p.Value<bool?>("floorCeilingSameLevelOnly") ?? true;
+
+            // Interior elements in room (walls etc.)
+            bool includeInteriorElements = p.Value<bool?>("includeInteriorElements") ?? false;
+            double interiorElementSearchMarginMm = p.Value<double?>("interiorElementSearchMarginMm") ?? 1000.0;
+            double interiorElementSampleStepMm = p.Value<double?>("interiorElementSampleStepMm") ?? 200.0;
+            bool interiorElementPointBboxProbe = p.Value<bool?>("interiorElementPointBboxProbe") ?? true;
+            var interiorCategories = ResolveCategories(
+                p["interiorCategories"] as JArray,
+                DefaultInteriorElementCategoriesForTakeoff);
 
             // Sanitize
             if (wallMaxOffsetMm < 0) wallMaxOffsetMm = 0;
@@ -201,6 +238,8 @@ namespace RevitMCPAddin.Commands.Room
             if (columnWallTouchMarginMm < 0) columnWallTouchMarginMm = 0;
             if (floorCeilingSearchMarginMm < 0) floorCeilingSearchMarginMm = 0;
             if (segmentInteriorInsetMm < 0) segmentInteriorInsetMm = 0;
+            if (interiorElementSearchMarginMm < 0) interiorElementSearchMarginMm = 0;
+            if (interiorElementSampleStepMm <= 0) interiorElementSampleStepMm = 200.0;
 
             // Column IDs (explicit list)
             var columnIds = new List<ElementId>();
@@ -511,7 +550,13 @@ namespace RevitMCPAddin.Commands.Room
             {
                 try
                 {
-                    var fc = CollectFloorCeilingContext(doc, room, segmentOutRefs, floorCeilingSearchMarginMm, segmentInteriorInsetMm);
+                    var fc = CollectFloorCeilingContext(
+                        doc,
+                        room,
+                        segmentOutRefs,
+                        floorCeilingSearchMarginMm,
+                        segmentInteriorInsetMm,
+                        floorCeilingSameLevelOnly);
                     floorsOut = fc.floors;
                     ceilingsOut = fc.ceilings;
                     ceilingIdsBySegmentKeyOut = fc.ceilingIdsBySegmentKey;
@@ -530,6 +575,29 @@ namespace RevitMCPAddin.Commands.Room
                     floorsOut = null;
                     ceilingsOut = null;
                     ceilingIdsBySegmentKeyOut = null;
+                }
+            }
+
+            // ----------------------------
+            // Interior elements in room (walls etc.)
+            // ----------------------------
+            object? interiorElementsOut = null;
+            if (includeInteriorElements)
+            {
+                try
+                {
+                    interiorElementsOut = CollectInteriorElementsInRoom(
+                        doc,
+                        room,
+                        segmentOutRefs,
+                        interiorCategories,
+                        interiorElementSearchMarginMm,
+                        interiorElementSampleStepMm,
+                        interiorElementPointBboxProbe);
+                }
+                catch
+                {
+                    interiorElementsOut = new { ok = false, msg = "Failed to collect interior elements in room." };
                 }
             }
 
@@ -775,6 +843,12 @@ namespace RevitMCPAddin.Commands.Room
                     includeFloorCeilingInfo,
                     floorCeilingSearchMarginMm,
                     segmentInteriorInsetMm,
+                    floorCeilingSameLevelOnly,
+                    includeInteriorElements,
+                    interiorElementSearchMarginMm,
+                    interiorElementSampleStepMm,
+                    interiorElementPointBboxProbe,
+                    interiorCategories = interiorCategories.Select(x => x.ToString()).ToArray(),
                     autoDetectedColumnIds = autoDetectedColumns.Select(x => x.IntValue()).ToArray(),
                     toggledColumnIds = toggledColumnIds.ToArray()
                 },
@@ -785,6 +859,7 @@ namespace RevitMCPAddin.Commands.Room
                 floors = floorsOut,
                 ceilings = ceilingsOut,
                 ceilingIdsBySegmentKey = ceilingIdsBySegmentKeyOut,
+                interiorElements = interiorElementsOut,
                 insertsByWall = insertsByWallOut,
                 inserts = insertsOut,
                 columns = columnsOut,
@@ -826,6 +901,312 @@ namespace RevitMCPAddin.Commands.Room
             catch { return null; }
         }
 
+        private static List<BuiltInCategory> ResolveCategories(JArray? categoriesToken, BuiltInCategory[] defaultCategories)
+        {
+            var resolved = new List<BuiltInCategory>();
+            if (categoriesToken == null || categoriesToken.Count == 0)
+            {
+                resolved.AddRange(defaultCategories ?? Array.Empty<BuiltInCategory>());
+                return resolved.Distinct().ToList();
+            }
+
+            foreach (var t in categoriesToken)
+            {
+                try
+                {
+                    if (t.Type == JTokenType.Integer)
+                    {
+                        int v = t.Value<int>();
+                        var bic = (BuiltInCategory)v;
+                        if (bic != BuiltInCategory.INVALID) resolved.Add(bic);
+                        continue;
+                    }
+
+                    if (t.Type != JTokenType.String) continue;
+                    var s = (t.Value<string>() ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(s)) continue;
+
+                    // Friendly names + enum names
+                    var map = new Dictionary<string, BuiltInCategory>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { "Walls", BuiltInCategory.OST_Walls },
+                        { "Wall", BuiltInCategory.OST_Walls },
+                        { "壁", BuiltInCategory.OST_Walls },
+                        { "Structural Framing", BuiltInCategory.OST_StructuralFraming },
+                        { "Structural Frame", BuiltInCategory.OST_StructuralFraming },
+                        { "構造フレーム", BuiltInCategory.OST_StructuralFraming },
+                        { "Structural Columns", BuiltInCategory.OST_StructuralColumns },
+                        { "Structural Column", BuiltInCategory.OST_StructuralColumns },
+                        { "建築柱", BuiltInCategory.OST_Columns },
+                        { "構造柱", BuiltInCategory.OST_StructuralColumns },
+                        { "Columns", BuiltInCategory.OST_Columns },
+                        { "Column", BuiltInCategory.OST_Columns },
+                        { "柱", BuiltInCategory.OST_Columns },
+                        { "Floors", BuiltInCategory.OST_Floors },
+                        { "床", BuiltInCategory.OST_Floors },
+                        { "Ceilings", BuiltInCategory.OST_Ceilings },
+                        { "天井", BuiltInCategory.OST_Ceilings },
+                        { "Doors", BuiltInCategory.OST_Doors },
+                        { "Windows", BuiltInCategory.OST_Windows },
+                        { "Furniture", BuiltInCategory.OST_Furniture },
+                        { "家具", BuiltInCategory.OST_Furniture },
+                        { "Furniture Systems", BuiltInCategory.OST_FurnitureSystems },
+                        { "Furniture System", BuiltInCategory.OST_FurnitureSystems },
+                        { "家具システム", BuiltInCategory.OST_FurnitureSystems },
+                        { "Casework", BuiltInCategory.OST_Casework },
+                        { "造作", BuiltInCategory.OST_Casework },
+                        { "造作家具", BuiltInCategory.OST_Casework },
+                        { "Specialty Equipment", BuiltInCategory.OST_SpecialityEquipment },
+                        { "Speciality Equipment", BuiltInCategory.OST_SpecialityEquipment },
+                        { "SpecialtyEquipment", BuiltInCategory.OST_SpecialityEquipment },
+                        { "特別設備", BuiltInCategory.OST_SpecialityEquipment },
+                        { "Generic Models", BuiltInCategory.OST_GenericModel },
+                        { "Generic Model", BuiltInCategory.OST_GenericModel },
+                        { "汎用モデル", BuiltInCategory.OST_GenericModel },
+                        { "Mechanical Equipment", BuiltInCategory.OST_MechanicalEquipment },
+                        { "MechanicalEquipment", BuiltInCategory.OST_MechanicalEquipment },
+                        { "機械設備", BuiltInCategory.OST_MechanicalEquipment },
+                        { "設備機器", BuiltInCategory.OST_MechanicalEquipment },
+                        { "Plumbing Fixtures", BuiltInCategory.OST_PlumbingFixtures },
+                        { "PlumbingFixtures", BuiltInCategory.OST_PlumbingFixtures },
+                        { "衛生器具", BuiltInCategory.OST_PlumbingFixtures },
+                        { "Lighting Fixtures", BuiltInCategory.OST_LightingFixtures },
+                        { "LightingFixtures", BuiltInCategory.OST_LightingFixtures },
+                        { "照明器具", BuiltInCategory.OST_LightingFixtures },
+                        { "Electrical Equipment", BuiltInCategory.OST_ElectricalEquipment },
+                        { "ElectricalEquipment", BuiltInCategory.OST_ElectricalEquipment },
+                        { "電気機器", BuiltInCategory.OST_ElectricalEquipment },
+                        { "Electrical Fixtures", BuiltInCategory.OST_ElectricalFixtures },
+                        { "ElectricalFixtures", BuiltInCategory.OST_ElectricalFixtures },
+                        { "電気器具", BuiltInCategory.OST_ElectricalFixtures },
+                    };
+
+                    if (map.TryGetValue(s, out var bic1))
+                    {
+                        if (bic1 != BuiltInCategory.INVALID) resolved.Add(bic1);
+                        continue;
+                    }
+
+                    if (Enum.TryParse<BuiltInCategory>(s, true, out var bic2) && bic2 != BuiltInCategory.INVALID)
+                    {
+                        resolved.Add(bic2);
+                        continue;
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            if (resolved.Count == 0)
+                resolved.AddRange(defaultCategories ?? Array.Empty<BuiltInCategory>());
+
+            return resolved.Distinct().ToList();
+        }
+
+        private static ElementId? ResolveElementLevelId(Element e)
+        {
+            try
+            {
+                switch (e)
+                {
+                    case Autodesk.Revit.DB.Wall w:
+                        return w.LevelId;
+                    case Autodesk.Revit.DB.Floor f:
+                        return f.LevelId;
+                    case Autodesk.Revit.DB.Ceiling c:
+                        return c.LevelId;
+                    case Autodesk.Revit.DB.RoofBase rb:
+                        return rb.LevelId;
+                    case Autodesk.Revit.DB.FamilyInstance fi:
+                        if (fi.LevelId != ElementId.InvalidElementId)
+                            return fi.LevelId;
+                        break;
+                    case Autodesk.Revit.DB.Architecture.Room r:
+                        return r.LevelId;
+                    case Autodesk.Revit.DB.Mechanical.Space s:
+                        return s.LevelId;
+                }
+
+                var pLevel = e.get_Parameter(BuiltInParameter.LEVEL_PARAM)
+                             ?? e.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM)
+                             ?? e.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM)
+                             ?? e.get_Parameter(BuiltInParameter.INSTANCE_SCHEDULE_ONLY_LEVEL_PARAM);
+                if (pLevel != null && pLevel.StorageType == StorageType.ElementId)
+                    return pLevel.AsElementId();
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return null;
+        }
+
+        private static bool TryGetElementBbox(Element e, out BoundingBoxXYZ? bb)
+        {
+            bb = null;
+            if (e == null) return false;
+            try
+            {
+                bb = e.get_BoundingBox(null);
+                return bb != null;
+            }
+            catch
+            {
+                bb = null;
+                return false;
+            }
+        }
+
+        private static bool TryGetBboxWorldMinMaxXY(BoundingBoxXYZ bb, out double minX, out double minY, out double maxX, out double maxY)
+        {
+            minX = double.PositiveInfinity;
+            minY = double.PositiveInfinity;
+            maxX = double.NegativeInfinity;
+            maxY = double.NegativeInfinity;
+
+            if (bb == null) return false;
+
+            try
+            {
+                var tr = bb.Transform ?? Transform.Identity;
+                var corners = new[]
+                {
+                    new XYZ(bb.Min.X, bb.Min.Y, bb.Min.Z),
+                    new XYZ(bb.Min.X, bb.Min.Y, bb.Max.Z),
+                    new XYZ(bb.Min.X, bb.Max.Y, bb.Min.Z),
+                    new XYZ(bb.Min.X, bb.Max.Y, bb.Max.Z),
+                    new XYZ(bb.Max.X, bb.Min.Y, bb.Min.Z),
+                    new XYZ(bb.Max.X, bb.Min.Y, bb.Max.Z),
+                    new XYZ(bb.Max.X, bb.Max.Y, bb.Min.Z),
+                    new XYZ(bb.Max.X, bb.Max.Y, bb.Max.Z),
+                }.Select(c => tr.OfPoint(c));
+
+                foreach (var p in corners)
+                {
+                    minX = Math.Min(minX, p.X);
+                    minY = Math.Min(minY, p.Y);
+                    maxX = Math.Max(maxX, p.X);
+                    maxY = Math.Max(maxY, p.Y);
+                }
+
+                if (!(minX < maxX && minY < maxY)) return false;
+                return true;
+            }
+            catch
+            {
+                minX = minY = double.PositiveInfinity;
+                maxX = maxY = double.NegativeInfinity;
+                return false;
+            }
+        }
+
+        private static bool CrossesZPlane(BoundingBoxXYZ bb, double zFt, double tolFt)
+        {
+            if (bb == null) return false;
+            double z0 = Math.Min(bb.Min.Z, bb.Max.Z);
+            double z1 = Math.Max(bb.Min.Z, bb.Max.Z);
+            return (z0 - tolFt) <= zFt && zFt <= (z1 + tolFt);
+        }
+
+        private static double ComputeRoomProbeZFt(Autodesk.Revit.DB.Architecture.Room room, Level? level, double roomBaseZFt)
+        {
+            try
+            {
+                var bb = room.get_BoundingBox(null);
+                if (bb != null)
+                    return 0.5 * (bb.Min.Z + bb.Max.Z);
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                var lp = room.Location as LocationPoint;
+                if (lp?.Point != null)
+                    return lp.Point.Z;
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                double lvlZ = level?.Elevation ?? roomBaseZFt;
+                return lvlZ + UnitHelper.MmToFt(1000.0);
+            }
+            catch { /* ignore */ }
+
+            return roomBaseZFt;
+        }
+
+        private static (double insideMm, double totalMm) ComputeCurveInsideLengthInRoom(
+            Curve curve,
+            Autodesk.Revit.DB.Architecture.Room room,
+            double zProbeFt,
+            double sampleStepMm)
+        {
+            if (curve == null || room == null) return (0.0, 0.0);
+            double stepFt = UnitHelper.MmToFt(sampleStepMm);
+            if (stepFt <= 1e-9) stepFt = UnitHelper.MmToFt(200.0);
+
+            IList<XYZ>? tess = null;
+            try { tess = curve.Tessellate(); } catch { tess = null; }
+
+            var basePts = new List<XYZ>();
+            if (tess != null && tess.Count >= 2)
+            {
+                basePts.AddRange(tess);
+            }
+            else
+            {
+                try
+                {
+                    basePts.Add(curve.GetEndPoint(0));
+                    basePts.Add(curve.GetEndPoint(1));
+                }
+                catch
+                {
+                    return (0.0, 0.0);
+                }
+            }
+
+            var pts = new List<XYZ>();
+            pts.Add(basePts[0]);
+
+            for (int i = 0; i < basePts.Count - 1; i++)
+            {
+                var a = basePts[i];
+                var b = basePts[i + 1];
+                double segLenFt = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+                int div = Math.Max(1, (int)Math.Ceiling(segLenFt / stepFt));
+                for (int j = 1; j <= div; j++)
+                {
+                    double t = (double)j / (double)div;
+                    pts.Add(a + (b - a) * t);
+                }
+            }
+
+            double insideFt = 0.0;
+            double totalFt = 0.0;
+
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                var a = pts[i];
+                var b = pts[i + 1];
+                double lenFt = Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
+                if (lenFt <= 1e-12) continue;
+                totalFt += lenFt;
+
+                var mid = (a + b) * 0.5;
+                var probe = new XYZ(mid.X, mid.Y, zProbeFt);
+                bool inside = false;
+                try { inside = room.IsPointInRoom(probe); } catch { inside = false; }
+                if (inside) insideFt += lenFt;
+            }
+
+            return (UnitHelper.FtToMm(insideFt), UnitHelper.FtToMm(totalFt));
+        }
+
         private static bool IsPointInBboxXY(XYZ ptFt, BoundingBoxXYZ bb)
         {
             if (bb == null) return false;
@@ -839,10 +1220,12 @@ namespace RevitMCPAddin.Commands.Room
                 Autodesk.Revit.DB.Architecture.Room room,
                 List<SegmentOutRef> segments,
                 double searchMarginMm,
-                double segmentInsetMm)
+                double segmentInsetMm,
+                bool sameLevelOnly)
         {
             var level = doc.GetElement(room.LevelId) as Level;
             double roomLevelElevMm = UnitHelper.FtToMm(level?.Elevation ?? 0.0);
+            int roomLevelIdInt = room.LevelId.IntValue();
 
             // Z probe for IsPointInRoom (keep it inside the room volume)
             double zProbeFt = 0.0;
@@ -915,6 +1298,20 @@ namespace RevitMCPAddin.Commands.Room
                     double absElevMm = 0.0;
                     try { absElevMm = UnitHelper.CeilingElevationMm(doc, c); } catch { absElevMm = UnitHelper.FtToMm(bb.Min.Z); }
 
+                    int levelIdInt = 0;
+                    string levelName = string.Empty;
+                    try
+                    {
+                        var lid = ResolveElementLevelId(c);
+                        if (lid != null && lid != ElementId.InvalidElementId)
+                        {
+                            levelIdInt = lid.IntValue();
+                            var l = doc.GetElement(lid) as Level;
+                            levelName = l?.Name ?? string.Empty;
+                        }
+                    }
+                    catch { /* ignore */ }
+
                     ceilingCandidates.Add(new BBoxCandidate
                     {
                         ElementId = c.Id.IntValue(),
@@ -922,6 +1319,8 @@ namespace RevitMCPAddin.Commands.Room
                         TypeId = typeId,
                         TypeName = typeName,
                         CategoryName = c.Category?.Name ?? string.Empty,
+                        LevelId = levelIdInt,
+                        LevelName = levelName,
                         BBox = bb,
                         HeightFromRoomLevelMm = absElevMm - roomLevelElevMm
                     });
@@ -959,6 +1358,20 @@ namespace RevitMCPAddin.Commands.Room
 
                     double topMm = UnitHelper.FtToMm(bb.Max.Z);
 
+                    int levelIdInt = 0;
+                    string levelName = string.Empty;
+                    try
+                    {
+                        var lid = ResolveElementLevelId(fl);
+                        if (lid != null && lid != ElementId.InvalidElementId)
+                        {
+                            levelIdInt = lid.IntValue();
+                            var l = doc.GetElement(lid) as Level;
+                            levelName = l?.Name ?? string.Empty;
+                        }
+                    }
+                    catch { /* ignore */ }
+
                     floorCandidates.Add(new BBoxCandidate
                     {
                         ElementId = fl.Id.IntValue(),
@@ -966,6 +1379,8 @@ namespace RevitMCPAddin.Commands.Room
                         TypeId = typeId,
                         TypeName = typeName,
                         CategoryName = fl.Category?.Name ?? string.Empty,
+                        LevelId = levelIdInt,
+                        LevelName = levelName,
                         BBox = bb,
                         HeightFromRoomLevelMm = topMm - roomLevelElevMm
                     });
@@ -974,6 +1389,21 @@ namespace RevitMCPAddin.Commands.Room
             catch
             {
                 floorCandidates = new List<BBoxCandidate>();
+            }
+
+            if (sameLevelOnly)
+            {
+                // By default, do not mix floors/ceilings from other levels.
+                // This keeps the output closer to a "room finish takeoff" context.
+                try
+                {
+                    ceilingCandidates = ceilingCandidates.Where(x => x.LevelId == roomLevelIdInt).ToList();
+                    floorCandidates = floorCandidates.Where(x => x.LevelId == roomLevelIdInt).ToList();
+                }
+                catch
+                {
+                    // ignore
+                }
             }
 
             var ceilingIdsBySegKey = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
@@ -1089,6 +1519,8 @@ namespace RevitMCPAddin.Commands.Room
                     categoryName = f.CategoryName,
                     typeId = f.TypeId,
                     typeName = f.TypeName,
+                    levelId = f.LevelId,
+                    levelName = f.LevelName,
                     topHeightFromRoomLevelMm = Math.Round(f.HeightFromRoomLevelMm, 3)
                 })
                 .ToArray();
@@ -1104,11 +1536,357 @@ namespace RevitMCPAddin.Commands.Room
                     categoryName = c.CategoryName,
                     typeId = c.TypeId,
                     typeName = c.TypeName,
+                    levelId = c.LevelId,
+                    levelName = c.LevelName,
                     heightFromRoomLevelMm = Math.Round(c.HeightFromRoomLevelMm, 3)
                 })
                 .ToArray();
 
             return (floorsOut, ceilingsOut, ceilingIdsBySegKey, ceilingHeightsBySegKey);
+        }
+
+        private static object CollectInteriorElementsInRoom(
+            Document doc,
+            Autodesk.Revit.DB.Architecture.Room room,
+            List<SegmentOutRef> segments,
+            List<BuiltInCategory> categories,
+            double searchMarginMm,
+            double sampleStepMm,
+            bool pointBboxProbe)
+        {
+            if (doc == null || room == null)
+                return new { ok = false, msg = "doc/room is null." };
+
+            var level = doc.GetElement(room.LevelId) as Level;
+
+            double baseOffsetFt = 0.0;
+            try
+            {
+                var p = room.get_Parameter(BuiltInParameter.ROOM_LOWER_OFFSET);
+                if (p != null && p.StorageType == StorageType.Double)
+                    baseOffsetFt = p.AsDouble();
+            }
+            catch { /* ignore */ }
+
+            double roomBaseZFt = (level?.Elevation ?? 0.0) + baseOffsetFt;
+            double zProbeFt = ComputeRoomProbeZFt(room, level, roomBaseZFt);
+
+            // Outline around room boundary bbox
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+            foreach (var s in segments)
+            {
+                minX = Math.Min(minX, Math.Min(s.StartFt.X, s.EndFt.X));
+                minY = Math.Min(minY, Math.Min(s.StartFt.Y, s.EndFt.Y));
+                maxX = Math.Max(maxX, Math.Max(s.StartFt.X, s.EndFt.X));
+                maxY = Math.Max(maxY, Math.Max(s.StartFt.Y, s.EndFt.Y));
+            }
+
+            if (double.IsInfinity(minX))
+            {
+                var bbRoom = room.get_BoundingBox(null);
+                if (bbRoom != null)
+                {
+                    minX = bbRoom.Min.X; minY = bbRoom.Min.Y;
+                    maxX = bbRoom.Max.X; maxY = bbRoom.Max.Y;
+                }
+            }
+
+            double marginFt = UnitHelper.MmToFt(searchMarginMm);
+            var outline = new Outline(
+                new XYZ(minX - marginFt, minY - marginFt, roomBaseZFt - UnitHelper.MmToFt(100000.0)),
+                new XYZ(maxX + marginFt, maxY + marginFt, roomBaseZFt + UnitHelper.MmToFt(100000.0)));
+            var bbFilter = new BoundingBoxIntersectsFilter(outline);
+
+            var items = new List<object>();
+            var countsByCategory = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            double tolFt = UnitHelper.MmToFt(1.0);
+
+            foreach (var bic in categories.Distinct())
+            {
+                var catKey = bic.ToString();
+                int added = 0;
+
+                IList<Element> elems;
+                try
+                {
+                    elems = new FilteredElementCollector(doc)
+                        .OfCategory(bic)
+                        .WhereElementIsNotElementType()
+                        .WherePasses(bbFilter)
+                        .ToElements();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var e in elems)
+                {
+                    if (e == null) continue;
+
+                    // Level filter: same level OR spans through the room base plane
+                    bool sameLevel = false;
+                    try
+                    {
+                        var eid = ResolveElementLevelId(e);
+                        if (eid != null && eid != ElementId.InvalidElementId && eid == room.LevelId)
+                            sameLevel = true;
+                    }
+                    catch { /* ignore */ }
+
+                    bool crosses = false;
+                    if (!sameLevel)
+                    {
+                        if (TryGetElementBbox(e, out var bb) && bb != null)
+                            crosses = CrossesZPlane(bb, roomBaseZFt, tolFt);
+                    }
+
+                    if (!sameLevel && !crosses)
+                        continue;
+
+                    // Type info
+                    int typeId = 0;
+                    string typeName = string.Empty;
+                    try
+                    {
+                        var tid = e.GetTypeId();
+                        typeId = tid != null ? tid.IntValue() : 0;
+                        var et = tid != null ? doc.GetElement(tid) as ElementType : null;
+                        typeName = et?.Name ?? string.Empty;
+                    }
+                    catch { /* ignore */ }
+
+                    // Determine inside / length in room
+                    double? insideLenMm = null;
+                    double? totalLenMm = null;
+                    double? insideRatio = null;
+                    string method = "unknown";
+
+                    bool include = false;
+
+                    var lc = e.Location as LocationCurve;
+                    if (lc?.Curve != null)
+                    {
+                        var (insideMm, totalMm) = ComputeCurveInsideLengthInRoom(lc.Curve, room, zProbeFt, sampleStepMm);
+                        totalLenMm = Math.Round(totalMm, 3);
+                        insideLenMm = Math.Round(insideMm, 3);
+                        insideRatio = (totalMm > 1e-6) ? Math.Round(insideMm / totalMm, 6) : (double?)null;
+                        method = "LocationCurve.sample2d.midpoint@zProbe";
+                        include = insideMm > 1e-3;
+                    }
+                    else
+                    {
+                        XYZ? pt = null;
+                        var lp = e.Location as LocationPoint;
+                        if (lp?.Point != null)
+                        {
+                            pt = lp.Point;
+                            method = "LocationPoint@zProbe";
+                        }
+                        else if (TryGetElementBbox(e, out var bb) && bb != null)
+                        {
+                            pt = (bb.Min + bb.Max) * 0.5;
+                            method = "BBoxCenter@zProbe";
+                        }
+
+                        if (pt != null)
+                        {
+                            bool referencePointInside = false;
+                            object? referencePointMmObj = null;
+                            try
+                            {
+                                var probe = new XYZ(pt.X, pt.Y, zProbeFt);
+                                referencePointInside = room.IsPointInRoom(probe);
+                                var probeMm = UnitHelper.XyzToMm(probe);
+                                referencePointMmObj = new
+                                {
+                                    x = Math.Round(probeMm.x, 3),
+                                    y = Math.Round(probeMm.y, 3),
+                                    z = Math.Round(probeMm.z, 3)
+                                };
+                            }
+                            catch
+                            {
+                                referencePointInside = false;
+                                referencePointMmObj = null;
+                            }
+
+                            int bboxProbeSampleCount = 0;
+                            int bboxProbeInsideCount = 0;
+                            bool includedByBboxProbe = false;
+
+                            if (!referencePointInside && pointBboxProbe)
+                            {
+                                try
+                                {
+                                    if (TryGetElementBbox(e, out var bb2) && bb2 != null)
+                                    {
+                                        if (TryGetBboxWorldMinMaxXY(bb2, out double bx0, out double by0, out double bx1, out double by1))
+                                        {
+                                            double epsFt = UnitHelper.MmToFt(1.0);
+                                            double x0 = bx0 + epsFt;
+                                            double x1 = bx1 - epsFt;
+                                            double y0 = by0 + epsFt;
+                                            double y1 = by1 - epsFt;
+                                            if (x1 < x0) { x0 = bx0; x1 = bx1; }
+                                            if (y1 < y0) { y0 = by0; y1 = by1; }
+
+                                            double xMid = 0.5 * (bx0 + bx1);
+                                            double yMid = 0.5 * (by0 + by1);
+
+                                            var probes = new List<XYZ>
+                                            {
+                                                new XYZ(xMid, yMid, zProbeFt),
+                                                new XYZ(x0, y0, zProbeFt),
+                                                new XYZ(x1, y0, zProbeFt),
+                                                new XYZ(x1, y1, zProbeFt),
+                                                new XYZ(x0, y1, zProbeFt),
+                                                new XYZ(xMid, y0, zProbeFt),
+                                                new XYZ(x1, yMid, zProbeFt),
+                                                new XYZ(xMid, y1, zProbeFt),
+                                                new XYZ(x0, yMid, zProbeFt),
+                                            };
+
+                                            bboxProbeSampleCount = probes.Count;
+                                            foreach (var q in probes)
+                                            {
+                                                bool insideQ = false;
+                                                try { insideQ = room.IsPointInRoom(q); } catch { insideQ = false; }
+                                                if (insideQ) bboxProbeInsideCount++;
+                                            }
+
+                                            if (bboxProbeInsideCount > 0)
+                                            {
+                                                includedByBboxProbe = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    bboxProbeSampleCount = 0;
+                                    bboxProbeInsideCount = 0;
+                                    includedByBboxProbe = false;
+                                }
+                            }
+
+                            include = referencePointInside || includedByBboxProbe;
+
+                            // Add diagnostic fields for point-based inclusion (so the caller can tell when
+                            // the reference point was outside but the element still intersects the room).
+                            if (include)
+                            {
+                                insideLenMm = null;
+                                totalLenMm = null;
+                                insideRatio = null;
+
+                                // Store diagnostics in locals for output below via closures
+                                // (captured in the anonymous object).
+                                var referenceInsideLocal = referencePointInside;
+                                var referencePointMmLocal = referencePointMmObj;
+                                var bboxProbeSampleCountLocal = bboxProbeSampleCount;
+                                var bboxProbeInsideCountLocal = bboxProbeInsideCount;
+                                var includedByBboxProbeLocal = includedByBboxProbe;
+
+                                items.Add(new
+                                {
+                                    elementId = e.Id.IntValue(),
+                                    uniqueId = e.UniqueId ?? string.Empty,
+                                    elementClass = e.GetType().Name,
+                                    categoryId = e.Category?.Id?.IntValue() ?? 0,
+                                    categoryName = e.Category?.Name ?? string.Empty,
+                                    typeId,
+                                    typeName,
+                                    relation = new
+                                    {
+                                        sameLevel,
+                                        crossesRoomBasePlane = crosses,
+                                        roomLevelId = room.LevelId.IntValue(),
+                                        roomBaseZMm = Math.Round(UnitHelper.FtToMm(roomBaseZFt), 3),
+                                        zProbeMm = Math.Round(UnitHelper.FtToMm(zProbeFt), 3)
+                                    },
+                                    measure = new
+                                    {
+                                        method,
+                                        sampleStepMm = Math.Round(sampleStepMm, 3),
+                                        referencePointMm = referencePointMmLocal,
+                                        referencePointInside = referenceInsideLocal,
+                                        bboxProbe = new
+                                        {
+                                            enabled = pointBboxProbe,
+                                            sampleCount = bboxProbeSampleCountLocal,
+                                            insideCount = bboxProbeInsideCountLocal,
+                                            used = includedByBboxProbeLocal
+                                        },
+                                        insideLengthMm = insideLenMm,
+                                        totalLengthMm = totalLenMm,
+                                        insideRatio
+                                    }
+                                });
+
+                                added++;
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (!include)
+                        continue;
+
+                    items.Add(new
+                    {
+                        elementId = e.Id.IntValue(),
+                        uniqueId = e.UniqueId ?? string.Empty,
+                        elementClass = e.GetType().Name,
+                        categoryId = e.Category?.Id?.IntValue() ?? 0,
+                        categoryName = e.Category?.Name ?? string.Empty,
+                        typeId,
+                        typeName,
+                        relation = new
+                        {
+                            sameLevel,
+                            crossesRoomBasePlane = crosses,
+                            roomLevelId = room.LevelId.IntValue(),
+                            roomBaseZMm = Math.Round(UnitHelper.FtToMm(roomBaseZFt), 3),
+                            zProbeMm = Math.Round(UnitHelper.FtToMm(zProbeFt), 3)
+                        },
+                        measure = new
+                        {
+                            method,
+                            sampleStepMm = Math.Round(sampleStepMm, 3),
+                            referencePointMm = (object?)null,
+                            referencePointInside = (bool?)null,
+                            bboxProbe = (object?)null,
+                            insideLengthMm = insideLenMm,
+                            totalLengthMm = totalLenMm,
+                            insideRatio
+                        }
+                    });
+
+                    added++;
+                }
+
+                if (added > 0)
+                {
+                    countsByCategory[catKey] = added;
+                }
+            }
+
+            return new
+            {
+                ok = true,
+                roomId = room.Id.IntValue(),
+                roomLevelId = room.LevelId.IntValue(),
+                searchMarginMm = Math.Round(searchMarginMm, 3),
+                sampleStepMm = Math.Round(sampleStepMm, 3),
+                pointBboxProbe = pointBboxProbe,
+                categories = categories.Select(x => x.ToString()).ToArray(),
+                countsByCategory,
+                itemCount = items.Count,
+                items = items.ToArray()
+            };
         }
 
         private static Autodesk.Revit.DB.Architecture.Room? TryResolveSelectedRoom(

@@ -34,6 +34,7 @@ namespace RevitMCPAddin.Commands.Spatial
 
             string phaseName = p.Value<string>("phaseName") ?? string.Empty;
             string mode = (p.Value<string>("mode") ?? "3d").Trim().ToLowerInvariant(); // 現状は参照のみ
+            bool bboxFootprintProbe = p.Value<bool?>("bboxFootprintProbe") ?? true;
 
             var includeToken = p["include"] as JArray;
             var includeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -95,7 +96,7 @@ namespace RevitMCPAddin.Commands.Spatial
             // Room
             if (Include("room"))
             {
-                var room = SpatialUtils.TryGetRoomWithVerticalProbe(doc, element, refPt, phaseName, out var phaseUsed, out var roomMsg);
+                var room = SpatialUtils.TryGetRoomWithVerticalProbe(doc, element, refPt, phaseName, out var phaseUsed, out var roomMsg, bboxFootprintProbe);
                 if (!string.IsNullOrEmpty(roomMsg)) messages.Add(roomMsg);
 
                 if (room != null)

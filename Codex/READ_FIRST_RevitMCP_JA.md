@@ -93,6 +93,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_v
 
 リビジョン操作のまとめ: `Manuals/RevisionOps.md` を参照（一覧/シート関連/更新/クラウド作成）。
 - レスポンス: JSON-RPC エンベロープ内の `result.result.*` を読む。
+- 共通ステータス: `result.result.ok`, `result.result.code`, `result.result.msg`, `result.result.timings.totalMs`（詳細: `Manuals/Response_Envelope_JA.md`）。
 
 ## 7) トラブルシューティング（まずはここを確認）
 - 500（enqueue）: リクエストに必ず `"params": {}` を含める／Revit がビジー → `/enqueue?force=1` 検討。

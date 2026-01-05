@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
 using System.Text;
+using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RevitMcpServer.Engine; // DurableQueue, JobIndex
@@ -17,6 +19,7 @@ using RevitMcpServer.Persistence; // SqliteConnectionFactory
 
 // ----------------------------- Bootstrap -----------------------------
 var builder = WebApplication.CreateBuilder(args);
+var serverStartedUtc = DateTimeOffset.UtcNow;
 
 int startPort = 5210;
 try
@@ -43,6 +46,10 @@ builder.Services.AddSingleton<JobIndex>();
 
 var app = builder.Build();
 
+// Step 11: docs router (server-local commands) + load cached add-in manifest (best-effort)
+RevitMCP.Abstractions.Rpc.RpcRouter? docsRouter = null;
+try { docsRouter = RevitMcpServer.Docs.RouterBuilder.Build(); } catch { docsRouter = new RevitMCP.Abstractions.Rpc.RpcRouter(); }
+
 // Initialize logging
 try { RevitMcpServer.Infra.Logging.Init(chosenPort); } catch { }
 
@@ -57,6 +64,7 @@ catch { /* best-effort */ }
 
 // Configure docs/manifest cache path away from wwwroot (SSR removed)
 try { RevitMcpServer.Docs.ManifestRegistry.ConfigureCachePath(Path.Combine(AppContext.BaseDirectory, "Results", "manifest-cache.json")); } catch { }
+try { RevitMcpServer.Docs.ManifestRegistry.LoadFromDisk(); } catch { }
 
 // ----------------------------- Root -----------------------------
 app.MapGet("/", () => Results.Json(new { ok = true, port = chosenPort, message = "Revit MCP Server (SSR disabled)" }));
@@ -66,6 +74,113 @@ app.MapGet("/health", () => Results.Json(new { ok = true, port = chosenPort, tim
 
 // Debug (lightweight)
 app.MapGet("/debug", () => Results.Json(new { ok = true, port = chosenPort, ssr = "disabled" }));
+
+// ----------------------------- Step 11: Docs/Manifest -----------------------------
+app.MapPost("/manifest/register", async (HttpContext ctx) =>
+{
+    try
+    {
+        string body;
+        using (var r = new StreamReader(ctx.Request.Body, Encoding.UTF8))
+            body = await r.ReadToEndAsync();
+
+        if (string.IsNullOrWhiteSpace(body))
+            return Results.Json(new { ok = false, code = "INVALID_MANIFEST", msg = "Empty body." }, statusCode: 400);
+
+        var manifest = JsonSerializer.Deserialize<RevitMcpServer.Docs.DocManifest>(body, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+        if (manifest == null)
+            return Results.Json(new { ok = false, code = "INVALID_MANIFEST", msg = "Failed to parse manifest JSON." }, statusCode: 400);
+
+        RevitMcpServer.Docs.ManifestRegistry.Upsert(manifest);
+        RevitMcpServer.Docs.ManifestRegistry.SaveToDisk();
+
+        return Results.Json(new { ok = true, source = manifest.Source, count = manifest.Commands?.Count ?? 0 });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "MANIFEST_REGISTER_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
+
+app.MapGet("/docs/manifest.json", () =>
+{
+    try
+    {
+        var methods = RevitMcpServer.Docs.ManifestRegistry.GetAll();
+        return Results.Json(new { ok = true, count = methods.Count, methods });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "DOCS_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
+
+app.MapGet("/docs/openrpc.json", () =>
+{
+    try
+    {
+        var router = docsRouter ?? new RevitMCP.Abstractions.Rpc.RpcRouter();
+        var extras = RevitMcpServer.Docs.ManifestRegistry.GetAll();
+        var json = RevitMcpServer.Docs.OpenRpcGenerator.Generate(router, extras);
+        return Results.Text(json, "application/json", Encoding.UTF8);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "DOCS_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
+
+app.MapGet("/docs/openapi.json", () =>
+{
+    try
+    {
+        var router = docsRouter ?? new RevitMCP.Abstractions.Rpc.RpcRouter();
+        var extras = RevitMcpServer.Docs.ManifestRegistry.GetAll();
+        var json = RevitMcpServer.Docs.OpenApiGenerator.Generate(router, extras);
+        return Results.Text(json, "application/json", Encoding.UTF8);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "DOCS_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
+
+app.MapGet("/docs/commands.md", () =>
+{
+    try
+    {
+        var methods = RevitMcpServer.Docs.ManifestRegistry.GetAll()
+            .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("# Revit MCP Commands (Auto-generated)");
+        sb.AppendLine();
+        sb.AppendLine($"Generated: {DateTimeOffset.UtcNow:o}");
+        sb.AppendLine($"Count: {methods.Count}");
+        sb.AppendLine();
+
+        foreach (var m in methods)
+        {
+            var tags = (m.Tags != null && m.Tags.Length > 0) ? string.Join(", ", m.Tags) : "";
+            var summary = (m.Summary ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+            sb.Append("- `").Append(m.Name).Append("`");
+            if (!string.IsNullOrWhiteSpace(summary)) sb.Append(" — ").Append(summary);
+            if (!string.IsNullOrWhiteSpace(tags)) sb.Append("  (tags: ").Append(tags).Append(")");
+            if (!string.IsNullOrWhiteSpace(m.Source)) sb.Append("  [").Append(m.Source).Append("]");
+            sb.AppendLine();
+        }
+
+        return Results.Text(sb.ToString(), "text/markdown", Encoding.UTF8);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "DOCS_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
 
 // ----------------------------- JSON-RPC Bridge -----------------------------
 var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
@@ -91,6 +206,14 @@ app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue
     catch { }
 
     string paramsJson = (prm.HasValue && prm.Value.ValueKind != JsonValueKind.Undefined) ? prm.Value.ToString() : "{}";
+
+    // Step 10: server-only immediate status (no queue; works even if Revit is busy)
+    if (IsRevitStatusMethod(method))
+    {
+        var status = await BuildRevitStatusAsync(durable, serverStartedUtc);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = status }, jsonOpts);
+    }
+
     var jobId = await durable.EnqueueAsync(method, paramsJson, null, id, 100, 60);
     index.Put(id, jobId);
     Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] REQUEST: POST /rpc/{method} -> jobId={jobId}");
@@ -118,6 +241,14 @@ app.MapPost("/rpc", async (HttpContext ctx, DurableQueue durable, JobIndex index
     catch (Exception ex) { return Results.Json(new { ok = false, code = "INVALID_JSON", msg = ex.Message }, statusCode: 400); }
 
     string paramsJson = (prm.HasValue && prm.Value.ValueKind != JsonValueKind.Undefined) ? prm.Value.ToString() : "{}";
+
+    // Step 10: server-only immediate status (no queue; works even if Revit is busy)
+    if (IsRevitStatusMethod(method))
+    {
+        var status = await BuildRevitStatusAsync(durable, serverStartedUtc);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = status }, jsonOpts);
+    }
+
     var jobId = await durable.EnqueueAsync(method, paramsJson, null, id, 100, 60);
     index.Put(id, jobId);
     Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] REQUEST: POST /rpc (method={method}) -> jobId={jobId}");
@@ -155,7 +286,20 @@ app.MapPost("/post_result", async (HttpContext ctx, DurableQueue durable, JobInd
         if (!string.IsNullOrEmpty(rpcId))
         {
             var jobId2 = index.TryGet(rpcId, out var mapped) ? mapped : await durable.FindRunningJobIdByRpcIdAsync(rpcId);
-            if (!string.IsNullOrEmpty(jobId2)) await durable.CompleteAsync(jobId2!, result);
+            if (!string.IsNullOrEmpty(jobId2))
+            {
+                // Step 1: server-side timing augmentation (queueWait/total/revit fallback)
+                var augmented = result;
+                try
+                {
+                    var row = await durable.GetAsync(jobId2!);
+                    if (row is IDictionary<string, object?> dict)
+                        augmented = TryAugmentResultJsonWithTimings(result, dict, DateTimeOffset.UtcNow);
+                }
+                catch { /* best-effort */ }
+
+                await durable.CompleteAsync(jobId2!, augmented);
+            }
         }
     }
     catch { }
@@ -208,6 +352,14 @@ app.MapPost("/enqueue", async (HttpContext ctx, DurableQueue durable, JobIndex i
     catch (Exception ex) { return Results.Json(new { ok = false, code = "INVALID_JSON", msg = ex.Message }, statusCode: 400); }
     if (string.IsNullOrWhiteSpace(method)) return Results.Json(new { ok = false, code = "E_NO_METHOD" }, statusCode: 400);
     string paramsJson = (prm.HasValue && prm.Value.ValueKind != JsonValueKind.Undefined) ? prm.Value.ToString() : "{}";
+
+    // Step 10: server-only immediate status (no queue; works even if Revit is busy)
+    if (IsRevitStatusMethod(method))
+    {
+        var status = await BuildRevitStatusAsync(durable, serverStartedUtc);
+        return Results.Json(status);
+    }
+
     var jobId = await durable.EnqueueAsync(method, paramsJson, idemKey, id, priority, timeoutSec);
     index.Put(id, jobId);
     Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ENQUEUE: method={method} jobId={jobId}");
@@ -294,6 +446,172 @@ static int TryResolveServerPort()
     }
     catch { }
     return 0;
+}
+
+static string TryAugmentResultJsonWithTimings(string resultJson, IDictionary<string, object?> jobRow, DateTimeOffset finishUtc)
+{
+    try
+    {
+        if (string.IsNullOrWhiteSpace(resultJson)) return resultJson;
+
+        DateTimeOffset enqueueUtc, startUtc;
+        var hasEnqueue = TryParseSqliteTimestamp(jobRow.TryGetValue("enqueue_ts", out var enq) ? enq : null, out enqueueUtc);
+        var hasStart = TryParseSqliteTimestamp(jobRow.TryGetValue("start_ts", out var st) ? st : null, out startUtc);
+        if (!hasEnqueue) return resultJson;
+
+        long queueWaitMs = 0;
+        long totalMs = (long)Math.Max(0, (finishUtc - enqueueUtc).TotalMilliseconds);
+        long revitMs = 0;
+        if (hasStart)
+        {
+            queueWaitMs = (long)Math.Max(0, (startUtc - enqueueUtc).TotalMilliseconds);
+            revitMs = (long)Math.Max(0, (finishUtc - startUtc).TotalMilliseconds);
+        }
+
+        JsonNode? rootNode;
+        try { rootNode = JsonNode.Parse(resultJson); }
+        catch { return resultJson; }
+        if (rootNode is not JsonObject rootObj) return resultJson;
+
+        // Locate payload node (best-effort):
+        // - Common shape: { jsonrpc, id, result: { ..., result: { ok, ...timings... }, ledger?... } }
+        // - Async/other shape: { jsonrpc, id, result: { ok, ...timings... } }
+        JsonObject? payloadObj = null;
+        if (rootObj["result"] is JsonObject r1)
+        {
+            if (r1["result"] is JsonObject r2 && r2["ok"] != null)
+                payloadObj = r2;
+            else if (r1["ok"] != null)
+                payloadObj = r1;
+        }
+        if (payloadObj == null) return resultJson;
+
+        var timings = payloadObj["timings"] as JsonObject ?? new JsonObject();
+        // Always set server-derived totals (non-breaking additive fields)
+        timings["queueWaitMs"] = queueWaitMs;
+        timings["totalMs"] = totalMs;
+        // Only fill revitMs if missing/zero (addin may have a more accurate measurement)
+        if (timings["revitMs"] == null || timings["revitMs"]?.GetValue<long>() == 0)
+            timings["revitMs"] = revitMs;
+        payloadObj["timings"] = timings;
+
+        return rootObj.ToJsonString(new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+    }
+    catch
+    {
+        return resultJson;
+    }
+}
+
+static bool TryParseSqliteTimestamp(object? v, out DateTimeOffset dto)
+{
+    dto = default;
+    try
+    {
+        if (v == null || v is DBNull) return false;
+        if (v is DateTime dt)
+        {
+            dto = new DateTimeOffset(DateTime.SpecifyKind(dt, DateTimeKind.Utc));
+            return true;
+        }
+
+        var s = Convert.ToString(v);
+        if (string.IsNullOrWhiteSpace(s)) return false;
+
+        // SQLite CURRENT_TIMESTAMP is "YYYY-MM-DD HH:MM:SS" (UTC)
+        if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out dto))
+            return true;
+        if (DateTimeOffset.TryParse(s, out dto))
+        {
+            dto = dto.ToUniversalTime();
+            return true;
+        }
+    }
+    catch { /* ignore */ }
+    return false;
+}
+
+static bool IsRevitStatusMethod(string? method)
+{
+    var m = (method ?? string.Empty).Trim();
+    if (m.Length == 0) return false;
+    return string.Equals(m, "revit.status", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(m, "revit_status", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(m, "status", StringComparison.OrdinalIgnoreCase);
+}
+
+static async Task<object> BuildRevitStatusAsync(DurableQueue durable, DateTimeOffset serverStartedUtc)
+{
+    try
+    {
+        int srvPid = System.Diagnostics.Process.GetCurrentProcess().Id;
+        int srvPort = TryResolveServerPort();
+        var targetPort = durable.ResolveCurrentPort();
+
+        var counts = await durable.CountByStateAsync();
+        long queued = counts.TryGetValue("ENQUEUED", out var q) ? q : 0;
+        long running = counts.TryGetValue("RUNNING", out var r) ? r : 0;
+        long dispatching = counts.TryGetValue("DISPATCHING", out var d) ? d : 0;
+
+        var activeRow = await durable.GetLatestJobByStatesAsync(new[] { "RUNNING", "DISPATCHING" }, "start_ts");
+        var lastErrRow = await durable.GetLatestJobByStatesAsync(new[] { "FAILED", "TIMEOUT", "DEAD" }, "finish_ts");
+
+        return new
+        {
+            ok = true,
+            serverPid = srvPid,
+            serverPort = srvPort,
+            targetPort = targetPort,
+            nowUtc = DateTimeOffset.UtcNow.ToString("o"),
+            startedAtUtc = serverStartedUtc.ToString("o"),
+            uptimeSec = Math.Max(0, (DateTimeOffset.UtcNow - serverStartedUtc).TotalSeconds),
+            queue = new
+            {
+                queuedCount = queued,
+                runningCount = running,
+                dispatchingCount = dispatching,
+                countsByState = counts
+            },
+            activeJob = TrimJobRow(activeRow),
+            lastError = TrimJobRow(lastErrRow)
+        };
+    }
+    catch (Exception ex)
+    {
+        return new { ok = false, code = "STATUS_ERROR", msg = ex.Message };
+    }
+}
+
+static object? TrimJobRow(dynamic? row)
+{
+    try
+    {
+        if (row is not IDictionary<string, object?> dict) return null;
+
+        // Avoid large payload fields in status responses.
+        string[] keep = new[]
+        {
+            "job_id","rpc_id","method","state","priority","timeout_sec","attempts","target_port",
+            "enqueue_ts","start_ts","heartbeat_ts","finish_ts","error_code","error_msg"
+        };
+
+        var trimmed = new Dictionary<string, object?>();
+        foreach (var k in keep)
+        {
+            if (dict.TryGetValue(k, out var v) && v != null && v is not DBNull)
+                trimmed[k] = v;
+        }
+
+        return trimmed;
+    }
+    catch
+    {
+        return null;
+    }
 }
 
 

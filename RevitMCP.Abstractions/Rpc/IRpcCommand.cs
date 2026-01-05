@@ -30,8 +30,8 @@ namespace RevitMCP.Abstractions.Rpc
     {
         public abstract string Name { get; }
         public virtual RpcCommandKind Kind => RpcCommandKind.Read;
-        public virtual Type ParamsType => null;
-        public virtual Type ResultType => null;
+        public virtual Type ParamsType => null!;
+        public virtual Type ResultType => null!;
 
         protected abstract Task<object> ProcessAsync(JsonElement? param);
 
@@ -82,14 +82,14 @@ namespace RevitMCP.Abstractions.Rpc
         protected static T DeserializeParams<T>(JsonElement? param)
         {
             if (param == null)
-                return default(T);
+                return default!;
 
             using (var ms = new MemoryStream())
             {
                 using (var writer = new Utf8JsonWriter(ms))
                     param.Value.WriteTo(writer);
                 var bytes = ms.ToArray();
-                return System.Text.Json.JsonSerializer.Deserialize<T>(bytes, DefaultJsonOptions);
+                return System.Text.Json.JsonSerializer.Deserialize<T>(bytes, DefaultJsonOptions) ?? default!;
             }
         }
     }
@@ -107,7 +107,7 @@ namespace RevitMCP.Abstractions.Rpc
         {
             var typed = DeserializeParams<TParams>(param);
             var result = await ProcessAsync(typed).ConfigureAwait(false);
-            return (object)result ?? new object();
+            return (object?)result ?? new object();
         }
     }
 }

@@ -24,6 +24,7 @@ If the target element itself is a Space or Area, that Space / Area is always inc
 | phaseName | string | no |  |
 | mode | string | no | `"3d"` |
 | include | string[] | no | (all) |
+| bboxFootprintProbe | bool | no | `true` |
 
 - `elementId`  
   - `ElementId.IntegerValue` of the target element (wall, floor, equipment, tag, etc.).  
@@ -37,6 +38,9 @@ If the target element itself is a Space or Area, that Space / Area is always inc
 - `include`  
   - Optional list of what to include: any of `"room"`, `"space"`, `"zone"`, `"area"`, `"areaScheme"`.  
   - If omitted, all of the above are included.
+- `bboxFootprintProbe`
+  - If `true` (default), Room resolution also probes the element bbox footprint at mid-height when the representative point does not hit a Room.
+  - Set `false` to disable bbox footprint probing (more strict but can miss boundary-crossing elements).
 
 ### Example Request
 ```json
@@ -111,7 +115,9 @@ If the target element itself is a Space or Area, that Space / Area is always inc
 - `referencePoint`  
   - Computed from the element’s LocationPoint, LocationCurve midpoint, or bounding-box center (internal ft → mm).  
 - `room`  
-  - Single Room containing the reference point, if any.
+  - Best-effort Room resolution:
+    - Tries the reference point, and also probes at the element bbox mid-height.
+    - If the representative XY is outside but the element bbox footprint crosses a Room boundary, it also probes bbox corners/midpoints at mid-height to find a containing Room.
 - `spaces`  
   - All Spaces containing the reference point.  
   - If none are found but the element itself is a `Mechanical.Space`, the command adds that Space as a best-effort context.

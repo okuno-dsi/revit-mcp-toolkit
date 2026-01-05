@@ -446,6 +446,19 @@ Notes:
   - `get_type_parameters_bulk` — read
   - `get_instance_parameters_bulk` — read
 
+## Rebar
+- (normal)
+  - `rebar_layout_inspect` — read
+  - `rebar_layout_update` — write (alias: `rebar_arrangement_update`)
+  - `rebar_layout_update_by_host` — write
+  - `rebar_mapping_resolve` — read
+  - `rebar_plan_auto` — read
+  - `rebar_apply_plan` — write
+  - `rebar_sync_status` — read
+  - `rebar_regenerate_delete_recreate` — write
+  - `delete_rebars` — write (alias: `delete_rebar`)
+  - `move_rebars` — write (alias: `move_rebar`)
+
 ## Revision/Sheets
 - (normal)
   - `change_revision_cloud_type` — write

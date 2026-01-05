@@ -38,6 +38,12 @@ It can also **temporarily enable Room Bounding on columns** (for boundary calcul
 | includeFloorCeilingInfo | bool | no | true | Collect “related” floors/ceilings (bbox + room interior sampling) for reporting. |
 | floorCeilingSearchMarginMm | number | no | 1000.0 | Candidate search expansion around the room boundary bbox (XY). |
 | segmentInteriorInsetMm | number | no | 100.0 | Inset distance (towards room interior) used when sampling points near each boundary segment. |
+| floorCeilingSameLevelOnly | bool | no | true | If true, floor/ceiling candidates are filtered to the room's `LevelId` (avoids mixing other levels). |
+| includeInteriorElements | bool | no | false | Collect “takeoff object” elements inside the room (model categories only; excludes lines/grids by default). |
+| interiorCategories | string[] | no | ["Walls","Floors","Ceilings","Roofs","Columns","Structural Columns","Structural Framing","Doors","Windows","Furniture","Furniture Systems","Casework","Specialty Equipment","Generic Models","Mechanical Equipment","Plumbing Fixtures","Lighting Fixtures","Electrical Equipment","Electrical Fixtures"] | Categories to check (friendly names like "Furniture" or BuiltInCategory names like "OST_Furniture"). |
+| interiorElementSearchMarginMm | number | no | 1000.0 | Candidate search expansion around the room boundary bbox (XY). |
+| interiorElementSampleStepMm | number | no | 200.0 | Sampling step used to estimate the curve length inside the room. |
+| interiorElementPointBboxProbe | bool | no | true | For point-based elements (LocationPoint / BBox center), also probe the element bbox footprint (corners+midpoints at `zProbe`) when the reference point is outside the room. |
 
 ### Example Request
 ```json
@@ -74,10 +80,13 @@ It can also **temporarily enable Room Bounding on columns** (for boundary calcul
 - `wallTypeLayers[]` is reference-only: compound structure layers and materials for each wall type used by matched walls.
 - Floor/Ceiling context (reporting aids):
   - `room.levelElevationMm`, `room.baseOffsetMm` / `room.baseOffsetDisplay`
-  - `floors[]`: candidate floors intersecting the sampled interior points (height is `topHeightFromRoomLevelMm`)
-  - `ceilings[]`: candidate ceilings intersecting the sampled interior points (height is `heightFromRoomLevelMm`)
+  - `floors[]`: candidate floors intersecting the sampled interior points (default: same-level only; height is `topHeightFromRoomLevelMm`, plus `levelId/levelName`)
+  - `ceilings[]`: candidate ceilings intersecting the sampled interior points (default: same-level only; height is `heightFromRoomLevelMm`, plus `levelId/levelName`)
   - `ceilingIdsBySegmentKey`: `"loopIndex:segmentIndex"` → `[ceilingId,…]` (approximate)
   - `loops[].segments[].ceilingHeightsFromRoomLevelMm`: per-segment ceiling height samples (when `includeSegments=true`)
+- Interior elements (room-contained; optional):
+  - `interiorElements.items[]`: elements that are inside/intersect the room (curve elements include `insideLengthMm` estimate).
+  - For point-based elements, `measure.referencePointInside=false` with `measure.bboxProbe.used=true` means the element was included because its bbox footprint intersects the room even though its reference point is outside.
 
 ## Excel helper
 - If you saved a comparison JSON like `test_room_finish_takeoff_context_compare_*.json`, you can (re)generate a standardized `SegmentWallTypes` sheet via:

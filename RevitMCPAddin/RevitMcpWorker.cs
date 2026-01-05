@@ -55,6 +55,7 @@ using RevitMCPAddin.Commands.MetaOps;
 using RevitMCPAddin.Commands.Misc;
 using RevitMCPAddin.Commands.Materials;
 using RevitMCPAddin.Commands.ParamOps;
+using RevitMCPAddin.Commands.Rebar;
 using RevitMCPAddin.Commands.Revision;
 using RevitMCPAddin.Commands.RevisionCloud;
 using RevitMCPAddin.Commands.RoofOps;
@@ -899,6 +900,18 @@ namespace RevitMCPAddin
                 new ListStructuralFrameParametersCommand(),
                 new UpdateStructuralFrameTypeParameterCommand(),
                 new DisallowStructuralFrameJoinAtEndCommand(),
+
+                // Rebar layout + mapping (shape-driven rebar sets; v1)
+                new RebarLayoutInspectCommand(),
+                new RebarLayoutUpdateCommand(),
+                new RebarLayoutUpdateByHostCommand(),
+                new RebarMappingResolveCommand(),
+                new RebarPlanAutoCommand(),
+                new RebarApplyPlanCommand(),
+                new RebarSyncStatusCommand(),
+                new RebarRegenerateDeleteRecreateCommand(),
+                new DeleteRebarsCommand(),
+                new MoveRebarsCommand(),
 
                 // StructuralFoundation Operations
                 new CreateStructuralFoundationCommand(),

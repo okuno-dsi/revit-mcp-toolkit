@@ -25,6 +25,7 @@
 | include | string[] | いいえ | (省略時は全て) |
 | curveSamples | number[] | いいえ | `[0.0, 0.5, 1.0]` |
 | maxElements | int | いいえ | `int.MaxValue` |
+| bboxFootprintProbe | bool | いいえ | `true` |
 
 - `elementIds`  
   - 対象とする要素の `ElementId.IntegerValue` の配列です。  
@@ -37,6 +38,9 @@
   - 既定は `[0.0, 0.5, 1.0]`（始点・中点・終点）。
 - `maxElements`  
   - 一度に処理する最大要素数。大量の ID を渡す場合の安全弁として使用します。
+- `bboxFootprintProbe`
+  - `true`（既定）の場合、Room 判定で要素BBoxフットプリント（中間高さ）もプローブすることがあります。
+  - `false` にすると BBox フットプリント判定を無効化します。
 
 ### リクエスト例
 ```json
@@ -116,6 +120,7 @@
 - 各要素ごとに:
   - `reference`（代表点）、`location`（LocationPoint）、`curveStart` / `curveMid` / `curveEnd` / `curveParam`（曲線サンプル点）について、Room / Space / Area を判定します。
   - どのサンプル点でも Room / Space / Area にヒットしなかった要素は `elements` から省かれます。
+- Room 判定は best effort で、代表点にヒットしない場合でも要素BBox（中間高さ＋BBoxフットプリント）によるプローブで見つかることがあります。
 - `messages` には、各要素で生じた Room/Space/Area 解決メッセージが集約されます。
 
 ## 関連コマンド

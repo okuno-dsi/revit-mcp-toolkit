@@ -1,171 +1,89 @@
-# RevitMCP Server / Revit MCP Toolkit
+# RevitMCP Server
 
-> An open integration platform (server + add-in) to safely operate Autodesk RevitR 2024 from external tools (including AI agents).  
-> It is explicitly designed to be usable in Japanese, so workflows can align with local practice and regulations (e.g., building codes, internal standards, and guidelines).
+This project provides an open integration layer (server + Revit add-in) to **safely operate and orchestrate Autodesk Revit®** from external tools (including AI agents, CLIs, and automation systems).
 
----
-
-## First steps
-
-- ? Quick path (connection check / basic operations): `Codex/START_HERE.md`
-- ? Utilities to check/stop the server: `tools/README.md`
-- ? Japanese version: `README.md`
-
----
-
-## Why it matters (value)
-
-- **A unified entry point to operate Revit from external tools** (AI/CLI/other tools)
-- **Safe execution on the Revit side via an add-in** (Revit API operations)
-- **Easy to extend for your operational rules** (internal standards, templates, parameter schemas)
-- **Japanese-first design** for local workflows and terminology
-
----
-
-## What it can do (use cases)
-
-> We turned as much as possible of what is achievable via the Revit API into commands.  
-> Have an AI agent read the manuals and ask it what you want to do.
-
-Example use-case patterns:
-
-- **Model understanding**
-  - Collect and summarize current view / selection info
-  - Extract findings (warnings, missing parameters) into reports
-- **Batch cleanup**
-  - Normalize parameters, naming, template application, and attributes
-- **Drafting / creation assistance**
-  - Create, place, align, and tag elements under constraints (depends on command coverage)
-- **Tool integrations**
-  - Integrate with Excel / Rhino / AutoCAD under the same concept (related components may exist in this repo)
-
-
----
-
-## Quick Start (shortest path)
-
-1. Follow `Codex/START_HERE.md` to **check the connection** (shortest path)
-2. Install required runtimes (see "Runtime Requirements")
-3. Start the server (local recommended)
-4. Connect from an MCP client (AI/CLI/tool) and run commands
-
-
----
-
-## Architecture Overview (high level)
-
-- **External server process**: entry point for MCP / JSON-RPC requests from clients.
-- **Revit add-in (.NET Framework 4.8)**: executes operations via the Revit API.
-- **Transport**: local IPC/HTTP/etc. (depends on implementation)
-- **Extensible**: add commands; adapt to internal standards, templates, and parameter schemas.
-
-```mermaid
-flowchart LR
-  A[External tools / AI<br/>MCP Client] -->|MCP / JSON-RPC| B[RevitMCPServer<br/>External process]
-  B -->|Local IPC/HTTP etc.| C[RevitMCPAddin<br/>.NET Framework 4.8]
-  C --> D[Autodesk Revit 2024<br/>Revit API]
-```
-
-
----
-
-## Repository Layout (map)
-
-This repository centers on Revit MCP and can host related components under the same concept.
-
-- `RevitMCPServer`: server process
-- `RevitMCPAddin`: Revit add-in
-- `RevitMCP.Abstractions`: shared interfaces / common parts
-- `McpRevitBridge`: bridge components (role TBD)
-- `Codex`: Codex onboarding/tools
-- `tools`: utilities to check/stop the server
-- `ExcelMCP` / `RhinoMCP` / `AutoCadMCP`: related MCPs (if present; see their docs)
-
-
----
-
-## Runtime Requirements
-
-- **.NET 8 Runtime** (e.g., `RevitMCPServer` / `ExcelMCP` / `RhinoMcpServer` / `AutoCadMcpServer`)
-- **.NET 6 Runtime** (`Codex/CodexGui`)
-- **.NET Framework 4.8** (`RevitMCPAddin` / `RhinoMcpPlugin`)
-
-
----
-
-## Build
-
-- See `BUILD.en.md` for build steps.
-- Japanese version: `BUILD.md`
-
----
-
-## Security & Operational Notes (important)
-
-- This project provides powerful automation. Operate it under the **principle of least privilege**.
-- In shared environments, consider authentication, access control, and audit logs per your policy.
-- When using generative AI, plan for mis-operations and hallucinations, for example:
-  - dry-run / confirm flows
-  - change diff previews
-  - extra confirmation for critical actions
-
+There may be other projects exploring similar ideas worldwide; however, as far as we know, this implementation is **explicitly designed to be usable in Japanese environments**, enabling workflows aligned with Japan-specific standards and regulations (e.g., local building codes and organizational guidelines).
 
 ---
 
 ## Important Notices (Disclaimer & Requirements)
 
-- This project is released under Apache License 2.0 (see `LICENSE`).
-- This project is not affiliated with, endorsed by, or sponsored by Autodesk, Inc.
-- This repo does not ship or redistribute Autodesk materials (Revit binaries, SDK, DLL/CHM/sample files). A valid Autodesk RevitR license is required.
-- Provided AS IS. The authors are not liable for any damages (see `LICENSE`).
+- This project is released under **Apache License 2.0** (see `LICENSE`).
+- This project is **not affiliated with, endorsed by, or sponsored by Autodesk, Inc.**
+- This repository **does not ship or redistribute** Autodesk materials (Revit binaries, Revit SDK, DLL/CHM files, or Autodesk sample code).
+  A **valid Autodesk Revit® license** is required to use the add-in.
+- The software is provided **“AS IS”** without warranties. See the warranty disclaimer and limitation of liability in `LICENSE`.
 
 ---
 
-## Support & Questions
+## Related MCP Components
+This repository focuses on Revit MCP. Under the same concept, there may be related components (possibly in separate repositories/distributions):
 
-- Questions and bug reports: GitHub Issues
-- Discussions: GitHub Discussions
-- We do not publish email contact. See `SUPPORT.md` for support policy.
+- **Excel MCP**
+- **Rhino MCP**
+- **AutoCAD MCP**
+
+Please refer to the documentation of each component for its distribution terms, dependencies, and usage.
 
 ---
 
-## Contributing
+## What it can do (Examples)
 
-Pull requests are welcome. See `CONTRIBUTING.md`.
+- Query and inspect Revit elements (filters, categories, parameter inspection)
+- Edit elements (parameter updates, type changes)
+- Transform elements (move/rotate) and delete elements
+- Logging and audit trails (depending on configuration)
 
+> The exact scope is defined by the command catalog / API definitions included in this repository.
+
+---
+
+## Architecture Overview
+
+- **External server process**: entry point for MCP / JSON-RPC requests from clients (AI/CLI/other tools).
+- **Revit Add-in (.NET Framework 4.8)**: executes actual operations via the official Revit API.
+- **Transport**: local IPC/HTTP/etc. (depends on implementation).
+- **Extensible**: add features in command units; tailor to templates, parameter schemas, and organizational rules.
+
+---
+
+## Security & Operational Guidance
+
+- This project provides powerful automation capabilities. Operate it under the **principle of least privilege**.
+- In shared environments, consider authentication, access control, and audit logging according to your policies.
+- When used with generative AI, plan for potential mis-operations:
+  - dry-run / confirmation flows
+  - change diff previews
+  - extra confirmation for critical operations
 
 ---
 
 ## Legal / IP / Confusion Avoidance (Risk Mitigation)
 
 ### Independent Implementation
-This project is independently implemented using the official Autodesk Revit API.  
-It does not copy, decompile, reverse-engineer, or incorporate proprietary code from other products/services.
+This project is independently implemented using the official **Autodesk Revit API**.  
+It does **not** copy, decompile, reverse-engineer, or incorporate proprietary code from other products/services.
 
 ### Trademarks
-- Codex is a product of OpenAI.
-- AutodeskR and RevitR are trademarks or registered trademarks of Autodesk, Inc.
-- Please avoid names, logos, or descriptions that could cause confusion with third-party brands.
+Autodesk® and Revit® are trademarks of Autodesk, Inc.  
+Please avoid names, logos, or descriptions that could cause confusion with third-party products.
 
 ### Patents (Apache 2.0)
-- Apache License 2.0 includes a patent license from contributors for their contributions.
-- This does not eliminate third-party patent risks. Consult legal counsel if needed.
+Apache License 2.0 includes an explicit patent license from contributors for their contributions.  
+This does not eliminate potential third‑party patent risks; consult your legal team if needed.
 
 ---
 
 ## Distribution Policy (Binaries)
-
 This repository is published primarily as **source code**.  
 If your organization builds and distributes binaries internally, ensure compliance with Autodesk licensing terms and your development tool licensing (e.g., Visual Studio).
 
 ---
 
 ## Credits
-
-Created by Tetsuya Okuno and GPT series (2025) / 99.9% vibe coding
+- Created by **Tetsuya Okuno** and **GPT series** (2025)
 
 ---
 
 ## License
-
-Apache License 2.0 (see `LICENSE`)
+- **Apache License 2.0** (see `LICENSE`)

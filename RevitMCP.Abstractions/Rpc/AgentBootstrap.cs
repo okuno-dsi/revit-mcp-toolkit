@@ -44,32 +44,32 @@ namespace RevitMcpServer.Models
 
     public sealed class ServerInfo
     {
-        public string Product { get; set; }  // e.g., "Autodesk Revit 2024"
+        public string Product { get; set; } = string.Empty;  // e.g., "Autodesk Revit 2024"
         public ProcessInfo Process { get; set; } = new ProcessInfo();
     }
     public sealed class ProcessInfo
     {
         public int Pid { get; set; }
-        public string ExePath { get; set; }
+        public string ExePath { get; set; } = string.Empty;
         public int Port { get; set; }
     }
 
     public sealed class ProjectInfo
     {
         public bool Ok { get; set; }
-        public string Name { get; set; }
-        public string Number { get; set; }
-        public string FilePath { get; set; }
-        public string RevitVersion { get; set; }
-        public string DocumentGuid { get; set; }
-        public string Message { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Number { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public string RevitVersion { get; set; } = string.Empty;
+        public string DocumentGuid { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 
     public sealed class EnvironmentInfo
     {
         public UnitsInfo Units { get; set; } = new UnitsInfo();
         public int ActiveViewId { get; set; }
-        public string ActiveViewName { get; set; }
+        public string ActiveViewName { get; set; } = string.Empty;
     }
     public sealed class UnitsInfo
     {
@@ -94,11 +94,11 @@ namespace RevitMcpServer.Models
 
     public sealed class CommandBrief
     {
-        public string Method { get; set; }
-        public string Category { get; set; }
-        public string Desc { get; set; }
-        public string ParamsMin { get; set; } // 例: "viewId, elementIds?"
-        public string ResultHint { get; set; } // 例: "ok, count, items[]"
+        public string Method { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Desc { get; set; } = string.Empty;
+        public string ParamsMin { get; set; } = string.Empty; // 例: "viewId, elementIds?"
+        public string ResultHint { get; set; } = string.Empty; // 例: "ok, count, items[]"
     }
 
     public sealed class PoliciesInfo
@@ -115,7 +115,7 @@ namespace RevitMcpServer.Models
 
     public sealed class KnownError
     {
-        public string Code { get; set; }
-        public string Msg { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Msg { get; set; } = string.Empty;
     }
 }

@@ -33,6 +33,12 @@
 | includeFloorCeilingInfo | bool | no | true | 床/天井の関連要素を収集します（bbox＋室内サンプル点）。 |
 | floorCeilingSearchMarginMm | number | no | 1000.0 | 候補探索範囲（部屋境界bboxをXY方向に拡張）。 |
 | segmentInteriorInsetMm | number | no | 100.0 | 境界線から部屋内側へずらすサンプル距離。 |
+| floorCeilingSameLevelOnly | bool | no | true | 既定で、床/天井の候補は部屋の `levelId` と同じレベルの要素のみ返します（他レベル混入を防止）。 |
+| includeInteriorElements | bool | no | false | 部屋内（交差含む）の「積算向けオブジェクト要素」を収集します（既定は線分/グリッド等を除外したモデルカテゴリ）。 |
+| interiorCategories | string[] | no | ["Walls","Floors","Ceilings","Roofs","Columns","Structural Columns","Structural Framing","Doors","Windows","Furniture","Furniture Systems","Casework","Specialty Equipment","Generic Models","Mechanical Equipment","Plumbing Fixtures","Lighting Fixtures","Electrical Equipment","Electrical Fixtures"] | 対象カテゴリ（例: "Furniture" や "OST_Furniture" 等。線要素も必要なら "OST_Lines" などを明示）。 |
+| interiorElementSearchMarginMm | number | no | 1000.0 | 候補探索範囲（部屋境界bboxをXY方向に拡張）。 |
+| interiorElementSampleStepMm | number | no | 200.0 | 部屋内長さ推定のサンプリング間隔（mm）。 |
+| interiorElementPointBboxProbe | bool | no | true | 点ベース要素（LocationPoint / BBox中心）の場合、基準点が室外でも要素が室内に掛かるケースを拾うため、要素BBoxの角/辺中点を `zProbe` で追加判定します。 |
 
 ## 戻り値メモ（主要フィールド）
 - 周長の比較:
@@ -42,10 +48,13 @@
   - `room.levelElevationMm`
   - `room.baseOffsetMm` / `room.baseOffsetDisplay`
 - 床/天井（仕上げ数量の前処理用の参考情報）:
-  - `floors[]`: `topHeightFromRoomLevelMm`（床は上面）
-  - `ceilings[]`: `heightFromRoomLevelMm`
+  - `floors[]`: 既定は同一レベルのみ（`levelId/levelName` と `topHeightFromRoomLevelMm`（床は上面））
+  - `ceilings[]`: 既定は同一レベルのみ（`levelId/levelName` と `heightFromRoomLevelMm`）
   - `ceilingIdsBySegmentKey`: `"loopIndex:segmentIndex"` → `[ceilingId,…]`（近似）
   - `loops[].segments[].ceilingHeightsFromRoomLevelMm`: セグメント単位の天井高さサンプル（`includeSegments=true` の場合）
+- 部屋内要素（オプション）:
+  - `interiorElements.items[]`: 部屋内（交差含む）の要素（曲線要素なら `insideLengthMm` 推定を含む）
+  - 点ベース要素で `measure.referencePointInside=false` かつ `measure.bboxProbe.used=true` の場合、基準点は室外でも要素BBoxが室内に掛かっているため含めています
 
 ## Excel（セグメント表）
 比較JSON（`test_room_finish_takeoff_context_compare_*.json`）から、標準化した `SegmentWallTypes` シートを再生成するスクリプト:

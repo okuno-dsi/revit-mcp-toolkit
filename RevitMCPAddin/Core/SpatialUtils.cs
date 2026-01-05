@@ -249,7 +249,7 @@ namespace RevitMCPAddin.Core
         /// - まず BoundingBox の Z 中間高さで TryGetRoomAtPoint を試す。
         /// - そこで見つからなかった場合は、従来どおり basePt そのもので TryGetRoomAtPoint を呼び出す。
         /// </summary>
-        public static Room? TryGetRoomWithVerticalProbe(Document doc, Element element, XYZ basePt, string? phaseName, out Phase? phaseUsed, out string message)
+        public static Room? TryGetRoomWithVerticalProbe(Document doc, Element element, XYZ basePt, string? phaseName, out Phase? phaseUsed, out string message, bool bboxFootprintProbe = true)
         {
             message = string.Empty;
             phaseUsed = null;
@@ -274,17 +274,62 @@ namespace RevitMCPAddin.Core
                     if (zMax > zMin + 1e-6)
                     {
                         var midZ = 0.5 * (zMin + zMax);
-                        var midPt = new XYZ(basePt.X, basePt.Y, midZ);
 
+                        // 1) Base XY at mid-height
+                        var midPt = new XYZ(basePt.X, basePt.Y, midZ);
                         var roomMid = TryGetRoomAtPoint(doc, midPt, phaseName, out phaseUsed, out var msgMid);
-                        if (!string.IsNullOrEmpty(msgMid))
-                        {
-                            message = msgMid;
-                        }
+                        if (!string.IsNullOrEmpty(msgMid)) message = msgMid;
                         if (roomMid != null)
                         {
-                            // 縦方向のどこかで Room に入っているとみなす
                             return roomMid;
+                        }
+
+                        // 2) If base point is outside in XY, also probe the element bbox footprint at mid-height.
+                        //    This helps cases where the element crosses the room boundary but its representative point is outside.
+                        if (bboxFootprintProbe)
+                        {
+                            if (TryGetBboxWorldMinMaxXY(bb, out double minX, out double minY, out double maxX, out double maxY))
+                            {
+                                double eps = UnitHelper.MmToFt(1.0);
+                                double x0 = minX + eps;
+                                double x1 = maxX - eps;
+                                double y0 = minY + eps;
+                                double y1 = maxY - eps;
+                                if (x1 < x0) { x0 = minX; x1 = maxX; }
+                                if (y1 < y0) { y0 = minY; y1 = maxY; }
+
+                                double xMid = 0.5 * (minX + maxX);
+                                double yMid = 0.5 * (minY + maxY);
+
+                                var probePts = new[]
+                                {
+                                    new XYZ(xMid, yMid, midZ),
+                                    new XYZ(x0, y0, midZ),
+                                    new XYZ(x1, y0, midZ),
+                                    new XYZ(x1, y1, midZ),
+                                    new XYZ(x0, y1, midZ),
+                                    new XYZ(xMid, y0, midZ),
+                                    new XYZ(x1, yMid, midZ),
+                                    new XYZ(xMid, y1, midZ),
+                                    new XYZ(x0, yMid, midZ),
+                                };
+
+                                foreach (var pt in probePts)
+                                {
+                                    var r = TryGetRoomAtPoint(doc, pt, phaseName, out var ph, out var msg);
+                                    if (r == null) continue;
+                                    phaseUsed = ph;
+                                    if (!string.IsNullOrEmpty(msg))
+                                    {
+                                        message = msg + " (bbox footprint probe at mid-height)";
+                                    }
+                                    else
+                                    {
+                                        message = "Room was resolved using bbox footprint probe at mid-height.";
+                                    }
+                                    return r;
+                                }
+                            }
                         }
                     }
                 }
@@ -301,6 +346,48 @@ namespace RevitMCPAddin.Core
                 message = msgBase;
             }
             return roomBase;
+        }
+
+        private static bool TryGetBboxWorldMinMaxXY(BoundingBoxXYZ bb, out double minX, out double minY, out double maxX, out double maxY)
+        {
+            minX = double.PositiveInfinity;
+            minY = double.PositiveInfinity;
+            maxX = double.NegativeInfinity;
+            maxY = double.NegativeInfinity;
+
+            if (bb == null) return false;
+
+            try
+            {
+                var tr = bb.Transform ?? Transform.Identity;
+                var corners = new[]
+                {
+                    new XYZ(bb.Min.X, bb.Min.Y, bb.Min.Z),
+                    new XYZ(bb.Min.X, bb.Min.Y, bb.Max.Z),
+                    new XYZ(bb.Min.X, bb.Max.Y, bb.Min.Z),
+                    new XYZ(bb.Min.X, bb.Max.Y, bb.Max.Z),
+                    new XYZ(bb.Max.X, bb.Min.Y, bb.Min.Z),
+                    new XYZ(bb.Max.X, bb.Min.Y, bb.Max.Z),
+                    new XYZ(bb.Max.X, bb.Max.Y, bb.Min.Z),
+                    new XYZ(bb.Max.X, bb.Max.Y, bb.Max.Z),
+                }.Select(c => tr.OfPoint(c));
+
+                foreach (var p in corners)
+                {
+                    minX = Math.Min(minX, p.X);
+                    minY = Math.Min(minY, p.Y);
+                    maxX = Math.Max(maxX, p.X);
+                    maxY = Math.Max(maxY, p.Y);
+                }
+
+                return (minX < maxX && minY < maxY);
+            }
+            catch
+            {
+                minX = minY = double.PositiveInfinity;
+                maxX = maxY = double.NegativeInfinity;
+                return false;
+            }
         }
 
         /// <summary>

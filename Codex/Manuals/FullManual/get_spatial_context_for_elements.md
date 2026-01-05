@@ -24,6 +24,7 @@ and returns only those elements where at least one sample point lies inside a Ro
 | include | string[] | no | (all) |
 | curveSamples | number[] | no | `[0.0, 0.5, 1.0]` |
 | maxElements | int | no | `int.MaxValue` |
+| bboxFootprintProbe | bool | no | `true` |
 
 - `elementIds`  
   - Array of `ElementId.IntegerValue` for the elements to analyse (walls, floors, tags, etc.).  
@@ -36,6 +37,9 @@ and returns only those elements where at least one sample point lies inside a Ro
   - Default `[0.0, 0.5, 1.0]` = start / mid / end.
 - `maxElements`  
   - Optional safety limit on how many elements to process in one call.
+- `bboxFootprintProbe`
+  - If `true` (default), Room resolution may probe the element bbox footprint at mid-height when a sample point does not hit a Room.
+  - Set `false` to disable bbox footprint probing.
 
 ### Example Request
 ```json
@@ -115,6 +119,7 @@ and returns only those elements where at least one sample point lies inside a Ro
 - For each element:
   - Samples include a `reference` point, and for curves, `curveStart` / `curveMid` / `curveEnd` / `curveParam` according to `curveSamples`.
   - If no sample point hits any Room / Space / Area, that element is omitted from the `elements` list.
+- Room resolution is best-effort and may use element bbox probes (mid-height + bbox footprint) when the representative point does not hit a Room.
 - `messages` aggregates helpful diagnostics from Room / Space / Area resolution (phase used, counts, approximations, etc.).
 
 ## Related

@@ -1,0 +1,352 @@
+{
+  "version": 2,
+  "units": { "length": "mm" },
+  "profiles": [
+    {
+      "name": "rc_beam_attr_jp_v1",
+      "priority": 100,
+      "appliesTo": {
+        "categories": ["OST_StructuralFraming"],
+        "requiresTypeParamsAny": ["中央主筋太径", "中央あばら筋径", "中央あばら筋ピッチ"]
+      },
+      "map": {
+        "Host.Section.Width": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "b" },
+            { "kind": "typeParam", "name": "b" },
+            { "kind": "typeParam", "name": "B" },
+            { "kind": "instanceParam", "name": "Width" },
+            { "kind": "typeParam", "name": "Width" },
+            { "kind": "derived", "name": "bbox.width_local" }
+          ],
+          "validation": { "min": 50, "max": 5000 }
+        },
+        "Host.Section.Height": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "h" },
+            { "kind": "typeParam", "name": "h" },
+            { "kind": "typeParam", "name": "D" },
+            { "kind": "instanceParam", "name": "Height" },
+            { "kind": "typeParam", "name": "Height" },
+            { "kind": "derived", "name": "bbox.height_local" }
+          ],
+          "validation": { "min": 50, "max": 5000 }
+        },
+        "Host.Length": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "Length" },
+            { "kind": "typeParam", "name": "Length" },
+            { "kind": "derived", "name": "locationcurve.length" },
+            { "kind": "derived", "name": "bbox.z_local" }
+          ],
+          "validation": { "min": 10, "max": 100000 }
+        },
+        "Host.Cover.Top": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.top" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Host.Cover.Bottom": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.bottom" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Host.Cover.Other": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.other" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Common.MainBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "MainBarType" },
+            { "kind": "constant", "value": "D22" }
+          ]
+        },
+        "Common.TieBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieBarType" },
+            { "kind": "constant", "value": "D10" }
+          ]
+        },
+        "Common.Arrangement.Rule": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieLayoutRule" },
+            { "kind": "constant", "value": "maximum_spacing" }
+          ]
+        },
+        "Common.Arrangement.Spacing": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieSpacing" },
+            { "kind": "constant", "value": 150 }
+          ],
+          "validation": { "min": 30, "max": 500 }
+        },
+        "Common.Arrangement.ArrayLength": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieArrayLength" },
+            { "kind": "constant", "value": 2900 }
+          ],
+          "validation": { "min": 0, "max": 100000 }
+        },
+        "Common.Arrangement.NumberOfBarPositions": {
+          "type": "int",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieNumberOfBarPositions" },
+            { "kind": "constant", "value": 20 }
+          ],
+          "validation": { "min": 1, "max": 999 }
+        },
+        "Common.Arrangement.IncludeFirstBar": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieIncludeFirstBar" },
+            { "kind": "constant", "value": true }
+          ]
+        },
+        "Common.Arrangement.IncludeLastBar": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieIncludeLastBar" },
+            { "kind": "constant", "value": true }
+          ]
+        },
+        "Common.Arrangement.BarsOnNormalSide": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieBarsOnNormalSide" },
+            { "kind": "constant", "value": true }
+          ]
+        },
+        "Beam.Attr.MainBar.DiameterMm": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央主筋太径" },
+            { "kind": "instanceParam", "name": "中央主筋太径" }
+          ],
+          "validation": { "min": 4, "max": 100 }
+        },
+        "Beam.Attr.MainBar.TopCount": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.Stirrup.DiameterMm": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央あばら筋径" },
+            { "kind": "instanceParam", "name": "中央あばら筋径" }
+          ],
+          "validation": { "min": 4, "max": 100 }
+        },
+        "Beam.Attr.Stirrup.Symbol": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "中央あばら筋記号" },
+            { "kind": "instanceParam", "name": "中央あばら筋記号" },
+            { "kind": "constant", "value": "D" }
+          ]
+        },
+        "Beam.Attr.Stirrup.PitchMidMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "中央あばら筋ピッチ" },
+            { "kind": "instanceParam", "name": "中央あばら筋ピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Beam.Attr.Stirrup.PitchStartMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側あばら筋ピッチ" },
+            { "kind": "instanceParam", "name": "始点側あばら筋ピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Beam.Attr.Stirrup.PitchEndMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側あばら筋ピッチ" },
+            { "kind": "instanceParam", "name": "終点側あばら筋ピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        }
+      }
+    },
+    {
+      "name": "default",
+      "priority": 0,
+      "appliesTo": { "categories": ["OST_StructuralColumns", "OST_StructuralFraming"] },
+      "map": {
+        "Host.Section.Width": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "b" },
+            { "kind": "typeParam", "name": "b" },
+            { "kind": "instanceParam", "name": "Width" },
+            { "kind": "typeParam", "name": "Width" },
+            { "kind": "derived", "name": "bbox.width_local" }
+          ],
+          "validation": { "min": 50, "max": 5000 }
+        },
+        "Host.Section.Height": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "h" },
+            { "kind": "typeParam", "name": "h" },
+            { "kind": "instanceParam", "name": "Height" },
+            { "kind": "typeParam", "name": "Height" },
+            { "kind": "derived", "name": "bbox.height_local" }
+          ],
+          "validation": { "min": 50, "max": 5000 }
+        },
+        "Host.Length": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "Length" },
+            { "kind": "typeParam", "name": "Length" },
+            { "kind": "derived", "name": "locationcurve.length" },
+            { "kind": "derived", "name": "bbox.z_local" }
+          ],
+          "validation": { "min": 10, "max": 100000 }
+        },
+        "Host.Cover.Top": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.top" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Host.Cover.Bottom": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.bottom" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Host.Cover.Other": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.other" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Common.MainBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "MainBarType" },
+            { "kind": "constant", "value": "D22" }
+          ]
+        },
+        "Common.TieBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieBarType" },
+            { "kind": "constant", "value": "D10" }
+          ]
+        },
+        "Common.Arrangement.Rule": {
+          "type": "string",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieLayoutRule" },
+            { "kind": "constant", "value": "maximum_spacing" }
+          ]
+        },
+        "Common.Arrangement.Spacing": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieSpacing" },
+            { "kind": "constant", "value": 150 }
+          ],
+          "validation": { "min": 30, "max": 500 }
+        },
+        "Common.Arrangement.ArrayLength": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieArrayLength" },
+            { "kind": "constant", "value": 2900 }
+          ],
+          "validation": { "min": 0, "max": 100000 }
+        },
+        "Common.Arrangement.NumberOfBarPositions": {
+          "type": "int",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieNumberOfBarPositions" },
+            { "kind": "constant", "value": 20 }
+          ],
+          "validation": { "min": 1, "max": 999 }
+        },
+        "Common.Arrangement.IncludeFirstBar": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieIncludeFirstBar" },
+            { "kind": "constant", "value": true }
+          ]
+        },
+        "Common.Arrangement.IncludeLastBar": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieIncludeLastBar" },
+            { "kind": "constant", "value": true }
+          ]
+        },
+        "Common.Arrangement.BarsOnNormalSide": {
+          "type": "bool",
+          "sources": [
+            { "kind": "instanceParam", "name": "TieBarsOnNormalSide" },
+            { "kind": "constant", "value": true }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
@@ -202,6 +203,78 @@ VALUES($id,$m,$p,$rid,$k,$pri,'ENQUEUED',CURRENT_TIMESTAMP,$to,$tp);";
             cmd.Parameters.AddWithValue("$rid", rpcId);
             var obj = await cmd.ExecuteScalarAsync();
             return obj as string;
+        }
+
+        // ----------------------------- Step 10: status helpers -----------------------------
+
+        public async Task<IDictionary<string, long>> CountByStateAsync()
+        {
+            using var conn = Persistence.SqliteConnectionFactory.Create();
+            using var cmd = conn.CreateCommand();
+
+            var port = ResolveCurrentPort();
+            if (port > 0)
+            {
+                cmd.CommandText = "SELECT state, COUNT(*) AS cnt FROM jobs WHERE (target_port=$p OR target_port IS NULL OR target_port=0) GROUP BY state";
+                cmd.Parameters.AddWithValue("$p", port);
+            }
+            else
+            {
+                cmd.CommandText = "SELECT state, COUNT(*) AS cnt FROM jobs GROUP BY state";
+            }
+
+            var dict = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var state = r.GetString(0);
+                var cnt = r.GetInt64(1);
+                dict[state] = cnt;
+            }
+            return dict;
+        }
+
+        public async Task<dynamic?> GetLatestJobByStatesAsync(string[] states, string orderByColumnDesc)
+        {
+            if (states == null || states.Length == 0) return null;
+
+            using var conn = Persistence.SqliteConnectionFactory.Create();
+            using var cmd = conn.CreateCommand();
+
+            // States are constants from the server; inline them safely.
+            var inList = string.Join(",", states.Select(s => "'" + s.Replace("'", "''") + "'"));
+
+            var port = ResolveCurrentPort();
+            if (port > 0)
+            {
+                cmd.CommandText = $"SELECT * FROM jobs WHERE state IN ({inList}) AND (target_port=$p OR target_port IS NULL OR target_port=0) ORDER BY {orderByColumnDesc} DESC LIMIT 1";
+                cmd.Parameters.AddWithValue("$p", port);
+            }
+            else
+            {
+                cmd.CommandText = $"SELECT * FROM jobs WHERE state IN ({inList}) ORDER BY {orderByColumnDesc} DESC LIMIT 1";
+            }
+
+            using var r = await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync()) return null;
+
+            var row = new Dictionary<string, object?>();
+            for (int i = 0; i < r.FieldCount; i++) row[r.GetName(i)] = r.GetValue(i);
+            return row;
+        }
+
+        public int ResolveCurrentPort()
+        {
+            try
+            {
+                var port = RevitMcpServer.Infra.ServerContext.Port;
+                if (port > 0 && port < 65536) return port;
+
+                var env = Environment.GetEnvironmentVariable("REVIT_MCP_PORT");
+                if (int.TryParse(env, out port) && port > 0 && port < 65536) return port;
+            }
+            catch { /* ignore */ }
+            return 0;
         }
     }
 }

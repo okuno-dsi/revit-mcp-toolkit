@@ -21,6 +21,7 @@
 | phaseName | string | いいえ |  | 
 | mode | string | いいえ | `"3d"` |
 | include | string[] | いいえ | (省略時は全て) |
+| bboxFootprintProbe | bool | いいえ | `true` |
 
 - `elementId`  
   - 対象とする要素の `ElementId.IntegerValue`。
@@ -33,6 +34,9 @@
 - `include`  
   - `"room"`, `"space"`, `"zone"`, `"area"`, `"areaScheme"` のいずれかを指定できます。
   - 省略時は、これらすべてを含めて検索します。
+- `bboxFootprintProbe`
+  - `true`（既定）の場合、代表点にヒットしないときに要素BBoxフットプリント（中間高さの角/辺中点）でも Room 判定を試みます。
+  - `false` にすると BBox フットプリント判定を無効化します（厳密になりますが境界跨ぎ要素を取りこぼすことがあります）。
 
 ### リクエスト例
 ```json
@@ -101,7 +105,8 @@
 - `referencePoint`  
   - 要素の LocationPoint / LocationCurve の中点 / BoundingBox 中心などから決めた代表点（mm）。
 - `room`  
-  - 代表点を含む Room があれば 1 件返します。
+  - Room は best effort で 1 件返します（代表点に加え、要素BBoxの中間高さでの判定も試行）。
+  - 代表点のXYが室外でも要素BBoxが境界に掛かる場合は、BBoxの角/辺中点（中間高さ）でも判定して Room を見つけます。
 - `spaces`  
   - 代表点を含む Space を列挙します。  
   - 代表点にヒットしなくても、対象要素自体が Space の場合は、その Space を 1 件必ず含めます。

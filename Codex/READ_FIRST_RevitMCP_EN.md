@@ -79,6 +79,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_v
 - Always prefer the `*_safe.ps1` for write operations (and start with `-DryRun`).
 - Units: length=mm, angle=deg (server handles internal conversions).
 - Read from `result.result.*` within the JSON‑RPC envelope.
+- Standard status fields: `result.result.ok`, `result.result.code`, `result.result.msg`, `result.result.timings.totalMs` (see `Manuals/Response_Envelope_EN.md`).
 
 ## 7) Troubleshooting (Check Here First)
 - HTTP 500 (enqueue): ensure request includes `"params": {}`. Revit may be busy → consider `/enqueue?force=1`.
