@@ -8,15 +8,14 @@ This note clarifies that no changes are required to the Revit add‑in or the Re
 
 - No server/add‑in change required.
 - Use client‑side caching to avoid repeated queries against large Revit models.
-- Reuse existing HTTP endpoints via Proxy → Playbook → RevitMCPServer chain.
-- Keep Playbook forwarding to a Revit port (not the proxy) to avoid routing loops.
+- Reuse existing HTTP endpoints via Playbook → RevitMCPServer chain.
+- Keep Playbook forwarding to a Revit port to avoid routing loops.
 
 ---
 
 ## Topology & Ports
 
 - Playbook Server: `http://127.0.0.1:5209`
-- Proxy: `http://127.0.0.1:5221` (chosen to avoid conflicts with Revit 5211/5212)
 - RevitMCPServer (inside Revit): `5210` (first instance), `5211/5212` for additional instances
 - Dynamic targeting: `POST /t/{revitPort}/rpc` (and `/enqueue`, `/job/{id}`)
 
@@ -28,7 +27,7 @@ This note clarifies that no changes are required to the Revit add‑in or the Re
 
 ````powershell
 python "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit_info.py" `
-  --proxy http://127.0.0.1:5221 `
+  --proxy http://127.0.0.1:5209 `
   --revit-port 5211 `
   --out-dir "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Logs" `
   --ttl-sec 0  # set >0 (e.g. 600) to reuse within TTL
@@ -43,7 +42,7 @@ python "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit
 ````powershell
 pwsh -File "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_project_and_documents_cached.ps1" `
   -Port 5211 `
-  -Proxy http://127.0.0.1:5221 `
+  -Proxy http://127.0.0.1:5209 `
   -OutDir "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Logs"
 ````
 
@@ -62,7 +61,7 @@ pwsh -File "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_pro
 ## Why No Server/Add‑in Changes?
 
 - The caching layer uses existing endpoints (`/enqueue`, `/job/{id}`) provided by RevitMCPServer.
-- Playbook and Proxy forward requests as they already do; no new behavior is required server‑side.
+- Playbook forwards requests as it already does; no new behavior is required server‑side.
 - All logic (TTL, refresh, file I/O) lives in client scripts:
   - `Codex/Manuals/Scripts/cache_revit_info.py`
   - `Codex/Manuals/Scripts/get_project_and_documents_cached.ps1`
@@ -72,7 +71,7 @@ pwsh -File "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_pro
 ## Best Practices
 
 - Prefer per‑request targeting for multi‑Revit environments: `POST /t/5211/rpc`.
-- Keep Playbook `--forward` pointing at a Revit port (e.g., 5210). Do not forward Playbook to the Proxy.
+- Keep Playbook `--forward` pointing at a Revit port (e.g., 5210).
 - Separate caches by Revit port to avoid mixing data across instances.
 - Check caches into source control only if they are small, anonymized, and stable; otherwise keep local under `Codex/Work/<ProjectName>_<Port>/Logs`.
 
@@ -80,7 +79,7 @@ pwsh -File "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_pro
 
 ## Troubleshooting
 
-- AddressInUse / WinError 10013: port conflict. Keep Proxy on 5221+, Playbook on 5209, Revit on 5210/5211/5212.
+- AddressInUse / WinError 10013: port conflict. Keep Playbook on 5209, Revit on 5210/5211/5212.
 - Empty console: when backgrounded, output is in logs/other windows; run in foreground for live logs.
 - Garbled characters in console: JSON files are UTF‑8; open in an editor or ensure console UTF‑8 (e.g., `chcp 65001`).
 - Slow first call: normal on large models; once cached, downstream tools should read the saved JSON.
@@ -90,7 +89,6 @@ pwsh -File "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_pro
 ## Related Files
 
 - Playbook: `McpPlaybookServer/src/McpPlaybookServer`
-- Proxy: `ChatRevit/proxy_mcp_logger.py`
 - Scripts (caching):
   - `Codex/Manuals/Scripts/cache_revit_info.py`
   - `Codex/Manuals/Scripts/get_project_and_documents_cached.ps1`

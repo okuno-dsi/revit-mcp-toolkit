@@ -1,5 +1,16 @@
 # Update Log (Manual + Add-in)
 
+## 2025-12-26 ? ChatRevit 削除と接続手順の簡略化
+
+### 変更概要
+- ChatRevit プロキシ（ログ用）をリポジトリから削除。
+- 接続ガイド/コマンドの手順を Playbook 直結（5209）に統一。
+
+### 影響範囲（主なファイル）
+- `Codex/Manuals/ConnectionGuide/Client_Side_Caching_and_Server_Change_Policy_EN.md`
+- `Codex/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md`
+- `Codex/Manuals/Commands/Revit_Connection_Commands_EN.md`
+
 ## 2025-12-25 — Auto Rebar v1（柱=主筋+帯筋 / 梁=主筋+スターラップ）
 
 ### 目的
