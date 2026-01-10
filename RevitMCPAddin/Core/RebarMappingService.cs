@@ -408,6 +408,20 @@ namespace RevitMCPAddin.Core
 
             try
             {
+                static bool IsLengthLikeSpec(Parameter par)
+                {
+                    try
+                    {
+                        var spec = UnitHelper.GetSpec(par);
+                        if (spec == null) return false;
+                        if (spec.Equals(SpecTypeId.Length)) return true;
+                        var tid = spec.TypeId ?? string.Empty;
+                        if (tid.IndexOf("reinforcementSpacing", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                        return false;
+                    }
+                    catch { return false; }
+                }
+
                 switch (entry.Type)
                 {
                     case "string":
@@ -433,12 +447,11 @@ namespace RevitMCPAddin.Core
                                 try { raw = p.AsDouble(); } catch { raw = 0.0; }
 
                                 // Revit Length params are stored in internal units (ft), but many RC-family parameters
-                                // store millimeters as plain numbers (non-Length spec). Heuristic: convert only when spec==Length.
+                                // store millimeters as plain numbers (non-Length spec). Heuristic: convert only when spec is length-like.
                                 double v = raw;
                                 try
                                 {
-                                    var spec = UnitHelper.GetSpec(p);
-                                    if (spec != null && spec.Equals(SpecTypeId.Length))
+                                    if (IsLengthLikeSpec(p))
                                         v = UnitHelper.FtToMm(raw);
                                 }
                                 catch { /* ignore */ }
@@ -490,12 +503,11 @@ namespace RevitMCPAddin.Core
                                 try { raw = p.AsDouble(); } catch { raw = 0.0; }
 
                                 // Revit Length params are stored in internal units (ft), but many RC-family parameters
-                                // store millimeters as plain numbers (non-Length spec). Convert only when spec==Length.
+                                // store millimeters as plain numbers (non-Length spec). Convert only when spec is length-like.
                                 double v = raw;
                                 try
                                 {
-                                    var spec = UnitHelper.GetSpec(p);
-                                    if (spec != null && spec.Equals(SpecTypeId.Length))
+                                    if (IsLengthLikeSpec(p))
                                         v = UnitHelper.FtToMm(raw);
                                 }
                                 catch { /* ignore */ }
@@ -889,7 +901,7 @@ namespace RevitMCPAddin.Core
                         {
                             ok = false,
                             code = "REBAR_MAPPING_NOT_FOUND",
-                            msg = "RebarMapping.json not found. Place it in %LOCALAPPDATA%\\RevitMCP, %USERPROFILE%\\Documents\\Codex\\Design, or the add-in folder.",
+                            msg = "RebarMapping.json not found. Place it in the add-in folder (preferred), %LOCALAPPDATA%\\RevitMCP (cache), or %USERPROFILE%\\Documents\\Codex\\Design.",
                             path = path
                         };
                         _loaded = false;
@@ -931,6 +943,22 @@ namespace RevitMCPAddin.Core
 
             try
             {
+                // Preferred: next to the add-in (packaged/installed).
+                var p0 = System.IO.Path.Combine(RevitMCPAddin.Core.Paths.AddinFolder, "Resources", DefaultFileName);
+                if (File.Exists(p0)) return p0;
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                var p0b = System.IO.Path.Combine(RevitMCPAddin.Core.Paths.AddinFolder, DefaultFileName);
+                if (File.Exists(p0b)) return p0b;
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                // Cache / local override
                 var p1 = System.IO.Path.Combine(RevitMCPAddin.Core.Paths.LocalRoot, DefaultFileName);
                 if (File.Exists(p1)) return p1;
             }
@@ -938,26 +966,13 @@ namespace RevitMCPAddin.Core
 
             try
             {
+                // Legacy/dev: Documents\Codex\Design
                 var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 if (!string.IsNullOrWhiteSpace(docs))
                 {
                     var p2 = System.IO.Path.Combine(docs, "Codex", "Design", DefaultFileName);
                     if (File.Exists(p2)) return p2;
                 }
-            }
-            catch { /* ignore */ }
-
-            try
-            {
-                var p3 = System.IO.Path.Combine(RevitMCPAddin.Core.Paths.AddinFolder, "Resources", DefaultFileName);
-                if (File.Exists(p3)) return p3;
-            }
-            catch { /* ignore */ }
-
-            try
-            {
-                var p4 = System.IO.Path.Combine(RevitMCPAddin.Core.Paths.AddinFolder, DefaultFileName);
-                if (File.Exists(p4)) return p4;
             }
             catch { /* ignore */ }
 

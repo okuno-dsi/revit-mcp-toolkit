@@ -8,9 +8,9 @@ This command helps you validate the mapping configuration without running an aut
 
 The add-in loads `RebarMapping.json` (best-effort) from:
 - `REVITMCP_REBAR_MAPPING_PATH` (explicit override), or
-- `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json`, or
-- `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json`, or
-- the add-in folder (next to the DLL).
+- the add-in folder (recommended; `Resources\\RebarMapping.json` or next to the DLL), or
+- `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json` (override/cache), or
+- `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json` (dev).
 
 ### Profile Selection (when `profile` is omitted)
 The add-in auto-selects a profile using (best-effort):

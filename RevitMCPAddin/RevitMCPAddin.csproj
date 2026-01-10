@@ -717,15 +717,20 @@
     <Compile Include="Core\Rebar\RebarRecipeLedgerStorage.cs" />
     <Compile Include="Core\Rebar\RebarDeleteService.cs" />
     <Compile Include="Core\Rebar\RebarRecipeService.cs" />
+    <Compile Include="Core\Rebar\RebarBarClearanceTableService.cs" />
     <Compile Include="Commands\Spatial\GetSpatialContextForElementsCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutInspectCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateByHostCommand.cs" />
     <Compile Include="Commands\Rebar\RebarMappingResolveCommand.cs" />
+    <Compile Include="Commands\Rebar\ListRebarBarTypesCommand.cs" />
+    <Compile Include="Commands\Rebar\ListRebarHookTypesCommand.cs" />
+    <Compile Include="Commands\Rebar\ImportRebarTypesFromDocumentCommand.cs" />
     <Compile Include="Commands\Rebar\RebarPlanAutoCommand.cs" />
     <Compile Include="Commands\Rebar\RebarApplyPlanCommand.cs" />
     <Compile Include="Commands\Rebar\RebarSyncStatusCommand.cs" />
     <Compile Include="Commands\Rebar\RebarRegenerateDeleteRecreateCommand.cs" />
+    <Compile Include="Commands\Rebar\RebarSpacingCheckCommand.cs" />
     <Compile Include="Commands\Rebar\DeleteRebarsCommand.cs" />
     <Compile Include="Commands\Rebar\MoveRebarsCommand.cs" />
   </ItemGroup>
@@ -733,6 +738,9 @@
     <None Include="app.config" />
     <None Include="packages.config" />
     <Content Include="RebarMapping.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="RebarBarClearanceTable.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

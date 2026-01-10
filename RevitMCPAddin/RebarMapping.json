@@ -51,6 +51,9 @@
           "type": "double",
           "unit": "mm",
           "sources": [
+            { "kind": "instanceParam", "name": "かぶり厚-上" },
+            { "kind": "instanceParam", "name": "かぶり厚-上面" },
+            { "kind": "instanceParam", "name": "Rebar Cover - Top" },
             { "kind": "derived", "name": "hostcover.top" },
             { "kind": "constant", "value": 40 }
           ],
@@ -60,6 +63,9 @@
           "type": "double",
           "unit": "mm",
           "sources": [
+            { "kind": "instanceParam", "name": "かぶり厚-下" },
+            { "kind": "instanceParam", "name": "かぶり厚-下面" },
+            { "kind": "instanceParam", "name": "Rebar Cover - Bottom" },
             { "kind": "derived", "name": "hostcover.bottom" },
             { "kind": "constant", "value": 40 }
           ],
@@ -69,6 +75,10 @@
           "type": "double",
           "unit": "mm",
           "sources": [
+            { "kind": "instanceParam", "name": "かぶり厚-左" },
+            { "kind": "instanceParam", "name": "かぶり厚-右" },
+            { "kind": "instanceParam", "name": "かぶり厚 - その他の面" },
+            { "kind": "instanceParam", "name": "Rebar Cover - Other Faces" },
             { "kind": "derived", "name": "hostcover.other" },
             { "kind": "constant", "value": 40 }
           ],
@@ -158,11 +168,43 @@
           ],
           "validation": { "min": 0, "max": 200 }
         },
+        "Beam.Attr.MainBar.TopCount2": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount3": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
         "Beam.Attr.MainBar.BottomCount": {
           "type": "int",
           "sources": [
             { "kind": "typeParam", "name": "中央下端1段筋太径本数" },
             { "kind": "instanceParam", "name": "中央下端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount2": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount3": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端3段筋太径本数" }
           ],
           "validation": { "min": 0, "max": 200 }
         },
@@ -206,6 +248,184 @@
           "sources": [
             { "kind": "typeParam", "name": "終点側あばら筋ピッチ" },
             { "kind": "instanceParam", "name": "終点側あばら筋ピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        }
+      }
+    },
+    {
+      "name": "rug_column_attr_v1",
+      "priority": 110,
+      "appliesTo": {
+        "categories": ["OST_StructuralColumns"],
+        "requiresTypeParamsAny": ["D_main", "D_hoop"]
+      },
+      "map": {
+        "Common.MainBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "D_main" },
+            { "kind": "instanceParam", "name": "D_main" }
+          ]
+        },
+        "Common.TieBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "D_hoop" },
+            { "kind": "instanceParam", "name": "D_hoop" }
+          ]
+        },
+        "Common.Arrangement.Spacing": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "pitch_hoop_panel" },
+            { "kind": "instanceParam", "name": "pitch_hoop_panel" },
+            { "kind": "typeParam", "name": "pitch_hoop_panel_forList" },
+            { "kind": "instanceParam", "name": "pitch_hoop_panel_forList" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Column.Attr.MainBar.BarsPerFace": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_X_1st_bottom" },
+            { "kind": "typeParam", "name": "N_main_Y_1st_bottom" },
+            { "kind": "instanceParam", "name": "N_main_X_1st_bottom" },
+            { "kind": "instanceParam", "name": "N_main_Y_1st_bottom" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        }
+      }
+    },
+    {
+      "name": "rug_beam_attr_v1",
+      "priority": 120,
+      "appliesTo": {
+        "categories": ["OST_StructuralFraming"],
+        "requiresTypeParamsAny": ["D_main", "D_stirrup", "pitch_stirrup", "N_main_top_total", "N_main_bottom_total"]
+      },
+      "map": {
+        "Common.MainBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "D_main" },
+            { "kind": "instanceParam", "name": "D_main" }
+          ]
+        },
+        "Common.TieBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "D_stirrup" },
+            { "kind": "instanceParam", "name": "D_stirrup" }
+          ]
+        },
+        "Beam.Attr.MainBar.TopCount": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_top_1st" },
+            { "kind": "typeParam", "name": "N_main_top_1st_start" },
+            { "kind": "typeParam", "name": "N_main_top_1st_end" },
+            { "kind": "instanceParam", "name": "N_main_top_1st" },
+            { "kind": "instanceParam", "name": "N_main_top_1st_start" },
+            { "kind": "instanceParam", "name": "N_main_top_1st_end" },
+            { "kind": "typeParam", "name": "N_main_top_total" },
+            { "kind": "instanceParam", "name": "N_main_top_total" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount2": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_top_2nd" },
+            { "kind": "typeParam", "name": "N_main_top_2nd_start" },
+            { "kind": "typeParam", "name": "N_main_top_2nd_end" },
+            { "kind": "instanceParam", "name": "N_main_top_2nd" },
+            { "kind": "instanceParam", "name": "N_main_top_2nd_start" },
+            { "kind": "instanceParam", "name": "N_main_top_2nd_end" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount3": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_top_3rd" },
+            { "kind": "typeParam", "name": "N_main_top_3rd_start" },
+            { "kind": "typeParam", "name": "N_main_top_3rd_end" },
+            { "kind": "instanceParam", "name": "N_main_top_3rd" },
+            { "kind": "instanceParam", "name": "N_main_top_3rd_start" },
+            { "kind": "instanceParam", "name": "N_main_top_3rd_end" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_bottom_1st" },
+            { "kind": "typeParam", "name": "N_main_bottom_1st_start" },
+            { "kind": "typeParam", "name": "N_main_bottom_1st_end" },
+            { "kind": "instanceParam", "name": "N_main_bottom_1st" },
+            { "kind": "instanceParam", "name": "N_main_bottom_1st_start" },
+            { "kind": "instanceParam", "name": "N_main_bottom_1st_end" },
+            { "kind": "typeParam", "name": "N_main_bottom_total" },
+            { "kind": "instanceParam", "name": "N_main_bottom_total" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount2": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_bottom_2nd" },
+            { "kind": "typeParam", "name": "N_main_bottom_2nd_start" },
+            { "kind": "typeParam", "name": "N_main_bottom_2nd_end" },
+            { "kind": "instanceParam", "name": "N_main_bottom_2nd" },
+            { "kind": "instanceParam", "name": "N_main_bottom_2nd_start" },
+            { "kind": "instanceParam", "name": "N_main_bottom_2nd_end" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount3": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_bottom_3rd" },
+            { "kind": "typeParam", "name": "N_main_bottom_3rd_start" },
+            { "kind": "typeParam", "name": "N_main_bottom_3rd_end" },
+            { "kind": "instanceParam", "name": "N_main_bottom_3rd" },
+            { "kind": "instanceParam", "name": "N_main_bottom_3rd_start" },
+            { "kind": "instanceParam", "name": "N_main_bottom_3rd_end" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.Stirrup.PitchMidMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "pitch_stirrup" },
+            { "kind": "instanceParam", "name": "pitch_stirrup" },
+            { "kind": "typeParam", "name": "pitch_stirrup_forList" },
+            { "kind": "instanceParam", "name": "pitch_stirrup_forList" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Beam.Attr.Stirrup.PitchStartMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "pitch_stirrup_start" },
+            { "kind": "instanceParam", "name": "pitch_stirrup_start" },
+            { "kind": "typeParam", "name": "pitch_stirrup_start_forList" },
+            { "kind": "instanceParam", "name": "pitch_stirrup_start_forList" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Beam.Attr.Stirrup.PitchEndMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "pitch_stirrup_end" },
+            { "kind": "instanceParam", "name": "pitch_stirrup_end" },
+            { "kind": "typeParam", "name": "pitch_stirrup_end_forList" },
+            { "kind": "instanceParam", "name": "pitch_stirrup_end_forList" }
           ],
           "validation": { "min": 0, "max": 2000 }
         }
@@ -344,6 +564,27 @@
           "sources": [
             { "kind": "instanceParam", "name": "TieBarsOnNormalSide" },
             { "kind": "constant", "value": true }
+          ]
+        },
+        "Column.Attr.MainBar.BarsPerFace": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "主筋各面本数" },
+            { "kind": "instanceParam", "name": "主筋各面本数" },
+            { "kind": "typeParam", "name": "BarsPerFace" },
+            { "kind": "instanceParam", "name": "BarsPerFace" },
+            { "kind": "constant", "value": 2 }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.Tie.PatternJson": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "帯筋パターンJSON" },
+            { "kind": "instanceParam", "name": "帯筋パターンJSON" },
+            { "kind": "typeParam", "name": "TiePatternJson" },
+            { "kind": "instanceParam", "name": "TiePatternJson" },
+            { "kind": "constant", "value": "" }
           ]
         }
       }

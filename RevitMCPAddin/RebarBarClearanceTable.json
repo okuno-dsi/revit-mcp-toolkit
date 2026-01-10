@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "units": { "length": "mm" },
+  "note": "Minimum center-to-center spacing table for parallel rebars (mm). Used as a heuristic for multi-layer main bars stacking and spacing checks.",
+  "byDiameterMm": {
+    "10": 43,
+    "13": 46,
+    "16": 50,
+    "19": 53,
+    "22": 58,
+    "25": 66,
+    "29": 77,
+    "32": 84,
+    "35": 93,
+    "38": 100,
+    "41": 108
+  },
+  "aliases": {
+    "D10": 43,
+    "D13": 46,
+    "D16": 50,
+    "D19": 53,
+    "D22": 58,
+    "D25": 66,
+    "D29": 77,
+    "D32": 84,
+    "D35": 93,
+    "D38": 100,
+    "D41": 108
+  }
+}

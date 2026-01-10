@@ -8,9 +8,9 @@
 
 読み込みはベストエフォートで、次の順で探索します:
 - `REVITMCP_REBAR_MAPPING_PATH`（明示指定）
-- `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json`
-- `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json`
-- アドインDLLと同じフォルダ（既定の同梱場所）
+- アドインフォルダ（推奨: `Resources\\RebarMapping.json` または DLL と同じフォルダ）
+- `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json`（上書き/キャッシュ）
+- `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json`（開発用）
 
 ### プロファイル自動選択（`profile` 未指定時）
 ベストエフォートで次の情報を見てプロファイルを選びます:

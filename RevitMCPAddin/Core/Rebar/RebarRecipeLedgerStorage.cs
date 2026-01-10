@@ -43,7 +43,10 @@ namespace RevitMCPAddin.Core.Rebar
     {
         // IMPORTANT: Do not change once deployed.
         private static readonly Guid SchemaGuid = new Guid("b52d55a4-0b55-4d8b-9cd2-8f0f3b0fa3d6");
-        private const string SchemaName = "RevitMcp.RebarRecipeLedger";
+        // NOTE: ExtensibleStorage Schema name must be a valid identifier (no dots, etc.).
+        // GUID is the true identity; changing the name here does not break existing documents
+        // because Schema.Lookup uses SchemaGuid.
+        private const string SchemaName = "RevitMcp_RebarRecipeLedger";
         private const string FieldLedgerJson = "LedgerJson";
 
         public static string SchemaGuidString => SchemaGuid.ToString();
@@ -71,7 +74,7 @@ namespace RevitMCPAddin.Core.Rebar
                 // In that case, create the schema with a unique name but keep the GUID stable.
                 try
                 {
-                    var uniqueName = SchemaName + "." + SchemaGuid.ToString("N").Substring(0, 8);
+                    var uniqueName = SchemaName + "_" + SchemaGuid.ToString("N").Substring(0, 8);
                     var sb2 = new SchemaBuilder(SchemaGuid);
                     sb2.SetSchemaName(uniqueName);
                     sb2.SetDocumentation("RevitMcp rebar recipe ledger (per host signature + last run info).");

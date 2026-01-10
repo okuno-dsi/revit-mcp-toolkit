@@ -98,58 +98,74 @@ namespace RevitMCPAddin.Commands.Rebar
 
                 var actionsArr = hTok["actions"] as JArray ?? new JArray();
 
+                RevitMCPAddin.Core.Failures.CommandIssues issues = null;
                 using (var tx = new Transaction(doc, "RevitMcp - Rebar Regenerate Host " + hid))
                 {
                     tx.Start();
                     try
                     {
-                        // Delete tagged rebars in this host.
-                        var toDelete = RebarDeleteService.CollectTaggedRebarIdsInHost(doc, host, tag);
-                        var deleted = RebarDeleteService.DeleteElementsByIds(doc, toDelete);
-
-                        // Recreate from plan.
-                        var createdInfos = RebarAutoModelService.ExecuteActionsInTransaction(doc, host, actionsArr, out var layoutWarnings);
-                        var createdIds = createdInfos.Select(x => x.elementId).Where(x => x > 0).Distinct().OrderBy(x => x).ToList();
-
-                        int createdMainBars = createdInfos.Count(x => x != null && (x.style ?? string.Empty).Equals("Standard", StringComparison.OrdinalIgnoreCase));
-                        int createdStirrupsSets = createdInfos.Count(x => x != null && (x.style ?? string.Empty).Equals("StirrupTie", StringComparison.OrdinalIgnoreCase));
-
-                        // Build recipe + signature.
-                        var recipe = RebarRecipeService.BuildRecipe(doc, host, planObj, hTok, p, out var sig);
-
-                        // Persist ledger record (in the same TX as create/delete).
-                        var record = new RebarRecipeLedgerHostRecord
+                        using (var scope = new FailureCaptureScope(uiapp, suppressWarnings: true, rollbackOnError: true))
                         {
-                            engineVersion = RebarRecipeService.EngineVersion,
-                            hostUniqueId = host.UniqueId ?? string.Empty,
-                            hostElementId = host.Id.IntValue(),
-                            hostCategoryBic = hTok.Value<string>("categoryBic") ?? string.Empty,
-                            profile = ((hTok["mapping"] as JObject)?["mapping"] as JObject)?.Value<string>("profile") ?? string.Empty,
-                            signatureSha256 = sig ?? string.Empty,
-                            createdUtc = DateTime.UtcNow.ToString("o"),
-                            summary = new
+                            // Delete tagged rebars in this host.
+                            var toDelete = RebarDeleteService.CollectTaggedRebarIdsInHost(doc, host, tag);
+                            var deleted = RebarDeleteService.DeleteElementsByIds(doc, toDelete);
+
+                            // Recreate from plan.
+                            var createdInfos = RebarAutoModelService.ExecuteActionsInTransaction(doc, host, actionsArr, out var layoutWarnings);
+                            var createdIds = createdInfos.Select(x => x.elementId).Where(x => x > 0).Distinct().OrderBy(x => x).ToList();
+
+                            int createdMainBars = createdInfos.Count(x => x != null && (x.style ?? string.Empty).Equals("Standard", StringComparison.OrdinalIgnoreCase));
+                            int createdStirrupsSets = createdInfos.Count(x => x != null && (x.style ?? string.Empty).Equals("StirrupTie", StringComparison.OrdinalIgnoreCase));
+
+                            // Build recipe + signature.
+                            var recipe = RebarRecipeService.BuildRecipe(doc, host, planObj, hTok, p, out var sig);
+
+                            // Persist ledger record (in the same TX as create/delete).
+                            var record = new RebarRecipeLedgerHostRecord
                             {
-                                deletedCount = deleted.Count,
-                                createdTotal = createdIds.Count,
-                                createdMainBars = createdMainBars,
-                                createdStirrupsSets = createdStirrupsSets
-                            },
-                            // Keep recipe snapshot opt-in to avoid bloating the RVT
-                            recipeSnapshot = (p.Value<bool?>("storeRecipeSnapshot") ?? false) ? recipe : null
-                        };
+                                engineVersion = RebarRecipeService.EngineVersion,
+                                hostUniqueId = host.UniqueId ?? string.Empty,
+                                hostElementId = host.Id.IntValue(),
+                                hostCategoryBic = hTok.Value<string>("categoryBic") ?? string.Empty,
+                                profile = ((hTok["mapping"] as JObject)?["mapping"] as JObject)?.Value<string>("profile") ?? string.Empty,
+                                signatureSha256 = sig ?? string.Empty,
+                                createdUtc = DateTime.UtcNow.ToString("o"),
+                                summary = new
+                                {
+                                    deletedCount = deleted.Count,
+                                    createdTotal = createdIds.Count,
+                                    createdMainBars = createdMainBars,
+                                    createdStirrupsSets = createdStirrupsSets
+                                },
+                                // Keep recipe snapshot opt-in to avoid bloating the RVT
+                                recipeSnapshot = (p.Value<bool?>("storeRecipeSnapshot") ?? false) ? recipe : null
+                            };
 
-                        RebarRecipeLedgerStorage.UpsertHostRecord(ledger, record);
-                        if (!RebarRecipeLedgerStorage.TryWriteAll(doc, storage, ledger, out var writeErr))
-                            throw new InvalidOperationException("Ledger write failed: " + writeErr);
+                            RebarRecipeLedgerStorage.UpsertHostRecord(ledger, record);
+                            if (!RebarRecipeLedgerStorage.TryWriteAll(doc, storage, ledger, out var writeErr))
+                                throw new InvalidOperationException("Ledger write failed: " + writeErr);
 
-                        tx.Commit();
+                            issues = scope.Issues;
 
-                        r["ok"] = true;
-                        r["deletedRebarIds"] = new JArray(deleted);
-                        r["createdRebarIds"] = new JArray(createdIds);
-                        r["signatureSha256"] = sig;
-                        if (layoutWarnings.Count > 0) r["layoutWarnings"] = layoutWarnings;
-                        results.Add(r);
+                            var status = tx.Commit();
+                            if (status != TransactionStatus.Committed)
+                            {
+                                r["ok"] = false;
+                                r["code"] = "TX_NOT_COMMITTED";
+                                r["msg"] = "Transaction did not commit: " + status.ToString();
+                                if (issues != null) r["issues"] = JObject.FromObject(issues);
+                                results.Add(r);
+                                continue;
+                            }
+
+                            r["ok"] = true;
+                            r["deletedRebarIds"] = new JArray(deleted);
+                            r["createdRebarIds"] = new JArray(createdIds);
+                            r["signatureSha256"] = sig;
+                            if (layoutWarnings.Count > 0) r["layoutWarnings"] = layoutWarnings;
+                            if (issues != null) r["issues"] = JObject.FromObject(issues);
+                            results.Add(r);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -157,6 +173,7 @@ namespace RevitMCPAddin.Commands.Rebar
                         r["ok"] = false;
                         r["code"] = "TX_FAILED";
                         r["msg"] = ex.Message;
+                        if (issues != null) r["issues"] = JObject.FromObject(issues);
                         results.Add(r);
                     }
                 }
@@ -177,4 +194,3 @@ namespace RevitMCPAddin.Commands.Rebar
         }
     }
 }
-

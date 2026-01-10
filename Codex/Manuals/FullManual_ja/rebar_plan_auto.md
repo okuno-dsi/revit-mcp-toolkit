@@ -5,11 +5,32 @@
 
 ## 概要
 v1 の計画ルール:
-- 構造柱: 主筋（4隅）+ 帯筋（1セット）
+- 構造柱: 主筋（周辺配筋: `options.columnMainBarsPerFace`）+ 帯筋（1セット、または Joint パターン時は複数セット）
 - 梁（構造フレーム）: 主筋（上下）+ スターラップ（1セット）
   - 既定の主筋本数: 上=2、下=2（`options.beamMainTopCount/beamMainBottomCount` または mapping の梁属性キーで上書き）
 
 形状は近似です。梁の長手方向の範囲は Solid ジオメトリから得た物理形状の範囲を優先します（柱芯まで伸びる LocationCurve 端点だと端部のスターラップ等がずれるため）。Solid が取れない場合は BoundingBox にフォールバックします。LocationCurve 範囲は参考（デバッグ）として返します（自動化の足場用途）。
+
+柱主筋の本数（各面本数）は、mapping `Column.Attr.MainBar.BarsPerFace` が存在する場合はそれを優先します（パラメータ名は `RebarMapping.json` のプロファイルで吸収）。
+
+#### 被り厚さ（Cover）の扱い
+- 可能な限り、ホスト要素インスタンスの「鉄筋被り」設定（例: `CLEAR_COVER_TOP/BOTTOM/OTHER` → `RebarCoverType.CoverDistance`）を読み取り、配筋位置に反映します。
+- mapping が `Host.Cover.Top/Bottom/Other` を返す場合は、それを優先して上書きします（best-effort）。これは、プロジェクト/ファミリが被りをカスタムのインスタンスパラメータ（例: `かぶり厚-上`）で持っていて、Revit標準のかぶりタイプが実質 `0` になっている場合の救済にも使えます。
+- 反映された値は `hosts[].coversMm` に入り、`sources` で由来（`hostInstance` / `mapping` / `default`）も返します。
+- さらに、ホスト要素が「面ごとの被り」をインスタンスパラメータ（例: `かぶり厚-上/下/左/右`）として持っている場合は、**断面方向の配置**にはそれらを優先して使います（best-effort）。この値は `hosts[].coverFacesMm`（up/down/left/right）として返します。Revit標準の「かぶりタイプ（ElementId）」を書き換えるものではありません。
+
+#### 被り厚さ（Cover）の確認（安全運用）
+- 被り厚さのパラメータ名は、プロジェクト/ファミリ作成者/言語によって変わります。ツール側で「どのパラメータを読むべきか」が確定できない場合（または被りが `options.coverMinMm` 未満の場合）は、`ok:false` / `code:"COVER_CONFIRMATION_REQUIRED"` を返して停止します（この状態では作図しません）。
+- `hosts[].coverCandidateParamNames`（被り候補パラメータ名）、`hosts[].coverFacesMmRaw`、`hosts[].coversMm` を確認し、次のいずれかで再実行してください。
+  - `options.coverConfirmProceed:true`（「この読み取り/丸めで進めて良い」という明示同意。`options.coverClampToMin:true` の場合は最小値へ丸めます）
+  - `options.coverParamNames` で面ごとのパラメータ名を明示指定（`up/down/left/right` の配列）
+
+注意: ユーザーから「このパラメータを読んで/書いて」と依頼が来た場合は、実行前に `snoop` コマンドでパラメータ名・型（長さ/実数/文字列等）を確認し、指定が曖昧ならユーザーに問い合わせてから実行してください。
+
+### 鉄筋タイプ（RebarBarType）の解決について
+- まずは「名前の完全一致」（`options.mainBarTypeName` / `options.tieBarTypeName` または mapping の `Common.*BarType`）で `RebarBarType` を探します。
+- 見つからない場合でも、指定文字列に `D25` のような径情報が含まれていれば、**径一致で `RebarBarType` を探索**します（命名規則に依存しないため）。
+  - 解決結果はホストごとに `mainBarTypeResolve` / `tieBarTypeResolve` として返します（requested/resolved/resolvedBy/diameterMm）。
 
 ### 梁（マッピング駆動の配筋属性）について
 - `RebarMapping.json` のプロファイルに梁用の論理キー（例: `Beam.Attr.MainBar.DiameterMm`, `Beam.Attr.MainBar.TopCount`, `Beam.Attr.Stirrup.DiameterMm`, `Beam.Attr.Stirrup.PitchMidMm`）が定義されている場合、
@@ -22,12 +43,24 @@ v1 の計画ルール:
 - 梁主筋は既定で、支持柱が推定できる場合に **柱内へ「0.75×柱幅（梁軸方向）」** だけ伸ばします（best-effort）。必要なら options で無効化/調整できます。
 - 端部の90度折り曲げは、主筋の曲線を「追加の線分」で表現します（`beamMainBarStartBendLengthMm` / `beamMainBarEndBendLengthMm`、方向 `up|down`）。
 - スターラップの始点コーナーは `beamStirrupStartCorner` で回転できます（多くのケースで上側が好まれます）。
-- 梁スターラップはフックタイプ（例: 135度）も指定できます（best-effort）。`beamStirrupUseHooks=true` の場合、スターラップの曲線は「開いた折れ線」として作成し、両端に `RebarHookType` を適用します。
-- 注意: `RebarHookType` は `RebarStyle` との相性があります。`標準フック` を指定した場合、ツール側で `style:"Standard"` に切り替えて作成します（best-effort）。
+- 梁スターラップはフックタイプ（例: 135度）も指定できます（best-effort）。`beamStirrupUseHooks=true` の場合でも、スターラップは **閉じた形状（閉ループ）** のまま作成し、作成後にインスタンスパラメータでフック種別/回転を設定します。
+- 注意: `RebarHookType` は `RebarStyle` との相性があります。帯筋/スターラップ（`style:"StirrupTie"`）では、`StirrupTie` に適合するフックを優先して採用します。`標準フック - 135 度` のように非互換（Standard専用）のフック名が指定されている場合は、その名前での一致は無視し、角度（例: `135°`）から適合フックを探索して採用します。プロジェクト内に適合フックが存在しない場合は、安全のためフックを無効化し、plan に警告を返します（best-effort）。
 - 柱の主筋についても、端部延長/短縮や90度折り曲げ（線分表現）を options で指定できます。
 - 柱の帯筋（せん断補強筋）についても、開始/終了位置オフセットや135度フック等を options で指定できます（best-effort）。
+- 柱帯筋は `Column.Attr.Tie.PatternJson`（mapping）または `options.columnTiePattern` を指定すると、任意の「参照面 + セグメント（方向/本数/ピッチ）」で帯筋セットを作ります（best-effort）。
+  - 参照面 `beam_top` / `beam_bottom` は「梁せい（`Host.Section.Height`）+ LocationCurve のZ（=レベル/オフセット由来）」から上下面Zを推定します（best-effort、必要に応じて bbox で補助）。
+  - 見つからない場合は通常の1セットにフォールバックします。
+  - 互換のため `options.columnTieJointPatternEnabled=true` も残しています（内部的には `columnTiePattern` に変換して実行）。
 - 梁スターラップの開始/終了は、構造柱の BoundingBox から「柱面（支持面）」を推定してそこに寄せます（best-effort）。
   - まず結合（Join）された柱を試し、無い場合は梁端点近傍の柱を探索します。
+- 既存の（同一ホスト内の）タグ付き鉄筋に対して、UIパラメータの
+  - `始端のフック`
+  - `終端のフック`
+  - `始端でのフックの回転`（環境により `始端のフックの回転` の場合もあります）
+  - `終端でのフックの回転`（環境により `終端のフックの回転` の場合もあります）
+  をユーザーが調整している場合、`options.hookAutoDetectFromExistingTaggedRebar=true`（既定）で、その設定を次回の自動作成に引き継ぎます（options でフック指定が無い場合、best-effort）。梁スターラップも同様に扱います。
+
+  - 角度の注意: 一部の角度パラメータで `180°` を設定すると `0°` に正規化されることがあります。表示を `180°` 付近にしたい場合は `179.9°` のように僅かにずらす回避策が有効です。
 
 ## 使い方
 - Method: `rebar_plan_auto`
@@ -46,6 +79,11 @@ v1 の計画ルール:
 | options.includeTies | bool | no | true | 柱の帯筋を含めるか。 |
 | options.includeStirrups | bool | no | true | 梁のスターラップを含めるか。 |
 | options.beamUseTypeParams | bool | no | true | `RebarMapping.json` の梁用論理キー（プロファイル依存）を使って、本数/ピッチを上書きします。 |
+| options.coverConfirmEnabled | bool | no | true | true の場合、被りパラメータが不足/曖昧、または `coverMinMm` 未満のときに明示確認を要求します。 |
+| options.coverConfirmProceed | bool | no | false | `COVER_CONFIRMATION_REQUIRED` を解除して続行するための明示同意フラグ。 |
+| options.coverMinMm | number | no | 40 | 被りの最小値（mm、確認/丸めの基準）。 |
+| options.coverClampToMin | bool | no | true | true の場合、`coverMinMm` 未満の被り値を最小値へ丸めます（best-effort）。 |
+| options.coverParamNames | object | no |  | 面ごとの被りパラメータ名のヒント: `{ up: string[]; down: string[]; left: string[]; right: string[] }`。 |
 | options.beamMainTopCount | int | no |  | 梁主筋の上端本数（ユーザー指定の上書き）。 |
 | options.beamMainBottomCount | int | no |  | 梁主筋の下端本数（ユーザー指定の上書き）。 |
 | options.beamMainBarStartExtensionMm | number | no | 0 | 梁主筋の始点延長(mm)。正で延長、負で短縮。 |
@@ -54,11 +92,13 @@ v1 の計画ルール:
 | options.beamMainBarEmbedIntoSupportColumnRatio | number | no | 0.75 | 延長長さ = ratio × 支持柱幅（梁軸方向）。 |
 | options.beamSupportSearchRangeMm | number | no | 1500 | 支持柱探索範囲（梁端点近傍、mm）。 |
 | options.beamSupportFaceToleranceMm | number | no | 250 | 支持柱と梁端面の一致判定許容（mm）。 |
-| options.beamStirrupUseHooks | bool | no | false | true の場合、梁スターラップを「開いた折れ線」で作成し、両端にフックを適用します（best-effort）。 |
-| options.beamStirrupHookAngleDeg | number | no | 0 | フック角度（deg、例: `135`）。`beamStirrupHookTypeName` が未指定の場合に一致する `RebarHookType` を探索します。 |
+| options.beamStirrupUseHooks | bool | no | true | true の場合、梁スターラップを「開いた折れ線」で作成し、両端にフックを適用します（best-effort）。 |
+| options.beamStirrupHookAngleDeg | number | no | 0 | フック角度（deg、例: `135`）。未指定でフック有効の場合は `135` を既定とします（best-effort）。`beamStirrupHookTypeName` が未指定の場合に一致する `RebarHookType` を探索します。 |
 | options.beamStirrupHookTypeName | string | no |  | `RebarHookType` の正確な名前（角度より優先）。 |
 | options.beamStirrupHookOrientationStart | string | no | `left` | `left`/`right`（Revit の HookOrientation）。 |
 | options.beamStirrupHookOrientationEnd | string | no | `right` | `left`/`right`（Revit の HookOrientation）。 |
+| options.beamStirrupHookStartRotationDeg | number | no | 0 | 始端フックの回転（deg）。 |
+| options.beamStirrupHookEndRotationDeg | number | no | 179.9 | 終端フックの回転（deg）。 |
 | options.beamStirrupStartOffsetMm | number | no | 0 | 梁端面からの開始オフセット（mm）。 |
 | options.beamStirrupEndOffsetMm | number | no | 0 | 梁端面からの終了オフセット（mm）。 |
 | options.columnMainBarBottomExtensionMm | number | no | 0 | 柱主筋の下端延長(mm)。正で延長、負で短縮。 |
@@ -67,13 +107,25 @@ v1 の計画ルール:
 | options.columnMainBarEndBendLengthMm | number | no | 0 | 柱主筋の終端90度折り曲げ長さ(mm)。 |
 | options.columnMainBarStartBendDir | string | no | `none` | `up`/`down`/`none`（world Z基準）。 |
 | options.columnMainBarEndBendDir | string | no | `none` | `up`/`down`/`none`（world Z基準）。 |
+| options.columnMainBarsPerFace | int | no | 2 | 柱主筋の「各面の本数」（>=2）。2 は四隅のみ、5 は 16本（矩形柱の例）。 |
 | options.columnTieBottomOffsetMm | number | no | 0 | 柱下端面から最初の帯筋までのオフセット(mm)。 |
 | options.columnTieTopOffsetMm | number | no | 0 | 柱上端面から最後の帯筋までのオフセット(mm)。 |
-| options.columnTieUseHooks | bool | no | false | true の場合、柱帯筋を「開いた折れ線」で作成し、両端にフックを適用します（best-effort）。 |
-| options.columnTieHookAngleDeg | number | no | 0 | フック角度（deg、例: `135`）。`columnTieHookTypeName` が未指定の場合に一致する `RebarHookType` を探索します。 |
+| options.columnTieUseHooks | bool | no | true | true の場合でも柱帯筋は閉ループのまま作成し、作成後にインスタンスパラメータでフック種別/回転を設定します（best-effort）。 |
+| options.columnTieHookAngleDeg | number | no | 0 | フック角度（deg、例: `135`）。未指定でフック有効の場合は `135` を既定とします（best-effort）。`columnTieHookTypeName` が未指定の場合に一致する `RebarHookType` を探索します。 |
 | options.columnTieHookTypeName | string | no |  | `RebarHookType` の正確な名前（角度より優先）。 |
 | options.columnTieHookOrientationStart | string | no | `left` | `left`/`right`。 |
 | options.columnTieHookOrientationEnd | string | no | `right` | `left`/`right`。 |
+| options.columnTieHookStartRotationDeg | number | no | 0 | 始端フックの回転（deg）。 |
+| options.columnTieHookEndRotationDeg | number | no | 179.9 | 終端フックの回転（deg）。 |
+| options.columnTieJointPatternEnabled | bool | no | false | true の場合、柱帯筋を「梁上面基準の上部/下部パターン」に置き換えます（2セット、best-effort）。 |
+| options.columnTieJointAboveCount | int | no | 3 | 梁上面基準の上側の帯筋本数（基準面の帯筋を含む）。 |
+| options.columnTieJointAbovePitchMm | number | no | 100 | 上側のピッチ(mm)。 |
+| options.columnTieJointBelowCount | int | no | 2 | 梁上面基準の下側の帯筋本数（基準面の帯筋は含まない）。 |
+| options.columnTieJointBelowPitchMm | number | no | 150 | 下側のピッチ(mm)。 |
+| options.columnTieJointBeamSearchRangeMm | number | no | 1500 | 参照梁探索の範囲（柱 bbox をXY方向に膨らませる量、mm）。 |
+| options.columnTieJointBeamXYToleranceMm | number | no | 250 | 参照梁の柱 bbox への重なり判定許容（mm）。 |
+| options.columnTiePattern | object | no |  | 柱帯筋の任意パターン（推奨）。mapping の `Column.Attr.Tie.PatternJson` と同等。 |
+| options.hookAutoDetectFromExistingTaggedRebar | bool | no | true | true の場合、options でフック指定が無いときに「同一ホスト内のタグ付き鉄筋」からフック種別/回転を引き継ぎます（best-effort）。 |
 | options.beamMainBarStartBendLengthMm | number | no | 0 | 梁主筋の始点90度折り曲げ長さ(mm)。0で無効。 |
 | options.beamMainBarEndBendLengthMm | number | no | 0 | 梁主筋の終点90度折り曲げ長さ(mm)。0で無効。 |
 | options.beamMainBarStartBendDir | string | no | `none` | `up` / `down` / `none`（ローカル上方向基準）。 |
@@ -85,6 +137,18 @@ v1 の計画ルール:
 
 ## 戻り値メモ
 - `planVersion` / `mappingStatus` / `hosts[]`（`actions[]` に曲線と layout を含む）
+
+## Column.Attr.Tie.PatternJson（例）
+`Column.Attr.Tie.PatternJson`（または `options.columnTiePattern`）は次のような JSON です（例: 梁上面を基準に、上3本@100、下2本@150）。
+```json
+{
+  "reference": { "kind": "beam_top", "offsetMm": 0, "beamSearchRangeMm": 1500, "beamXYToleranceMm": 250 },
+  "segments": [
+    { "name": "above", "direction": "up", "startOffsetMm": 0, "count": 3, "pitchMm": 100 },
+    { "name": "below", "direction": "down", "startOffsetMm": 150, "count": 2, "pitchMm": 150 }
+  ]
+}
+```
 
 ## 関連
 - `rebar_apply_plan`
