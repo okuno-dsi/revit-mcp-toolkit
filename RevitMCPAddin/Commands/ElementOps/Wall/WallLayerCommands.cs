@@ -177,6 +177,20 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
     }
 
     // 1) get_wall_type_info
+    [RpcCommand("element.get_wall_type_info",
+        Aliases = new[] { "get_wall_type_info" },
+        Category = "ElementOps/Wall",
+        Tags = new[] { "ElementOps", "Wall" },
+        Risk = RiskLevel.Low,
+        Summary = "Get basic wall type info (kind/width) by typeName/typeId or by a wall instance.",
+        Requires = new[] { "elementId|wallId|uniqueId|typeId|typeName" },
+        Constraints = new[]
+        {
+            "Either provide a wall instance (elementId/wallId/uniqueId) or a wall type (typeId/typeName).",
+            "Width is returned in mm for Basic walls."
+        },
+        ExampleJsonRpc =
+            "{ \"jsonrpc\":\"2.0\", \"id\":1, \"method\":\"element.get_wall_type_info\", \"params\":{ \"typeName\":\"(内壁)W5\" } }")]
     public class GetWallTypeInfoCommand : IRevitCommandHandler
     {
         public string CommandName => "get_wall_type_info";

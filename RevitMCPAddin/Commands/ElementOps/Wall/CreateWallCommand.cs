@@ -13,6 +13,21 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
     using RevitWallType = Autodesk.Revit.DB.WallType;
     using RevitLevel = Autodesk.Revit.DB.Level;
 
+    [RpcCommand("element.create_wall",
+        Aliases = new[] { "create_wall" },
+        Category = "ElementOps/Wall",
+        Tags = new[] { "ElementOps", "Wall" },
+        Risk = RiskLevel.Medium,
+        Summary = "Create a straight wall from start/end points (mm) on a base level, optionally top-constrained.",
+        Requires = new[] { "start", "end" },
+        Constraints = new[]
+        {
+            "Coordinates are in model space (mm).",
+            "For predictable results, specify wallTypeName (or wallTypeId) and baseLevelId (or baseLevelName).",
+            "If heightMm is omitted or set to 'level-to-level', the wall may be constrained to the next level."
+        },
+        ExampleJsonRpc =
+            "{ \"jsonrpc\":\"2.0\", \"id\":1, \"method\":\"element.create_wall\", \"params\":{ \"start\":{ \"x\":0, \"y\":0, \"z\":0 }, \"end\":{ \"x\":10000, \"y\":0, \"z\":0 }, \"wallTypeName\":\"(内壁)W5\", \"baseLevelId\":123, \"topLevelId\":456, \"baseOffsetMm\":0, \"topOffsetMm\":0 } }")]
     public class CreateWallCommand : IRevitCommandHandler
     {
         public string CommandName => "create_wall";

@@ -59,6 +59,87 @@ namespace RevitMCPAddin.Core
 
         public static string LedgerSchemaGuidString => LedgerSchemaGuid.ToString();
 
+        private static string BuildUndoGroupName(string commandName)
+        {
+            var raw = (commandName ?? string.Empty).Trim();
+            if (raw.Length == 0) return "MCP Command";
+
+            // Normalize to token-ish string.
+            string norm = raw;
+            try
+            {
+                norm = norm.Replace('.', '_').Replace('-', '_').Replace(' ', '_');
+            }
+            catch { /* ignore */ }
+
+            var parts = new List<string>();
+            try
+            {
+                foreach (var p in norm.Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var t = (p ?? string.Empty).Trim().ToLowerInvariant();
+                    if (t.Length == 0) continue;
+                    parts.Add(t);
+                }
+            }
+            catch { /* ignore */ }
+
+            // Drop leading generic action verbs.
+            var dropLeading = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "get","set","create","delete","update","apply","import","export","clear","reset","move","copy","rename","duplicate",
+                "open","close","show","hide","select","stash","restore","prepare","simulate","build","ensure","validate","compare",
+                "diagnose","debug","test","start","stop","sync","ping"
+            };
+            while (parts.Count > 0 && dropLeading.Contains(parts[0]))
+                parts.RemoveAt(0);
+
+            // Remove common stop-words but keep domain tokens.
+            var stop = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "revit","mcp","command","commands","ops","op","util","utils","by","from","to","in","with","and","for","of","all"
+            };
+            var tokens = new List<string>();
+            foreach (var t in parts)
+            {
+                if (t.Length == 0) continue;
+                if (stop.Contains(t)) continue;
+                tokens.Add(t);
+            }
+
+            string shortLabel;
+            if (tokens.Count == 0)
+            {
+                // Fall back to first 2 raw parts (even if verb-like).
+                if (parts.Count == 0) shortLabel = raw;
+                else if (parts.Count == 1) shortLabel = parts[0];
+                else shortLabel = parts[0] + " " + parts[1];
+            }
+            else if (tokens.Count == 1) shortLabel = tokens[0];
+            else shortLabel = tokens[0] + " " + tokens[1];
+
+            // Title-ish casing (simple).
+            try
+            {
+                var words = shortLabel.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var sb = new StringBuilder();
+                for (int i = 0; i < words.Length; i++)
+                {
+                    var w = words[i];
+                    if (w.Length == 0) continue;
+                    if (i > 0) sb.Append(' ');
+                    if (w.Length == 1) sb.Append(w.ToUpperInvariant());
+                    else sb.Append(char.ToUpperInvariant(w[0])).Append(w.Substring(1));
+                }
+                shortLabel = sb.ToString();
+            }
+            catch { /* ignore */ }
+
+            var finalName = "MCP " + shortLabel;
+            if (finalName.Length > 48) finalName = finalName.Substring(0, 48);
+            return finalName;
+        }
+
         public static object GetLedgerSummary(UIApplication uiapp, bool createIfMissing)
         {
             if (!McpTrackingOptions.EnableLedger)
@@ -287,7 +368,7 @@ namespace RevitMCPAddin.Core
                 }
 
                 // Try atomic mode: wrap command and ledger update in a TransactionGroup.
-                tg = new TransactionGroup(doc, "MCP Ledger Command");
+                tg = new TransactionGroup(doc, BuildUndoGroupName(commandName));
                 tg.Start();
                 tgStarted = true;
 

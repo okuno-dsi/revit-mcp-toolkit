@@ -10,6 +10,20 @@ using System.Reflection;
 
 namespace RevitMCPAddin.Commands.ElementOps.Wall
 {
+    [RpcCommand("element.set_wall_top_to_overhead",
+        Aliases = new[] { "set_wall_top_to_overhead" },
+        Category = "ElementOps/Wall",
+        Tags = new[] { "ElementOps", "Wall" },
+        Risk = RiskLevel.Medium,
+        Summary = "Attach wall top to nearest overhead element (ceilings/floors/roofs/framing) or set top by raycast.",
+        Constraints = new[]
+        {
+            "If no wall ids are provided, the current selection is used (walls only).",
+            "Raycast requires a non-template 3D view; you can pass view3dId or let the command create a temporary view.",
+            "Use dryRun=true to preview without modifying the model."
+        },
+        ExampleJsonRpc =
+            "{ \"jsonrpc\":\"2.0\", \"id\":1, \"method\":\"element.set_wall_top_to_overhead\", \"params\":{ \"wallId\":123456, \"dryRun\":true, \"maxDistanceMm\":50000 } }")]
     public class SetWallTopToOverheadCommand : IRevitCommandHandler
     {
         public string CommandName => "set_wall_top_to_overhead";

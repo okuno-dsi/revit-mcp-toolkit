@@ -1,0 +1,157 @@
+﻿categoryName,kind,familyName,typeName,typeId,paramName,storageType,dataType,isReadOnly,value,display,note
+構造フレーム,structural_frame,RC_B,FG13,111557,D_bar_spacing,String,autodesk.spec:spec.string-2.0.0,FALSE,D10,D10,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_bar_spacing_end_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D10,D10,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_bar_spacing_start_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D10,D10,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main,String,autodesk.spec:spec.string-2.0.0,FALSE,D25,D25,中央の主筋径
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main_bottom_end_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D25,D25,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main_bottom_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D25,D25,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main_bottom_start_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D25,D25,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main_end,String,autodesk.spec:spec.string-2.0.0,FALSE,D25,D25,終点側の主筋径
+構造フレーム,structural_frame,RC_B,FG13,111557,D_main_start,String,autodesk.spec:spec.string-2.0.0,FALSE,D25,D25,始端側の主筋径
+構造フレーム,structural_frame,RC_B,FG13,111557,D_stirrup,String,autodesk.spec:spec.string-2.0.0,FALSE,D13,D13,あばら筋の径
+構造フレーム,structural_frame,RC_B,FG13,111557,D_stirrup_end_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D13,D13,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_stirrup_start_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D13,D13,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_bottom_end_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_bottom_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_bottom_start_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_top_end_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_top_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_sub_top_start_forList,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_web,String,autodesk.spec:spec.string-2.0.0,FALSE,D10,D10,腹筋の径
+構造フレーム,structural_frame,RC_B,FG13,111557,D_web_end_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D10,D10,
+構造フレーム,structural_frame,RC_B,FG13,111557,D_web_start_forList,String,autodesk.spec:spec.string-2.0.0,TRUE,D10,D10,
+構造フレーム,structural_frame,RC_B,FG13,111557,FamilyVersion,String,autodesk.spec:spec.string-2.0.0,TRUE,R22.1.1,R22.1.1,
+構造フレーム,structural_frame,RC_B,FG13,111557,IFC に書き出し(タイプ),Integer,,FALSE,0,既定,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_bar_spacing,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_bar_spacing_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_bar_spacing_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_1st,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,中央の下端1段目（下側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_1st_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,終端側の下端1段目（下側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_1st_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,始端側の下端1段目（下側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_2nd,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,中央の下端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_2nd_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,終端側の下端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_2nd_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,始端側の下端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_3rd,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,中央の下端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_3rd_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,終端側の下端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_3rd_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,始端側の下端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_total,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_total_end,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_bottom_total_start,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_1st,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,中央の上端1段目（上側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_1st_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,終端側の上端1段目（上側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_1st_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,4,4,始端側の上端1段目（上側）の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_2nd,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,中央の上端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_2nd_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,終端側の上端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_2nd_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,始端側の上端2段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_3rd,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,中央の上端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_3rd_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,終端側の上端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_3rd_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,始端側の上端3段目の主筋本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_total,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_total_end,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_main_top_total_start,Integer,autodesk.spec:spec.int64-2.0.0,TRUE,6,6,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_stirrup,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,中央のあばら筋の組み合わせ本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_stirrup_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,終端側のあばら筋の組み合わせ本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_stirrup_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,2,2,始端側のあばら筋の組み合わせ本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_1st_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_1st_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_1st_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_2nd_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_2nd_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_2nd_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_3rd_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_3rd_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_bottom_3rd_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_1st_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_1st_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_1st_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_2nd_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_2nd_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_2nd_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_3rd_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_3rd_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_sub_top_3rd_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,N_web,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,12,12,中央の腹筋の本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_web_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,12,12,終端側の腹筋の本数
+構造フレーム,structural_frame,RC_B,FG13,111557,N_web_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,12,12,始端側の腹筋の本数
+構造フレーム,structural_frame,RC_B,FG13,111557,OmniClass タイトル,String,autodesk.spec:spec.string-2.0.0,TRUE,Beams,Beams,
+構造フレーム,structural_frame,RC_B,FG13,111557,OmniClass 番号,String,autodesk.spec:spec.string-2.0.0,TRUE,23.25.30.11.14.14,23.25.30.11.14.14,
+構造フレーム,structural_frame,RC_B,FG13,111557,URL,String,autodesk.spec.string:url-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,box_haunch_end,Integer,autodesk.spec:spec.bool-1.0.0,FALSE,0,いいえ,
+構造フレーム,structural_frame,RC_B,FG13,111557,box_haunch_start,Integer,autodesk.spec:spec.bool-1.0.0,FALSE,0,いいえ,
+構造フレーム,structural_frame,RC_B,FG13,111557,depth_end,Double,autodesk.spec.aec.structural:sectionDimension-2.0.0,FALSE,6.069553806,1850.0 mm,
+構造フレーム,structural_frame,RC_B,FG13,111557,depth_start,Double,autodesk.spec.aec.structural:sectionDimension-2.0.0,FALSE,6.069553806,1850.0 mm,
+構造フレーム,structural_frame,RC_B,FG13,111557,haunch_end,Double,autodesk.spec.aec:length-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,haunch_position_H_end,Double,autodesk.spec.aec:length-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,haunch_position_H_start,Double,autodesk.spec.aec:length-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,haunch_start,Double,autodesk.spec.aec:length-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,haunch_upper,Integer,autodesk.spec:spec.bool-1.0.0,FALSE,0,いいえ,
+構造フレーム,structural_frame,RC_B,FG13,111557,kind,String,autodesk.spec:spec.string-2.0.0,FALSE,Foundation-Girder,Foundation-Girder,
+構造フレーム,structural_frame,RC_B,FG13,111557,kind_haunch_position_H_end,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,kind_haunch_position_H_start,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_bar_spacing,Double,autodesk.spec.aec.structural:reinforcementSpacing-2.0.0,FALSE,0,0 mm,
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup,Double,autodesk.spec.aec.structural:reinforcementSpacing-2.0.0,FALSE,0.656167979,200 mm,中央のあばら筋のピッチ
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup_end,Double,autodesk.spec.aec.structural:reinforcementSpacing-2.0.0,FALSE,0.656167979,200 mm,終端側のあばら筋のピッチ
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup_end_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,200,200,
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,200,200,
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup_start,Double,autodesk.spec.aec.structural:reinforcementSpacing-2.0.0,FALSE,0.656167979,200 mm,始端側のあばら筋のピッチ
+構造フレーム,structural_frame,RC_B,FG13,111557,pitch_stirrup_start_forList,Integer,autodesk.spec:spec.int64-2.0.0,FALSE,200,200,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_a,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_b,Double,autodesk.spec.aec:length-2.0.0,TRUE,1850,1850,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_c,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_d,Double,autodesk.spec.aec:length-2.0.0,TRUE,1850,1850,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_e,Double,autodesk.spec.aec:length-2.0.0,TRUE,100,100,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_f,Double,autodesk.spec.aec:length-2.0.0,TRUE,100,100,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_g,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_h,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_i,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_j,Double,autodesk.spec.aec:length-2.0.0,TRUE,450,450,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_k,Double,autodesk.spec.aec:length-2.0.0,TRUE,925,925,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_l,Double,autodesk.spec.aec:length-2.0.0,TRUE,925,925,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_m,Double,autodesk.spec.aec:length-2.0.0,TRUE,925,925,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_n,Double,autodesk.spec.aec:length-2.0.0,TRUE,925,925,
+構造フレーム,structural_frame,RC_B,FG13,111557,s_o,Double,autodesk.spec.aec:length-2.0.0,TRUE,925,925,
+構造フレーム,structural_frame,RC_B,FG13,111557,width_end,Double,autodesk.spec.aec.structural:sectionDimension-2.0.0,FALSE,1.476377953,450.0 mm,
+構造フレーム,structural_frame,RC_B,FG13,111557,width_start,Double,autodesk.spec.aec.structural:sectionDimension-2.0.0,FALSE,1.476377953,450.0 mm,
+構造フレーム,structural_frame,RC_B,FG13,111557,せん断面積(弱軸),Double,autodesk.spec.aec.structural:sectionArea-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,せん断面積(強軸),Double,autodesk.spec.aec.structural:sectionArea-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,ねじりの断面係数,Double,autodesk.spec.aec.structural:sectionModulus-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,アセンブリ,String,autodesk.spec:spec.string-2.0.0,TRUE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,アセンブリ コード,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,イメージ(タイプ),ElementId,autodesk.spec.reference:image-1.0.0,TRUE,-1,-1,
+構造フレーム,structural_frame,RC_B,FG13,111557,カテゴリ,ElementId,,TRUE,-2001320,構造フレーム,
+構造フレーム,structural_frame,RC_B,FG13,111557,キーノート,String,autodesk.spec:spec.string-2.0.0,TRUE,3310,3310,
+構造フレーム,structural_frame,RC_B,FG13,111557,コメント(タイプ),String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,コード名,String,autodesk.spec:spec.string-2.0.0,TRUE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,タイプ IfcGUID,String,autodesk.spec:spec.string-2.0.0,FALSE,1lA8xYBDT4_B3_8RAI3xtz,1lA8xYBDT4_B3_8RAI3xtz,
+構造フレーム,structural_frame,RC_B,FG13,111557,タイプ名,String,autodesk.spec:spec.string-2.0.0,TRUE,FG13,FG13,
+構造フレーム,structural_frame,RC_B,FG13,111557,デザイン オプション,ElementId,,TRUE,-1,-1,
+構造フレーム,structural_frame,RC_B,FG13,111557,ファミリ名,String,autodesk.spec:spec.string-2.0.0,TRUE,RC_B,RC_B,
+構造フレーム,structural_frame,RC_B,FG13,111557,マーク(タイプ),String,autodesk.spec:spec.string-2.0.0,FALSE,FG13,FG13,
+構造フレーム,structural_frame,RC_B,FG13,111557,モデル,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,一般図表示,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,主軸の角度,Double,autodesk.spec.aec:angle-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,価格,Double,autodesk.spec.measurable:currency-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,単位重量,Double,autodesk.spec.aec.structural:weightPerUnitLength-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,周長,Double,autodesk.spec.aec.structural:surfaceAreaPerUnitLength-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,図心 垂直方向,Double,autodesk.spec.aec.structural:sectionProperty-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,図心 水平方向,Double,autodesk.spec.aec.structural:sectionProperty-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,塑性断面係数(弱軸),Double,autodesk.spec.aec.structural:sectionModulus-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,塑性断面係数(強軸),Double,autodesk.spec.aec.structural:sectionModulus-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,定義済み IFC タイプ(タイプ),String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,幅,Double,autodesk.spec.aec.structural:sectionProperty-2.0.0,FALSE,1.476377953,450.0 mm,梁幅
+構造フレーム,structural_frame,RC_B,FG13,111557,断面のねじりモーメント,Double,autodesk.spec.aec.structural:momentOfInertia-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面二次モーメント(弱軸),Double,autodesk.spec.aec.structural:momentOfInertia-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面二次モーメント(強軸),Double,autodesk.spec.aec.structural:momentOfInertia-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面係数(弱軸),Double,autodesk.spec.aec.structural:sectionModulus-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面係数(強軸),Double,autodesk.spec.aec.structural:sectionModulus-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面名称キー,String,autodesk.spec:spec.string-2.0.0,TRUE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面形状,Integer,autodesk.spec:spec.string-2.0.0,TRUE,31,角型,
+構造フレーム,structural_frame,RC_B,FG13,111557,断面積,Double,autodesk.spec.aec.structural:sectionArea-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,曲げねじり定数,Double,autodesk.spec.aec.structural:warpingConstant-2.0.0,FALSE,0,0,
+構造フレーム,structural_frame,RC_B,FG13,111557,書き出し IFC クラス(タイプ),String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,構造マテリアル,ElementId,autodesk.spec.aec:material-1.0.0,FALSE,60927,Fc24,
+構造フレーム,structural_frame,RC_B,FG13,111557,符号,String,autodesk.spec:spec.string-2.0.0,FALSE,FG13,FG13,
+構造フレーム,structural_frame,RC_B,FG13,111557,耐火等級,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,製造元,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,説明,String,autodesk.spec:spec.string-2.0.0,FALSE,,,
+構造フレーム,structural_frame,RC_B,FG13,111557,高さ,Double,autodesk.spec.aec.structural:sectionProperty-2.0.0,FALSE,6.069553806,1850.0 mm,梁せい

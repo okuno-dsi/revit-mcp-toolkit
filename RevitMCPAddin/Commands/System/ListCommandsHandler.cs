@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Autodesk.Revit.UI;
+using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.Commands.MetaOps
@@ -21,40 +22,68 @@ namespace RevitMCPAddin.Commands.MetaOps
             _handlers = handlers.ToList();
         }
 
+        private sealed class ListCommandsParams
+        {
+            public bool? includeDeprecated { get; set; }
+            public bool? includeDetails { get; set; }
+        }
+
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            // Keep router-consistent: expand "a|b" and attribute-driven aliases.
-            var set = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-            foreach (var h in _handlers)
-            {
-                if (h == null) continue;
-                var raw = h.CommandName ?? "";
-                foreach (var m in raw.Split(new[] { '|' }, System.StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()))
-                {
-                    if (!string.IsNullOrWhiteSpace(m)) set.Add(m);
-                }
+            var p = (cmd.Params as JObject) != null
+                ? ((JObject)cmd.Params!).ToObject<ListCommandsParams>() ?? new ListCommandsParams()
+                : new ListCommandsParams();
 
-                try
+            bool includeDeprecated = p.includeDeprecated == true;
+            bool includeDetails = p.includeDetails == true;
+
+            // Default: canonical only (namespaced). Legacy names remain callable, but are deprecated aliases.
+            var metas = CommandMetadataRegistry.GetAll();
+            var items = new List<JObject>();
+
+            foreach (var m in metas)
+            {
+                if (m == null) continue;
+                if (string.IsNullOrWhiteSpace(m.name)) continue;
+
+                items.Add(new JObject
                 {
-                    var attr = h.GetType().GetCustomAttribute<RpcCommandAttribute>(inherit: true);
-                    if (attr != null)
+                    ["method"] = m.name,
+                    ["deprecated"] = false,
+                    ["canonical"] = m.name,
+                    ["aliases"] = new JArray((m.aliases ?? System.Array.Empty<string>()).ToArray())
+                });
+
+                if (!includeDeprecated) continue;
+                foreach (var a in (m.aliases ?? System.Array.Empty<string>()))
+                {
+                    var aa = (a ?? string.Empty).Trim();
+                    if (aa.Length == 0) continue;
+                    items.Add(new JObject
                     {
-                        if (!string.IsNullOrWhiteSpace(attr.Name)) set.Add(attr.Name.Trim());
-                        if (attr.Aliases != null)
-                        {
-                            foreach (var a in attr.Aliases)
-                            {
-                                var aa = (a ?? "").Trim();
-                                if (!string.IsNullOrWhiteSpace(aa)) set.Add(aa);
-                            }
-                        }
-                    }
+                        ["method"] = aa,
+                        ["deprecated"] = true,
+                        ["canonical"] = m.name
+                    });
                 }
-                catch { /* best-effort */ }
             }
 
-            var names = set.OrderBy(n => n).ToList();
-            return new { ok = true, commands = names };
+            var commands = items
+                .Select(x => (x.Value<string>("method") ?? string.Empty).Trim())
+                .Where(x => x.Length > 0)
+                .Distinct(System.StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, System.StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var result = new JObject
+            {
+                ["ok"] = true,
+                ["commands"] = new JArray(commands),
+                ["canonicalOnly"] = !includeDeprecated,
+                ["deprecatedIncluded"] = includeDeprecated
+            };
+            if (includeDetails) result["items"] = new JArray(items.ToArray());
+            return result;
         }
     }
 }

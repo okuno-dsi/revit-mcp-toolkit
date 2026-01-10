@@ -65,6 +65,7 @@ catch { /* best-effort */ }
 // Configure docs/manifest cache path away from wwwroot (SSR removed)
 try { RevitMcpServer.Docs.ManifestRegistry.ConfigureCachePath(Path.Combine(AppContext.BaseDirectory, "Results", "manifest-cache.json")); } catch { }
 try { RevitMcpServer.Docs.ManifestRegistry.LoadFromDisk(); } catch { }
+try { RevitMcpServer.Docs.CapabilitiesGenerator.TryWriteDefault(RevitMcpServer.Docs.ManifestRegistry.GetAll()); } catch { }
 
 // ----------------------------- Root -----------------------------
 app.MapGet("/", () => Results.Json(new { ok = true, port = chosenPort, message = "Revit MCP Server (SSR disabled)" }));
@@ -74,6 +75,68 @@ app.MapGet("/health", () => Results.Json(new { ok = true, port = chosenPort, tim
 
 // Debug (lightweight)
 app.MapGet("/debug", () => Results.Json(new { ok = true, port = chosenPort, ssr = "disabled" }));
+
+// Debug: capabilities (machine-readable command implementation status)
+app.MapGet("/debug/capabilities", (HttpRequest req) =>
+{
+    try
+    {
+        var methods = RevitMcpServer.Docs.ManifestRegistry.GetAll();
+        var caps = RevitMcpServer.Docs.CapabilitiesGenerator.Build(methods);
+        try { RevitMcpServer.Docs.CapabilitiesGenerator.WriteJsonl(RevitMcpServer.Docs.CapabilitiesGenerator.GetDefaultJsonlPath(), caps); } catch { }
+
+        bool canonicalOnly = QueryFlag(req, "canonicalOnly");
+        if (!QueryFlag(req, "includeDeprecated")) canonicalOnly = true;
+
+        var filtered = canonicalOnly ? caps.Where(x => x != null && x.Deprecated == false).ToList() : caps;
+
+        if (QueryFlag(req, "grouped"))
+        {
+            var groups = filtered
+                .GroupBy(x => x.Canonical ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(g =>
+                {
+                    var canon = g.Key;
+                    var primary =
+                        g.FirstOrDefault(x => string.Equals(x.Method, canon, StringComparison.OrdinalIgnoreCase))
+                        ?? g.OrderBy(x => x.Deprecated ? 1 : 0).ThenBy(x => x.Method, StringComparer.OrdinalIgnoreCase).First();
+
+                    var aliases = g
+                        .Where(x => !string.Equals(x.Method, canon, StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(x => x.Method, StringComparer.OrdinalIgnoreCase)
+                        .Select(x => new { method = x.Method, deprecated = x.Deprecated, summary = x.Summary })
+                        .ToList();
+
+                    return new
+                    {
+                        canonical = canon,
+                        summary = primary.Summary,
+                        transaction = primary.Transaction,
+                        revitHandler = primary.RevitHandler,
+                        since = primary.Since,
+                        aliases
+                    };
+                })
+                .ToList();
+
+            return Results.Json(new
+            {
+                ok = true,
+                canonicalOnly = canonicalOnly,
+                canonicalCount = groups.Count,
+                aliasCount = groups.Sum(x => x.aliases.Count),
+                groups
+            });
+        }
+
+        return Results.Json(new { ok = true, canonicalOnly = canonicalOnly, count = filtered.Count, capabilities = filtered });
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { ok = false, code = "CAPABILITIES_FAIL", msg = ex.Message }, statusCode: 500);
+    }
+});
 
 // ----------------------------- Step 11: Docs/Manifest -----------------------------
 app.MapPost("/manifest/register", async (HttpContext ctx) =>
@@ -96,6 +159,7 @@ app.MapPost("/manifest/register", async (HttpContext ctx) =>
 
         RevitMcpServer.Docs.ManifestRegistry.Upsert(manifest);
         RevitMcpServer.Docs.ManifestRegistry.SaveToDisk();
+        try { RevitMcpServer.Docs.CapabilitiesGenerator.TryWriteDefault(RevitMcpServer.Docs.ManifestRegistry.GetAll()); } catch { }
 
         return Results.Json(new { ok = true, source = manifest.Source, count = manifest.Commands?.Count ?? 0 });
     }
@@ -105,12 +169,14 @@ app.MapPost("/manifest/register", async (HttpContext ctx) =>
     }
 });
 
-app.MapGet("/docs/manifest.json", () =>
+app.MapGet("/docs/manifest.json", (HttpRequest req) =>
 {
     try
     {
-        var methods = RevitMcpServer.Docs.ManifestRegistry.GetAll();
-        return Results.Json(new { ok = true, count = methods.Count, methods });
+        var all = RevitMcpServer.Docs.ManifestRegistry.GetAll();
+        bool includeDeprecated = QueryFlag(req, "includeDeprecated");
+        var filtered = includeDeprecated ? all : all.Where(m => (m?.Deprecated ?? false) == false).ToList();
+        return Results.Json(new { ok = true, includeDeprecated, count = filtered.Count, methods = filtered });
     }
     catch (Exception ex)
     {
@@ -318,10 +384,14 @@ app.MapGet("/get_result", async (HttpRequest req, DurableQueue durable) =>
         try
         {
             var row = await durable.GetAsync(jobId);
-            if (row != null && row.ContainsKey("result_json") && row["result_json"] != null)
+            if (row != null)
             {
-                var s = Convert.ToString(row["result_json"]);
-                if (!string.IsNullOrEmpty(s)) return Results.Text(s, "application/json", Encoding.UTF8);
+                object obj = null!;
+                if (row.TryGetValue("result_json", out obj) && obj != null)
+                {
+                    var s = Convert.ToString(obj);
+                    if (!string.IsNullOrEmpty(s)) return Results.Text(s, "application/json", Encoding.UTF8);
+                }
             }
         }
         catch { }
@@ -412,6 +482,35 @@ app.MapGet("/jobs", async (HttpRequest req, DurableQueue durable) =>
 });
 
 // Snapshot ingest endpoints removed with SSR
+
+// Background safety: periodically reclaim extremely old in-progress jobs (e.g., after crashes).
+try
+{
+    var durableForSweep = app.Services.GetService(typeof(DurableQueue)) as DurableQueue;
+    if (durableForSweep != null)
+    {
+        var stopping = app.Lifetime.ApplicationStopping;
+        _ = Task.Run(async () =>
+        {
+            // Run immediately, then periodically.
+            while (!stopping.IsCancellationRequested)
+            {
+                try
+                {
+                    var staleAfterSec = ResolveStaleInProgressSeconds();
+                    var reclaimed = await durableForSweep.ReclaimStaleInProgressJobsAsync(staleAfterSec);
+                    if (reclaimed > 0)
+                        try { Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] RECLAIM(bg): reclaimed={reclaimed} staleAfterSec={staleAfterSec}"); } catch { }
+                }
+                catch { /* best-effort */ }
+
+                try { await Task.Delay(TimeSpan.FromMinutes(10), stopping); }
+                catch { /* ignore cancellation */ }
+            }
+        }, stopping);
+    }
+}
+catch { /* best-effort */ }
 
 app.Run();
 
@@ -544,6 +643,38 @@ static bool IsRevitStatusMethod(string? method)
         || string.Equals(m, "status", StringComparison.OrdinalIgnoreCase);
 }
 
+static int ResolveStaleInProgressSeconds()
+{
+    // Conservative default: 6 hours. Stale in-progress jobs older than this are almost certainly orphaned.
+    int sec = 6 * 60 * 60;
+    try
+    {
+        var env = Environment.GetEnvironmentVariable("REVIT_MCP_STALE_INPROGRESS_SEC")
+                  ?? Environment.GetEnvironmentVariable("MCP_STALE_INPROGRESS_SEC");
+        if (int.TryParse(env, out var v) && v > 0) sec = v;
+    }
+    catch { /* ignore */ }
+    return sec;
+}
+
+static bool QueryFlag(HttpRequest req, string key)
+{
+    try
+    {
+        var v = req.Query[key].ToString();
+        if (string.IsNullOrWhiteSpace(v)) return false;
+        v = v.Trim();
+        return v == "1"
+            || v.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || v.Equals("yes", StringComparison.OrdinalIgnoreCase)
+            || v.Equals("on", StringComparison.OrdinalIgnoreCase);
+    }
+    catch
+    {
+        return false;
+    }
+}
+
 static async Task<object> BuildRevitStatusAsync(DurableQueue durable, DateTimeOffset serverStartedUtc)
 {
     try
@@ -552,10 +683,51 @@ static async Task<object> BuildRevitStatusAsync(DurableQueue durable, DateTimeOf
         int srvPort = TryResolveServerPort();
         var targetPort = durable.ResolveCurrentPort();
 
+        int staleAfterSec = ResolveStaleInProgressSeconds();
+        int reclaimed = 0;
+        int reclaimedAggressive = 0;
+        int? aggressiveStaleAfterSec = null;
+        try
+        {
+            // Only reclaim extremely old in-progress jobs to avoid impacting legitimate long-running commands.
+            reclaimed = await durable.ReclaimStaleInProgressJobsAsync(staleAfterSec);
+            if (reclaimed > 0)
+                try { Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] RECLAIM: reclaimed={reclaimed} staleAfterSec={staleAfterSec}"); } catch { }
+        }
+        catch { /* best-effort */ }
+
         var counts = await durable.CountByStateAsync();
         long queued = counts.TryGetValue("ENQUEUED", out var q) ? q : 0;
         long running = counts.TryGetValue("RUNNING", out var r) ? r : 0;
         long dispatching = counts.TryGetValue("DISPATCHING", out var d) ? d : 0;
+
+        // If multiple jobs are simultaneously RUNNING/DISPATCHING, it usually indicates orphaned state
+        // (e.g., Revit/add-in crash before posting /post_result). In that case, run an additional
+        // more aggressive reclaim pass (still bounded by time) and recompute counts.
+        try
+        {
+            var inProgress = running + dispatching;
+            if (inProgress >= 2)
+            {
+                // Heuristic: more in-progress → more aggressive.
+                var cap = (inProgress >= 5) ? (15 * 60) : (30 * 60);
+                var thr = Math.Min(staleAfterSec, cap);
+                if (thr > 0 && thr < staleAfterSec)
+                {
+                    aggressiveStaleAfterSec = thr;
+                    reclaimedAggressive = await durable.ReclaimStaleInProgressJobsAsync(thr);
+                    if (reclaimedAggressive > 0)
+                        try { Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] RECLAIM(aggressive): reclaimed={reclaimedAggressive} staleAfterSec={thr} inProgress={inProgress}"); } catch { }
+
+                    // refresh counts
+                    counts = await durable.CountByStateAsync();
+                    queued = counts.TryGetValue("ENQUEUED", out q) ? q : 0;
+                    running = counts.TryGetValue("RUNNING", out r) ? r : 0;
+                    dispatching = counts.TryGetValue("DISPATCHING", out d) ? d : 0;
+                }
+            }
+        }
+        catch { /* best-effort */ }
 
         var activeRow = await durable.GetLatestJobByStatesAsync(new[] { "RUNNING", "DISPATCHING" }, "start_ts");
         var lastErrRow = await durable.GetLatestJobByStatesAsync(new[] { "FAILED", "TIMEOUT", "DEAD" }, "finish_ts");
@@ -569,6 +741,13 @@ static async Task<object> BuildRevitStatusAsync(DurableQueue durable, DateTimeOf
             nowUtc = DateTimeOffset.UtcNow.ToString("o"),
             startedAtUtc = serverStartedUtc.ToString("o"),
             uptimeSec = Math.Max(0, (DateTimeOffset.UtcNow - serverStartedUtc).TotalSeconds),
+            staleCleanup = new
+            {
+                staleAfterSec,
+                reclaimedCount = reclaimed,
+                aggressiveStaleAfterSec,
+                reclaimedAggressiveCount = reclaimedAggressive
+            },
             queue = new
             {
                 queuedCount = queued,

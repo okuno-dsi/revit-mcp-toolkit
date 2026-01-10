@@ -603,6 +603,7 @@ namespace RevitMCPAddin
                 new GetRoomBoundaryCommand(),
                 new GetRoomPerimeterWithColumnsAndWallsCommand(),
                 new GetRoomFinishTakeoffContextCommand(),
+                new ApplyFinishWallsOnRoomBoundaryCommand(),
                 new GetRoomPerimeterWithColumnsCommand(),
                 new GetRoomInnerWallsByBaselineCommand(),
                 new CreateRoomCommand(),

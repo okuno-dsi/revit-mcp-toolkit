@@ -8,3 +8,12 @@
 
 - 英語版: `../FullManual/list_commands.md`
 
+Step 4 の正規名/従来名ポリシー:
+- 返却される `commands[]` は **正規名（namespaced: `*.*`）** が基本です。
+- `includeDeprecated=true` で、従来名（エイリアス）も含めて返せます（発見用途では deprecated 扱い）。
+
+### パラメータ（抜粋）
+| 名前 | 型 | 必須 | 既定値 |
+|---|---|---|---|
+| includeDeprecated | boolean | いいえ | false |
+| includeDetails | boolean | いいえ | false |

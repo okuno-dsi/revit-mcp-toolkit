@@ -1,13 +1,13 @@
 # get_selected_element_ids
 
 - Category: Misc
-- Purpose: Get Selected Element Ids in Revit.
+- Purpose: Get the elementIds of the current UI selection (ActiveUIDocument.Selection).
 
 ## Overview
-This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
+Returns selected elementIds (ints) and basic context (activeViewId, docTitle, etc.).
 
 ## Usage
-- Method: get_selected_element_ids
+- Method: `get_selected_element_ids`
 - Parameters: none
 
 ### Example Request
@@ -20,24 +20,23 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 }
 ```
 
+## Result (example)
+```jsonc
+{
+  "ok": true,
+  "elementIds": [1234567, 1234568],
+  "count": 2,
+  "activeViewId": 890123,
+  "docTitle": "MyProject",
+  "msg": "OK"
+}
+```
+
+Notes:
+- If nothing is selected, `count=0` and `elementIds=[]`.
+
 ## Related
 - stash_selection
 - restore_selection
 - get_element_info
 
-### Params Schema
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-### Result Schema
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}
-```

@@ -8,6 +8,7 @@ Searches available command method names using the add-in’s runtime command met
 
 - Alias: `help.search_commands`
 - Step 4: results use **canonical domain-first names** (e.g., `doc.get_project_info`); legacy names remain callable and appear in `aliases`.
+- Default results are canonical-only. Set `includeDeprecated=true` to also return deprecated alias names as separate result entries (with `deprecated=true`).
 
 ## Terminology-Aware Search (term_map_ja.json)
 If `term_map_ja.json` is available, `search_commands` boosts results using Japanese synonyms and disambiguation rules.
@@ -46,6 +47,7 @@ Also, `data.termMap` includes `term_map_version` plus compact default/disambigua
 | kind | string | no |  |
 | importance | string | no |  |
 | prefixOnly | boolean | no | false |
+| includeDeprecated | boolean | no | false |
 | q | string | no (compat) |  |
 | top | integer | no (compat) |  |
 
@@ -76,7 +78,7 @@ Notes:
   "msg": "Top matches",
   "data": {
     "items": [
-      { "name": "sheet.place_view_auto", "score": 0.93, "summary": "Place a view; auto-duplicate if needed", "risk": "medium", "tags": ["sheet","place","auto"] }
+      { "name": "sheet.place_view_auto", "score": 0.93, "summary": "Place a view; auto-duplicate if needed", "risk": "medium", "tags": ["sheet","place","auto"], "deprecated": false }
     ]
   }
 }
@@ -103,6 +105,7 @@ Notes:
     "kind": { "type": "string", "enum": ["read", "write"] },
     "importance": { "type": "string", "enum": ["low", "normal", "high"] },
     "prefixOnly": { "type": "boolean" },
+    "includeDeprecated": { "type": "boolean" },
     "q": { "type": "string" },
     "top": { "type": "integer" }
   },

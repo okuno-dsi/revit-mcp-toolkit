@@ -81,6 +81,17 @@ It is designed for AI agents and scripts that need to apply a simple flag or lab
 }
 ```
 
+### Example: setting an ElementId parameter (Rebar hook type)
+Some parameters store an `ElementId` (e.g. Rebar hook type parameters). In that case:
+
+```jsonc
+{
+  "elementIds": [5945871],
+  "param": { "name": "始端のフック" },
+  "value": { "storageType": "ElementId", "elementIdValue": 4857530 }
+}
+```
+
 ## Result
 
 ### Success
@@ -141,4 +152,3 @@ It is designed for AI agents and scripts that need to apply a simple flag or lab
 - get_elements_by_category_and_level
 - set_room_param
 - set_level_parameter
-

@@ -246,6 +246,9 @@ namespace RevitMCPAddin.Core
             var importance = !string.IsNullOrWhiteSpace(attr?.Importance) ? NormalizeImportance(attr!.Importance) : InferImportance(method, kind);
             var category = !string.IsNullOrWhiteSpace(attr?.Category) ? attr!.Category : InferCategory(tags);
             var risk = InferRiskString(attr, kind, importance);
+            var summary = (attr?.Summary ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(summary))
+                summary = InferSummary(method, tags);
 
             var m = new RpcCommandMeta
             {
@@ -256,7 +259,7 @@ namespace RevitMCPAddin.Core
                 kind = kind,
                 importance = importance,
                 risk = risk,
-                summary = attr?.Summary ?? string.Empty,
+                summary = summary,
                 exampleJsonRpc = attr?.ExampleJsonRpc ?? string.Empty,
                 requires = attr?.Requires ?? Array.Empty<string>(),
                 constraints = attr?.Constraints ?? Array.Empty<string>(),
@@ -271,6 +274,32 @@ namespace RevitMCPAddin.Core
                     "{ \"jsonrpc\":\"2.0\", \"id\":1, \"method\":\"" + method + "\", \"params\":{} }";
             }
             return m;
+        }
+
+        private static string InferSummary(string method, string[] tags)
+        {
+            try
+            {
+                var m = (method ?? string.Empty).Trim();
+                if (m.Length == 0) return "Command";
+
+                // Example: "doc.get_project_info" -> "doc get project info"
+                var s = m.Replace('.', ' ').Replace('_', ' ').Replace('-', ' ').Replace('/', ' ');
+                s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+                if (s.Length == 0) s = m;
+
+                if (tags != null && tags.Length > 0)
+                {
+                    var t0 = (tags[0] ?? string.Empty).Trim();
+                    if (t0.Length > 0 && s.IndexOf(t0, StringComparison.OrdinalIgnoreCase) < 0)
+                        return t0 + ": " + s;
+                }
+                return s;
+            }
+            catch
+            {
+                return "Command";
+            }
         }
 
         private static string[] InferTagsFromNamespace(Type t)
@@ -323,6 +352,12 @@ namespace RevitMCPAddin.Core
         {
             var leaf = CommandNaming.Leaf(method);
             var m = (leaf ?? string.Empty).Trim().ToLowerInvariant();
+            if (m == "status" || m == "revit_status" || m == "revitstatus" || m.EndsWith("_status"))
+                return "read";
+            // Canonical domain-first verbs sometimes collapse to a leaf without an underscore prefix.
+            // Example: sheet.list -> leaf "list"
+            if (m == "list" || m == "get" || m == "find" || m == "search" || m == "describe" || m == "ping")
+                return "read";
             if (m.StartsWith("get_") || m.StartsWith("list_") || m.StartsWith("find_") || m.StartsWith("search_") ||
                 m.StartsWith("describe_") || m.StartsWith("audit_") || m.StartsWith("validate_") || m.StartsWith("diff_") ||
                 m.StartsWith("snapshot_") || m.StartsWith("ping_"))

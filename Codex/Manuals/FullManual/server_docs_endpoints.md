@@ -9,14 +9,23 @@ The Revit add‑in posts its command manifest to the server on startup (best‑e
 
 You can inspect what the server currently knows:
 - `GET /docs/manifest.json`
+  - Default is canonical-only (deprecated aliases excluded). Use `GET /docs/manifest.json?includeDeprecated=1` to include deprecated aliases.
 
 ## Generated docs
 
 - `GET /docs/openrpc.json` — OpenRPC (JSON‑RPC method list)
 - `GET /docs/openapi.json` — OpenAPI (virtual `/rpc/{method}` paths)
 - `GET /docs/commands.md` — human‑readable markdown list
+- `GET /debug/capabilities` — machine‑readable command inventory (capabilities)
+  - Default is canonical-only (deprecated aliases excluded).
+  - Use `GET /debug/capabilities?includeDeprecated=1` to include deprecated aliases.
+  - Use `GET /debug/capabilities?includeDeprecated=1&grouped=1` to view canonical → aliases grouped output (for deterministic legacy→canonical mapping).
+
+The server also writes a JSONL file (1 line = 1 command) on manifest load/register (best‑effort):
+- `docs/capabilities.jsonl`
 
 Notes:
 - The docs reflect the most recent manifest received (or cached on disk).
 - If the manifest is empty, start Revit and ensure the add‑in connects to the same server port.
-
+- Capability fields are schema-stable; when the add‑in does not provide a value, the server fills safe defaults (e.g., `revitHandler: "RevitMcpServer"` / `supportsFamilyKinds: ["Unknown"]`).
+- Each capability record includes `canonical` so agents can map deprecated aliases to the canonical method without heuristics.

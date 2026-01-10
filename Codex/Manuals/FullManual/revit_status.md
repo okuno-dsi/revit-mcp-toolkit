@@ -8,6 +8,9 @@ Server‑only status/telemetry command. Works even when Revit is busy because it
 - Queue counts: `queue.countsByState`, plus `queuedCount/runningCount/dispatchingCount`
 - Current active job (best effort): `activeJob`
 - Most recent failure/timeout (best effort): `lastError`
+- Stale cleanup (best effort): `staleCleanup`
+  - To prevent “ghost RUNNING jobs” after a crash, the server may reclaim extremely old `RUNNING/DISPATCHING` rows as `DEAD` with `error_code: "STALE"`.
+  - Threshold can be configured via `REVIT_MCP_STALE_INPROGRESS_SEC` (default: 21600 seconds).
 
 ## How to call
 
@@ -20,4 +23,3 @@ Via JSON‑RPC endpoint:
 ```json
 { "jsonrpc":"2.0", "id":1, "method":"revit.status", "params":{} }
 ```
-

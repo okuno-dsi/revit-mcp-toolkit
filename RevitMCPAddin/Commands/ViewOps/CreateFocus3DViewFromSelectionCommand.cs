@@ -31,7 +31,7 @@ using static Autodesk.Revit.DB.UnitUtils;
 namespace RevitMCPAddin.Commands.ViewOps
 {
     [RpcCommand("view.create_focus_3d_view_from_selection",
-        Aliases = new[] { "create_focus_3d_view_from_selection", "create_clipping_3d_view_from_selection" },
+        Aliases = new[] { "create_focus_3d_view_from_selection", "create_clipping_3d_view_from_selection", "view.create_clipping_3d_view_from_selection" },
         Category = "ViewOps",
         Tags = new[] { "View", "3D", "SectionBox" },
         Kind = "write",
@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.ViewOps
         Summary = "Create a new 3D view focused on current selection (SectionBox clipping), optionally activate it.")]
     public sealed class CreateFocus3DViewFromSelectionCommand : IRevitCommandHandler
     {
-        public string CommandName => "create_focus_3d_view_from_selection|create_clipping_3d_view_from_selection";
+        public string CommandName => "create_focus_3d_view_from_selection";
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
@@ -255,4 +255,3 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
-

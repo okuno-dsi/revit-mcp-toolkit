@@ -17,6 +17,9 @@ namespace RevitMcpServer.Ai
             => Task.FromResult(string.Empty);
 
         public async IAsyncEnumerable<string> SummarizeStreamAsync(string prompt, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
-        { yield break; }
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
     }
 }

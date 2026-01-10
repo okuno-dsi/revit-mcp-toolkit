@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -106,6 +107,30 @@ namespace RevitMCPAddin
             // 5) インスタンスロック（Add-in側情報）
             _lockFilePath = Path.Combine(locks, $"revit{ver}_{_pid}.lock");
             TryWriteAllText(_lockFilePath, $"pid={_pid}\nversion={ver}\nport={port}\nstartedAt={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+
+            // 5.1) ローカルキャッシュの自動クリーンアップ（安全のため現行ポートや稼働中ポートは除外）
+            Task.Run(() =>
+            {
+                try
+                {
+                    var rep = RevitMCPAddin.Core.CacheCleanupService.CleanupLocalCache(
+                        currentPort: port,
+                        retentionDays: RevitMCPAddin.Core.CacheCleanupService.DefaultRetentionDays,
+                        dryRun: false
+                    );
+                    RevitLogger.Info("CacheCleanup: " + (rep.msg ?? "OK"));
+                    if (rep.warnings != null && rep.warnings.Count > 0)
+                    {
+                        foreach (var w in rep.warnings.Take(10))
+                            RevitLogger.Warn("CacheCleanup: " + w);
+                        if (rep.warnings.Count > 10) RevitLogger.Warn($"CacheCleanup: ... and {rep.warnings.Count - 10} more warnings.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RevitLogger.Warn($"CacheCleanup failed: {ex.GetType().Name}: {ex.Message}");
+                }
+            });
 
             // 6) Ribbon / Worker
             TryBuildRibbon(application, port);

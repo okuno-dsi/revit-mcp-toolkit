@@ -82,6 +82,17 @@ AI エージェントやスクリプトから、「フラグやラベルを一�
 }
 ```
 
+### 例: ElementId 型パラメータの設定（鉄筋フック種別など）
+ElementId 型のパラメータ（例: 鉄筋のフック種別）を設定する場合は次の形になります:
+
+```jsonc
+{
+  "elementIds": [5945871],
+  "param": { "name": "始端のフック" },
+  "value": { "storageType": "ElementId", "elementIdValue": 4857530 }
+}
+```
+
 ## 戻り値
 
 ### 正常終了
@@ -144,4 +155,3 @@ AI エージェントやスクリプトから、「フラグやラベルを一�
 - get_elements_by_category_and_level
 - set_room_param
 - update_level_parameter
-

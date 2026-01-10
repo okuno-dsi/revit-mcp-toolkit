@@ -12,6 +12,16 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
     /// - C# 8 対応（is not を使わない）
     /// - 例外時は { ok:false, msg:"..." } を返す
     /// </summary>
+    [RpcCommand("element.get_wall_baseline",
+        Aliases = new[] { "get_wall_baseline" },
+        Category = "ElementOps/Wall",
+        Tags = new[] { "ElementOps", "Wall" },
+        Risk = RiskLevel.Low,
+        Summary = "Get a wall LocationCurve baseline (mm).",
+        Requires = new[] { "elementId|uniqueId" },
+        Constraints = new[] { "Provide elementId (recommended) or uniqueId." },
+        ExampleJsonRpc =
+            "{ \"jsonrpc\":\"2.0\", \"id\":1, \"method\":\"element.get_wall_baseline\", \"params\":{ \"elementId\":123456 } }")]
     public class GetWallBaselineCommand : IRevitCommandHandler
     {
         public string CommandName => "get_wall_baseline";

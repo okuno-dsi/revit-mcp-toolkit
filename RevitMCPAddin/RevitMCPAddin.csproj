@@ -212,6 +212,7 @@
     <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameJoinCommands.cs" />
     <Compile Include="Commands\ElementOps\Wall\ClassifyWallFacesBySideCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetCandidateExteriorWallsCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\CreateFlushWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\FindWallsNearSegmentsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\RejoinWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\SetWallTopToOverheadCommand.cs" />
@@ -230,6 +231,7 @@
     <Compile Include="Commands\RevisionCloud\CreateRevisionCircleCommand.cs" />
     <Compile Include="Commands\RevisionCloud\CreateRevisionCloudFromCurvesCommand.cs" />
     <Compile Include="Commands\Room\FindRoomPlaceableRegionsCommand.cs" />
+    <Compile Include="Commands\Room\ApplyFinishWallsOnRoomBoundaryCommand.cs" />
     <Compile Include="Commands\Room\GetRoomFinishTakeoffContextCommand.cs" />
     <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsAndWallsCommand.cs" />
     <Compile Include="Commands\Room\GetRoomPerimeterWithColumnsCommand.cs" />
@@ -355,6 +357,7 @@
     <Compile Include="Commands\SurfaceOps\GetSurfaceRegionsHandler.cs" />
     <Compile Include="Commands\System\ListCommandsHandler.cs" />
     <Compile Include="Commands\System\GetContextCommand.cs" />
+    <Compile Include="Commands\System\CleanupRevitMcpCacheCommand.cs" />
     <Compile Include="Commands\System\RevitBatchCommand.cs" />
     <Compile Include="Commands\System\OpenSettingsCommand.cs" />
     <Compile Include="Commands\System\ReloadServerSettingsCommand.cs" />
@@ -448,6 +451,7 @@
     <Compile Include="Core\IdempotencyRegistry.cs" />
     <Compile Include="Core\InputPointReader.cs" />
     <Compile Include="Core\IRevitCommandHandler.cs" />
+    <Compile Include="Core\CacheCleanupService.cs" />
     <Compile Include="Core\LongOpEngine.cs" />
     <Compile Include="Core\McpLedger.cs" />
     <Compile Include="Core\Net\BridgeProcessManager.cs" />
@@ -624,7 +628,6 @@
     <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameCommands.cs" />
     <Compile Include="Commands\ElementOps\Wall\ChangeWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\CreateWallCommand.cs" />
-    <Compile Include="Commands\ElementOps\Wall\CreateFlushWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DuplicateWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DeleteWallCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallTypeParametersCommand.cs" />
@@ -723,14 +726,14 @@
     <Compile Include="Commands\Rebar\RebarLayoutUpdateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateByHostCommand.cs" />
     <Compile Include="Commands\Rebar\RebarMappingResolveCommand.cs" />
-    <Compile Include="Commands\Rebar\ListRebarBarTypesCommand.cs" />
-    <Compile Include="Commands\Rebar\ListRebarHookTypesCommand.cs" />
-    <Compile Include="Commands\Rebar\ImportRebarTypesFromDocumentCommand.cs" />
     <Compile Include="Commands\Rebar\RebarPlanAutoCommand.cs" />
     <Compile Include="Commands\Rebar\RebarApplyPlanCommand.cs" />
     <Compile Include="Commands\Rebar\RebarSyncStatusCommand.cs" />
     <Compile Include="Commands\Rebar\RebarRegenerateDeleteRecreateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarSpacingCheckCommand.cs" />
+    <Compile Include="Commands\Rebar\ListRebarBarTypesCommand.cs" />
+    <Compile Include="Commands\Rebar\ListRebarHookTypesCommand.cs" />
+    <Compile Include="Commands\Rebar\ImportRebarTypesFromDocumentCommand.cs" />
     <Compile Include="Commands\Rebar\DeleteRebarsCommand.cs" />
     <Compile Include="Commands\Rebar\MoveRebarsCommand.cs" />
   </ItemGroup>

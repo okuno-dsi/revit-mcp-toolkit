@@ -40,12 +40,24 @@ namespace RevitMCPAddin.Core
                 ["get_sheets"] = "sheet.list",
                 ["delete_sheet"] = "sheet.delete",
                 ["place_view_on_sheet"] = "sheet.place_view",
+                ["place_view_on_sheet_auto"] = "sheet.place_view_auto",
                 ["replace_view_on_sheet"] = "sheet.replace_view",
                 ["remove_view_from_sheet"] = "sheet.remove_view",
                 ["get_view_placements"] = "sheet.get_view_placements",
 
                 // Viewports (common)
                 ["viewport_move_to_sheet_center"] = "viewport.move_to_sheet_center",
+
+                // ViewOps: keep historical name but collapse to one canonical method
+                ["create_clipping_3d_view_from_selection"] = "view.create_focus_3d_view_from_selection",
+                ["view.create_clipping_3d_view_from_selection"] = "view.create_focus_3d_view_from_selection",
+
+                // Batch/status canonicalization (server-side canonical name)
+                ["revit_batch"] = "revit.batch",
+                ["revit_status"] = "revit.status",
+
+                // Explicit mapping for non-suffix rename cases
+                ["sheet_inspect"] = "sheet.inspect",
             };
 
         public static bool IsCanonicalLike(string method)
@@ -59,11 +71,11 @@ namespace RevitMCPAddin.Core
             var m = (method ?? string.Empty).Trim();
             if (m.Length == 0) return string.Empty;
 
-            // Already domain-first
-            if (IsCanonicalLike(m)) return m;
-
             if (LegacyToCanonicalOverrides.TryGetValue(m, out var canon) && !string.IsNullOrWhiteSpace(canon))
                 return canon.Trim();
+
+            // Already domain-first
+            if (IsCanonicalLike(m)) return m;
 
             var domain = InferDomain(m, handlerType);
             if (string.IsNullOrWhiteSpace(domain)) return m;

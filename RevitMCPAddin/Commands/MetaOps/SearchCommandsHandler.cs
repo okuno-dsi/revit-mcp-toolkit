@@ -31,6 +31,7 @@ namespace RevitMCPAddin.Commands.MetaOps
         public string? importance { get; set; }     // high|normal|low
         public string? riskMax { get; set; }        // low|medium|high
         public bool? prefixOnly { get; set; }
+        public bool? includeDeprecated { get; set; } // if true, include deprecated alias commands as separate items
     }
 
     [RpcCommand("search_commands",
@@ -87,6 +88,41 @@ namespace RevitMCPAddin.Commands.MetaOps
                     pool = pool.Where(r => string.Equals(r.importance, p.importance, StringComparison.OrdinalIgnoreCase));
                 var riskMax = !string.IsNullOrWhiteSpace(p.riskMax) ? NormalizeRisk(p.riskMax) : null;
 
+                bool includeDeprecated = p.includeDeprecated == true;
+                if (includeDeprecated)
+                {
+                    // Expand legacy/alias names as separate "deprecated" entries (non-breaking opt-in).
+                    // This keeps default results canonical-only, while allowing explicit visibility of legacy names.
+                    var expanded = new List<RpcCommandMeta>(all.Count * 2);
+                    foreach (var meta in pool)
+                    {
+                        if (meta == null) continue;
+                        expanded.Add(meta);
+                        foreach (var a in (meta.aliases ?? Array.Empty<string>()))
+                        {
+                            var aa = (a ?? string.Empty).Trim();
+                            if (aa.Length == 0) continue;
+                            expanded.Add(new RpcCommandMeta
+                            {
+                                name = aa,
+                                aliases = new[] { meta.name },
+                                category = meta.category,
+                                tags = (meta.tags ?? Array.Empty<string>()).Concat(new[] { "deprecated" }).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                                kind = meta.kind,
+                                importance = meta.importance,
+                                risk = meta.risk,
+                                summary = meta.summary,
+                                exampleJsonRpc = meta.exampleJsonRpc,
+                                requires = meta.requires,
+                                constraints = meta.constraints,
+                                handlerType = meta.handlerType,
+                                handlerNamespace = meta.handlerNamespace
+                            });
+                        }
+                    }
+                    pool = expanded;
+                }
+
                 bool prefixOnly = p.prefixOnly == true;
                 var scored = new List<ScoredItem>(256);
                 foreach (var r in pool)
@@ -119,7 +155,8 @@ namespace RevitMCPAddin.Commands.MetaOps
                             ["category"] = x.meta.category,
                             ["kind"] = x.meta.kind,
                             ["importance"] = x.meta.importance,
-                            ["aliases"] = new JArray((x.meta.aliases ?? Array.Empty<string>()).ToArray())
+                            ["aliases"] = new JArray((x.meta.aliases ?? Array.Empty<string>()).ToArray()),
+                            ["deprecated"] = (x.meta.tags ?? Array.Empty<string>()).Any(t => string.Equals(t, "deprecated", StringComparison.OrdinalIgnoreCase))
                         };
 
                         if (x.termMatch != null)

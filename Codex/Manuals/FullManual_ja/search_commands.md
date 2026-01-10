@@ -8,6 +8,7 @@ Add-in のランタイムコマンドメタ情報レジストリを使って、�
 
 - エイリアス: `help.search_commands`
 - Step 4: 検索結果の `name` は **ドメイン先頭の正規名**（例: `doc.get_project_info`）になり、従来名は `aliases` として残り、引き続き呼び出せます。
+- デフォルトは正規名のみを返します。`includeDeprecated=true` を指定すると、従来名（エイリアス）も **deprecated** として個別に返します（各 `items[]` に `deprecated=true` が付きます）。
 
 ## 用語・同義語に強い検索（term_map_ja.json）
 `term_map_ja.json` が利用できる場合、`search_commands` は日本語の同義語と曖昧さ解消ルールで順位付けを補強します。
@@ -46,6 +47,7 @@ Add-in は次の順に `term_map_ja.json` を探します（見つかったも�
 | kind | string | いいえ |  |
 | importance | string | いいえ |  |
 | prefixOnly | boolean | いいえ | false |
+| includeDeprecated | boolean | いいえ | false |
 | q | string | いいえ（互換） |  |
 | top | integer | いいえ（互換） |  |
 
@@ -76,7 +78,7 @@ Add-in は次の順に `term_map_ja.json` を探します（見つかったも�
   "msg": "Top matches",
   "data": {
     "items": [
-      { "name": "sheet.place_view_auto", "score": 0.93, "summary": "Place a view; auto-duplicate if needed", "risk": "medium", "tags": ["sheet","place","auto"] }
+      { "name": "sheet.place_view_auto", "score": 0.93, "summary": "Place a view; auto-duplicate if needed", "risk": "medium", "tags": ["sheet","place","auto"], "deprecated": false }
     ]
   }
 }

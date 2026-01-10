@@ -2,6 +2,16 @@
 
 Purpose: enable any automation agent to connect to Revit MCP reliably and safely.
 
+Critical Notes (Read First)
+- Prefer canonical command names (`*.*` namespaced). Legacy names remain callable but are `deprecated` aliases.
+- `list_commands` / `search_commands` default to returning canonical-only. Pass `includeDeprecated=true` only when you explicitly want legacy aliases in discovery results.
+- If you receive an old/legacy command name, resolve it via capabilities:
+  - Server: `GET /debug/capabilities` (canonical-only by default; add `?includeDeprecated=1` to include aliases; `?includeDeprecated=1&grouped=1` to group by canonical)
+  - JSONL file: `docs/capabilities.jsonl` (1 line = 1 command)
+  - Use `canonical` and `deprecated` fields to map legacy → canonical deterministically.
+- Status command canonical is `revit.status` (aliases: `status`, `revit_status` are deprecated).
+  - `revit.status` may reclaim stale `RUNNING/DISPATCHING` queue rows older than `REVIT_MCP_STALE_INPROGRESS_SEC` (default 21600 sec) to avoid “ghost running jobs” after crashes.
+
 Essential Steps
 - Read `ConnectionGuide/QUICKSTART.md` and `ConnectionGuide/PRIMER.jsonl`.
 - Run `Scripts/test_connection.ps1 -Port 5210` to produce `Logs/agent_bootstrap.json`.
@@ -27,6 +37,7 @@ Troubleshooting
 - IPv6 warnings are acceptable if IPv4 (127.0.0.1) succeeds.
 - Timeouts on write: try a smaller target set, confirm active view permissions, and re-run. Scripts allow `--wait-seconds` tuning via underlying CLI.
 - Add-in features: if `smoke_test` is not available, use read-only flows or consult `ConnectionGuide/smoke_test_guide.md`.
+  - Docs inventory: `GET /docs/manifest.json` returns canonical-only by default; add `?includeDeprecated=1` to include deprecated aliases.
 
 Local LLM (GGUF via llama.cpp)
 - Minimal local agent: `..\..\NVIDIA-Nemotron-v3\tool\revit_llm_agent.py` (llama.cpp `llama-server.exe` + GGUF models).
