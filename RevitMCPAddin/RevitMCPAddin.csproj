@@ -310,6 +310,8 @@
     <Compile Include="Commands\MetaOps\StopCommandLoggingCommand.cs" />
     <Compile Include="Commands\Misc\UnitModeCommands.cs" />
     <Compile Include="Commands\Models\RevisionInfo.cs" />
+    <Compile Include="Models\CreateFlushWallsRequest.cs" />
+    <Compile Include="Models\CreateFlushWallsResponse.cs" />
     <Compile Include="Commands\ParamOps\GetParamMetaCommand.cs" />
     <Compile Include="Commands\ParamOps\GetParamValuesCommand.cs" />
     <Compile Include="Commands\ParamOps\GetTypeParametersBulkCommand.cs" />
@@ -437,6 +439,7 @@
     <Compile Include="Core\Failures\FailureWhitelistService.cs" />
     <Compile Include="Core\GeometryJsonHelper.cs" />
     <Compile Include="Core\GeometryUtils.cs" />
+    <Compile Include="Core\Walls\WallFlushPlacement.cs" />
     <Compile Include="Core\Geometry\AnalyzeSegmentsCommand.cs" />
     <Compile Include="Core\Geometry\OrientedBoundingBox.cs" />
     <Compile Include="Core\Geometry\OrientedBoundingBoxUtil.cs" />
@@ -621,6 +624,7 @@
     <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameCommands.cs" />
     <Compile Include="Commands\ElementOps\Wall\ChangeWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\CreateWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\CreateFlushWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DuplicateWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DeleteWallCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallTypeParametersCommand.cs" />

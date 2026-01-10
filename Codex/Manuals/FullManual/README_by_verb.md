@@ -30,6 +30,7 @@ Commands grouped by their first verb token.
 ## apply
 - [apply_3d_view_settings](apply_3d_view_settings.md)
 - [apply_conditional_coloring](apply_conditional_coloring.md)
+- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [apply_material_to_element](apply_material_to_element.md)
 - [apply_paint](apply_paint.md)
 - [apply_paint_by_reference](apply_paint_by_reference.md)
@@ -184,6 +185,7 @@ Commands grouped by their first verb token.
 - [create_view_plan](create_view_plan.md)
 - [create_walkthrough](create_walkthrough.md)
 - [create_wall](create_wall.md)
+- [create_flush_walls](create_flush_walls.md)
 - [create_window](create_window.md)
 - [create_window_on_wall](create_window_on_wall.md)
 - [create_workset](create_workset.md)

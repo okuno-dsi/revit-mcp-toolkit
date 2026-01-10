@@ -1,15 +1,108 @@
 # Update Log (Manual + Add-in)
 
-## 2025-12-26 ? ChatRevit 削除と接続手順の簡略化
+## 2026-01-09 Server: revit.status の “ghost RUNNING” 回収 + docs系エンドポイントの canonical-only 既定化
+- Add-in: `element.create_flush_walls`（alias: `create_flush_walls`）を追加し、既存壁に密着（面合わせ）する壁を別タイプで作成できるようにしました（既定は仕上面・ByGlobalDirection）。
+  - 既定は上下拘束（Base/Top/Offset/Height）の複製まで（Attach Top/Base の完全複製は Revit 2023 API では困難なため未対応）。
+- Add-in: `room.apply_finish_wall_type_on_room_boundary`（alias: `apply_finish_wall_type_on_room_boundary`）を追加しました（部屋境界セグメント長で仕上げ壁を作成、端部結合を Allow に設定）。
+  - 追記: `includeBoundaryColumns=true`（既定）で、境界要素が柱（構造柱/建築柱）のセグメントも対象にできます（柱が Room Bounding として境界に出ている場合）。
+- `revit.status` が極端に古い `RUNNING/DISPATCHING` を best-effort で回収（`DEAD` / `error_code:"STALE"`）し、`RUNNING` が残留して誤認される問題を解消しました。
+  - 既定しきい値: 6時間（`REVIT_MCP_STALE_INPROGRESS_SEC` で変更可）
+  - 応答に `staleCleanup`（`staleAfterSec`, `reclaimedCount`）を追加
+- サーバー起動後も 10分ごとに stale 回収を走らせるようにし、`revit.status` を呼ばない運用でも回収されるようにしました（best-effort）。
+- `GET /docs/manifest.json` の既定を canonical-only（deprecated alias 除外）に変更。
+  - deprecated も含める場合: `GET /docs/manifest.json?includeDeprecated=1`
+- `GET /debug/capabilities` の既定を canonical-only（deprecated alias 除外）に変更。
+  - deprecated も含める場合: `GET /debug/capabilities?includeDeprecated=1`
+  - alias→canonical を一覧で確認する場合: `GET /debug/capabilities?includeDeprecated=1&grouped=1`
+
+## 2026-01-08 Docs: capabilities（機械可読なコマンド一覧）を追加
+- サーバーに `GET /debug/capabilities` を追加し、現在把握しているコマンド実装状況（最後に受信したマニフェスト由来）を JSON で返すようにしました。
+- サーバー側で `docs/capabilities.jsonl`（1行=1コマンド）を自動生成するようにしました（マニフェスト読み込み/登録時、best-effort）。
+- 修正: `since` が混在しないよう、サーバー注入の `revit.status` / `status` / `revit_status` は「最後に受信したマニフェスト内でもっとも多い `since`」に合わせます（マニフェストが空の場合のみサーバー側 `since` にフォールバック）。
+- 注意:
+  - これらは「最後に受信したマニフェスト」を反映します。Revit 起動後にアドインが同ポートのサーバーへ接続してマニフェスト送信していることが前提です。
+  - capabilities の各フィールドはスキーマ安定です（値が取得できない場合は安全な既定値で補完されます）。
+  - 追加: alias 解決を確実にするため `canonical` フィールドを追加しました（deprecated alias の正規名）。
+
+## 2026-01-08 Step 4: canonical/alias（正規名/従来名）ポリシーを強化
+- canonical（正規名）は **namespaced**（`*.*`）を基本とし、従来名は alias として残しつつ `deprecated=true` 扱いに統一。
+- `list_commands` / `search_commands` は **canonicalのみを返す**のがデフォルトになりました（`includeDeprecated=true` で deprecated を含める）。
+- capabilities では `summary`/`resultExample`/`supportsFamilyKinds`/`since`/`revitHandler` などを欠損させず、機械可読性を優先して自動補完します（best-effort）。
+- capabilities の legacy 名整理:
+  - `revit.status` を正規名に統一し、`status` / `revit_status` は deprecated alias 扱いに変更。
+  - `test_cap` はテスト混入のため除外（出力されません）。
+  - `/manifest/register` は同一 `source` の登録を上書き扱いに変更し、古いコマンドが残り続ける問題（stale）を回避。
+
+## 2026-01-08 ViewOps: 3Dビュー作成コマンドの重複整理 + sheet.list を Read 扱いに修正
+- `view.create_focus_3d_view_from_selection` を正として統一し、重複して見えていた `view.create_clipping_3d_view_from_selection` は deprecated alias 扱いに整理（エージェントが迷わないように）。
+- deprecated alias の `summary` を `deprecated alias of <canonical>` 形式に変更（capabilities上で混乱しないように）。
+- `sheet.list`（および alias の `get_sheets`）が kind/transaction を誤って `Write` と推定していたため、推定ロジックを修正して `Read` に統一。
+- “末尾一致で辿れない legacy→canonical 変換” は `LegacyToCanonicalOverrides`（明示aliasMap）で解決するように追加（例: `place_view_on_sheet_auto` / `sheet_inspect` / `revit_batch` / `revit_status`）。
+
+## 2026-01-07 AutoRebar: RUG柱（RC_C_B:1C1）向けプロファイル追加 + RebarBarTypeの「径フォールバック」解決
+
+### 症状
+- `rebar_plan_auto` / `rebar_apply_plan` / `rebar_regenerate_delete_recreate` 実行時に、`Main bar type not found: D22` 等で失敗する。
+  - プロジェクト側に `RebarBarType` 名が `D22` で存在しないケースがある（命名規則依存）。
 
 ### 変更概要
-- ChatRevit プロキシ（ログ用）をリポジトリから削除。
-- 接続ガイド/コマンドの手順を Playbook 直結（5209）に統一。
+- 鉄筋タイプ解決を堅牢化:
+  - まず `RebarBarType` 名の完全一致で探索（従来どおり）。
+  - 見つからない場合、指定文字列に `D25` のような径情報が含まれていれば、`RebarBarType.BarModelDiameter` から **径一致で探索**して解決（命名規則に依存しない）。
+  - 解決の詳細を `mainBarTypeResolve` / `tieBarTypeResolve` としてホスト別に返す（requested/resolved/resolvedBy/diameterMm）。
+- `RebarMapping.json` に RUG 柱のプロファイルを追加:
+  - `rug_column_attr_v1`（priority 110）
+  - `D_main` / `D_hoop` / `pitch_hoop_panel` / `N_main_*` 等のタイプパラメータから、柱の主筋/帯筋の入力を吸収（best-effort）。
+- `RebarMapping.json` に RUG 梁（構造フレーム）のプロファイルを追加:
+  - `rug_beam_attr_v1`（priority 120）
+  - `D_main` / `D_stirrup` / `N_main_top_total` / `N_main_bottom_total` / `pitch_stirrup*` 等のタイプパラメータから、梁の主筋本数とスターラップピッチを吸収（best-effort）。
+  - 2段/3段筋がある場合は `N_main_*_1st/_2nd/_3rd` を `Beam.Attr.MainBar.*Count2/*Count3` にマップし、断面内で層をスタックして作成（簡易近似、`options.beamMainBarLayerClearMm` で層間クリア変更可）。
 
-### 影響範囲（主なファイル）
-- `Codex/Manuals/ConnectionGuide/Client_Side_Caching_and_Server_Change_Policy_EN.md`
-- `Codex/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md`
-- `Codex/Manuals/Commands/Revit_Connection_Commands_EN.md`
+### 2026-01-07 AutoRebar: 鉄筋中心間離隔テーブルの導入（段筋層ピッチ + plan-time チェック）
+- `RebarBarClearanceTable.json` を追加し、鉄筋径→中心間離隔（mm）をファイル化。
+- 梁の2段/3段筋の層ピッチ（中心-中心）はこのテーブルを優先して使用（無い径のみ `barDiameter + options.beamMainBarLayerClearMm` にフォールバック）。
+- `rebar_plan_auto` 応答の `beamMainBarClearanceCheck` で、計画上の最小間隔（層内・層間）がテーブル値を満たすかを返す（作成前の検証用）。
+
+### 2026-01-07 AutoRebar: 作成済みRebarの実測間隔チェック（read）
+- `rebar_spacing_check` を追加し、モデル上のRebar中心線から実測の中心間距離を算出して離隔チェックします。
+- `RebarBarClearanceTable.json` の径→中心間(mm) を基準に判定し、必要なら違反ペアを返します（`includePairs=true`）。
+
+## 2026-01-07 UI: Undo履歴の表示名をコマンド別に改善
+- Undoスタックに表示される `MCP Ledger Command` を、`MCP <短いラベル>`（コマンド名から自動生成）に変更。
+
+## 2026-01-07 Maintenance: ローカルキャッシュ自動クリーンアップ + 手動コマンド追加
+- Revit 起動時に `%LOCALAPPDATA%\\RevitMCP` 配下の「7日より古いキャッシュ」を best-effort で自動削除するようにしました（現行ポート/稼働中ポート推定は除外）。
+- 手動実行用に `cleanup_revitmcp_cache`（dryRun 既定）を追加しました。
+- `RebarMapping.json` / `RebarBarClearanceTable.json` の探索順を「アドインフォルダ優先」に変更しました（既定は同梱ファイルを使用、`%LOCALAPPDATA%\\RevitMCP` は上書き/キャッシュ扱い）。
+
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Core/RebarAutoModelService.cs`
+- `RevitMCPAddin/RebarMapping.json`
+- `Manuals/FullManual/rebar_plan_auto.md`
+- `Manuals/FullManual_ja/rebar_plan_auto.md`
+- `Manuals/Runbooks/RUG/Rebar_Params_RUG_SelectedTypes_JA.md`
+
+## 2025-12-26 ? AutoRebar: 柱の主筋（各面本数）+ 梁上面基準の帯筋パターン（上3@100 / 下2@150）
+
+### 目的
+- 柱主筋を「四隅のみ」ではなく、**各面本数（例: 各面5本）**で計画/作成できるようにする。
+- 柱帯筋について、梁接合部付近の密度を簡易に表現できるよう、**梁上面（参照面）を基準にした上下別ピッチ・本数**のパターンを追加する。
+
+### 変更概要
+- `rebar_plan_auto` の柱主筋:
+  - mapping `Column.Attr.MainBar.BarsPerFace` と `options.columnMainBarsPerFace`（>=2）で「各面本数」を指定可能。
+  - 2 の場合は従来どおり四隅のみ、5 の場合は矩形柱で 16 本（例）。
+- `rebar_plan_auto` の柱帯筋:
+  - まず mapping `Column.Attr.Tie.PatternJson`（推奨）を読み取り、任意の「参照面 + セグメント（方向/本数/ピッチ）」で帯筋セットを生成（best-effort）。
+    - 参照面 `beam_top` / `beam_bottom` は「梁せい（mapping `Host.Section.Height`）+ LocationCurve Z（=レベル/オフセット由来）」から上下面Zを推定（best-effort、必要に応じて bbox で補助）。
+    - 生成される role は `column_ties_pattern_*`。
+  - 互換のため `options.columnTieJointPatternEnabled=true` も残し、内部的に `columnTiePattern` に変換して同等に処理。
+  - さらに、同一ホスト内の「タグ付き鉄筋」でユーザーがフック設定（`始端のフック/終端のフック/回転`）を調整している場合は、それを次回の自動作成に引き継ぐ（`options.hookAutoDetectFromExistingTaggedRebar=true`、既定、best-effort）。
+
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Core/RebarAutoModelService.cs`
+- `Manuals/FullManual/rebar_plan_auto.md`
+- `Manuals/FullManual_ja/rebar_plan_auto.md`
 
 ## 2025-12-25 — Auto Rebar v1（柱=主筋+帯筋 / 梁=主筋+スターラップ）
 
@@ -187,9 +280,9 @@
 - `minimum_clear_spacing` は Revit API バージョン差があり得るため、リフレクションで **ベストエフォート**実装（未対応環境ではエラーコードを返します）。
 - `RebarMapping.json` の探索順（概要）:
   - `REVITMCP_REBAR_MAPPING_PATH`
-  - `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json`
-  - `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json`
-  - アドインDLLと同じフォルダ
+  - アドインフォルダ（推奨: `Resources\\RebarMapping.json` または DLL と同じフォルダ）
+  - `%LOCALAPPDATA%\\RevitMCP\\RebarMapping.json`（上書き/キャッシュ）
+  - `%USERPROFILE%\\Documents\\Codex\\Design\\RebarMapping.json`（開発用）
 
 ### 実装変更（主なファイル）
 - `RevitMCPAddin/Core/RebarMappingService.cs`

@@ -812,6 +812,7 @@ namespace RevitMCPAddin
                 new GetWallParametersCommand(),
                 new GetWallTypesCommand(),
                 new CreateWallCommand(),
+                new CreateFlushWallsCommand(),
                 new UpdateWallGeometryCommand(),
                 new ChangeWallTypeCommand(),
                 new UpdateWallParameterCommand(),
