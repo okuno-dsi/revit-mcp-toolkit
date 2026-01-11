@@ -84,6 +84,8 @@ UpgradeReport*.xml
 Codex/Design/
 Codex/Work/
 Codex/Manuals/Work/
+Codex/Trash/
+Codex/tools/Work/
 **/logs/
 **/temp/
 **/Temp/
@@ -92,6 +94,10 @@ Codex/Manuals/Work/
 **/tmp_*
 *.bak_*
 *.bak.*
+
+# Local helper files (root-only)
+/*.bat
+/*.txt
 
 # OS
 .DS_Store
