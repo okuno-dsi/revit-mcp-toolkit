@@ -12,7 +12,7 @@
 
 使い方の例:
 
-    cd C:/Users/okuno/Documents/VS2022/Ver551/Codex
+    cd %USERPROFILE%/Documents/VS2022/Ver551/Codex
     python Manuals/Scripts/dwg_to_dxf_with_view_suffix.py ^
         --input-dir Work/DWG_4F_Walls ^
         --pattern *.dwg ^

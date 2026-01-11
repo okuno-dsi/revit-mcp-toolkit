@@ -1,8 +1,8 @@
 # Update Notes (2026-01-11)
 
 ## Sync Summary
-- Source: C:\\Users\\okuno\\Documents\\VS2022\\Ver602
-- Destination: C:\\Users\\okuno\\Documents\\VS2022\\GitHub\\revit-mcp-toolkit
+- Source: %USERPROFILE%\\Documents\\VS2022\\Ver602
+- Destination: %USERPROFILE%\\Documents\\VS2022\\GitHub\\revit-mcp-toolkit
 - Modified tracked files: 3
 - New files: 2
 - Copy method: robocopy /E (no deletes)

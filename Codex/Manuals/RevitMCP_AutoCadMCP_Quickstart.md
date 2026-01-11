@@ -146,7 +146,7 @@ pwsh -File Work/Tools/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/T
 ```
 
 - 事前に TrustedPaths を AutoCAD に設定（GUI: オプション→ファイル→信頼できる位置）
-  - 例: `C:\Temp\CadOut; C:\Users\okuno\Documents\VS2022\Ver421\Codex\Work\AutoCadOut`
+  - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut`
 
 ---
 

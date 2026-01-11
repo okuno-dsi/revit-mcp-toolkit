@@ -50,7 +50,7 @@ Codex リポジトリ内のパス（例）:
 ### 3.1 ビルド
 
 ```powershell
-cd C:\Users\okuno\Documents\VS2022\Ver602\Codex\IfcCli
+cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli
 dotnet build -c Release
 ```
 
@@ -62,7 +62,7 @@ dotnet build -c Release
 ### 3.2 実行
 
 ```powershell
-cd C:\Users\okuno\Documents\VS2022\Ver602\Codex\IfcCli\bin\Release\net6.0
+cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli\bin\Release\net6.0
 .\IfcCli.exe --help
 ```
 

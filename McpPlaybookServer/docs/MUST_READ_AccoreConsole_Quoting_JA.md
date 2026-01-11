@@ -22,22 +22,22 @@
 - 直起動（cmd）
 ```
 "C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" ^
-  /i "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg" ^
-  /s "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr" ^
+  /i "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg" ^
+  /s "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr" ^
   /l en-US
 ```
 
 - コンソールを開いたまま実行（cmd /k）
 ```
-cmd /k ""C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" /i "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg" /s "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr" /l en-US"
+cmd /k ""C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" /i "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg" /s "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr" /l en-US"
 ```
 
 - PowerShell（自動引用・推奨）
 ```
 $exe = 'C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe'
-$seed = 'C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg'
-$scr  = 'C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr'
-Start-Process -FilePath $exe -ArgumentList @('/i', $seed, '/s', $scr, '/l', 'en-US') -WorkingDirectory 'C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut'
+$seed = '%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg'
+$scr  = '%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr'
+Start-Process -FilePath $exe -ArgumentList @('/i', $seed, '/s', $scr, '/l', 'en-US') -WorkingDirectory '%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut'
 ```
 
 ---
@@ -55,8 +55,8 @@ Start-Process -FilePath $exe -ArgumentList @('/i', $seed, '/s', $scr, '/l', 'en-
 - cmd で安全に: 先に環境変数に格納
 ```
 set "ACCORE=C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe"
-set "SEED=C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg"
-set "SCR=C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr"
+set "SEED=%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\seed.dwg"
+set "SCR=%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\AutoCadOut\Staging\aeebea9a92f1439d85cd03cb7277905d\run.scr"
 "%ACCORE%" /i "%SEED%" /s "%SCR" /l en-US
 ```
 - 行継続（cmd）: `^`、（PowerShell）: `` ` `` バッククォート。

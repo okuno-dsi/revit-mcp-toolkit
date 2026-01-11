@@ -41,7 +41,7 @@ JSON?RPC Endpoint
 
 Example (via file path body)
 
-- Body: `C:\Users\okuno\Documents\VS2022\Ver421\Codex\Work\AutoCadOut\command.txt`
+- Body: `%USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut\command.txt`
 
 Example (raw JSON body)
 

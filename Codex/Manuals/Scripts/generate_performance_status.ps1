@@ -1,5 +1,5 @@
 param(
-  [string]$Root = "C:\Users\okuno\Documents\VS2022\Ver431\RevitMCPAddin",
+  [string]$Root = "$env:USERPROFILE\Documents\VS2022\Ver431\RevitMCPAddin",
   [string]$OutCsv = "Work/Logs/performance_status_cs.csv"
 )
 

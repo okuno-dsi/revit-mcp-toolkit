@@ -33,7 +33,7 @@ pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210
 ```
 - Specify a project folder explicitly:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656"
+pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656"
 ```
 - Merge in AutoCAD automatically (requires AutoCadMCP running at 5251):
 ```
@@ -62,7 +62,7 @@ pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -S
 - Explicit project folder:
 ```
 pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
+  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 

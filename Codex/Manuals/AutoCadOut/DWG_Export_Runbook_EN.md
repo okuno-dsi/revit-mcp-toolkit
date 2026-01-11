@@ -16,7 +16,7 @@ pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -S
 - Specify project folder explicitly:
 ```
 pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "C:\Users\okuno\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
+  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 - Auto‑merge in AutoCAD (requires AutoCadMCP at 5251):
@@ -76,7 +76,7 @@ Prerequisites
 Run
 ```
 pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 \
-  -ExportDir "C:\Users\okuno\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250" \
+  -ExportDir "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250" \
   -Locale en-US
 ```
 
@@ -88,7 +88,7 @@ Verification (optional)
 - Dump layer names via Core Console to confirm the presence of `B` and `G` layers:
 ```
 pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 \
-  -DwgPath "C:\Users\okuno\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
+  -DwgPath "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
   -Locale en-US
 ```
 - A `layers.txt` is written next to the DWG or reported in output.
