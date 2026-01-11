@@ -1,5 +1,15 @@
 # Update Log (Manual + Add-in)
 
+## Summary (Short)
+- 2026-01-09: `revit.status` の古い `RUNNING/DISPATCHING` 回収、docs 系の canonical-only 既定化、壁作成系コマンドを追加。
+  - 主要ファイル: `RevitMCPServer/Program.cs`, `RevitMCPAddin/Commands/ElementOps/Wall/CreateFlushWallsCommand.cs`, `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`, `Codex/Manuals/FullManual/server_docs_endpoints.md`
+- 2026-01-08: AutoRebar の被り厚さをホスト要素から取得、由来と面別被りを返却。
+  - 主要ファイル: `RevitMCPAddin/Core/RebarAutoModelService.cs`, `Codex/Manuals/FullManual/rebar_plan_auto.md`, `Codex/Manuals/FullManual_ja/rebar_plan_auto.md`
+- 2026-01-07: RUG 柱/梁向けプロファイル追加、鉄筋タイプの径フォールバック、フック/離隔チェック改善。
+  - 主要ファイル: `RevitMCPAddin/Core/RebarMappingService.cs`, `RevitMCPAddin/RebarMapping.json`, `RevitMCPAddin/RebarBarClearanceTable.json`, `RevitMCPAddin/Commands/Rebar/ImportRebarTypesFromDocumentCommand.cs`
+
+詳細は下記の各日付セクションを参照してください。
+
 ## 2026-01-09 Server: revit.status の “ghost RUNNING” 回収 + docs系エンドポイントの canonical-only 既定化
 - Add-in: `element.create_flush_walls`（alias: `create_flush_walls`）を追加し、既存壁に密着（面合わせ）する壁を別タイプで作成できるようにしました（既定は仕上面・ByGlobalDirection）。
   - 既定は上下拘束（Base/Top/Offset/Height）の複製まで（Attach Top/Base の完全複製は Revit 2023 API では困難なため未対応）。
