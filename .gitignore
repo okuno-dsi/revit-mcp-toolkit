@@ -86,7 +86,9 @@ Codex/Work/
 Codex/Manuals/Work/
 Codex/Trash/
 Codex/tools/Work/
+Codex/Logs/
 **/logs/
+**/Logs/
 **/temp/
 **/Temp/
 **/tmp/
@@ -94,6 +96,10 @@ Codex/tools/Work/
 **/tmp_*
 *.bak_*
 *.bak.*
+
+# Local update notes / per-day changelogs (keep summary in Manuals/UpdateLog.md)
+/UPDATE_NOTES_*.md
+Codex/Manuals/ChangeLog_*.md
 
 # Local helper files (root-only)
 /*.bat
