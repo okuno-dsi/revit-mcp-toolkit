@@ -1,48 +1,50 @@
 # create_room_boundary_line
 
 - Category: Room
-- Purpose: Room Separation Lines（部屋境界線）の作成・削除・移動・トリム・延長・クリーニング・一覧
+- Purpose: Deprecated alias of `room_separation.create_lines` (Room Separation Lines).
 
 ## Overview
-This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
+This method name remains callable for backward compatibility, but new code should use:
+
+- `room_separation.create_lines` (canonical)
 
 ## Usage
-- Method: create_room_boundary_line
-- Parameters: none
+- Method: `create_room_boundary_line` (deprecated alias)
+- Canonical: `room_separation.create_lines`
+- Transaction: Write
 
-### Example Request
+### Parameters
+Same as `room_separation.create_lines`:
+
+| Name | Type | Required | Default |
+|---|---|---:|---|
+| viewId | int | no | ActiveView |
+| unit | string | no | `"mm"` |
+| snapZToViewLevel | bool | no | `true` |
+| segments | object[] | yes (recommended) |  |
+| start | object | legacy |  |
+| end | object | legacy |  |
+
+### Example Request (segments)
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": "rs-legacy-1",
   "method": "create_room_boundary_line",
-  "params": {}
+  "params": {
+    "viewId": 123456,
+    "unit": "mm",
+    "segments": [
+      { "start": { "x": 0, "y": 0, "z": 0 }, "end": { "x": 5000, "y": 0, "z": 0 } }
+    ]
+  }
 }
 ```
+
+## Result
+- `result.created`: int[] created ids
+- `result.count`: int
+- `result.skipped[]`: `{ index, reason }`
 
 ## Related
-- find_room_placeable_regions
-- summarize_rooms_by_level
-- validate_create_room
-- get_rooms
-- get_room_params
-- set_room_param
-- get_room_boundary
-- create_room
-
-### Params Schema
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-### Result Schema
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}
-```
+- `room_separation.create_lines`

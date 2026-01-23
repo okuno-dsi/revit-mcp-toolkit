@@ -33,6 +33,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_detail_lines_in_view](get_detail_lines_in_view.md)
 - [create_detail_line](create_detail_line.md)
 - [create_detail_arc](create_detail_arc.md)
+- [draw_colored_line_segments](draw_colored_line_segments.md)
 - [move_detail_line](move_detail_line.md)
 - [rotate_detail_line](rotate_detail_line.md)
 - [delete_detail_line](delete_detail_line.md)
@@ -139,6 +140,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_project_info](get_project_info.md)
 - [get_project_categories](get_project_categories.md)
 - [get_project_summary](get_project_summary.md)
+- [get_project_units](get_project_units.md)
 - [update_project_info](update_project_info.md)
 - [save_snapshot](save_snapshot.md)
 - [get_fill_patterns](get_fill_patterns.md)
@@ -150,6 +152,13 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [generate_dwg_merge_script_manual](generate_dwg_merge_script_manual.md)
 - [generate_dwg_merge_script](generate_dwg_merge_script.md)
 - [gen_dwg_script](gen_dwg_script.md)
+
+## Route
+- [egress.create_waypoint_guided_path](egress.create_waypoint_guided_path.md)
+- [route.find_shortest_paths](route.find_shortest_paths.md)
+- [path.waypoints.get](path.waypoints.get.md)
+- [path.waypoints.set](path.waypoints.set.md)
+- [path.update](path.update.md)
 
 ## ElementOps
 - [get_materials](get_materials.md)
@@ -185,6 +194,9 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_bounding_box](get_bounding_box.md)
 - [get_instance_geometry](get_instance_geometry.md)
 - [get_instances_geometry](get_instances_geometry.md)
+- [element.search_elements](element.search_elements.md)
+- [element.query_elements](element.query_elements.md)
+- [element.resolve_spatial_selection](element.resolve_spatial_selection.md)
 - [get_elements_by_category_and_level](get_elements_by_category_and_level.md)
 - [apply_transform_delta](apply_transform_delta.md)
 - [join_elements](join_elements.md)
@@ -421,6 +433,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [set_stair_flight_parameters](set_stair_flight_parameters.md)
 - [get_family_instances](get_family_instances.md)
 - [get_family_types](get_family_types.md)
+- [family.query_loaded](family.query_loaded.md) (NEW 2026-01-22)
 - [create_family_instance](create_family_instance.md)
 - [move_family_instance](move_family_instance.md)
 - [delete_family_instance](delete_family_instance.md)
@@ -489,7 +502,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [select_elements_by_filter_id](select_elements_by_filter_id.md)
 - [select_elements](select_elements.md)
 
-## GetOrientedBoundingBoxHandler.cs
+## GeometryOps
 - [get_oriented_bbox](get_oriented_bbox.md)
 
 ## GridOps
@@ -548,10 +561,23 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [search_commands](search_commands.md)
 - [list_commands](list_commands.md)
 - [describe_command](describe_command.md)
+- [help_suggest](help_suggest.md)
+- [meta.resolve_category](meta.resolve_category.md)
+- [get_context](get_context.md)
+- [revit_status](revit_status.md)
+- [revit_batch](revit_batch.md)
+- [capture.list_windows](capture.list_windows.md)
+- [capture.window](capture.window.md)
+- [capture.screen](capture.screen.md)
+- [capture.revit](capture.revit.md)
+
 - [get_mcp_ledger_summary](get_mcp_ledger_summary.md)
 - [start_command_logging](start_command_logging.md)
 - [stop_command_logging](stop_command_logging.md)
 - [agent_bootstrap](agent_bootstrap.md)
+
+## System
+- [cleanup_revitmcp_cache](cleanup_revitmcp_cache.md)
 
 ## Misc
 - [get_selected_element_ids](get_selected_element_ids.md)
@@ -602,6 +628,22 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [create_revision_clouds_for_elements](create_revision_clouds_for_elements.md)
 - [list_revision_clouds_in_view](list_revision_clouds_in_view.md)
 
+## Rebar
+- [list_rebar_bar_types](list_rebar_bar_types.md)
+- [list_rebar_hook_types](list_rebar_hook_types.md)
+- [import_rebar_types_from_document](import_rebar_types_from_document.md)
+- [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [rebar_plan_auto](rebar_plan_auto.md)
+- [rebar_apply_plan](rebar_apply_plan.md)
+- [rebar_sync_status](rebar_sync_status.md)
+- [rebar_regenerate_delete_recreate](rebar_regenerate_delete_recreate.md)
+- [rebar_layout_inspect](rebar_layout_inspect.md)
+- [rebar_layout_update](rebar_layout_update.md)
+- [rebar_layout_update_by_host](rebar_layout_update_by_host.md)
+- [rebar_spacing_check](rebar_spacing_check.md)
+- [delete_rebars](delete_rebars.md)
+- [move_rebars](move_rebars.md)
+
 ## RevitUI
 - [list_open_views](list_open_views.md)
 - [activate_view](activate_view.md)
@@ -635,12 +677,14 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [create_room](create_room.md)
 - [delete_room](delete_room.md)
 - [get_room_boundary_walls](get_room_boundary_walls.md)
-- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [get_room_perimeter_with_columns](get_room_perimeter_with_columns.md)
 - [get_room_perimeter_with_columns_and_walls](get_room_perimeter_with_columns_and_walls.md)
+- [get_room_finish_takeoff_context](get_room_finish_takeoff_context.md)
+- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [create_room_masses](create_room_masses.md)
 - [get_room_inner_walls_by_baseline](get_room_inner_walls_by_baseline.md)
 - [get_room_centroid](get_room_centroid.md)
+- [room_separation.create_lines](room_separation.create_lines.md)
 - [create_room_boundary_line](create_room_boundary_line.md)
 - [delete_room_boundary_line](delete_room_boundary_line.md)
 - [move_room_boundary_line](move_room_boundary_line.md)
@@ -710,8 +754,10 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [classify_points_in_room](classify_points_in_room.md)
 - [get_spatial_context_for_element](get_spatial_context_for_element.md)
 - [get_spatial_context_for_elements](get_spatial_context_for_elements.md)
+- [get_spatial_params_bulk](get_spatial_params_bulk.md)
 - [map_room_area_space](map_room_area_space.md)
 - [spatial_boundary_location](spatial_boundary_location.md)
+- [spatial.suggest_params](spatial.suggest_params.md)
 
 ## SurfaceOps
 - [get_surface_regions](get_surface_regions.md)
@@ -784,6 +830,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [save_3d_view_settings](save_3d_view_settings.md)
 - [apply_3d_view_settings](apply_3d_view_settings.md)
 - [create_3d_view](create_3d_view.md)
+- [create_focus_3d_view_from_selection](create_focus_3d_view_from_selection.md)
 - [create_perspective_view](create_perspective_view.md)
 - [create_walkthrough](create_walkthrough.md)
 - [create_sheet](create_sheet.md)
@@ -827,6 +874,15 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [colorize_tags_by_param](colorize_tags_by_param.md)
 - [reset_tag_colors](reset_tag_colors.md)
 
+## ViewFilterOps
+- [view_filter.list](view_filter.list.md)
+- [view_filter.get_order](view_filter.get_order.md)
+- [view_filter.upsert](view_filter.upsert.md)
+- [view_filter.delete](view_filter.delete.md)
+- [view_filter.apply_to_view](view_filter.apply_to_view.md)
+- [view_filter.remove_from_view](view_filter.remove_from_view.md)
+- [view_filter.set_order](view_filter.set_order.md)
+
 ## WorksetOps
 - [get_worksets](get_worksets.md)
 - [get_element_workset](get_element_workset.md)
@@ -843,4 +899,5 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_zone_params](get_zone_params.md)
 - [set_zone_param](set_zone_param.md)
 - [compute_zone_metrics](compute_zone_metrics.md)
+
 

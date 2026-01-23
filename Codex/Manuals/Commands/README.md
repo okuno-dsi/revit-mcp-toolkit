@@ -2,24 +2,26 @@ Commands Index (English, AI‑oriented)
 
 Purpose
 - Single place to browse all MCP command names, grouped by category with importance tags, and a machine‑readable index for tooling.
+- Source of truth is the live server: `GET /debug/capabilities` (or `docs/capabilities.jsonl`). This folder is a legacy/heuristic index and may lag behind the latest build.
 
 Files
+- Full manuals (human-friendly, kept current): `Manuals/FullManual/README.md` and `Manuals/FullManual_ja/README.md`
 - Commands_Index.all.en.md — Human‑friendly, all commands by category with (high/normal/low) and read/write hint.
 - commands_index.json — Machine‑readable map: { method: { category, importance, kind } }.
-- generate_commands_index.py — Generator script (reads names from the demo data folder).
  - Rename_Types_By_Parameter_EN.md — Bulk rename types by parameter value (prefix/suffix rules, tokens, paging).
  - Rename_Types_Bulk_EN.md — Explicit mapping (typeId/uniqueId → newName) high‑throughput bulk rename.
 
 Update Steps (when commands are added/removed)
+0. Prefer live capabilities for the current build:
+   - `GET http://127.0.0.1:<PORT>/debug/capabilities`
+   - Or `list_commands { namesOnly:true }` (canonical only)
 1. Refresh the live command names (namesOnly):
    - `python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file list_commands_names.json`
    - Alternatively place an array of names in available_commands.json`.
-2. Generate the index:
-   - `python Commands_Index/generate_commands_index.py`
-3. Review the diffs (importance/category heuristics) and commit.
+2. (Optional / legacy) If you still maintain `Manuals/Commands/commands_index.json`, update it manually or regenerate it from `/debug/capabilities`.
 
 Notes
-- Importance and category are heuristic; adjust the `HIGH` set and keyword buckets in the generator as needed.
+- Importance and category are heuristic; adjust as needed for your workflow.
 - For exact parameters/behavior, prefer the live environment and per‑command docs.
 
 Global parameter-update inputs (robustness)

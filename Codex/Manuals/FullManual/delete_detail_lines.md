@@ -1,7 +1,11 @@
 # delete_detail_lines
 
 - Category: AnnotationOps
-- Purpose: Delete multiple Detail Lines (view-specific curves) in one call.
+- Purpose: (Deprecated) Use `view.delete_detail_line` with `elementIds[]` instead.
+
+## Status
+- This command is deprecated / removed in recent builds.
+- Replacement: `view.delete_detail_line` (bulk supported via `elementIds[]`).
 
 ## Usage
 - Method: `delete_detail_lines`
@@ -27,4 +31,3 @@
 ## Related
 - delete_detail_line
 - get_detail_lines_in_view
-

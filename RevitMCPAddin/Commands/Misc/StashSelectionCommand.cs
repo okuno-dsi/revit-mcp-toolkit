@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.Misc
             try { docTitle = doc.Title ?? string.Empty; } catch { }
             try { viewId = uidoc.ActiveView?.Id?.IntValue() ?? 0; } catch { }
 
-            SelectionStash.Set(ids, docPath, docTitle, viewId);
+            SelectionStash.Set(ids, docPath, docTitle, viewId, AppServices.CurrentDocKey);
             var snap = SelectionStash.GetSnapshot();
             return new
             {
@@ -34,6 +34,7 @@ namespace RevitMCPAddin.Commands.Misc
                 revision = snap.Revision,
                 docPath = snap.DocPath,
                 docTitle = snap.DocTitle,
+                docKey = snap.DocKey,
                 activeViewId = snap.ActiveViewId,
                 hash = snap.Hash
             };

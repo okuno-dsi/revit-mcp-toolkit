@@ -3,7 +3,12 @@
 Purpose: enable any automation agent to connect to Revit MCP reliably and safely.
 
 Critical Notes (Read First)
+- Read first: `Manuals/RevitMCP_Client_Dev_Guide.md` (client transport rules, queued handling, unwrap rules)
+- Work rules: always use `Work/<RevitFileName>_<docKey>/...` for all outputs, temp files, and scripts (no files directly under `Work/`).
 - Prefer canonical command names (`*.*` namespaced). Legacy names remain callable but are `deprecated` aliases.
+- Prefer TaskSpec v2 for multi-step / write flows: the agent outputs a declarative `*.task.json` (no transport scripts) and executes via the fixed runner (`Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py` or `.ps1`).
+- For deterministic discovery (no LLM), use `help.suggest` first; then confirm details via `help.describe_command` before executing writes.
+- `help.suggest` uses `glossary_ja.json` (override with `REVITMCP_GLOSSARY_JA_PATH`) and returns `suggestions[]` with safety flags (`writesModel`, `recommendedDryRun`).
 - `list_commands` / `search_commands` default to returning canonical-only. Pass `includeDeprecated=true` only when you explicitly want legacy aliases in discovery results.
 - If you receive an old/legacy command name, resolve it via capabilities:
   - Server: `GET /debug/capabilities` (canonical-only by default; add `?includeDeprecated=1` to include aliases; `?includeDeprecated=1&grouped=1` to group by canonical)
@@ -11,6 +16,17 @@ Critical Notes (Read First)
   - Use `canonical` and `deprecated` fields to map legacy → canonical deterministically.
 - Status command canonical is `revit.status` (aliases: `status`, `revit_status` are deprecated).
   - `revit.status` may reclaim stale `RUNNING/DISPATCHING` queue rows older than `REVIT_MCP_STALE_INPROGRESS_SEC` (default 21600 sec) to avoid “ghost running jobs” after crashes.
+- Collaborative chat is available (server-local, no queue):
+  - Methods: `chat.post`, `chat.list`, `chat.inbox.list`
+  - Persistence (system-of-record): `<CentralModelFolder>\\_RevitMCP\\projects\\<docKey>\\chat\\writers\\*.jsonl`
+  - Cloud models (ACC/BIM 360) are not supported for chat storage; chat is disabled when the active document is cloud-hosted.
+    - `docKey` = stable per-project identifier (same as ViewWorkspace/Ledger ProjectToken). This avoids collisions when multiple `.rvt` exist in the same folder.
+    - Fallback when `docKey` is missing: `projects\\path-<hash>\\...`
+  - Root resolution: the server needs a one-time `docPathHint` (prefer central model path) and `docKey` (preferred). Revit Add-in auto-initializes this on ViewActivated; scripts/agents may pass both explicitly for the first call.
+  - Invite convention: post to `ws://Project/Invites` and mention `@userId` (the add-in shows a non-blocking toast when mentioned).
+  - Codex GUI: use the `Chat` button → Chat Monitor
+    - Chat Monitor is read-only (compliance): it does not auto-run Codex and does not post AI replies back to chat.
+    - Use `Copy→Codex` to copy the selected chat message and paste it into the main Codex GUI prompt (user clicks Send manually).
 
 Essential Steps
 - Read `ConnectionGuide/QUICKSTART.md` and `ConnectionGuide/PRIMER.jsonl`.
@@ -38,6 +54,10 @@ Troubleshooting
 - Timeouts on write: try a smaller target set, confirm active view permissions, and re-run. Scripts allow `--wait-seconds` tuning via underlying CLI.
 - Add-in features: if `smoke_test` is not available, use read-only flows or consult `ConnectionGuide/smoke_test_guide.md`.
   - Docs inventory: `GET /docs/manifest.json` returns canonical-only by default; add `?includeDeprecated=1` to include deprecated aliases.
+
+Chat troubleshooting
+- `chat.*` returns `CHAT_HELPER_ROOT_UNKNOWN`: pass `docPathHint` once (prefer central model path), or open a Revit project with the add-in running (it auto-sets the root).
+- Nothing shows in inbox: ensure your mention uses `@<RevitUsername>` and the invite is posted to `ws://Project/Invites`.
 
 Local LLM (GGUF via llama.cpp)
 - Minimal local agent: `..\..\NVIDIA-Nemotron-v3\tool\revit_llm_agent.py` (llama.cpp `llama-server.exe` + GGUF models).

@@ -1,22 +1,32 @@
 # delete_detail_line
 
 - Category: AnnotationOps
-- Purpose: Delete Detail Line in Revit.
+- Purpose: Delete Detail Line(s) in a view.
 
 ## Overview
 This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
 
 ## Usage
-- Method: delete_detail_line
-- Parameters: none
+- Canonical method: `view.delete_detail_line`
+- Deprecated alias: `delete_detail_line`
+
+### Parameters
+Provide **one of** the following:
+
+| Name | Type | Required | Notes |
+|---|---|---:|---|
+| elementId | int | yes (one of) | Single detail line element id |
+| elementIds | int[] | yes (one of) | Bulk delete (recommended) |
 
 ### Example Request
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "method": "delete_detail_line",
-  "params": {}
+  "method": "view.delete_detail_line",
+  "params": {
+    "elementIds": [123, 456, 789]
+  }
 }
 ```
 
@@ -34,7 +44,10 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 ```json
 {
   "type": "object",
-  "properties": {}
+  "properties": {
+    "elementId": { "type": "integer" },
+    "elementIds": { "type": "array", "items": { "type": "integer" } }
+  }
 }
 ```
 
@@ -42,7 +55,12 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 ```json
 {
   "type": "object",
-  "properties": {},
+  "properties": {
+    "ok": { "type": "boolean" },
+    "deletedCount": { "type": "integer" },
+    "requested": { "type": "integer" },
+    "skipped": { "type": "array" }
+  },
   "additionalProperties": true
 }
 ```

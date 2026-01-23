@@ -6,6 +6,10 @@
 ## 概要
 このコマンドは JSON-RPC を通じて実行され、目的に記載の処理を行います。使い方のセクションを参考にリクエストを作成してください。
 
+補足:
+- `viewId` 省略時はアクティブビューが使用され、`usedActiveView=true` が返ります。
+- 応答には `categories` に加えて `items` がエイリアスとして返ります。
+
 ## 使い方
 - メソッド: get_categories_used_in_view
 

@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RevitMCPServer", "RevitMCPS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RevitMCP.Abstractions", "..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj", "{4A8195C8-10D4-7FD9-2540-A95D4CFC895F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RevitMcp.CaptureAgent", "CaptureAgent\RevitMcp.CaptureAgent.csproj", "{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,14 @@ Global
 		{4A8195C8-10D4-7FD9-2540-A95D4CFC895F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4A8195C8-10D4-7FD9-2540-A95D4CFC895F}.Release|x64.ActiveCfg = Release|x64
 		{4A8195C8-10D4-7FD9-2540-A95D4CFC895F}.Release|x64.Build.0 = Release|x64
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Debug|x64.Build.0 = Debug|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Release|x64.ActiveCfg = Release|Any CPU
+		{2B8F1E5D-8C1F-4E6D-9D10-6BE63D0F0C41}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

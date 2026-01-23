@@ -67,7 +67,7 @@ namespace RevitMCPAddin.Core.ViewWorkspace
                 vw["include3dOrientation"] = Include3dOrientation;
                 root["viewWorkspace"] = vw;
 
-                File.WriteAllText(path, root.ToString());
+                File.WriteAllText(path, RevitMCPAddin.Core.JsonNetCompat.ToIndentedJson(root));
             }
             catch { }
         }

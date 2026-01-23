@@ -119,14 +119,14 @@ namespace RevitMCPAddin.Commands.ExcelPlan
                         var url = serviceUrl + "parse_plan";
                         using (var hc = new System.Net.Http.HttpClient())
                         {
-                            var reqObj = new JObject
-                            {
-                                ["excelPath"] = excelPath,
-                                ["sheetName"] = string.IsNullOrWhiteSpace(sheetName) ? "Sheet1" : sheetName,
-                                ["cellSizeMeters"] = meters,
-                                ["useColorMask"] = useColorMask
-                            };
-                            var content = new System.Net.Http.StringContent(reqObj.ToString(Newtonsoft.Json.Formatting.None), System.Text.Encoding.UTF8, "application/json");
+                             var reqObj = new JObject
+                             {
+                                 ["excelPath"] = excelPath,
+                                 ["sheetName"] = string.IsNullOrWhiteSpace(sheetName) ? "Sheet1" : sheetName,
+                                 ["cellSizeMeters"] = meters,
+                                 ["useColorMask"] = useColorMask
+                             };
+                            var content = new System.Net.Http.StringContent(JsonNetCompat.ToCompactJson(reqObj), System.Text.Encoding.UTF8, "application/json");
                             var resp = hc.PostAsync(url, content).GetAwaiter().GetResult();
                             var body = resp.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                             var json = JObject.Parse(body);

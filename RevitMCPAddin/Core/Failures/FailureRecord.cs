@@ -25,6 +25,16 @@ namespace RevitMCPAddin.Core.Failures
         public string message { get; set; }     // TaskDialogShowingEventArgs.Message
 
         // Additive fields (non-breaking): dialog suppression diagnostics
+        public string dialogType { get; set; }  // TaskDialog / DialogBox / etc
+        public string title { get; set; }
+        public string mainInstruction { get; set; }
+        public string expandedContent { get; set; }
+        public string footer { get; set; }
+        public string capturePath { get; set; }
+        public string captureRisk { get; set; }
+        public string ocrText { get; set; }
+        public string ocrEngine { get; set; }
+        public string ocrStatus { get; set; }
         public bool dismissed { get; set; }
         public int overrideResult { get; set; }
     }

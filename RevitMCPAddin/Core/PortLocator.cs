@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.IO;
+using System.Globalization;
 using Newtonsoft.Json.Linq;
 
 namespace RevitMCPAddin.Core
@@ -51,15 +52,19 @@ namespace RevitMCPAddin.Core
             {
                 Directory.CreateDirectory(BaseDir);
                 int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                var jo = new JObject { ["port"] = port, ["pid"] = pid };
+
+                // Avoid JObject.ToString()/JsonConvert.SerializeObject(JToken) to prevent Json.NET host
+                // binding issues (MissingMethodException) observed in some Revit environments.
+                var json = "{\"port\":" + port.ToString(CultureInfo.InvariantCulture)
+                         + ",\"pid\":" + pid.ToString(CultureInfo.InvariantCulture) + "}";
 
                 // Write process-scoped
                 var procPath = Path.Combine(BaseDir, $"server_state_{pid}.json");
-                File.WriteAllText(procPath, jo.ToString());
+                File.WriteAllText(procPath, json);
 
                 // Also write legacy
                 var legacy = Path.Combine(BaseDir, "server_state.json");
-                File.WriteAllText(legacy, jo.ToString());
+                File.WriteAllText(legacy, json);
             }
             catch (Exception ex)
             {

@@ -16,6 +16,8 @@ using RevitMcpServer.Engine; // DurableQueue, JobIndex
 // SSR dependencies removed
 using RevitMcpServer.Infra; // Logging
 using RevitMcpServer.Persistence; // SqliteConnectionFactory
+using RevitMcpServer.Chat; // ChatStore
+using RevitMcpServer.Capture; // CaptureService
 
 // ----------------------------- Bootstrap -----------------------------
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +45,9 @@ builder.WebHost.ConfigureKestrel(o => { o.Limits.MaxRequestBodySize = 10_000_000
 // Services
 builder.Services.AddSingleton<DurableQueue>();
 builder.Services.AddSingleton<JobIndex>();
+builder.Services.AddSingleton<ChatRootState>();
+builder.Services.AddSingleton<ChatStore>();
+builder.Services.AddSingleton<CaptureService>();
 
 var app = builder.Build();
 
@@ -252,7 +257,7 @@ app.MapGet("/docs/commands.md", () =>
 var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
 
 // Enqueue via /rpc/{method}
-app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue durable, JobIndex index) =>
+app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture) =>
 {
     string raw; using (var r = new StreamReader(ctx.Request.Body, Encoding.UTF8)) raw = await r.ReadToEndAsync();
     string id = "1"; JsonElement? prm = null;
@@ -280,6 +285,20 @@ app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue
         return Results.Json(new { jsonrpc = "2.0", id = id, result = status }, jsonOpts);
     }
 
+    // Server-local chat (no queue; persists to central folder)
+    if (chat.IsChatMethod(method))
+    {
+        var res = await chat.ExecuteAsync(method, prm);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = res }, jsonOpts);
+    }
+
+    // Server-local capture (no queue; external CaptureAgent process)
+    if (capture.IsCaptureMethod(method))
+    {
+        var res = await capture.ExecuteAsync(method, prm);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = res }, jsonOpts);
+    }
+
     var jobId = await durable.EnqueueAsync(method, paramsJson, null, id, 100, 60);
     index.Put(id, jobId);
     Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] REQUEST: POST /rpc/{method} -> jobId={jobId}");
@@ -288,7 +307,7 @@ app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue
 });
 
 // Enqueue via /rpc (body must contain method)
-app.MapPost("/rpc", async (HttpContext ctx, DurableQueue durable, JobIndex index) =>
+app.MapPost("/rpc", async (HttpContext ctx, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture) =>
 {
     string body; using (var r = new StreamReader(ctx.Request.Body, Encoding.UTF8)) body = await r.ReadToEndAsync();
     string id = "1", method = ""; JsonElement? prm = null;
@@ -313,6 +332,20 @@ app.MapPost("/rpc", async (HttpContext ctx, DurableQueue durable, JobIndex index
     {
         var status = await BuildRevitStatusAsync(durable, serverStartedUtc);
         return Results.Json(new { jsonrpc = "2.0", id = id, result = status }, jsonOpts);
+    }
+
+    // Server-local chat (no queue; persists to central folder)
+    if (chat.IsChatMethod(method))
+    {
+        var res = await chat.ExecuteAsync(method, prm);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = res }, jsonOpts);
+    }
+
+    // Server-local capture (no queue; external CaptureAgent process)
+    if (capture.IsCaptureMethod(method))
+    {
+        var res = await capture.ExecuteAsync(method, prm);
+        return Results.Json(new { jsonrpc = "2.0", id = id, result = res }, jsonOpts);
     }
 
     var jobId = await durable.EnqueueAsync(method, paramsJson, null, id, 100, 60);
@@ -401,7 +434,7 @@ app.MapGet("/get_result", async (HttpRequest req, DurableQueue durable) =>
 });
 
 // ----------------------------- Durable helpers (compat) -----------------------------
-app.MapPost("/enqueue", async (HttpContext ctx, DurableQueue durable, JobIndex index) =>
+app.MapPost("/enqueue", async (HttpContext ctx, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture) =>
 {
     string body; using (var r = new StreamReader(ctx.Request.Body, Encoding.UTF8)) body = await r.ReadToEndAsync();
     string method = ""; string id = Guid.NewGuid().ToString("N"); int priority = 100; int timeoutSec = 60; JsonElement? prm = null; string? idemKey = null;
@@ -428,6 +461,20 @@ app.MapPost("/enqueue", async (HttpContext ctx, DurableQueue durable, JobIndex i
     {
         var status = await BuildRevitStatusAsync(durable, serverStartedUtc);
         return Results.Json(status);
+    }
+
+    // Server-local chat (no queue; persists to central folder)
+    if (chat.IsChatMethod(method))
+    {
+        var res = await chat.ExecuteAsync(method, prm);
+        return Results.Json(res);
+    }
+
+    // Server-local capture (no queue; external CaptureAgent process)
+    if (capture.IsCaptureMethod(method))
+    {
+        var res = await capture.ExecuteAsync(method, prm);
+        return Results.Json(res);
     }
 
     var jobId = await durable.EnqueueAsync(method, paramsJson, idemKey, id, priority, timeoutSec);

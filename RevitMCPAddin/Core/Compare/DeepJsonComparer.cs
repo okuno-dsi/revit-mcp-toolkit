@@ -59,8 +59,8 @@ namespace RevitMCPAddin.Core.Compare
                 default:
                     {
                         // Bool / Null / Date / etc. → ToString 比較
-                        var le = left.ToString(Newtonsoft.Json.Formatting.None);
-                        var re = right.ToString(Newtonsoft.Json.Formatting.None);
+                        var le = RevitMCPAddin.Core.JsonNetCompat.ToCompactJson(left);
+                        var re = RevitMCPAddin.Core.JsonNetCompat.ToCompactJson(right);
                         if (le == re) return true;
                         diffs.Add((path, left, right)); s.MaxDiffs--; return false;
                     }
@@ -160,7 +160,7 @@ namespace RevitMCPAddin.Core.Compare
                 case JTokenType.Integer:
                     return t.Value<double>().ToString("R", System.Globalization.CultureInfo.InvariantCulture);
                 default:
-                    return t.ToString(Newtonsoft.Json.Formatting.None);
+                    return RevitMCPAddin.Core.JsonNetCompat.ToCompactJson(t);
             }
         }
 

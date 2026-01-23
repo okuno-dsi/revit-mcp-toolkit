@@ -333,6 +333,7 @@ Notes:
   - `get_face_region_detail` — read
   - `get_face_region_takeoff` — read
   - `get_face_regions` — read
+  - `family.query_loaded` — read (NEW 2026-01-22)
   - `get_family_instance_parameters` — read
   - `get_family_instance_references` — read
   - `get_family_instances` — read

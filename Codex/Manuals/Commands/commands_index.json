@@ -3288,6 +3288,11 @@
     "importance": "normal",
     "kind": "read"
   },
+  "family.query_loaded": {
+    "category": "Families",
+    "importance": "normal",
+    "kind": "read"
+  },
   "summarize_family_types_by_category": {
     "category": "Families",
     "importance": "normal",

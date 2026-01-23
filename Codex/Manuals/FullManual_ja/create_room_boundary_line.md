@@ -1,33 +1,50 @@
-﻿# create_room_boundary_line
+# create_room_boundary_line
 
 - カテゴリ: Room
-- 目的: このコマンドは『create_room_boundary_line』を作成します。
+- 目的: `room_separation.create_lines`（部屋境界線作成）の deprecated alias です。
 
 ## 概要
-このコマンドは JSON-RPC を通じて実行され、目的に記載の処理を行います。使い方のセクションを参考にリクエストを作成してください。
+互換性のため `create_room_boundary_line` は残していますが、新規実装は次を推奨します。
+
+- `room_separation.create_lines`（canonical）
 
 ## 使い方
-- メソッド: create_room_boundary_line
+- メソッド: `create_room_boundary_line`（deprecated alias）
+- Canonical: `room_separation.create_lines`
+- トランザクション: Write
 
-- パラメータ: なし
+### パラメータ
+`room_separation.create_lines` と同じです。
 
-### リクエスト例
+| 名前 | 型 | 必須 | 既定値 |
+|---|---|---:|---|
+| viewId | int | いいえ | ActiveView |
+| unit | string | いいえ | `"mm"` |
+| snapZToViewLevel | bool | いいえ | `true` |
+| segments | object[] | はい（推奨） |  |
+| start | object | legacy |  |
+| end | object | legacy |  |
+
+### リクエスト例（segments）
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": "rs-legacy-1",
   "method": "create_room_boundary_line",
-  "params": {}
+  "params": {
+    "viewId": 123456,
+    "unit": "mm",
+    "segments": [
+      { "start": { "x": 0, "y": 0, "z": 0 }, "end": { "x": 5000, "y": 0, "z": 0 } }
+    ]
+  }
 }
 ```
 
-## 関連コマンド
-## 関連コマンド
-- summarize_rooms_by_level
-- validate_create_room
-- get_rooms
-- get_room_params
-- set_room_param
-- get_room_boundary
-- create_room
-- 
+## 戻り値
+- `result.created`: 作成した要素ID（int[]）
+- `result.count`: 本数（int）
+- `result.skipped[]`: 作成しなかった線分（`{ index, reason }`）
+
+## 関連
+- `room_separation.create_lines`

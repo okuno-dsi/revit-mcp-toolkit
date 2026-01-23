@@ -15,7 +15,9 @@
 | b | int | いいえ/状況による | 80 |
 | detachViewTemplate | bool | いいえ/状況による | true |
 | g | int | いいえ/状況による | 230 |
+| lineRgb | object | いいえ/状況による |  | 線色を `{r,g,b}`（0-255）で指定（任意）。未指定なら `r/g/b` を使用。 |
 | r | int | いいえ/状況による | 200 |
+| fillRgb | object | いいえ/状況による |  | 塗りつぶし（Surface/Cut パターン色）を `{r,g,b}`（0-255）で指定（任意）。未指定なら `r/g/b` を使用。 |
 | transparency | int | いいえ/状況による | 40 |
 | viewId | int | いいえ/状況による | 0 |
 

@@ -20,6 +20,11 @@ Alternatively, set environment variable `REVIT_MCP_PORT` to override the default
 Logs location
 - Scripts now prefer `Work/<ProjectName>_<Port>/Logs/` for JSON outputs. They will fall back to `Manuals/Logs/` if needed for compatibility.
 
+TaskSpec v2 (recommended for complex/write)
+- Fixed runner (no free-form transport scripts): `Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py` (Python) / `Design/taskspec-v2-kit/runner/mcp_task_runner_v2.ps1` (PowerShell).
+- Store TaskSpec files under `Work/<Project>_<Port>/Tasks/*.task.json` (never under `Work/` root).
+- RevitMCP transport: set `server` to `http://127.0.0.1:<PORT>/enqueue` (or base `http://127.0.0.1:<PORT>`); the runner polls `/job/{id}` automatically.
+
 Safety and ID handling
 - Scripts will not send `viewId: 0` or `elementId: 0`.
 - `list_elements_in_view.ps1` reads the active view ID from `Work/<Project>_<Port>/Logs/agent_bootstrap.json` (fallback: `Manuals/Logs/agent_bootstrap.json`) at `result.result.environment.activeViewId`.

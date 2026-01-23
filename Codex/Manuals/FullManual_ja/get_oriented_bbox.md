@@ -1,6 +1,6 @@
 ﻿# get_oriented_bbox
 
-- カテゴリ: GetOrientedBoundingBoxHandler.cs
+- カテゴリ: GeometryOps
 - 目的: このコマンドは『get_oriented_bbox』を取得します。
 
 ## 概要

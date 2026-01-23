@@ -27,6 +27,7 @@ namespace RevitMCPAddin.UI
         public const string PanelName = "RevitMCPServer";   // 既存
         public const string DevPanelName = "Developer";     // 追加
         public const string GuiPanelName = "GUI";           // Codex GUI 用
+        public const string ScriptPanelName = "Script";     // Python Script Runner
 
         // ---- Port ----
         public const string ButtonNamePort = "ShowPort";
@@ -54,6 +55,14 @@ namespace RevitMCPAddin.UI
         // 新規: Codex GUI 起動
         public const string ButtonNameLaunchCodexGui = "LaunchCodexGui";
         public const string ButtonClassLaunchCodexGui = "RevitMCPAddin.Commands.Dev.LaunchCodexGuiCommand";
+
+        // 新規: MCP Chat Pane（DockablePane）
+        public const string ButtonNameToggleChatPane = "ToggleChatPane";
+        public const string ButtonClassToggleChatPane = "RevitMCPAddin.Commands.Chat.ToggleChatPaneCommand";
+
+        // 新規: Python Script Runner（人間専用）
+        public const string ButtonNamePythonRunner = "PythonRunner";
+        public const string ButtonClassPythonRunner = "RevitMCPAddin.Commands.ShowPythonRunnerCommand";
 
         // ★ 新規: Settings 操作用
         public const string ButtonNameOpenSettings = "OpenSettings";
@@ -180,6 +189,18 @@ namespace RevitMCPAddin.UI
                 btnReloadSettings.LargeImage = PortIconBuilder.BuildTriangleIcon(32,
                     fill: Media.Color.FromRgb(120, 120, 120), stroke: Media.Color.FromRgb(60, 60, 60));
             }
+
+            // ===== Python Script Runner パネル（人間専用）=====
+            var scriptPanel = app.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == ScriptPanelName)
+                            ?? app.CreateRibbonPanel(TabName, ScriptPanelName);
+
+            var btnPythonRunner = EnsurePushButton(scriptPanel, ButtonNamePythonRunner, "Python\nRunner", asm, ButtonClassPythonRunner);
+            btnPythonRunner.ToolTip = "人間専用の Python Script Runner を開きます（AI/MCP からは起動不可）。";
+            btnPythonRunner.LongDescription = "設計者が用意した Python スクリプトを実行するためのUI。";
+            {
+                btnPythonRunner.Image = PortIconBuilder.BuildTextBadge("Py", 16);
+                btnPythonRunner.LargeImage = PortIconBuilder.BuildTextBadge("Py", 32);
+            }
         }
 
         public static void UpdatePort(UIControlledApplication app, int newPort, string? iconDir = null)
@@ -266,6 +287,13 @@ namespace RevitMCPAddin.UI
             {
                 btnCodexGui.Image = PortIconBuilder.BuildFolderIcon(16);
                 btnCodexGui.LargeImage = PortIconBuilder.BuildFolderIcon(32);
+            }
+
+            var btnChat = EnsurePushButton(panel, ButtonNameToggleChatPane, "Chat", asm, ButtonClassToggleChatPane);
+            btnChat.ToolTip = "MCP Chat（DockablePane）を表示/非表示します。";
+            {
+                btnChat.Image = PortIconBuilder.BuildTriangleIcon(16, fill: Media.Color.FromRgb(90, 160, 255), stroke: Media.Color.FromRgb(40, 90, 160));
+                btnChat.LargeImage = PortIconBuilder.BuildTriangleIcon(32, fill: Media.Color.FromRgb(90, 160, 255), stroke: Media.Color.FromRgb(40, 90, 160));
             }
         }
     }
@@ -437,6 +465,45 @@ namespace RevitMCPAddin.UI
             rtb.Render(dv);
             rtb.Freeze();
             return rtb;
+        }
+
+        // Text badge (e.g., "Py")
+        public static Media.ImageSource BuildTextBadge(string text, int sizePx)
+        {
+            if (string.IsNullOrWhiteSpace(text)) text = "?";
+
+            var dv = new Media.DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                DrawPlate(dc, sizePx);
+
+                var typeface = new Media.Typeface(new Media.FontFamily("Segoe UI"),
+                    System.Windows.FontStyles.Normal, System.Windows.FontWeights.Bold, System.Windows.FontStretches.Normal);
+
+                double padding = sizePx * 0.18;
+                double maxW = sizePx - padding * 2;
+                double maxH = sizePx - padding * 2;
+                double fontSize = sizePx * 0.60;
+
+                double MeasureWidth(double fs)
+                {
+                    var ft = new System.Windows.Media.FormattedText(
+                        text, CultureInfo.InvariantCulture, System.Windows.FlowDirection.LeftToRight, typeface, fs, Media.Brushes.Black, 1.0);
+                    return Math.Max(ft.Width, ft.Height * 0.9);
+                }
+                while (fontSize > 2 && MeasureWidth(fontSize) > Math.Min(maxW, maxH)) fontSize -= 0.5;
+
+                var brush = new Media.SolidColorBrush(Media.Color.FromRgb(30, 30, 30));
+                brush.Freeze();
+
+                var ftMain = new System.Windows.Media.FormattedText(text, CultureInfo.InvariantCulture,
+                    System.Windows.FlowDirection.LeftToRight, typeface, fontSize, brush, 1.0);
+                double x = (sizePx - ftMain.Width) / 2.0;
+                double y = (sizePx - ftMain.Height) / 2.0;
+                dc.DrawText(ftMain, new System.Windows.Point(x, y));
+            }
+
+            return ToBitmap(dv, sizePx);
         }
 
         // 共通：三角（Start）／四角（Stop）

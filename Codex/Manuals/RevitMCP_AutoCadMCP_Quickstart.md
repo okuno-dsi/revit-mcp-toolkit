@@ -7,7 +7,7 @@
 前提
 - Revit 起動＋MCPアドイン有効（既定ポート 5210）
 - AutoCadMCP サーバー起動可能（既定ポート 5251）
-- AutoCAD Core Console 2025 (accoreconsole.exe) 利用可能
+- AutoCAD Core Console 2026 (accoreconsole.exe) 利用可能
 - 作業フォルダ: `Work/AutoCadOut`
 
 ---
@@ -104,49 +104,58 @@ Invoke-RestMethod http://127.0.0.1:5251/health
 ```
 
 注意（設定）
-## 6) AutoCAD �����i2�p�^�[���j
-- accoreconsole パス: 例 `C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe`
-A) �ȒP�ɍŏ��m�点 per-file renaming �i��v�j
-- �nAPI ��直�𑀍ݔ��Ȃ�ł��A�u�o�C���h�vDWG��存在確認��+�u失敗時のフォールバック�v��行う汎用スクリプトを使います。
-- �T�|���v: `Manuals/Scripts/merge_dwgs_perfile_safe.py`
-## 6) AutoCAD 統合（2パターン）
+## 6) AutoCAD 統合（3パターン）
+
+A) AutoCadMCP（accoreconsole 直叩き）
+- accoreconsole パス例: `C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe`
+- サーバー API `merge_dwgs_perfile_rename` を使い、**DWG 実在確認＋失敗時フォールバック**まで行う。
+- サンプル: `Manuals/Scripts/merge_dwgs_perfile_safe.py`
+
 ```bash
 python Manuals/Scripts/merge_dwgs_perfile_safe.py ^
   --inputs C:/.../Work/AutoCadOut/walls_A.dwg C:/.../Work/AutoCadOut/walls_B.dwg ^
   --output C:/.../Work/AutoCadOut/merged_by_comment.dwg ^
   --seed C:/.../Work/AutoCadOut/SEED.dwg
 ```
-$inputs = @(
-- �w��概要
-  - 1) AutoCadMCP �̎API `merge_dwgs_perfile_rename` ��呼び出し
-  - 2) レスポンスの `ok` だけでなく、`output` パスに DWG が実在するかを確認
-  - 3) もし DWG ��出来ていない場合は、`accoreconsole.exe /i <seed> /s <script>` ��直接呼び出し、INSERT+EXPLODE+レイヤリネーム+PURGE/AUDIT+SAVEAS 2018 で再実行
-)
-- サーバー側の補足
-  - `MergeDwgsPerFileRenameHandler` �� staging �܂ł̑��؂�DWG (`final.dwg`) ��存在しない場合、`ok=false` / `Error="E_NO_OUTPUT_DWG"` ��返すよう修正済みです。
-  - これにより「サーバーが OK を返しているのに DWG がない」という状態を防げます。
-  accore=@{ path='C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe'; seed=$inputs[0].path; locale='en-US'; timeoutMs=600000 };
-  postProcess=@{ layTransDws=$null; purge=$true; audit=$true };
-  stagingPolicy=@{ root='C:/.../Work/AutoCadOut/Staging'; keepTempOnError=$true; atomicWrite=$true }
-} } | ConvertTo-Json -Depth 20
-Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:5251/rpc' -Body $rpc -ContentType 'application/json; charset=utf-8'
-```
 
+- 概要
+  - 1) AutoCadMCP API `merge_dwgs_perfile_rename` を呼び出し
+  - 2) レスポンスの `ok` だけでなく、`output` に DWG が実在するか確認
+  - 3) DWG が無い場合は、`accoreconsole.exe /i <seed> /s <script>` で再実行（INSERT+EXPLODE+レイヤリネーム+PURGE/AUDIT+SAVEAS 2018）
 - 既知の罠: Core Console が LAYMRG 確認で待機しタイムアウトする環境あり（E_ACCORE_TIMEOUT）。
 
 B) DXF経由（より安定・推奨、要 TrustedPaths）
-- スクリプト（管理者推奨）: `Work/Tools/Run_MergeByDXF.ps1`
+- スクリプト（管理者推奨）: `tools/AutoCad/Run_MergeByDXF.ps1`
   - 変換: -SAVEAS/-DXFOUT で DWG→DXF（2018）
   - 置換: DXFテキスト内のレイヤ名 `A-WALL-____-MCUT` を `A-WALL-____-MCUT_<stem>` に一括置換
   - 統合: DXFIN で順次取り込み → PURGE/AUDIT → SAVEAS (2018)
 - 実行例
 
 ```
-pwsh -File Work/Tools/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe" -Locale en-US
+pwsh -File tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe" -Locale ja-JP
 ```
 
 - 事前に TrustedPaths を AutoCAD に設定（GUI: オプション→ファイル→信頼できる位置）
   - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut`
+
+C) COM経由（AutoCAD起動中、最も直感的）
+- スクリプト: `tools/AutoCad/merge_dwgs_by_map_com.py`
+- 依存ライブラリ: `pywin32`（AutoCAD COM 用）
+  - AI エージェントが必要に応じてインストール支援します:  
+    `python -m pip install pywin32`
+  - その他の追加ライブラリは不要（標準ライブラリのみ）。
+- 例（DWG統合＋レイヤマップ適用）:
+
+```
+python tools/AutoCad/merge_dwgs_by_map_com.py ^
+  --source-dir C:/.../Work/dwg ^
+  --out-dwg C:/.../Work/dwg/MERGED_DWG_COM.dwg ^
+  --map-csv C:/.../Work/dwg/layermap.csv
+```
+
+- 注意:
+  - 出力先 DWG が AutoCAD で開いていると上書きできません。
+  - AutoCAD を起動した状態で実行します（COM 経由）。
 
 ---
 
@@ -173,7 +182,7 @@ pwsh -File Work/Tools/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/T
    - `Invoke-RestMethod http://127.0.0.1:5251/health`
 6. 統合
    - 直接: `merge_dwgs_perfile_rename`（include=`A-WALL-____-MCUT`）
-   - 安定: `Work/Tools/Run_MergeByDXF.ps1`（TrustedPaths 追加済で）
+   - 安定: `tools/AutoCad/Run_MergeByDXF.ps1`（TrustedPaths 追加済で）
 
 ---
 
@@ -182,8 +191,8 @@ pwsh -File Work/Tools/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/T
 - スクリプト一覧: `Manuals/Scripts/README.md`
 - 送信: `Manuals/Scripts/send_revit_command_durable.py`
 - 便利スクリプト（本件向け）
-  - `Work/Tools/Run_MergeByDXF.ps1`
-  - `Work/Tools/ConvertToDxfOutDir.ps1`
+  - `tools/AutoCad/Run_MergeByDXF.ps1`
+  - `tools/AutoCad/ConvertToDxfOutDir.ps1`
 
 以上。これに沿って順に実行すれば、次回起動時も最短で統合まで到達できます。
 

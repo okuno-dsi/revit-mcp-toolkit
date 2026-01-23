@@ -15,7 +15,9 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 | b | int | no/depends | 80 |
 | detachViewTemplate | bool | no/depends | true |
 | g | int | no/depends | 230 |
+| lineRgb | object | no/depends |  | Optional line color override `{r,g,b}` (0-255). If omitted, uses `r/g/b`. |
 | r | int | no/depends | 200 |
+| fillRgb | object | no/depends |  | Optional fill (surface/cut patterns) color `{r,g,b}` (0-255). If omitted, uses `r/g/b`. |
 | transparency | int | no/depends | 40 |
 | viewId | int | no/depends | 0 |
 

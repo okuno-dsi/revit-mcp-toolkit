@@ -31,7 +31,7 @@ The process is executed with a single command in the shell, which starts `accore
 This is the command used to initiate the entire process from the command line.
 
 ```powershell
-& "C:\Program Files\Autodesk\AutoCAD 2025\accoreconsole.exe" /i "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" /s "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\load_and_run.scr"
+& "C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" /i "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" /s "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\load_and_run.scr"
 ```
 
 -   `/i`: Specifies the input drawing file.

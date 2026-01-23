@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- Windows-only is acceptable (Revit ecosystem) and allows build-time integration with CaptureAgent (net8.0-windows). -->
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU;x64</Platforms>
@@ -17,6 +18,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.8" />
     <ProjectReference Include="..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj" />
+    <!-- Build CaptureAgent as part of the solution; server executes it as an external process. -->
+    <ProjectReference Include="CaptureAgent\RevitMcp.CaptureAgent.csproj" ReferenceOutputAssembly="false" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
   </ItemGroup>
 
@@ -28,5 +31,55 @@
     <Folder Include="Http\" />
     <Folder Include="Models\" />
   </ItemGroup>
+
+  <!-- SDK default globs include subfolders; prevent CaptureAgent sources from being compiled into the server assembly. -->
+  <ItemGroup>
+    <Compile Remove="CaptureAgent\**\*.cs" />
+    <None Remove="CaptureAgent\**\*" />
+    <EmbeddedResource Remove="CaptureAgent\**\*" />
+  </ItemGroup>
+
+  <!-- Prevent recursive publish output (publishing into project-local publish/). -->
+  <ItemGroup>
+    <Content Remove="publish\**\*" />
+    <None Remove="publish\**\*" />
+  </ItemGroup>
+
+  <Target Name="CopyCaptureAgentToServerOutput" AfterTargets="Build">
+    <PropertyGroup>
+      <CaptureAgentDestDir>$(TargetDir)capture-agent\</CaptureAgentDestDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <!-- SDK-style output dirs vary by platform; include whichever exists (recursive to keep tessdata). -->
+      <CaptureAgentFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows\**\*.*"
+                         Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows')" />
+      <CaptureAgentFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows\**\*.*"
+                         Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows')" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(CaptureAgentDestDir)" />
+    <Copy SourceFiles="@(CaptureAgentFiles)"
+          DestinationFiles="@(CaptureAgentFiles->'$(CaptureAgentDestDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyCaptureAgentToPublishOutput" AfterTargets="Publish">
+    <PropertyGroup>
+      <CaptureAgentPublishDestDir>$(PublishDir)capture-agent\</CaptureAgentPublishDestDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <CaptureAgentPublishFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows\**\*.*"
+                                Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows')" />
+      <CaptureAgentPublishFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows\**\*.*"
+                                Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows')" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(CaptureAgentPublishDestDir)" />
+    <Copy SourceFiles="@(CaptureAgentPublishFiles)"
+          DestinationFiles="@(CaptureAgentPublishFiles->'$(CaptureAgentPublishDestDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

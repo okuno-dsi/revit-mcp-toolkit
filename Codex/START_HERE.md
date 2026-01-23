@@ -13,8 +13,9 @@ Read First: `READ_FIRST_RevitMCP_JA.md` (one-page quickstart)
 
 ## 2) 作業フォルダ（Work）とプロジェクトの準備
 - 作業ルール: `WORK_RULES.md` を参照（セッション開始時に必読）
-- Work 配下にプロジェクト専用フォルダを作成（命名: `<ProjectName>_<ProjectID>`）し、その中で作業を行ってください。
-  - 例: `Work/SampleBuilding_P-2025-01`
+- Work 配下にプロジェクト専用フォルダを作成（命名: `<RevitFileName>_<docKey>`）し、その中で作業を行ってください。
+  - 例: `Work/ProjectA_09cddb07-4f24-4876-b15d-93d4af125bcb`
+  - すべての取得データ・中間ファイル・スクリプトはこの配下に保存します（例: `python_script`）。
   - 既に `Work/<ProjectName>_<ProjectID>/README.md` がある場合は、そこに作業メモ・成果物パスを追記
   - 【重要な基本ルール】`Work` 直下にファイル（`Work/*.json` など）を直接置かないでください。必ず `Work/<ProjectName>_<ProjectID>/...` 配下に保存・出力します。
 起動ごとのチェック（必須）
@@ -38,11 +39,56 @@ Read First: `READ_FIRST_RevitMCP_JA.md` (one-page quickstart)
     - 実行: `Manuals/Scripts/update_wall_parameter_safe.ps1 -ElementId <id> -Param Comments -Value "Test"`
 - 注意: `viewId: 0` や `elementId: 0` は絶対に送らないでください（安全版は送信前に検知して停止します）
 
+## 4.5) TaskSpec v2（推奨: 複雑/Write の場合）
+**原則**: AI（エージェント）は「自由に Python/PowerShell を生成して叩く」のではなく、まず **TaskSpec（宣言的JSON）** を作成し、固定ランナーで実行します（事前検証でミスとやり直しを減らす）。
+
+### AI が TaskSpec を使う判断（推奨ルール）
+- **TaskSpec 必須**:
+  - Revitモデルを変更する（Write）/ 破壊的操作（delete 等）/ `Risk=Medium/High`
+  - 複数ステップ（2コマンド以上）・条件分岐・結果を次の呼び出しに渡す
+  - 処理対象が **5要素以上**、または大量要素になり得る
+  - タイムアウト懸念、failureHandling の確認が必要、ロールバック方針を明示したい
+- **直叩き（従来の1回実行）でもOK**:
+  - 単発の Read（例: `revit.status`, `help.get_context` など）で、パラメータが確定しており副作用がない
+  - 失敗しても再実行が安全で、結果が次の処理に連鎖しない
+
+### 置き場所（重要）
+- TaskSpec は `Work/<ProjectName>_<ProjectID>/Tasks/*.task.json` に保存します（`Work` 直下は禁止）。
+
+### 実行（固定ランナー）
+- TaskSpec の `server`（RevitMCP 推奨）: `http://127.0.0.1:<PORT>/enqueue`（または `http://127.0.0.1:<PORT>`）
+- Python: `python Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py <task.json> --dry-run`（送信前検証）
+- Python: `python Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py <task.json>`（実行）
+- PowerShell: `pwsh -ExecutionPolicy Bypass -File Design/taskspec-v2-kit/runner/mcp_task_runner_v2.ps1 -Task <task.json> -DryRun`
+- 実行ログ: Task が `Work/<Project>/Tasks` 配下なら、自動で `Work/<Project>/Logs` に JSONL を出力（`--out` / `-Out` で上書き可）
+
+## 4.6) Collaborative Chat（チーム作業のためのチャット）
+Revit の作業共有チーム向けに、**人間が主役**の軽量チャット（ログが正）を追加しました。
+
+- Revit 側（非AIユーザーもOK）
+  - リボン: `RevitMCPServer` タブ → `GUI` パネル → `Chat` ボタンでチャットペインを表示/非表示
+  - 送信: `ws://Project/General`（既定）にメッセージ送信
+  - 招待: `Invite` → ユーザーID（Revit Username想定）を入力 → `ws://Project/Invites` に招待を投稿
+  - 受信: 自分宛の `@UserId`（招待）を検出すると、Revit作業を妨げないトースト通知を表示
+
+- AI 側（Codex GUI 推奨）
+  - Codex GUI の上部 `Chat` ボタン → Chat Monitor を開く（`chat.list` をポーリング）
+  - Chat Monitor は read-only（コンプライアンス）: AI を自動実行しません。また、AIの結果をチャットへ自動投稿（`chat.post`）もしません。
+  - 代替: 対象メッセージを選択 → `Copy→Codex`（本文を Codex GUI の入力欄へ貼り付け）→ ユーザーが `Send` を手動実行
+
+- 保存場所（共有・正）
+  - 基本: `<CentralModelFolder>\\_RevitMCP\\projects\\<docKey>\\chat\\writers\\*.jsonl`
+    - `docKey` は **プロジェクト固有の安定ID**（ViewWorkspace/Ledger の ProjectToken と同等）で、同一フォルダ内の複数 `.rvt` のログ混入を防ぎます
+  - 重要: 最初に `docPathHint`（中央モデルのパス推奨）と `docKey`（推奨）が必要。Revit Add-in が ViewActivated 時に自動設定します。
+
 ## 5) 参照ドキュメント（入口）
 - エージェント向け統合ガイド: `Manuals/AGENT_README.md`
+- クライアント開発ガイド（必読）: `Manuals/RevitMCP_Client_Dev_Guide.md`
 - 接続ガイド（索引）: `Manuals/ConnectionGuide/INDEX.md`
 - 接続クイックスタート: `Manuals/ConnectionGuide/QUICKSTART.md`
-- コマンドの全体像: `Manuals/Commands/commands_index.json`（正規リストは Archive 内の原本も参照）
+- コマンドの全体像（正規）: `GET /debug/capabilities`（または `docs/capabilities.jsonl`）/ `list_commands`（canonicalのみ）
+- 人間向け索引: `Manuals/FullManual/README.md` / `Manuals/FullManual_ja/README.md`
+- `Manuals/Commands/commands_index.json` は旧方式（ヒューリスティック）で、最新との差分が出ることがあります
 - スクリプト一覧・使い方: `Manuals/Scripts/README.md`
 - プリマー（JSONL）: `Manuals/ConnectionGuide/PRIMER.jsonl`
 

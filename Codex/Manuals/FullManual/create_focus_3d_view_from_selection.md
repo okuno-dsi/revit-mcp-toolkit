@@ -1,5 +1,9 @@
 # Create Focus 3D View (SectionBox) From Selection
 
+- Category: ViewOps
+- Kind: write
+- Purpose: Create a new 3D view focused on current selection (SectionBox clipping), optionally activate it.
+
 Creates a new isometric 3D view, sets a **SectionBox** around the current selection (or provided `elementIds`), and optionally activates the new view.
 
 This command exists to reduce latency vs. chaining multiple calls (`get_selected_element_ids` → `create_3d_view` → `activate_view` → `set_section_box_by_elements` → `view_fit`).
@@ -34,4 +38,3 @@ This command exists to reduce latency vs. chaining multiple calls (`get_selected
 - `viewId`, `name`, `activated`
 - `sectionBox`: `{min:{x,y,z}, max:{x,y,z}}` in **mm**
 - `skipped`: elements ignored during bounding-box aggregation (e.g. no bounding box)
-

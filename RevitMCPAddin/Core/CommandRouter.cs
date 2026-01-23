@@ -27,6 +27,7 @@ using System.Reflection;              // Step2 command metadata (aliases)
 using System.Security.Cryptography;   // Step9 confirmToken fingerprint
 using System.Text;                    // Step9 confirmToken fingerprint
 using RevitMCPAddin.Core.Failures;    // FailureHandling (whitelist)
+using RevitMCPAddin.Core.Progress;    // ProgressHub (CodexGUI progress)
 
 namespace RevitMCPAddin.Core
 {
@@ -853,9 +854,27 @@ namespace RevitMCPAddin.Core
                         return stdFail;
                     }
 
+                    // Progress (best-effort): show indeterminate "busy" for all commands,
+                    // and allow specific handlers to publish determinate progress via the same jobId.
+                    string progressJobId = "";
+                    try { progressJobId = cmd?.Id != null ? cmd.Id.ToString() : ""; } catch { progressJobId = ""; }
+                    if (string.IsNullOrWhiteSpace(progressJobId))
+                    {
+                        try { progressJobId = Guid.NewGuid().ToString("N"); } catch { progressJobId = ""; }
+                    }
+
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(progressJobId))
+                            ProgressHub.Start(progressJobId, methodEcho, total: 0, tick: TimeSpan.FromSeconds(1));
+                    }
+                    catch { /* ignore */ }
+
                     FailureHandlingScope fhScope = null;
                     var sw = Stopwatch.StartNew();
                     object raw;
+                    Exception handlerEx = null;
+                    bool handlerThrew = false;
                     try
                     {
                         // Always capture failures/dialogs for this command.
@@ -864,10 +883,32 @@ namespace RevitMCPAddin.Core
                             fhScope = new FailureHandlingScope(uiapp, fhReq.Mode);
                         raw = handler.Execute(uiapp, cmd);
                     }
+                    catch (Exception ex)
+                    {
+                        handlerThrew = true;
+                        handlerEx = ex;
+                        throw;
+                    }
                     finally
                     {
                         try { fhScope?.Dispose(); } catch { /* ignore */ }
                         sw.Stop();
+                        try
+                        {
+                            if (!string.IsNullOrWhiteSpace(progressJobId))
+                            {
+                                if (handlerThrew)
+                                {
+                                    var msg = handlerEx != null ? handlerEx.Message : "failed";
+                                    ProgressHub.Finish(progressJobId, "failed: " + msg);
+                                }
+                                else
+                                {
+                                    ProgressHub.Finish(progressJobId, "done");
+                                }
+                            }
+                        }
+                        catch { /* ignore */ }
                     }
 
                     // Step 7: bump context revision after successful *write* execution (prevents drift).
@@ -1053,6 +1094,7 @@ namespace RevitMCPAddin.Core
             if (failureCount == 0 && dialogCount == 0) return;
 
             bool rollbackLike = false;
+            bool attachForDialogs = dialogCount > 0;
             try
             {
                 if (issues.rollbackRequested) rollbackLike = true;
@@ -1103,10 +1145,10 @@ namespace RevitMCPAddin.Core
                 catch { /* ignore */ }
             }
 
-            if (!rollbackLike) return;
+            if (!rollbackLike && !attachForDialogs) return;
 
             // Ensure failureHandling block exists even when not explicitly requested,
-            // so rollback diagnostics are always recorded in the job result.
+            // so rollback/dialog diagnostics are always recorded in the job result.
             JObject fhObj = standardized["failureHandling"] as JObject;
             if (fhObj == null)
             {
@@ -1120,20 +1162,63 @@ namespace RevitMCPAddin.Core
             try { if (fhObj["threshold"] == null) fhObj["threshold"] = threshold; } catch { /* ignore */ }
             try { if (fhObj["whitelist"] == null) fhObj["whitelist"] = JObject.FromObject(FailureWhitelistService.GetStatus()); } catch { /* ignore */ }
 
-            try { if (fhObj["issues"] == null) fhObj["issues"] = JObject.FromObject(issues); } catch { /* ignore */ }
-            try { if (fhObj["rollbackDetected"] == null) fhObj["rollbackDetected"] = true; } catch { /* ignore */ }
-
             try
             {
-                if (fhObj["rollbackReason"] == null)
+                if (fhObj["issues"] == null)
                 {
-                    string reason = string.Empty;
-                    try { reason = (issues.rollbackReason ?? string.Empty).Trim(); } catch { reason = string.Empty; }
-                    if (string.IsNullOrWhiteSpace(reason)) reason = (string.IsNullOrWhiteSpace(code) ? "RollbackDetected" : code);
-                    fhObj["rollbackReason"] = reason;
+                    fhObj["issues"] = JObject.FromObject(issues);
+                }
+                else
+                {
+                    var issuesObj = fhObj["issues"] as JObject;
+                    if (issuesObj != null && issuesObj["dialogs"] == null && issues.dialogs != null && issues.dialogs.Count > 0)
+                        issuesObj["dialogs"] = JArray.FromObject(issues.dialogs);
                 }
             }
             catch { /* ignore */ }
+
+            if (rollbackLike)
+            {
+                try { if (fhObj["rollbackDetected"] == null) fhObj["rollbackDetected"] = true; } catch { /* ignore */ }
+            }
+
+            if (rollbackLike)
+            {
+                try
+                {
+                    if (fhObj["rollbackReason"] == null)
+                    {
+                        string reason = string.Empty;
+                        try { reason = (issues.rollbackReason ?? string.Empty).Trim(); } catch { reason = string.Empty; }
+                        if (string.IsNullOrWhiteSpace(reason)) reason = (string.IsNullOrWhiteSpace(code) ? "RollbackDetected" : code);
+                        fhObj["rollbackReason"] = reason;
+                    }
+                }
+                catch { /* ignore */ }
+            }
+
+            if (attachForDialogs)
+            {
+                try { if (fhObj["dialogCount"] == null) fhObj["dialogCount"] = dialogCount; } catch { /* ignore */ }
+                try
+                {
+                    bool allDismissed = false;
+                    try { allDismissed = issues.dialogs != null && issues.dialogs.Count > 0 && issues.dialogs.All(d => d.dismissed); } catch { allDismissed = false; }
+                    if (fhObj["dialogsDismissed"] == null) fhObj["dialogsDismissed"] = allDismissed;
+                }
+                catch { /* ignore */ }
+                try
+                {
+                    var warnArr = standardized["warnings"] as JArray;
+                    if (warnArr == null)
+                    {
+                        warnArr = new JArray();
+                        standardized["warnings"] = warnArr;
+                    }
+                    warnArr.Add("Dialogs auto-dismissed: " + dialogCount + ". See failureHandling.issues.dialogs.");
+                }
+                catch { /* ignore */ }
+            }
 
             try
             {
@@ -1488,6 +1573,7 @@ namespace RevitMCPAddin.Core
             var err = MapContainer(doc, p);
             if (err != null) return err;
             BackfillDomainSpecificIds(cmd.Command, p);
+            TryAutoCorrectSpatialSelection(doc, cmd.Command, p);
 
             // target: { . }
             if (p.TryGetValue("target", out var tgtTok) && tgtTok is JObject tgtObj)
@@ -1495,6 +1581,7 @@ namespace RevitMCPAddin.Core
                 err = MapContainer(doc, tgtObj);
                 if (err != null) return err;
                 BackfillDomainSpecificIds(cmd.Command, tgtObj);
+                TryAutoCorrectSpatialSelection(doc, cmd.Command, tgtObj);
             }
 
             // targets: [ { . }, . ]
@@ -1505,6 +1592,7 @@ namespace RevitMCPAddin.Core
                     err = MapContainer(doc, item);
                     if (err != null) return err;
                     BackfillDomainSpecificIds(cmd.Command, item);
+                    TryAutoCorrectSpatialSelection(doc, cmd.Command, item);
                 }
             }
 
@@ -1614,6 +1702,153 @@ namespace RevitMCPAddin.Core
             {
                 if (container["spaceId"] == null) container["spaceId"] = elem;
             }
+        }
+
+        // Auto-correct a common mismatch: Room/Space/Area IDs are swapped by human selection.
+        // This is a "read-only" correction: it only rewrites ids in params, not the Revit model.
+        private static void TryAutoCorrectSpatialSelection(Document doc, string method, JObject container)
+        {
+            try
+            {
+                if (doc == null || container == null) return;
+                if (string.IsNullOrWhiteSpace(method)) return;
+
+                var desired = InferDesiredSpatialKind(method, container);
+                if (desired == null) return;
+
+                var desiredKey = desired.Value == SpatialKind.Room ? "roomId"
+                              : desired.Value == SpatialKind.Space ? "spaceId"
+                              : "areaId";
+
+                var inputId = GetIdBestEffort(container, desiredKey);
+                if (inputId <= 0) inputId = GetIdBestEffort(container, "elementId");
+                if (inputId <= 0) return;
+
+                var inputElemId = Autodesk.Revit.DB.ElementIdCompat.From(inputId);
+                var e = doc.GetElement(inputElemId);
+                if (e == null) return;
+
+                // Already correct (fast path)
+                if (IsSpatialKindMatch(e, desired.Value)) return;
+
+                // Only attempt correction when the input is likely spatial-ish (Room/Space/Area/Tags).
+                if (!IsSpatialLike(e)) return;
+
+                var opt = SpatialResolveOptions.CreateDefaultMeters(0.5);
+                SpatialResolveResult rr;
+                if (!SpatialElementResolver.TryResolve(doc, inputElemId, desired.Value, opt, out rr) || !rr.Ok)
+                    return;
+
+                var resolvedId = rr.ResolvedId != null ? rr.ResolvedId.IntValue() : 0;
+                if (resolvedId <= 0 || resolvedId == inputId) return;
+
+                // Update the desired key always.
+                container[desiredKey] = resolvedId;
+
+                // Update elementId only when it is missing or was derived from the same input id.
+                var currentElemId = GetIdBestEffort(container, "elementId");
+                if (currentElemId <= 0 || currentElemId == inputId)
+                    container["elementId"] = resolvedId;
+
+                // If the "wrong kind" alias id is present (e.g. spaceId for a room command), do not overwrite it;
+                // keep as-is for debugging. The corrected ids are in desiredKey/elementId now.
+
+                try
+                {
+                    var distM = UnitUtils.ConvertFromInternalUnits(rr.DistanceInternal, UnitTypeId.Meters);
+                    RevitLogger.Info("Spatial selection corrected method='{0}' {1}:{2} => {3} ({4}, {5:0.###}m)",
+                        method ?? "",
+                        desiredKey,
+                        inputId,
+                        resolvedId,
+                        rr.ByContainment ? "containment" : "nearest",
+                        distM);
+                }
+                catch { /* ignore */ }
+            }
+            catch
+            {
+                // Never fail routing due to auto-correction.
+            }
+        }
+
+        private static int GetIdBestEffort(JObject container, string key)
+        {
+            try
+            {
+                if (container == null || string.IsNullOrWhiteSpace(key)) return 0;
+                var tok = container[key];
+                if (tok == null) return 0;
+                if (tok.Type == JTokenType.Integer) return tok.Value<int>();
+                if (tok.Type == JTokenType.Float) return (int)Math.Round(tok.Value<double>());
+                if (tok.Type == JTokenType.String)
+                {
+                    var s = (tok.Value<string>() ?? string.Empty).Trim();
+                    if (int.TryParse(s, out var v)) return v;
+                }
+                return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        private static SpatialKind? InferDesiredSpatialKind(string method, JObject container)
+        {
+            try
+            {
+                var m = (method ?? string.Empty).Trim().ToLowerInvariant();
+                if (m.StartsWith("get_room") || m.StartsWith("set_room") || m.StartsWith("delete_room") || m.Contains("_room"))
+                    return SpatialKind.Room;
+                if (m.StartsWith("get_space") || m.StartsWith("update_space") || m.StartsWith("move_space") || m.StartsWith("delete_space") || m.Contains("_space"))
+                    return SpatialKind.Space;
+                if (m.StartsWith("get_area") || m.StartsWith("update_area") || m.StartsWith("move_area") || m.StartsWith("delete_area") || m.Contains("_area"))
+                    return SpatialKind.Area;
+
+                // Fallback (unknown method naming): infer by provided id keys.
+                if (container != null)
+                {
+                    if (GetIdBestEffort(container, "roomId") > 0) return SpatialKind.Room;
+                    if (GetIdBestEffort(container, "spaceId") > 0) return SpatialKind.Space;
+                    if (GetIdBestEffort(container, "areaId") > 0) return SpatialKind.Area;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool IsSpatialKindMatch(Element e, SpatialKind desired)
+        {
+            if (e == null) return false;
+            switch (desired)
+            {
+                case SpatialKind.Room:
+                    return e is Autodesk.Revit.DB.Architecture.Room;
+                case SpatialKind.Space:
+                    return e is Autodesk.Revit.DB.Mechanical.Space;
+                case SpatialKind.Area:
+                    return e is Autodesk.Revit.DB.Area;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsSpatialLike(Element e)
+        {
+            if (e == null) return false;
+            if (e is Autodesk.Revit.DB.Architecture.Room) return true;
+            if (e is Autodesk.Revit.DB.Mechanical.Space) return true;
+            if (e is Autodesk.Revit.DB.Area) return true;
+            // Tags (best-effort; resolver will unwrap)
+            if (e is Autodesk.Revit.DB.Architecture.RoomTag) return true;
+            if (e is Autodesk.Revit.DB.Mechanical.SpaceTag) return true;
+            if (e is Autodesk.Revit.DB.AreaTag) return true;
+            return false;
         }
 
         // 追加の軽微エイリアス正規化

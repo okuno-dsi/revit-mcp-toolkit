@@ -206,7 +206,7 @@ namespace RevitMCPAddin.Core
             {
                 var standardized = RpcResultEnvelope.StandardizePayload(payload, _uiapp, method, revitMs);
                 var body = new JObject { ["jsonrpc"] = "2.0", ["id"] = rpcId, ["result"] = standardized };
-                var json = JsonConvert.SerializeObject(body, Formatting.None);
+                var json = JsonNetCompat.ToCompactJson(body);
                 using (var content = new StringContent(json, Encoding.UTF8, "application/json"))
                 {
                     // ★ 相対パスでOK（BaseAddress必須）

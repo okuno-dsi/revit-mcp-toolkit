@@ -6,6 +6,10 @@
 ## Overview
 This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
 
+Notes:
+- If `viewId` is omitted, the active view is used and `usedActiveView=true` is returned.
+- The response includes `categories` and an `items` alias for convenience.
+
 ## Usage
 - Method: get_categories_used_in_view
 

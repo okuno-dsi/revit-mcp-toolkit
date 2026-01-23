@@ -796,8 +796,8 @@ namespace RevitMCPAddin.Core
 
             try
             {
-                // Avoid JToken.ToString(Formatting) to be resilient against Json.NET binding quirks in Revit host.
-                return JsonConvert.SerializeObject(arr, Formatting.None);
+                // Avoid serializing JToken directly (host Json.NET binding quirks observed in Revit environments).
+                return JsonNetCompat.ToCompactJson(arr);
             }
             catch
             {
@@ -814,8 +814,8 @@ namespace RevitMCPAddin.Core
                 string json;
                 try
                 {
-                    // Avoid JToken.ToString(Formatting) to be resilient against Json.NET binding quirks in Revit host.
-                    json = p != null ? JsonConvert.SerializeObject(p, Formatting.None) : "{}";
+                    // Avoid serializing JToken directly (host Json.NET binding quirks observed in Revit environments).
+                    json = p != null ? JsonNetCompat.ToCompactJson(p) : "{}";
                 }
                 catch
                 {

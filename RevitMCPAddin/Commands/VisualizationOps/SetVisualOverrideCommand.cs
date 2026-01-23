@@ -151,28 +151,30 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             int transparency = p.Value<int?>("transparency") ?? 40;
             if (transparency < 0) transparency = 0;
             if (transparency > 100) transparency = 100;
-            var color = new Color(r, g, b);
+            var baseColor = new Color(r, g, b);
+            var lineColor = ParseRgbColor(p["lineRgb"], baseColor);
+            var fillColor = ParseRgbColor(p["fillRgb"], baseColor);
 
             // Solid Fill �p�^�[���i�L���b�V�����p�j
             var solidPatternId = SolidFillCache.GetOrBuild(doc);
 
             var ogs = new OverrideGraphicSettings();
             // ��
-            ogs.SetProjectionLineColor(color);
-            ogs.SetCutLineColor(color);
+            ogs.SetProjectionLineColor(lineColor);
+            ogs.SetCutLineColor(lineColor);
             // Surface�i�O�i�E�w�i�j
             ogs.SetSurfaceForegroundPatternId(solidPatternId);
-            ogs.SetSurfaceForegroundPatternColor(color);
+            ogs.SetSurfaceForegroundPatternColor(fillColor);
             ogs.SetSurfaceForegroundPatternVisible(true);
             ogs.SetSurfaceBackgroundPatternId(solidPatternId);
-            ogs.SetSurfaceBackgroundPatternColor(color);
+            ogs.SetSurfaceBackgroundPatternColor(fillColor);
             ogs.SetSurfaceBackgroundPatternVisible(true);
             // Cut�i�O�i�E�w�i�j
             ogs.SetCutForegroundPatternId(solidPatternId);
-            ogs.SetCutForegroundPatternColor(color);
+            ogs.SetCutForegroundPatternColor(fillColor);
             ogs.SetCutForegroundPatternVisible(true);
             ogs.SetCutBackgroundPatternId(solidPatternId);
-            ogs.SetCutBackgroundPatternColor(color);
+            ogs.SetCutBackgroundPatternColor(fillColor);
             ogs.SetCutBackgroundPatternVisible(true);
             // ���ߓx
             ogs.SetSurfaceTransparency(transparency);
@@ -293,6 +295,27 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 name = $"{baseName} {i++}";
             }
             return name;
+        }
+
+        private static Color ParseRgbColor(JToken token, Color fallback)
+        {
+            if (token == null) return fallback;
+            try
+            {
+                if (token.Type != JTokenType.Object) return fallback;
+                var o = (JObject)token;
+                int r = o.Value<int?>("r") ?? fallback.Red;
+                int g = o.Value<int?>("g") ?? fallback.Green;
+                int b = o.Value<int?>("b") ?? fallback.Blue;
+                return new Color(
+                    (byte)Math.Max(0, Math.Min(255, r)),
+                    (byte)Math.Max(0, Math.Min(255, g)),
+                    (byte)Math.Max(0, Math.Min(255, b)));
+            }
+            catch
+            {
+                return fallback;
+            }
         }
     }
 }

@@ -1,0 +1,523 @@
+{
+  "version": "2026-01-20",
+  "lang": "ja-JP",
+  "schemaVersion": 1,
+  "notes": "Initial JP alias dictionary for resolving ambiguous user category terms into BuiltInCategory IDs (OST_*). Store this file as UTF-8 (no BOM).",
+  "items": [
+    {
+      "id": "OST_Grids",
+      "labelJa": "通り芯（グリッド）",
+      "aliases": [
+        "通り芯",
+        "通り心",
+        "通り芯線",
+        "通り芯(グリッド)",
+        "通り芯（グリッド）",
+        "グリッド",
+        "グリット",
+        "Grid",
+        "Grids"
+      ],
+      "aliasesWeak": [
+        "通り",
+        "芯"
+      ],
+      "negative": [
+        "通り心地",
+        "通路",
+        "廊下"
+      ],
+      "priority": 90
+    },
+    {
+      "id": "OST_Levels",
+      "labelJa": "レベル",
+      "aliases": [
+        "レベル",
+        "レヴェル",
+        "Level",
+        "Levels",
+        "標高",
+        "基準面",
+        "基準面(レベル)",
+        "基準面（レベル）",
+        "GL",
+        "FL",
+        "EL",
+        "階高"
+      ],
+      "aliasesWeak": [
+        "高さ",
+        "基準高さ"
+      ],
+      "negative": [
+        "高さ制限",
+        "上限高さ",
+        "下限高さ",
+        "天井高",
+        "パラメータ"
+      ],
+      "priority": 85
+    },
+    {
+      "id": "OST_Walls",
+      "labelJa": "壁",
+      "aliases": [
+        "壁",
+        "壁体",
+        "ウォール",
+        "Wall",
+        "Walls",
+        "間仕切り",
+        "間仕切",
+        "間仕切壁",
+        "外壁",
+        "内壁",
+        "耐力壁",
+        "RC壁",
+        "S壁",
+        "ALC壁",
+        "乾式壁",
+        "パーティション"
+      ],
+      "negative": [
+        "カーテンウォールパネル",
+        "CWパネル",
+        "マリオン",
+        "方立"
+      ],
+      "priority": 80
+    },
+    {
+      "id": "OST_CurtainWallPanels",
+      "labelJa": "カーテンウォールパネル",
+      "aliases": [
+        "カーテンウォールパネル",
+        "CWパネル",
+        "カーテンパネル",
+        "パネル(カーテンウォール)",
+        "パネル（カーテンウォール）",
+        "Curtain Panel",
+        "Curtain Panels"
+      ],
+      "negative": [
+        "マリオン",
+        "方立"
+      ],
+      "priority": 75
+    },
+    {
+      "id": "OST_CurtainWallMullions",
+      "labelJa": "カーテンウォールマリオン（方立）",
+      "aliases": [
+        "マリオン",
+        "CWマリオン",
+        "カーテンウォールマリオン",
+        "方立",
+        "ほうだて",
+        "Mullion",
+        "Mullions",
+        "Curtain Mullion"
+      ],
+      "negative": [
+        "パネル",
+        "CWパネル"
+      ],
+      "priority": 75
+    },
+    {
+      "id": "OST_Floors",
+      "labelJa": "床（スラブ）",
+      "aliases": [
+        "床",
+        "フロア",
+        "Floor",
+        "Floors",
+        "スラブ",
+        "床スラブ",
+        "床版",
+        "土間",
+        "土間スラブ",
+        "デッキスラブ"
+      ],
+      "negative": [
+        "天井",
+        "屋根"
+      ],
+      "priority": 78
+    },
+    {
+      "id": "OST_Ceilings",
+      "labelJa": "天井",
+      "aliases": [
+        "天井",
+        "吊天井",
+        "シーリング",
+        "Ceiling",
+        "Ceilings"
+      ],
+      "negative": [
+        "床",
+        "屋根"
+      ],
+      "priority": 72
+    },
+    {
+      "id": "OST_Roofs",
+      "labelJa": "屋根",
+      "aliases": [
+        "屋根",
+        "ルーフ",
+        "Roof",
+        "Roofs"
+      ],
+      "negative": [
+        "天井",
+        "床"
+      ],
+      "priority": 72
+    },
+    {
+      "id": "OST_Doors",
+      "labelJa": "ドア",
+      "aliases": [
+        "ドア",
+        "扉",
+        "建具(ドア)",
+        "建具（ドア）",
+        "Door",
+        "Doors",
+        "玄関ドア",
+        "室内ドア",
+        "引き戸",
+        "片開き戸",
+        "両開き戸"
+      ],
+      "negative": [
+        "窓",
+        "サッシ",
+        "ウィンドウ"
+      ],
+      "priority": 70
+    },
+    {
+      "id": "OST_Windows",
+      "labelJa": "窓",
+      "aliases": [
+        "窓",
+        "サッシ",
+        "ウィンドウ",
+        "建具(窓)",
+        "建具（窓）",
+        "Window",
+        "Windows",
+        "引違い窓",
+        "FIX窓"
+      ],
+      "negative": [
+        "ドア",
+        "扉",
+        "玄関ドア"
+      ],
+      "priority": 70
+    },
+    {
+      "id": "OST_Rooms",
+      "labelJa": "部屋",
+      "aliases": [
+        "部屋",
+        "室",
+        "Room",
+        "Rooms",
+        "居室"
+      ],
+      "negative": [
+        "スペース",
+        "MEPスペース",
+        "エリア"
+      ],
+      "priority": 65
+    },
+    {
+      "id": "OST_Areas",
+      "labelJa": "エリア",
+      "aliases": [
+        "エリア",
+        "Area",
+        "Areas",
+        "面積区画",
+        "面積",
+        "エリア境界"
+      ],
+      "negative": [
+        "部屋",
+        "スペース"
+      ],
+      "priority": 50
+    },
+    {
+      "id": "OST_MEPSpaces",
+      "labelJa": "スペース（MEP）",
+      "aliases": [
+        "MEPスペース",
+        "設備スペース",
+        "スペース(MEP)",
+        "スペース（MEP）",
+        "MEP Space",
+        "MEP Spaces"
+      ],
+      "aliasesWeak": [
+        "スペース",
+        "Space",
+        "Spaces",
+        "空間"
+      ],
+      "negative": [
+        "部屋",
+        "エリア"
+      ],
+      "priority": 45
+    },
+    {
+      "id": "OST_StructuralColumns",
+      "labelJa": "構造柱",
+      "aliases": [
+        "構造柱",
+        "S柱",
+        "RC柱",
+        "SRC柱",
+        "鉄骨柱",
+        "柱(構造)",
+        "柱（構造）",
+        "structural column",
+        "structural columns",
+        "構造カラム"
+      ],
+      "negative": [
+        "意匠柱",
+        "化粧柱"
+      ],
+      "priority": 95
+    },
+    {
+      "id": "OST_Columns",
+      "labelJa": "柱（意匠）",
+      "aliases": [
+        "柱",
+        "意匠柱",
+        "化粧柱",
+        "丸柱",
+        "角柱",
+        "column",
+        "columns",
+        "カラム"
+      ],
+      "negative": [
+        "構造柱",
+        "S柱",
+        "RC柱",
+        "SRC柱"
+      ],
+      "priority": 60
+    },
+    {
+      "id": "OST_StructuralFraming",
+      "labelJa": "構造フレーミング（梁・ブレース）",
+      "aliases": [
+        "梁",
+        "はり",
+        "梁(構造)",
+        "梁（構造）",
+        "梁部材",
+        "ビーム",
+        "Beam",
+        "Beams",
+        "大梁",
+        "小梁",
+        "桁",
+        "胴差",
+        "ブレース",
+        "筋交い",
+        "Brace",
+        "Braces"
+      ],
+      "negative": [
+        "床",
+        "スラブ",
+        "天井"
+      ],
+      "priority": 88
+    },
+    {
+      "id": "OST_StructuralFoundation",
+      "labelJa": "構造基礎",
+      "aliases": [
+        "基礎",
+        "構造基礎",
+        "フーチング",
+        "独立基礎",
+        "布基礎",
+        "Foundation",
+        "Foundations"
+      ],
+      "negative": [
+        "床",
+        "スラブ"
+      ],
+      "priority": 80
+    },
+    {
+      "id": "OST_Rebar",
+      "labelJa": "鉄筋",
+      "aliases": [
+        "鉄筋",
+        "配筋",
+        "主筋",
+        "あばら筋",
+        "スターラップ",
+        "Rebar",
+        "Rebars"
+      ],
+      "negative": [
+        "鉄骨",
+        "S造"
+      ],
+      "priority": 85
+    },
+    {
+      "id": "OST_Stairs",
+      "labelJa": "階段",
+      "aliases": [
+        "階段",
+        "ステア",
+        "Stair",
+        "Stairs"
+      ],
+      "negative": [
+        "はしご",
+        "梯子"
+      ],
+      "priority": 70
+    },
+    {
+      "id": "OST_StairsRailing",
+      "labelJa": "階段手すり",
+      "aliases": [
+        "階段手すり",
+        "階段の手すり",
+        "Stair Railing",
+        "Stairs Railing"
+      ],
+      "aliasesWeak": [
+        "手すり(階段)",
+        "手摺(階段)"
+      ],
+      "negative": [],
+      "priority": 60
+    },
+    {
+      "id": "OST_Railings",
+      "labelJa": "手すり",
+      "aliases": [
+        "手すり",
+        "手摺",
+        "欄干",
+        "ガードレール",
+        "Railing",
+        "Railings"
+      ],
+      "negative": [],
+      "priority": 65
+    },
+    {
+      "id": "OST_Ramps",
+      "labelJa": "スロープ",
+      "aliases": [
+        "スロープ",
+        "Ramp",
+        "Ramps"
+      ],
+      "negative": [],
+      "priority": 55
+    },
+    {
+      "id": "OST_Dimensions",
+      "labelJa": "寸法",
+      "aliases": [
+        "寸法",
+        "寸法線",
+        "寸法注記",
+        "Dimension",
+        "Dimensions"
+      ],
+      "negative": [],
+      "priority": 60
+    },
+    {
+      "id": "OST_TextNotes",
+      "labelJa": "文字（テキスト注記）",
+      "aliases": [
+        "文字",
+        "テキスト",
+        "注記文字",
+        "文字注記",
+        "Text",
+        "TextNote",
+        "Text Notes",
+        "TextNotes"
+      ],
+      "negative": [],
+      "priority": 58
+    },
+    {
+      "id": "OST_GenericAnnotation",
+      "labelJa": "一般注記（汎用注記）",
+      "aliases": [
+        "一般注記",
+        "汎用注記",
+        "注記シンボル",
+        "Generic Annotation",
+        "GenericAnnotation"
+      ],
+      "negative": [],
+      "priority": 55
+    },
+    {
+      "id": "OST_RevisionClouds",
+      "labelJa": "改訂雲形（Revision Cloud）",
+      "aliases": [
+        "改訂雲形",
+        "雲形",
+        "リビジョンクラウド",
+        "Revision Cloud",
+        "RevisionCloud",
+        "Revision Clouds"
+      ],
+      "negative": [],
+      "priority": 55
+    },
+    {
+      "id": "OST_GenericModel",
+      "labelJa": "汎用モデル",
+      "aliases": [
+        "汎用モデル",
+        "一般モデル",
+        "ジェネリックモデル",
+        "Generic Model",
+        "GenericModel"
+      ],
+      "negative": [],
+      "priority": 55
+    },
+    {
+      "id": "OST_Furniture",
+      "labelJa": "家具",
+      "aliases": [
+        "家具",
+        "Furniture"
+      ],
+      "negative": [],
+      "priority": 45
+    }
+  ]
+}

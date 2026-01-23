@@ -89,7 +89,7 @@ namespace RevitMCPAddin.Core.Common
                 };
                 if (includeCategoryStates) payload["categoryStates"] = categoryStates ?? new JArray();
 
-                System.IO.File.WriteAllText(file, payload.ToString());
+                System.IO.File.WriteAllText(file, RevitMCPAddin.Core.JsonNetCompat.ToIndentedJson(payload));
 
                 return new JObject
                 {

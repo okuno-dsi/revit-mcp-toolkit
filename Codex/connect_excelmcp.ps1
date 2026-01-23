@@ -2,7 +2,7 @@
 param(
   [string]$BaseUrl,
   [int]$Port,
-  [string]$ExePath = "$env:USERPROFILE\Documents\VS2022\Ver541\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe",
+  [string]$ExePath = '$env:USERPROFILE\Documents\VS2022\Ver541\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe',
   [switch]$OnlyCheck,
   [switch]$NoStart
 )
@@ -135,3 +135,4 @@ Write-Host "  # File-based helpers (no Excel process required)" -ForegroundColor
 Write-Host "  Invoke-RestMethod -Method Post -Uri '$excelUrl/read_cells' -ContentType 'application/json' -Body (@{ excelPath='C:\\path\\book.xlsx'; sheetName='Sheet1'; rangeA1='A1:C5'; returnRaw=\$true } | ConvertTo-Json)" -ForegroundColor Gray
 
 Write-Host "Done." -ForegroundColor Cyan
+

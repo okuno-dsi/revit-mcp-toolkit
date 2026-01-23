@@ -1,22 +1,54 @@
 <Window x:Class="CodexGui.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Codex GUI" Height="600" Width="1170"
         Background="Transparent"
         Foreground="#FFF5F5F5"
         WindowStyle="None"
         AllowsTransparency="True"
         ResizeMode="CanResize">
-    <Grid Margin="8" x:Name="RootGrid">
+
+    <!-- Taskbar indicator overlay (visible even when the window is behind other windows) -->
+    <Window.Resources>
+        <!-- 16x16 overlay icon: red dot with dark ring -->
+        <DrawingImage x:Key="BusyOverlayIcon">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#FFFF4444">
+                        <GeometryDrawing.Geometry>
+                            <EllipseGeometry Center="8,8" RadiusX="6" RadiusY="6"/>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing>
+                        <GeometryDrawing.Pen>
+                            <Pen Brush="#FF222222" Thickness="2"/>
+                        </GeometryDrawing.Pen>
+                        <GeometryDrawing.Geometry>
+                            <EllipseGeometry Center="8,8" RadiusX="6" RadiusY="6"/>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+    </Window.Resources>
+
+    <Window.TaskbarItemInfo>
+        <shell:TaskbarItemInfo x:Name="MainTaskbarItemInfo" ProgressState="None"/>
+    </Window.TaskbarItemInfo>
+
+    <Grid x:Name="WindowRoot">
+        <Grid Margin="8" x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="6"/>
+            <RowDefinition x:Name="PromptRow" Height="240" MinHeight="160"/>
         </Grid.RowDefinitions>
 
         <!-- Backdrop tint layer (only this gets transparent via slider) -->
         <Border x:Name="BackdropBorder"
-                Grid.RowSpan="3"
+                Grid.RowSpan="4"
                 Background="Transparent"
                 CornerRadius="6">
             <Border.Effect>
@@ -38,11 +70,56 @@
                     Click="DeleteSessionButton_OnClick"/>
 
             <TextBlock Text="  モデル:" VerticalAlignment="Center" Margin="12,0,4,0"/>
-            <TextBox x:Name="ModelTextBox" Width="160" Margin="0,0,8,0"
-                     ToolTip="Codex モデル名（例: gpt-4.1, gpt-4.1-mini など。実際の有効値は Codex 側に合わせてください）"/>
+            <ComboBox x:Name="ModelComboBox"
+                      Width="170"
+                      Margin="0,0,4,0"
+                      IsEditable="True"
+                      IsTextSearchEnabled="False"
+                      LostKeyboardFocus="ModelComboBox_OnLostKeyboardFocus"
+                      ToolTip="Codex モデル名（例: gpt-4.1, gpt-4.1-mini など）。空欄=デフォルト。"/>
+            <Button x:Name="ClearModelButton"
+                    Content="Default"
+                    Width="70"
+                    Margin="0,0,8,0"
+                    Click="ClearModelButton_OnClick"
+                    ToolTip="モデル指定をクリアします（空欄=デフォルト）。"/>
+            <Button x:Name="RefreshModelsButton"
+                    Content="Refresh"
+                    Width="70"
+                    Margin="0,0,8,0"
+                    Click="RefreshModelsButton_OnClick"
+                    ToolTip="~/.codex/config.toml を再読込して、モデル候補を更新します。"/>
+
+            <TextBlock Text="  推論:" VerticalAlignment="Center" Margin="12,0,4,0"/>
+            <ComboBox x:Name="ReasoningEffortComboBox"
+                      Width="100"
+                      Margin="0,0,4,0"
+                      IsEditable="True"
+                      IsTextSearchEnabled="False"
+                      LostKeyboardFocus="ReasoningEffortComboBox_OnLostKeyboardFocus"
+                      ToolTip="model_reasoning_effort（例: low/medium/high/xhigh）。空欄=デフォルト。"/>
+            <Button x:Name="ClearReasoningEffortButton"
+                    Content="Default"
+                    Width="70"
+                    Margin="0,0,8,0"
+                    Click="ClearReasoningEffortButton_OnClick"
+                    ToolTip="推論レベル指定をクリアします（空欄=デフォルト）。"/>
             <Button x:Name="StatusButton" Content="Status" Width="70"
                     Click="StatusButton_OnClick"
                     ToolTip="Codex 側のステータス取得用プロンプトを送信します"/>
+            <Button x:Name="ChatMonitorButton" Content="Chat" Width="70" Margin="0,0,8,0"
+                    Click="ChatMonitorButton_OnClick"
+                    ToolTip="Revit MCP Chat Monitor を開きます（MCPサーバーの chat.* をポーリング）"/>
+            <Button x:Name="CaptureButton" Content="Capture" Width="80" Margin="0,0,8,0"
+                    Click="CaptureButton_OnClick"
+                    ToolTip="スクリーンショット取得→同意（承認）した画像だけを次の Codex 実行に添付します（--image）"/>
+            <TextBlock x:Name="AttachedImagesCountTextBlock"
+                       Text=""
+                       VerticalAlignment="Center"
+                       Foreground="Gray"
+                       FontFamily="Consolas"
+                       FontSize="10"
+                       Margin="0,0,8,0"/>
 
             <TextBlock Text="  フォント:" VerticalAlignment="Center" Margin="12,0,4,0"/>
             <ComboBox x:Name="FontFamilyComboBox" Width="120" Margin="0,0,4,0" VerticalAlignment="Center">
@@ -99,28 +176,82 @@
                 </DockPanel>
             </GroupBox>
 
-            <!-- Conversation log + overlay for fall animation -->
+            <!-- Conversation log + overlay for fall animation + trace -->
             <Grid Grid.Column="1">
-                <TextBox x:Name="ConversationTextBox"
-                         IsReadOnly="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Disabled"
-                         AcceptsReturn="True"
-                         Background="#FF1E1E1E"
-                         Foreground="#FFF5F5F5"
-                         BorderBrush="#FF444444"/>
-                <Canvas x:Name="ConversationOverlayCanvas"
-                        Background="Transparent"
-                        ClipToBounds="True"
-                        IsHitTestVisible="False"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition x:Name="TraceSplitterRow" Height="6"/>
+                    <RowDefinition x:Name="TraceRow" Height="160"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <TextBox x:Name="ConversationTextBox"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Disabled"
+                             AcceptsReturn="True"
+                             Background="#FF1E1E1E"
+                             Foreground="#FFF5F5F5"
+                             BorderBrush="#FF444444"/>
+                    <Canvas x:Name="ConversationOverlayCanvas"
+                            Background="Transparent"
+                            ClipToBounds="True"
+                            IsHitTestVisible="False"/>
+                </Grid>
+
+                <GridSplitter x:Name="TraceSplitter"
+                              Grid.Row="1"
+                              Height="6"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"
+                              ResizeDirection="Rows"
+                              ResizeBehavior="PreviousAndNext"
+                              ShowsPreview="True"
+                              Background="#FF222222"
+                              DragCompleted="TraceSplitter_OnDragCompleted"/>
+
+                <!-- Less prominent raw Codex CLI output ("thinking/exec/logs") -->
+                <Expander x:Name="TraceExpander"
+                          Grid.Row="2"
+                          Header="Trace (thinking/exec)"
+                          IsExpanded="True"
+                          Expanded="TraceExpander_OnExpanded"
+                          Collapsed="TraceExpander_OnCollapsed"
+                          Margin="0,0,0,0"
+                          Background="#FF171717"
+                          BorderBrush="#FF333333">
+                    <TextBox x:Name="TraceTextBox"
+                             IsReadOnly="True"
+                             TextWrapping="NoWrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             AcceptsReturn="True"
+                             FontFamily="Consolas"
+                             FontSize="10"
+                             FontStyle="Italic"
+                             Background="Transparent"
+                             Foreground="#FF7A7A7A"
+                             BorderBrush="#FF333333"/>
+                </Expander>
             </Grid>
         </Grid>
 
+        <!-- Prompt height splitter (drag up/down to resize the input area) -->
+        <GridSplitter x:Name="PromptSplitter"
+                      Grid.Row="2"
+                      Height="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      ShowsPreview="True"
+                      Background="#FF222222"/>
+
         <!-- Prompt input + send -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*" MinHeight="80"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -128,7 +259,7 @@
             <TextBox x:Name="PromptTextBox"
                      Grid.Row="0"
                      Margin="0,0,0,4"
-                     Height="80"
+                     MinHeight="80"
                      AcceptsReturn="True"
                      VerticalScrollBarVisibility="Auto"
                      TextWrapping="Wrap"
@@ -136,14 +267,14 @@
                      Foreground="#FFF5F5F5"
                      BorderBrush="#FF555555"/>
 
-            <Grid Grid.Row="1"
-                  HorizontalAlignment="Stretch"
-                  Margin="0,0,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+             <Grid Grid.Row="1"
+                   HorizontalAlignment="Stretch"
+                   Margin="0,0,0,0">
+                 <Grid.ColumnDefinitions>
+                     <ColumnDefinition Width="*"/>
+                     <ColumnDefinition Width="Auto"/>
+                     <ColumnDefinition Width="Auto"/>
+                 </Grid.ColumnDefinitions>
 
                 <!-- Enter button: 左端から HAL までをフルに使う -->
                 <Button x:Name="SendButton"
@@ -190,18 +321,17 @@
                             </Ellipse.Fill>
                         </Ellipse>
                     </Grid>
-                </Border>
-
-                <!-- Busy time indicator -->
-                <TextBlock x:Name="BusyIndicatorTextBlock"
-                           Grid.Column="2"
-                           Margin="0,0,8,0"
-                           FontSize="14"
-                           Foreground="Black"
-                           Background="Transparent"
-                           VerticalAlignment="Center"
-                           FontFamily="Consolas"/>
-            </Grid>
+                 </Border>
+ 
+                 <!-- Busy time indicator (HAL right side) -->
+                 <TextBlock x:Name="BusyIndicatorTextBlock"
+                            Grid.Column="2"
+                            Margin="0,0,8,0"
+                            FontSize="16"
+                            Background="Transparent"
+                            VerticalAlignment="Center"
+                            FontFamily="Consolas"/>
+             </Grid>
 
             <!-- Opacity and Colors -->
             <StackPanel Grid.Row="2"
@@ -219,30 +349,128 @@
                                Foreground="Gray"/>
                 </StackPanel>
 
-                <!-- Opacity and Colors -->
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Stretch"
-                            Margin="0,2,0,0">
-                    <TextBlock Text="Opacity" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <Slider x:Name="OpacitySlider"
-                            Width="150"
-                            Minimum="0.1"
-                            Maximum="1.0"
-                            Value="0.9"
-                            TickFrequency="0.05"
-                            IsSnapToTickEnabled="True"
-                            ValueChanged="OpacitySlider_OnValueChanged"/>
-                    <TextBlock Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat='{}{0:F2}'}"
-                               VerticalAlignment="Center" Margin="4,0,16,0" FontSize="10"/>
-
-                    <TextBlock Text="BG" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBox x:Name="BgColorTextBox" Width="90" Text="#122445" Margin="0,0,8,0"/>
-                    <TextBlock Text="FG" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBox x:Name="FgColorTextBox" Width="90" Text="#C0C0C0" Margin="0,0,8,0"/>
-                    <Button x:Name="ApplyColorsButton" Content="Apply" Width="70" Click="ApplyColorsButton_OnClick"/>
-                </StackPanel>
-            </StackPanel>
+                 <!-- Opacity and Colors -->
+                 <Grid Margin="0,2,0,0">
+                     <Grid.ColumnDefinitions>
+                         <ColumnDefinition Width="*"/>
+                         <!-- Reserve space for status/progress to avoid shifting other controls -->
+                         <ColumnDefinition Width="320"/>
+                     </Grid.ColumnDefinitions>
+ 
+                     <StackPanel Grid.Column="0"
+                                 Orientation="Horizontal"
+                                 HorizontalAlignment="Left">
+                         <TextBlock Text="Opacity" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                         <Slider x:Name="OpacitySlider"
+                                 Width="150"
+                                 Minimum="0.1"
+                                 Maximum="1.0"
+                                 Value="0.9"
+                                 TickFrequency="0.05"
+                                 IsSnapToTickEnabled="True"
+                                 ValueChanged="OpacitySlider_OnValueChanged"/>
+                         <TextBlock Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat='{}{0:F2}'}"
+                                    VerticalAlignment="Center" Margin="4,0,16,0" FontSize="10"/>
+ 
+                         <TextBlock Text="BG" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                         <TextBox x:Name="BgColorTextBox" Width="90" Text="#122445" Margin="0,0,8,0"/>
+                         <TextBlock Text="FG" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                         <TextBox x:Name="FgColorTextBox" Width="90" Text="#C0C0C0" Margin="0,0,8,0"/>
+                         <Button x:Name="ApplyColorsButton" Content="Apply" Width="70" Click="ApplyColorsButton_OnClick"/>
+                     </StackPanel>
+ 
+                     <!-- Busy time indicator + RevitMCP progress (from %LOCALAPPDATA%\\RevitMCP\\progress\\progress_<port>.jsonl) -->
+                     <StackPanel Grid.Column="1"
+                                 Orientation="Horizontal"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center">
+                         <ProgressBar x:Name="RevitProgressBar"
+                                      Width="120"
+                                      Height="8"
+                                      Margin="0,0,10,0"
+                                      Minimum="0"
+                                      Maximum="100"
+                                      IsIndeterminate="True"
+                                      VerticalAlignment="Center"
+                                      Visibility="Collapsed"/>
+ 
+                         <TextBlock x:Name="RevitProgressTextBlock"
+                                    Margin="0,0,0,0"
+                                    FontSize="12"
+                                    FontFamily="Consolas"
+                                    TextWrapping="NoWrap"
+                                    TextTrimming="CharacterEllipsis"
+                                    MaxWidth="170"
+                                    Foreground="#FF7A7A7A"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed"/>
+                     </StackPanel>
+                 </Grid>
+             </StackPanel>
+         </Grid>
         </Grid>
+
+        <!-- Resize handles (Thumbs) -->
+        <Thumb x:Name="ResizeLeftThumb"
+               Width="8"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Stretch"
+               Cursor="SizeWE"
+               Background="Transparent"
+               DragDelta="ResizeLeftThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeRightThumb"
+               Width="8"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Stretch"
+               Cursor="SizeWE"
+               Background="Transparent"
+               DragDelta="ResizeRightThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeTopThumb"
+               Height="8"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Top"
+               Cursor="SizeNS"
+               Background="Transparent"
+               DragDelta="ResizeTopThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeBottomThumb"
+               Height="8"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Bottom"
+               Cursor="SizeNS"
+               Background="Transparent"
+               DragDelta="ResizeBottomThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeTopLeftThumb"
+               Width="8"
+               Height="8"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               Cursor="SizeNWSE"
+               Background="Transparent"
+               DragDelta="ResizeTopLeftThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeTopRightThumb"
+               Width="8"
+               Height="8"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Top"
+               Cursor="SizeNESW"
+               Background="Transparent"
+               DragDelta="ResizeTopRightThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeBottomLeftThumb"
+               Width="8"
+               Height="8"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Bottom"
+               Cursor="SizeNESW"
+               Background="Transparent"
+               DragDelta="ResizeBottomLeftThumb_OnDragDelta"/>
+        <Thumb x:Name="ResizeBottomRightThumb"
+               Width="8"
+               Height="8"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Cursor="SizeNWSE"
+               Background="Transparent"
+               DragDelta="ResizeBottomRightThumb_OnDragDelta"/>
     </Grid>
 </Window>
 

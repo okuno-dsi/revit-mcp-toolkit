@@ -76,10 +76,19 @@
     <PropertyGroup>
       <ServerExeSource Condition="Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish\RevitMCPServer.exe</ServerExeSource>
       <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish</ServerRootSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0</ServerRootSource>
     </PropertyGroup>
     <Message Text="[RevitMCP] Copy server exe: '$(ServerExeSource)' -&gt; '$(OutputPath)server\RevitMCPServer.exe'" Importance="High" Condition=" '$(ServerExeSource)'!='' " />
     <MakeDir Directories="$(OutputPath)server" Condition=" '$(ServerExeSource)'!='' " />
     <Copy SourceFiles="$(ServerExeSource)" DestinationFiles="$(OutputPath)server\RevitMCPServer.exe" SkipUnchangedFiles="true" Condition=" '$(ServerExeSource)'!='' " />
+
+    <!-- CaptureAgent (optional, server-local) -->
+    <ItemGroup>
+      <CaptureAgentFiles Include="$(ServerRootSource)\capture-agent\*.*" Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)\capture-agent') " />
+    </ItemGroup>
+    <MakeDir Directories="$(OutputPath)server\capture-agent" Condition=" '@(CaptureAgentFiles)'!='' " />
+    <Copy SourceFiles="@(CaptureAgentFiles)" DestinationFolder="$(OutputPath)server\capture-agent" SkipUnchangedFiles="true" Condition=" '@(CaptureAgentFiles)'!='' " />
   </Target>
   <!-- 参照 -->
   <ItemGroup>
@@ -97,9 +106,6 @@
     </Reference>
     <Reference Include="ExcelNumberFormat, Version=1.1.0.0, Culture=neutral, PublicKeyToken=23c6f5d73be07eca, processorArchitecture=MSIL">
       <HintPath>packages\ExcelNumberFormat.1.1.0\lib\net20\ExcelNumberFormat.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\Microsoft.Bcl.AsyncInterfaces.10.0.0-rc.2.25502.107\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Bcl.HashCode, Version=6.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Bcl.HashCode.6.0.0\lib\net462\Microsoft.Bcl.HashCode.dll</HintPath>
@@ -140,9 +146,6 @@
       <HintPath>packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Core" />
-    <Reference Include="System.IO.Pipelines, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.IO.Pipelines.10.0.0-rc.2.25502.107\lib\net462\System.IO.Pipelines.dll</HintPath>
-    </Reference>
     <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
     </Reference>
@@ -152,12 +155,6 @@
     </Reference>
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Text.Encodings.Web, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Text.Encodings.Web.10.0.0-rc.2.25502.107\lib\net462\System.Text.Encodings.Web.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Text.Json, Version=9.0.0.10, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Text.Json.9.0.10\lib\net462\System.Text.Json.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
@@ -182,6 +179,7 @@
     <Compile Include="Commands\AnnotationOps\CreateTextNoteCommand.cs" />
     <Compile Include="Commands\AnnotationOps\DeleteTextNoteCommand.cs" />
     <Compile Include="Commands\AnnotationOps\DetailLineCommands.cs" />
+    <Compile Include="Commands\AnnotationOps\DrawColoredLineSegmentsCommand.cs" />
     <Compile Include="Commands\AnnotationOps\DoorWindowLegendCommands.cs" />
     <Compile Include="Commands\AnnotationOps\FilledRegionCommands.cs" />
     <Compile Include="Commands\AnnotationOps\GetTagBoundsInViewCommand.cs" />
@@ -202,9 +200,14 @@
     <Compile Include="Commands\DatumOps\ListLevelsSimpleCommand.cs" />
     <Compile Include="Commands\Dev\LaunchCodexGuiCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetProjectSummaryCommand.cs" />
+    <Compile Include="Commands\DocumentOps\GetProjectUnitsCommand.cs" />
     <Compile Include="Commands\DocumentOps\SaveSnapshotCommand.cs" />
     <Compile Include="Commands\DocumentOps\UpdateProjectInfoCommand.cs" />
     <Compile Include="Commands\DxfOps\GenerateDwgMergeScriptCommand.cs" />
+    <Compile Include="Commands\DynamoOps\DynamoScriptCommands.cs" />
+    <Compile Include="Commands\EgressPathCommands.cs" />
+    <Compile Include="Commands\Family\FamilyDiscoveryCommands.cs" />
+    <Compile Include="Commands\ElementOps\ElementQueryCommands.cs" />
     <Compile Include="Commands\ElementOps\JoinGeometryCommands.cs" />
     <Compile Include="Commands\ElementOps\Material\ThermalAssetHelpers.cs" />
     <Compile Include="Commands\ElementOps\StructuralColumn\ClassifyColumnsByRoomArmsCommand.cs" />
@@ -241,6 +244,8 @@
     <Compile Include="Commands\Room\ValidateCreateRoomCommand.cs" />
     <Compile Include="Commands\MetaOps\SearchCommandsHandler.cs" />
     <Compile Include="Commands\MetaOps\DescribeCommandHandler.cs" />
+    <Compile Include="Commands\MetaOps\HelpSuggestHandler.cs" />
+    <Compile Include="Commands\MetaOps\ResolveCategoryCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ExportScheduleToExcelCommand.cs" />
     <Compile Include="Commands\ScheduleOps\InspectScheduleFieldsCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ListSchedulableFieldsCommand.cs" />
@@ -282,6 +287,7 @@
     <Compile Include="Commands\ElementOps\GetInplaceFamiliesCommand.cs" />
     <Compile Include="Commands\ElementOps\WallLookupUtil.cs" />
     <Compile Include="Commands\ElementOps\Wall\StackedWallCommands.cs" />
+    <Compile Include="Commands\ElementOps\ElementTransformCommands.cs" />
     <Compile Include="Commands\ElementOps\Wall\WallLayerCommands.cs" />
     <Compile Include="Commands\GeneralOps\SelectElementsByFilterCommand.cs" />
     <Compile Include="Commands\GeneralOps\SelectElementsCommand.cs" />
@@ -314,6 +320,7 @@
     <Compile Include="Commands\Models\RevisionInfo.cs" />
     <Compile Include="Models\CreateFlushWallsRequest.cs" />
     <Compile Include="Models\CreateFlushWallsResponse.cs" />
+    <Compile Include="Models\ElementQueryModels.cs" />
     <Compile Include="Commands\ParamOps\GetParamMetaCommand.cs" />
     <Compile Include="Commands\ParamOps\GetParamValuesCommand.cs" />
     <Compile Include="Commands\ParamOps\GetTypeParametersBulkCommand.cs" />
@@ -400,6 +407,7 @@
     <Compile Include="Commands\ViewOps\VisibilityProfilePreviewCommand.cs" />
     <Compile Include="Commands\ViewOps\BuildViewsByParamValuesCommand.cs" />
     <Compile Include="Commands\ViewOps\GetViewsCommand.cs" />
+    <Compile Include="Commands\ViewFilterOps\ViewFilterCommands.cs" />
     <!-- 二重バックスラッシュを修正 -->
     <Compile Include="Commands\ViewOps\CompareViewStatesCommand.cs" />
     <Compile Include="Commands\VisualizationOps\ApplyConditionalColoringCommand.cs" />
@@ -416,7 +424,10 @@
     <Compile Include="Core\AdaptiveWaitController.cs" />
     <Compile Include="Core\AuditCapture.cs" />
     <Compile Include="Core\CategoryResolver.cs" />
+    <Compile Include="Core\CategoryAliasService.cs" />
+    <Compile Include="Core\ElementQueryService.cs" />
     <Compile Include="Core\CmdUtils.cs" />
+    <Compile Include="Dynamo\DynamoRunner.cs" />
     <Compile Include="Core\CommandCommonOption.cs" />
     <Compile Include="Core\CommandLogModels.cs" />
     <Compile Include="Core\CommandLogWriter.cs" />
@@ -433,6 +444,7 @@
     <Compile Include="Core\ElementUtils.Identity.cs" />
     <Compile Include="Core\Errors\ErrorContracts.cs" />
     <Compile Include="Core\ExportDwgByParamGroupsTick.cs" />
+    <Compile Include="Core\Failures\DialogCaptureUtil.cs" />
     <Compile Include="Core\Failures\FailureCaptureScope.cs" />
     <Compile Include="Core\Failures\FailureRecord.cs" />
     <Compile Include="Core\Failures\FailureHandlingContext.cs" />
@@ -453,6 +465,9 @@
     <Compile Include="Core\IRevitCommandHandler.cs" />
     <Compile Include="Core\CacheCleanupService.cs" />
     <Compile Include="Core\LongOpEngine.cs" />
+    <Compile Include="Core\Progress\ProgressHub.cs" />
+    <Compile Include="Core\Progress\ProgressReporter.cs" />
+    <Compile Include="Core\Progress\ProgressState.cs" />
     <Compile Include="Core\McpLedger.cs" />
     <Compile Include="Core\Net\BridgeProcessManager.cs" />
     <Compile Include="Core\Net\PortUtil.cs" />
@@ -468,7 +483,6 @@
     <Compile Include="Core\ContextTokenService.cs" />
     <Compile Include="Core\ProceedWithWarningsFailuresPreprocessor.cs" />
     <Compile Include="Core\RequestMeta.cs" />
-    <Compile Include="Core\ResponseAutoFixer.cs" />
     <Compile Include="Core\ResponseNormalizer.cs" />
     <Compile Include="Core\ResultEnricher.cs" />
     <Compile Include="Core\ResultShaper.cs" />
@@ -478,6 +492,7 @@
     <Compile Include="Core\RevitLogger.cs" />
     <Compile Include="Core\SettingsHelper.cs" />
     <Compile Include="Core\TermMapService.cs" />
+    <Compile Include="Core\GlossaryJaService.cs" />
     <Compile Include="Core\Ledger\LedgerDocKeyProvider.cs" />
     <Compile Include="Core\ViewWorkspace\ViewWorkspaceModels.cs" />
     <Compile Include="Core\ViewWorkspace\ViewWorkspaceStore.cs" />
@@ -713,6 +728,7 @@
     <Compile Include="Commands\Room\CreateRoomMassesCommand.cs" />
     <Compile Include="Commands\Room\SetRoomParamCommand.cs" />
     <Compile Include="Core\SpatialUtils.cs" />
+    <Compile Include="Core\SpatialElementResolver.cs" />
     <Compile Include="Core\RebarMappingService.cs" />
     <Compile Include="Core\RebarArrangementService.cs" />
     <Compile Include="Core\RebarAutoModelService.cs" />
@@ -722,6 +738,9 @@
     <Compile Include="Core\Rebar\RebarRecipeService.cs" />
     <Compile Include="Core\Rebar\RebarBarClearanceTableService.cs" />
     <Compile Include="Commands\Spatial\GetSpatialContextForElementsCommand.cs" />
+    <Compile Include="Commands\Spatial\GetSpatialParamsBulkCommand.cs" />
+    <Compile Include="Commands\Spatial\ResolveSpatialSelectionCommand.cs" />
+    <Compile Include="Commands\Spatial\SuggestSpatialParamsCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutInspectCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateByHostCommand.cs" />
@@ -744,6 +763,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="RebarBarClearanceTable.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="glossary_ja.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="category_alias_ja.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="python\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
@@ -799,5 +827,24 @@
     <Compile Include="UI\RoofBrace\BraceGridWindow.xaml.cs">
       <DependentUpon>BraceGridWindow.xaml</DependentUpon>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Core\ChatRpcClient.cs" />
+    <Compile Include="Core\ChatInviteNotifier.cs" />
+    <Compile Include="Core\JsonNetCompat.cs" />
+    <Compile Include="UI\Chat\ChatDockablePane.cs" />
+    <Compile Include="Commands\Chat\ToggleChatPaneCommand.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Commands\ShowPythonRunnerCommand.cs" />
+    <Compile Include="UI\PythonRunner\PythonRunnerWindow.xaml.cs">
+      <DependentUpon>PythonRunnerWindow.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="UI\PythonRunner\PythonRunnerWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 </Project>

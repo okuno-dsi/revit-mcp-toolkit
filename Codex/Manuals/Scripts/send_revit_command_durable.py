@@ -4,10 +4,12 @@ import json
 import argparse
 import os
 import sys
+from datetime import datetime
 from typing import Any, Dict, Tuple, Optional, Mapping
 
 POLLING_INTERVAL_SECONDS = 0.5
-MAX_POLLING_ATTEMPTS = 240  # ~120 seconds total
+# Note: effective max attempts is decided dynamically (see decide_max_attempts)
+DEFAULT_MAX_POLLING_ATTEMPTS = 240  # legacy fallback
 HEADERS = {
     "Content-Type": "application/json; charset=utf-8",
     "Accept-Charset": "utf-8",
@@ -80,7 +82,7 @@ def _normalize_params(params: Dict[str, Any]) -> Dict[str, Any]:
 
 def send_request(port: int, method: str, params: Optional[Dict[str, Any]] = None, *, force: bool = False,
                  timeout: Tuple[float, float] = (3.0, 120.0), max_wait_seconds: Optional[float] = None,
-                 job_timeout_sec: Optional[int] = None) -> Dict[str, Any]:
+                 job_timeout_sec: Optional[int] = None, max_poll_attempts: int = DEFAULT_MAX_POLLING_ATTEMPTS) -> Dict[str, Any]:
     if params is None:
         params = {}
     base = f"http://localhost:{port}"
@@ -120,13 +122,13 @@ def send_request(port: int, method: str, params: Optional[Dict[str, Any]] = None
 
     # poll via durable job endpoint for reliability
         attempts = 0
-        attempts_limit = MAX_POLLING_ATTEMPTS
+        attempts_limit = max_poll_attempts or DEFAULT_MAX_POLLING_ATTEMPTS
         if isinstance(max_wait_seconds, (int, float)) and max_wait_seconds > 0:
             try:
                 # Approximate attempts based on average 0.5s to keep behavior similar
                 attempts_limit = max(1, int(max_wait_seconds / 0.5))
             except Exception:
-                attempts_limit = MAX_POLLING_ATTEMPTS
+                attempts_limit = DEFAULT_MAX_POLLING_ATTEMPTS
 
         job_url = f"{base}/job/{job_id}" if job_id else None
         etag: Optional[str] = None
@@ -210,7 +212,35 @@ def main():
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--timeout-sec", type=int, default=None, help="Server-side job timeout (seconds) to set on enqueue.")
     parser.add_argument("--wait-seconds", type=float, default=None)
+    parser.add_argument("--max-attempts", type=int, default=None, help="Override polling attempts (otherwise time-window defaults apply).")
     args = parser.parse_args()
+
+    def decide_max_attempts() -> int:
+        """
+        Time-window defaults:
+          - 07:00-23:00 => 3 attempts
+          - 23:00-07:00 => 10 attempts
+        Overrides:
+          - CLI --max-attempts
+          - env MCP_MAX_ATTEMPTS (highest priority)
+          - env MCP_MAX_ATTEMPTS_DAY / MCP_MAX_ATTEMPTS_NIGHT
+        """
+        if args.max_attempts and args.max_attempts > 0:
+            return args.max_attempts
+
+        env_all = os.getenv("MCP_MAX_ATTEMPTS")
+        if env_all and env_all.isdigit():
+            return max(1, int(env_all))
+
+        env_day = os.getenv("MCP_MAX_ATTEMPTS_DAY")
+        env_night = os.getenv("MCP_MAX_ATTEMPTS_NIGHT")
+        day_default = int(env_day) if env_day and env_day.isdigit() else 3
+        night_default = int(env_night) if env_night and env_night.isdigit() else 10
+
+        hour = datetime.now().hour
+        if 7 <= hour < 23:
+            return max(1, day_default)
+        return max(1, night_default)
 
     # load params
     if args.params_file:
@@ -222,7 +252,16 @@ def main():
         params_dict = {}
 
     try:
-        result = send_request(args.port, args.command, params_dict, force=args.force, max_wait_seconds=args.wait_seconds, job_timeout_sec=args.timeout_sec)
+        max_attempts = decide_max_attempts()
+        result = send_request(
+            args.port,
+            args.command,
+            params_dict,
+            force=args.force,
+            max_wait_seconds=args.wait_seconds,
+            job_timeout_sec=args.timeout_sec,
+            max_poll_attempts=max_attempts
+        )
         if args.output_file:
             outp = os.path.abspath(args.output_file)
             with open(outp, 'w', encoding='utf-8') as f:

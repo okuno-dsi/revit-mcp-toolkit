@@ -11,7 +11,9 @@ namespace RevitMCPAddin.Commands.VisualizationOps
 {
     /// <summary>
     /// batch_set_visual_override: Apply override graphics to multiple elements in a view.
-    /// Params: { viewId:int, elementIds:int[], r:int, g:int, b:int, transparency:int, detachViewTemplate?:bool }
+    /// Params:
+    ///   { viewId:int, elementIds:int[], r:int, g:int, b:int, transparency:int, detachViewTemplate?:bool,
+    ///     lineRgb?:{r:int,g:int,b:int}, fillRgb?:{r:int,g:int,b:int} }
     /// Returns: { ok:true, applied:int, skipped?:[], errors?:[] }
     /// </summary>
     public class BatchSetVisualOverrideCommand : IRevitCommandHandler
@@ -81,10 +83,17 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             int b = p.Value<int?>("b") ?? 80;
             int transparency = p.Value<int?>("transparency") ?? 40; // 0..100
 
-            var color = new Color((byte)Math.Max(0, Math.Min(255, r)), (byte)Math.Max(0, Math.Min(255, g)), (byte)Math.Max(0, Math.Min(255, b)));
+            var baseColor = new Color(
+                (byte)Math.Max(0, Math.Min(255, r)),
+                (byte)Math.Max(0, Math.Min(255, g)),
+                (byte)Math.Max(0, Math.Min(255, b)));
+
+            var lineColor = ParseRgbColor(p["lineRgb"], baseColor);
+            var fillColor = ParseRgbColor(p["fillRgb"], baseColor);
+
             var ogs = new OverrideGraphicSettings();
-            GraphicsOverrideHelper.TrySetLineColors(ogs, color);
-            GraphicsOverrideHelper.TrySetAllSurfaceAndCutPatterns(doc, ogs, color, visible: true);
+            GraphicsOverrideHelper.TrySetLineColors(ogs, lineColor);
+            GraphicsOverrideHelper.TrySetAllSurfaceAndCutPatterns(doc, ogs, fillColor, visible: true);
             GraphicsOverrideHelper.TrySetSurfaceTransparency(ogs, Math.Max(0, Math.Min(100, transparency)));
 
             int applied = 0; var errors = new List<object>();
@@ -124,6 +133,27 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 templateViewId = (int?)null,
                 skippedDueToTemplate = false
             };
+        }
+
+        private static Color ParseRgbColor(JToken token, Color fallback)
+        {
+            if (token == null) return fallback;
+            try
+            {
+                if (token.Type != JTokenType.Object) return fallback;
+                var o = (JObject)token;
+                int r = o.Value<int?>("r") ?? fallback.Red;
+                int g = o.Value<int?>("g") ?? fallback.Green;
+                int b = o.Value<int?>("b") ?? fallback.Blue;
+                return new Color(
+                    (byte)Math.Max(0, Math.Min(255, r)),
+                    (byte)Math.Max(0, Math.Min(255, g)),
+                    (byte)Math.Max(0, Math.Min(255, b)));
+            }
+            catch
+            {
+                return fallback;
+            }
         }
     }
 }

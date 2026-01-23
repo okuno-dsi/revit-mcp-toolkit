@@ -216,6 +216,45 @@ namespace RevitMCPAddin.Core.Net
             }
         }
 
+        /// <summary>
+        /// Check whether the server for the port has stopped (lock removed or process dead).
+        /// </summary>
+        public static (bool stopped, string msg, int serverPid, bool lockExists) CheckServerStopped(int port, int waitMs = 5000)
+        {
+            try
+            {
+                if (waitMs < 0) waitMs = 0;
+                var deadline = DateTime.UtcNow.AddMilliseconds(waitMs);
+                int lastPid = 0;
+                bool lastLock = false;
+
+                while (true)
+                {
+                    var info = ReadLock(port);
+                    if (info == null)
+                    {
+                        bool free = IsPortFree(port);
+                        return (free, free ? "lock not found; port free" : "lock not found; port busy", lastPid, false);
+                    }
+
+                    lastLock = true;
+                    lastPid = info.Value.serverPid;
+
+                    if (!IsProcessAlive(info.Value.serverPid))
+                        return (true, "server process not alive", lastPid, true);
+
+                    if (DateTime.UtcNow >= deadline)
+                        return (false, "server still alive", lastPid, true);
+
+                    Thread.Sleep(200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, "CheckServerStopped failed: " + ex.GetType().Name + ": " + ex.Message, 0, false);
+            }
+        }
+
         // -------------------- Internals --------------------
 
         private static (bool ok, int pid, string msg) StartServerOnPort(int port)
@@ -357,7 +396,10 @@ namespace RevitMCPAddin.Core.Net
             {
                 var path = GetLockPath(port);
                 if (!File.Exists(path)) return null;
-                var txt = File.ReadAllText(path);
+                string txt;
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
+                    txt = sr.ReadToEnd();
                 int pid = 0;
                 int owner = 0;
                 string exe = "";

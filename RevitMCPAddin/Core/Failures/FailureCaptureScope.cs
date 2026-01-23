@@ -104,20 +104,86 @@ namespace RevitMCPAddin.Core
         // =========================
         private void OnDialogShowing(object sender, DialogBoxShowingEventArgs e)
         {
-            // TaskDialogのみログ化（必要なら OverrideResult で自動Dismiss可）
-            TaskDialogShowingEventArgs t = e as TaskDialogShowingEventArgs;
-            if (t != null)
+            string dialogId = string.Empty;
+            try { dialogId = e.DialogId ?? string.Empty; } catch { dialogId = string.Empty; }
+
+            string message = string.Empty;
+            string dialogType = e.GetType().Name;
+            string title = string.Empty;
+            string mainInstruction = string.Empty;
+            string expandedContent = string.Empty;
+            string footer = string.Empty;
+            try
+            {
+                var td = e as TaskDialogShowingEventArgs;
+                if (td != null)
+                {
+                    dialogType = "TaskDialog";
+                    message = td.Message ?? string.Empty;
+                    title = TryGetStringProp(td, "Title");
+                    mainInstruction = TryGetStringProp(td, "MainInstruction");
+                    expandedContent = TryGetStringProp(td, "ExpandedContent");
+                    footer = TryGetStringProp(td, "FooterText");
+                }
+                else
+                {
+                    message = TryGetStringProp(e, "Message");
+                }
+            }
+            catch { /* ignore */ }
+
+            DialogCaptureItem capItem = null;
+            try
+            {
+                var capRes = DialogCaptureUtil.TryCaptureActiveDialogs();
+                capItem = DialogCaptureUtil.PickPrimaryCapture(capRes);
+            }
+            catch { /* ignore */ }
+
+            bool dismissed = false;
+            int overrideResult = 0;
+            try
+            {
+                overrideResult = 1;
+                e.OverrideResult(overrideResult);
+                dismissed = true;
+            }
+            catch { /* ignore */ }
+
+            try
             {
                 Issues.dialogs.Add(new DialogRecord
                 {
-                    dialogId = t.DialogId,
-                    message = t.Message
+                    dialogId = dialogId,
+                    message = message,
+                    dialogType = dialogType,
+                    title = title,
+                    mainInstruction = mainInstruction,
+                    expandedContent = expandedContent,
+                    footer = footer,
+                    capturePath = capItem != null ? capItem.path : string.Empty,
+                    captureRisk = capItem != null ? capItem.risk : string.Empty,
+                    ocrText = capItem != null ? capItem.ocrText : string.Empty,
+                    ocrEngine = capItem != null ? capItem.ocrEngine : string.Empty,
+                    ocrStatus = capItem != null ? capItem.ocrStatus : string.Empty,
+                    dismissed = dismissed,
+                    overrideResult = overrideResult
                 });
-
-                // 自動Dismiss例（必要時のみ有効化）
-                // if (t.DialogId == "Dialog_Revit_IdenticalInstances")
-                //     t.OverrideResult(1); // OK ボタンコード
             }
+            catch { /* ignore */ }
+        }
+
+        private static string TryGetStringProp(object obj, string name)
+        {
+            try
+            {
+                if (obj == null || string.IsNullOrWhiteSpace(name)) return string.Empty;
+                var prop = obj.GetType().GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop != null && prop.PropertyType == typeof(string))
+                    return (string)(prop.GetValue(obj, null) ?? string.Empty);
+            }
+            catch { }
+            return string.Empty;
         }
 
         // =========================

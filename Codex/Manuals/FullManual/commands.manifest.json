@@ -2677,13 +2677,25 @@
       "feature": "Annotations",
       "paramsSchema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "elementId": { "type": "integer" },
+          "elementIds": { "type": "array", "items": { "type": "integer" } }
+        },
+        "oneOf": [
+          { "required": ["elementId"] },
+          { "required": ["elementIds"] }
+        ]
       },
       "category": "AnnotationOps",
       "name": "delete_detail_line",
       "resultSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "ok": { "type": "boolean" },
+          "deletedCount": { "type": "integer" },
+          "requested": { "type": "integer" },
+          "skipped": { "type": "array" }
+        },
         "additionalProperties": true
       }
     },
@@ -6925,7 +6937,7 @@
           }
         }
       },
-      "category": "GetOrientedBoundingBoxHandler.cs",
+      "category": "GeometryOps",
       "name": "get_oriented_bbox",
       "resultSchema": {
         "type": "object",

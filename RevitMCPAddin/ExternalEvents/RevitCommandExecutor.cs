@@ -105,7 +105,7 @@ namespace RevitMCPAddin.ExternalEvents
             try
             {
                 SafeTrace("[EXEC] post_result start");
-                string jsonBody = JsonConvert.SerializeObject(payload, Formatting.None);
+                string jsonBody = JsonNetCompat.ToCompactJson(payload);
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 var res = _client.PostAsync("post_result", content).GetAwaiter().GetResult();

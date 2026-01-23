@@ -1,16 +1,376 @@
 # Update Log (Manual + Add-in)
 
 ## Summary (Short)
-- 2026-01-09: `revit.status` の古い `RUNNING/DISPATCHING` 回収、docs 系の canonical-only 既定化、壁作成系コマンドを追加。
-  - 主要ファイル: `RevitMCPServer/Program.cs`, `RevitMCPAddin/Commands/ElementOps/Wall/CreateFlushWallsCommand.cs`, `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`, `Codex/Manuals/FullManual/server_docs_endpoints.md`
-- 2026-01-08: AutoRebar の被り厚さをホスト要素から取得、由来と面別被りを返却。
-  - 主要ファイル: `RevitMCPAddin/Core/RebarAutoModelService.cs`, `Codex/Manuals/FullManual/rebar_plan_auto.md`, `Codex/Manuals/FullManual_ja/rebar_plan_auto.md`
-- 2026-01-07: RUG 柱/梁向けプロファイル追加、鉄筋タイプの径フォールバック、フック/離隔チェック改善。
-  - 主要ファイル: `RevitMCPAddin/Core/RebarMappingService.cs`, `RevitMCPAddin/RebarMapping.json`, `RevitMCPAddin/RebarBarClearanceTable.json`, `RevitMCPAddin/Commands/Rebar/ImportRebarTypesFromDocumentCommand.cs`
+- 2026-01-23: Codex GUI の入力欄リサイズ／タスクバー通知、Python Runner の MCP コマンド強調。
+- 2026-01-22: Python Runner UX 改善（保存先統一・出力見やすさ・アイコン刷新）＋ Client Dev Guide 追加。
+- 2026-01-20: ダイアログ自動Dismiss＋キャプチャ/OCR、空間系 bulk 取得と提案コマンド追加。
+- 2026-01-21 Dynamo 実行は **不安定なため推奨しません**（必要時のみ・検証前提）。
 
-詳細は下記の各日付セクションを参照してください。
+## 2026-01-23 Codex GUI: Prompt vertical resize + taskbar busy indicator
+
+### 目的
+- 入力欄（プロンプト）の高さを、作業内容に応じて手動で調整できるようにする。
+- Codex GUI が背面に隠れていても「実行中/完了」が分かるようにする（タスクバーで視認）。
+
+### 変更概要
+- Codex GUI: プロンプト領域の上下リサイズ（ドラッグ）を追加（GridSplitter）。
+- Codex GUI: 実行中はタスクバーのアイコンに赤いオーバーレイ表示＋進捗状態（Indeterminate）を表示。
+- Codex GUI: 実行完了時にウィンドウが非アクティブなら、タスクバーアイコンを点滅（軽い通知）。
+
+## 2026-01-23 Add-in: Python Runner MCP command highlight
+
+### 目的
+- Python Runner で、スクリプト中の MCP コマンド（JSON-RPC method 名）を見分けやすくする。
+
+### 変更概要
+- Add-in: `rpc("element.copy_elements", ...)` や `{"method":"doc.get_project_info", ...}` の **メソッド名**を濃い茶色＋ボールドで強調表示。
+
+## 2026-01-22 Add-in: Python Runner UX + Client Guide
+
+### 目的
+- Python Runner の保存先をプロジェクト単位に統一し、ゴミ混入を防止する。
+- 出力の視認性を改善し、結果だけをコピーしやすくする。
+- MCP クライアント実装の注意点をまとめ、再発防止の指針を追加する。
+
+### 変更概要
+- Add-in: Python Runner の既定フォルダを `Work/<RevitFileName>_<docKey>/python_script` に変更。
+- Add-in: Save/Save As 前に dedent（共通先頭空白の削除）を適用。
+- Add-in: 出力ウィンドウの時刻表示を「出力開始時のみ」に変更。
+- Add-in: Python Runner リボンアイコンを「Py」バッジへ変更。
+- Manual: `RevitMCP_Client_Dev_Guide.md` 追加。`START_HERE.md` / `AGENT_README.md` を更新。
+- Manual: `family.query_loaded` の新規ドキュメント追加とコマンド索引の追記。
+
+## 2026-01-21 Add-in: Dynamo graph execution (list/run)
+
+### 目的
+- Dynamo グラフを Revit 内で実行するための標準コマンドを提供する。
+- スクリプトの配置場所を固定し、安全に実行できるようにする。
+
+### 変更概要
+- Add-in: `dynamo.list_scripts` / `dynamo.run_script` を追加。
+- Add-in: `DynamoRunner` を追加（Dynamo 反射ロード、実行、出力取得）。
+- Add-in: `dynamo.run_script` に `hardKillRevit` / `hardKillDelayMs` を追加（無人実行向け）。強制終了前にスナップショット/同期/保存/再起動を試行し、保存がブロックされる場合は UI スレッドでリトライ。強制終了前にサーバー停止と停止確認もログ化。
+- Manual: Dynamo コマンドの EN/JA 手順書を追加し、README に追記。
+  - ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。十分に検証した上で利用してください。
+
+## 2026-01-20 Add-in: Dialog auto-dismiss + dialog capture/OCR
+
+### 目的
+- 無人実行時にダイアログで停止しないようにする。
+- ダイアログ内容をユーザーが確認できるように記録する。
+- ダイアログのキャプチャと OCR を標準化する（best effort）。
+
+### 変更概要
+- Add-in: 全コマンドでダイアログを自動Dismiss（best effort）。
+- Add-in: TaskDialog の詳細情報を優先取得（title/mainInstruction/expandedContent/footer）。
+- Add-in: ダイアログ出現時に CaptureAgent を呼び出してキャプチャ＋OCRを試行。
+- Manual: `failure_handling` / `capture.revit` の記述を更新。
+
+## 2026-01-20 Add-in: Spatial bulk params + param suggestions
+
+### 目的
+- Room / Space / Area のパラメータを一括取得できるようにする。
+- 曖昧なパラメータ名の解決を安全に補助する。
+- ビュー内要素／カテゴリ取得の使い勝手と堅牢性を改善する。
+- 曖昧なカテゴリ名を安全に解決できるようにする（IDベース運用の入口）。
+
+### 変更概要
+- 追加: `get_spatial_params_bulk`（Room / Space / Area の一括パラメータ取得、要素/パラメータのページング対応）。
+- 追加: `spatial.suggest_params`（曖昧語から候補提示、fuzzy/contains/exact 対応）。
+- 改善: `get_elements_in_view`
+  - `viewId` 省略時はアクティブビューへフォールバック。
+  - `categoryNames` は BuiltInCategory へ解決して事前フィルタ。
+  - `count/skip` をトップレベルで受理。
+  - `items` を `rows` のエイリアスとして返却。
+  - カテゴリ絞り込みが 0 件の場合は未絞り込みで再試行。
+- 改善: `get_categories_used_in_view`
+  - `viewId` 省略時はアクティブビューへフォールバック。
+  - `items` を `categories` のエイリアスとして返却。
+- 追加: `meta.resolve_category`
+  - `category_alias_ja.json` に基づき、曖昧なカテゴリ名を BuiltInCategory（OST_*）へ解決。
+  - 文字化けの疑いがある入力をベストエフォートで回復。
+  - 曖昧な場合は `ok=false` で候補提示。
+- マニュアル: 新規コマンド追加と索引更新（EN/JA）。
+
+## 2026-01-19 Codex GUI / Server: Capture stability + Model switching usability
+
+### 目的
+- Codex GUI の `Capture` が環境差（CaptureAgent 配置揺れ）で失敗/クラッシュする問題を解消する。
+- Codex GUI の「モデル」欄を使いやすくし、空欄=デフォルトが確実に効くようにする。
+
+### 変更概要
+- Server: CaptureAgent 探索を `capture-agent\\` 優先 + `.dll` 同梱チェック（stale stub を回避）。
+- Codex GUI:
+  - Capture 失敗時に `code/exitCode/stderr` を表示。
+  - 未処理例外を `%LOCALAPPDATA%\\RevitMCP\\logs\\codexgui.log` に記録（10MBでローテーション）。
+  - ボーダーレス（`AllowsTransparency=True`）でも確実にリサイズできるよう、外周に透明リサイズハンドル（Thumb）を追加（左右/上下/四隅、8px）。
+  - モデル欄を編集可能なドロップダウン＋`Default`/`Refresh` ボタンに変更（MRU+プリセット+`~/.codex/config.toml` 同期）。
+  - `推論` 欄を追加し、`model_reasoning_effort`（low/medium/high/xhigh）をセッション単位で指定可能に。
+  - `run_codex_prompt.ps1` は `-Model ""` / `-ReasoningEffort ""` を「前回維持」ではなく「明示クリア」に統一（既存セッションマップも hashtable に正規化して新キー追加で落ちない）。
+
+## 2026-01-15 Add-in/Codex GUI: Element Query + Progress Display
+
+### 目的
+- 要素IDが不明な状態からでも、AI/ユーザーが安全に対象要素を絞り込めるようにする（探索/発見の強化）。
+- 長時間処理の進捗を、ポップアップ無しで Codex GUI 上に見える形で表示する（Revit UI thread を汚さない）。
+
+### 追加コマンド（Read）
+- `element.search_elements`: キーワード検索（発見向け）
+- `element.query_elements`: 構造化クエリ（カテゴリ/レベル/名前/bbox/パラメータ条件）
+
+### 進捗表示（ファイル連携）
+- Revit Add-in が `%LOCALAPPDATA%\\RevitMCP\\progress\\progress_<port>.jsonl`（JSONL）へ進捗スナップショットを書き出します（スロットリング）。
+- Codex GUI がこれをポーリングして、進捗バー＋テキストを表示します（古い場合は自動で非表示）。
+
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Core/CategoryResolver.cs`
+- `RevitMCPAddin/Models/ElementQueryModels.cs`
+- `RevitMCPAddin/Core/ElementQueryService.cs`
+- `RevitMCPAddin/Commands/ElementOps/ElementQueryCommands.cs`
+- `RevitMCPAddin/Core/Progress/ProgressState.cs`
+- `RevitMCPAddin/Core/Progress/ProgressReporter.cs`
+- `RevitMCPAddin/Core/Progress/ProgressHub.cs`
+- `RevitMCPAddin/Core/CommandRouter.cs`
+- `RevitMCPAddin/App.cs`
+- `RevitMCPAddin/RevitMcpWorker.cs`
+- `CodexGui/MainWindow.xaml`
+- `CodexGui/MainWindow.xaml.cs`
+- `Manuals/FullManual/element.search_elements.md`
+- `Manuals/FullManual/element.query_elements.md`
+- `Manuals/FullManual_ja/element.search_elements.md`
+- `Manuals/FullManual_ja/element.query_elements.md`
+- `Manuals/FullManual/README.md`
+- `Manuals/FullManual_ja/README.md`
+- `Manuals/README.md`
+
+## 2026-01-15 Add-in: Spatial Selection Correction (Room / Space / Area)
+
+### 目的
+- Room/Space/Area の取り違えによるコマンド失敗を減らす（初心者がつまずきやすいポイントの吸収）。
+- AI が「選択要素の種類を誤る」ケースでも、近接する適切な空間要素へ安全に補正できるようにする。
+
+### 追加コマンド（Read）
+- `element.resolve_spatial_selection`: 選択（または `elementId`）が Room/Space/Area の想定と違う場合に、近傍の目的の空間要素へ解決します。
+  - 旧名 `resolve_spatial_selection` は alias（deprecated）です。
+
+### 自動補正（ルータ）
+- `get_room*` / `*_room` / `get_space*` / `*_space` / `get_area*` / `*_area` の系統コマンドでは、
+  `roomId/spaceId/areaId/elementId` が取り違えられていても、**近傍の目的の空間要素**へ自動補正を試行します。
+
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Core/SpatialElementResolver.cs`
+- `RevitMCPAddin/Commands/Spatial/ResolveSpatialSelectionCommand.cs`
+- `RevitMCPAddin/Core/CommandRouter.cs`
+- `Manuals/FullManual/element.resolve_spatial_selection.md`
+- `Manuals/FullManual_ja/element.resolve_spatial_selection.md`
+- `Manuals/FullManual/README.md`
+- `Manuals/FullManual_ja/README.md`
+
+## 2026-01-15 Server: Screenshot Capture (CaptureAgent + capture.*)
+
+### 目的
+- Revit のエラー/ダイアログなどのスクリーンショットを **Revit 外部プロセス**で取得し、AI解析前に人間が確認できるようにする。
+- Revit がビジーでも動作するように、キャプチャは **サーバー側のみ（no queue）**で完結させる。
+
+### 追加コマンド（Read, server-local）
+- `capture.list_windows`: トップレベルウィンドウ一覧（Win32 EnumWindows）
+- `capture.window`: HWND 指定のウィンドウキャプチャ（PNG）
+- `capture.screen`: モニターキャプチャ（PNG）
+- `capture.revit`: Revit のダイアログ/メイン/フローティング等を一括キャプチャ（PNG）
+
+### 出力とログ
+- 既定の保存先（CaptureAgent）:
+  - PNG: `%LOCALAPPDATA%\\RevitMCP\\captures\\`
+  - JSONLログ: `%LOCALAPPDATA%\\RevitMCP\\logs\\capture.jsonl`
+- `outDir` を指定すれば保存先を上書きできます。
+
+### Codex GUI 同意ゲート（画像添付 `--image`）
+- Codex GUI 上部の `Capture` ボタンで、`capture.*` による画像取得→プレビュー→承認/拒否（既定は拒否）までを一体で実行できます。
+- 承認された画像のみが **次の 1 回の Codex 実行**に `--image` として添付されます。
+- `risk: high`（図面/モデル表示が含まれる可能性が高い）を選択した場合は、追加の確認が必要です（既定は No）。
+
+### 実装変更（主なファイル）
+- `RevitMCPServer/Capture/CaptureService.cs`
+- `RevitMCPServer/Capture/CaptureAgentRunner.cs`
+- `RevitMCPServer/CaptureAgent/RevitMcp.CaptureAgent.csproj`
+- `RevitMCPServer/CaptureAgent/Program.cs`
+- `RevitMCPServer/Program.cs`
+- `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
+- `RevitMCPServer/RevitMCPServer.csproj`
+- `RevitMCPServer/RevitMCPServer.sln`
+- `RevitMCPAddin/RevitMCPAddin.csproj`（server 同梱フォルダへ capture-agent もコピー）
+- `CodexGui/CaptureConsentWindow.xaml(.cs)`
+- `CodexGui/run_codex_prompt.ps1`（画像添付 `--image` 対応）
+- `Manuals/FullManual/capture.*.md`
+- `Manuals/FullManual_ja/capture.*.md`
+- `Manuals/FullManual/README.md`
+- `Manuals/FullManual_ja/README.md`
+- `Manuals/Runbooks/Screenshot_Capture_Consent_CodexGui_*.md`
+
+## 2026-01-14 Add-in: `help.suggest`（日本語グロッサリ＋決定論サジェスト）
+
+### 目的
+- コマンド数が増えた状態でも、ユーザー/エージェントが「日本語の曖昧な要求」から安全に最適なコマンドへ到達できるようにする（Discoverability）。
+- LLM に依存せず、**決定論**で安定した候補提示（安全フラグ付き）を返す基盤を用意する。
+
+### 変更概要
+- 追加: `help.suggest`（Read）を追加し、日本語の問い合わせ文＋現在のRevitコンテキストから「レシピ/コマンド候補」を決定論的に提案できるようにしました。
+  - `help.suggest` は **実行は行わず**、候補と推奨パラメータ（`proposedParams`）のみ返します。
+  - `safeMode=true`（既定）では、明確な作成/変更意図が無い場合に Write 系を下げる挙動です。
+- 追加: 日本語グロッサリ `glossary_ja.json` を同梱し、`help.suggest` がこれを利用します（見つからない場合は `glossary_ja.seed.json` をベストエフォートで探索）。
+  - 上書き: 環境変数 `REVITMCP_GLOSSARY_JA_PATH`、または `%LOCALAPPDATA%\\RevitMCP\\glossary_ja.json`
+  - 読み込み時に重複キーは `ja` フレーズをマージ、無効な `BuiltInCategory` は警告付きでドロップ（ベストエフォート）。
+
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260114.md`（詳細: 目的/変更ファイルの完全版）
+- `RevitMCPAddin/Core/GlossaryJaService.cs`
+- `RevitMCPAddin/Commands/MetaOps/HelpSuggestHandler.cs`
+- `RevitMCPAddin/glossary_ja.json`
+- `Manuals/FullManual/help_suggest.md`
+- `Manuals/FullManual_ja/help_suggest.md`
+
+## 2026-01-14 Add-in: `view.draw_colored_line_segments`（座標データセット→色付き線分描画）
+
+### 目的
+- 「周長/外形/法線/解析結果」などの座標データセットを、**1回のMCP呼び出し**でビューへ描画できるようにし、エージェント側の多回呼び出し（線分ごとの `create_detail_line` 連打 + `set_visual_override`）を不要にする。
+
+### 変更概要
+- 追加: `view.draw_colored_line_segments`（Write）
+  - `segments:[{start,end,...}]` または `loops:[{segments:[...]}]` を受け取り、ビューに詳細線分を作成します（入力はmm）。
+  - 既定の線色/線太さ（`lineRgb` / `lineWeight`）に加え、セグメント単位で `lineRgb` / `lineWeight` の上書きも可能です。
+  - 色/太さは **要素ごとのグラフィックス上書き**で適用します（線種自体は変更しません）。
+  - ビューテンプレートが適用されているビューでは、上書きが効かないため `VIEW_TEMPLATE_LOCK` として中断（または `detachViewTemplate=true` で解除して実行）。
+
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260114.md`（同日追記: 目的/変更ファイルの完全版）
+- `RevitMCPAddin/Commands/AnnotationOps/DrawColoredLineSegmentsCommand.cs`
+- `RevitMCPAddin/RevitMcpWorker.cs`
+- `RevitMCPAddin/RevitMCPAddin.csproj`
+- `Manuals/FullManual/draw_colored_line_segments.md`
+- `Manuals/FullManual_ja/draw_colored_line_segments.md`
+
+## 2026-01-14 Server/Add-in/Codex GUI: Collaborative Chat (Phase 1)
+
+### 目的
+- Revit の作業共有チームで、人間が主役の「チャット（ログが正）」を導入し、AI を使えないメンバーも同じ記録を共有できるようにする。
+- AIユーザーは、チャットの内容を `Copy→Codex` で Codex GUI へ貼り付け、必要なら安全な実行手順を **手動で**組み立てられるようにする。
+- 招待（参加促し）を、Revit作業を妨げない通知で受け取れるようにする。
+
+### 変更概要
+- 追加（サーバー側・キュー不要）: `chat.post`, `chat.list`, `chat.inbox.list`
+  - `RevitMCPServer` が直接処理し、DurableQueue に enqueue しません（Revit がビジーでも動作）。
+  - 保存先は中央モデルフォルダ配下の `_RevitMCP\\projects\\<docKey>\\chat\\writers\\*.jsonl`（append-only）。
+    - `docKey` は **プロジェクト固有の安定ID**（ViewWorkspace/Ledger の ProjectToken と同等）で、同一フォルダ内の複数 `.rvt` のログ混入を防ぎます。
+  - ルート確定のため `docPathHint`（中央モデルのパス推奨）と `docKey`（推奨）が1回必要。Revit Add-in が ViewActivated で自動初期化します。
+- 追加（Revit Add-in UI）: MCP Chat の DockablePane + リボンボタン（`RevitMCPServer`→`GUI`→`Chat`）
+  - 招待は `ws://Project/Invites` へ `@userId` メンションで投稿。
+  - 受信側は inbox をポーリングし、**非ブロッキングのトースト通知**で受け取ります。
+- 追加（Codex GUI）: Chat Monitor
+  - Chat Monitor は `chat.list` をポーリングしてメッセージを表示します。
+  - `Copy→Codex` で選択メッセージ本文を Codex GUI の入力欄へ貼り付けられます（自動実行しません）。
+  - コンプライアンスのため、チャットからの Codex 自動実行や `chat.post` による自動返信は行いません。
+
+### 実装変更（主なファイル）
+- `RevitMCPServer/Chat/ChatStore.cs`
+- `RevitMCPServer/Chat/ChatRootState.cs`
+- `RevitMCPServer/Program.cs`
+- `RevitMCPAddin/UI/Chat/ChatDockablePane.cs`
+- `RevitMCPAddin/Core/ChatRpcClient.cs`
+- `RevitMCPAddin/Core/ChatInviteNotifier.cs`
+- `RevitMCPAddin/Commands/Chat/ToggleChatPaneCommand.cs`
+- `RevitMCPAddin/UI/RibbonPortUi.cs`
+- `CodexGui/ChatMonitorWindow.xaml(.cs)`
+- `Manuals/Chat/CollaborativeChatWorkflow_*.md`
+- `START_HERE.md`, `Manuals/AGENT_README.md`
+
+## 2026-01-15 Server/Add-in/Codex GUI: chat を docKey で分離
+
+### 目的
+- 同一フォルダ内に複数の `.rvt` がある環境で、チャットログが混ざる/上書きされる問題を防ぐ。
+- Revit ホスト側の Json.NET バージョン差による `MissingMethodException` を回避する。
+
+### 変更概要
+- Chat ログの保存先を `docKey`（ViewWorkspace/Ledger の ProjectToken と同等）で分離しました。
+  - 旧: `_RevitMCP\\chat\\writers\\*.jsonl`
+  - 新: `_RevitMCP\\projects\\<docKey>\\chat\\writers\\*.jsonl`（`docKey` 不明時は `projects\\path-<hash>\\...`）
+- Revit Add-in の Chat 呼び出しに `docKey` を付与し、サーバー側も `docKey` を受け取って保存先を決定します。
+- Codex GUI の Chat Monitor が以下に対応しました。
+  - `Copy→Codex` で選択メッセージ本文を Codex GUI の入力欄へ貼り付けられます（自動実行しません）。
+  - `Copy` / `Copy All` でチャット内容をクリップボードへコピーできます。
+  - コンプライアンスのため、チャットからの Codex 自動実行や `chat.post` による自動返信は行いません。
+- Codex GUI の会話ログで、Codex CLI の “thinking/exec” などのトレース出力を別パネル（`Trace`）へ分離し、本文より目立たないようにしました。
+  - `Trace` は既定で表示され、文字は小さめ・暗め（イタリック）です。
+  - `Trace` は縦方向スプリッタで高さを手動調整できます（内容が増えても本文を勝手に押しつぶしません）。
+  - `codex_core::codex: needs_follow_up` のような内部ログは、ユーザー向けの情報ではないため非表示にしました。
+- Revit Add-in の MCP Chat ペインに `Copy` / `Copy All` を追加しました。
+- Json.NET 互換ラッパーを更新し、`JToken.*` の欠落で落ちるケースを回避しました（JToken の新しめAPIを直接呼ばない）。
+- Revit Add-in の MCP Chat ペインに `Auto`（自動更新）を追加しました。
+  - ペイン表示中かつ `Auto=ON` の場合、約3秒ごとに `chat.list` を自動更新します（新着メッセージが押下なしで表示されます）。
+
+### 実装変更（主なファイル）
+- `RevitMCPServer/Chat/ChatRootState.cs`
+- `RevitMCPServer/Chat/ChatStore.cs`
+- `RevitMCPAddin/Core/JsonNetCompat.cs`
+- `RevitMCPAddin/Core/ChatRpcClient.cs`
+- `RevitMCPAddin/UI/Chat/ChatDockablePane.cs`
+- `CodexGui/ChatMonitorWindow.xaml(.cs)`
+- `CodexGui/MainWindow.xaml.cs`
+- `Manuals/Chat/CollaborativeChatWorkflow_*.md`
+- `START_HERE.md`, `Manuals/AGENT_README.md`
+
+## 2026-01-13 Add-in: 部屋境界仕上げ壁（W5等）の柱追従を自動化
+
+### 目的
+- 部屋境界に沿った仕上げ壁作成（W5等）を、柱が Room Bounding でないモデルでも再現性高く実行できるようにする（重複作成・部屋間壁の混入を抑止）。
+
+### 変更概要
+- `room.apply_finish_wall_type_on_room_boundary` が、柱が通常 Room Bounding でないモデルでも柱セグメントを拾えるように改善しました。
+  - 既定で `autoDetectColumnsInRoom=true` + `tempEnableRoomBoundingOnColumns=true` とし、候補柱の `Room Bounding` を **一時的にON→境界取得→元に戻す**（仕上げ壁作成のみ残る）方式です。
+  - 応答に `autoDetectedColumnIds` / `toggledColumnIds` を追加（デバッグ用）。
+- 連続する境界セグメント同士が角でつながるよう、基準線をコーナートリムしてから壁を作成できるようにしました（既定 `cornerTrim=true`）。
+- 追加: `excludeWallsBetweenRooms=true` を指定すると、壁セグメントの反対側に別Roomがある場合はそのセグメントを除外できます（部屋間の壁をスキップ）。
+  - 判定距離は `adjacencyProbeDistancesMm`（既定 `[250,500,750]` mm、細い部屋での取りこぼし抑制）。
+  - 判定ロジックは `get_candidate_exterior_walls` と同等の「壁法線 ± 複数距離プローブ + Room.IsPointInRoom（各Roomの基準レベルZ）」です。
+  - 追加: `restrictBoundaryColumnsToEligibleWalls=true` で、上記フィルタ後の「有効な壁」に隣接する柱だけを対象にできます。
+- `skipExisting=true` の既存仕上げ壁検出を修正し、再実行時の重複作成を抑止しました（既存壁照合を「境界曲線」ではなく「作成に使う基準線（境界＋厚さオフセット）」に統一）。
+- `set_visual_override` / `batch_set_visual_override` で、線色と塗りつぶし色を別指定できるようにしました（`lineRgb` / `fillRgb`）。
+
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
+- `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`
+- `RevitMCPAddin/Commands/VisualizationOps/SetVisualOverrideCommand.cs`
+- `RevitMCPAddin/Commands/VisualizationOps/BatchSetVisualOverrideCommand.cs`
+- `Manuals/FullManual/apply_finish_wall_type_on_room_boundary.md`
+- `Manuals/FullManual_ja/apply_finish_wall_type_on_room_boundary.md`
+
+## 2026-01-13 Add-in: View Filter（V/G → Filters）のCRUD + 適用をコマンド化
+
+### 目的
+- ビューのフィルタ（V/G → Filters）操作をコマンド化し、カテゴリ表示/色分け等をバルクで自動化できるようにする。
+
+### 変更概要
+- View Filter 管理コマンドを追加しました（ParameterFilterElement / SelectionFilterElement）。
+  - `view_filter.list` / `view_filter.get_order`（Read）
+  - `view_filter.upsert` / `view_filter.delete` / `view_filter.apply_to_view` / `view_filter.remove_from_view` / `view_filter.set_order`（Write）
+- ルールは MVP として `logic:"and"` を実装（ORは将来拡張）。
+- パラメータ指定は `builtInParameter` / `sharedParameterGuid` を推奨し、`parameterName` は「categories の共通フィルタ可能パラメータ」に限定して best-effort 解決します（曖昧/未解決は失敗）。
+- ビューテンプレートが適用されているビューはロックされることがあるため、`detachViewTemplate=true`（またはテンプレートビューを直接指定）に対応しました。
+
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
+- `RevitMCPAddin/Commands/ViewFilterOps/ViewFilterCommands.cs`
+- `Manuals/FullManual/view_filter.list.md`
+- `Manuals/FullManual/view_filter.upsert.md`
+- `Manuals/FullManual_ja/view_filter.list.md`
+- `Manuals/FullManual_ja/view_filter.upsert.md`
 
 ## 2026-01-09 Server: revit.status の “ghost RUNNING” 回収 + docs系エンドポイントの canonical-only 既定化
+
+### 目的
+- `revit.status` のキュー統計で `RUNNING/DISPATCHING` が残留して誤認される問題を解消し、停止/クラッシュ後も自動回収できるようにする。
+- docs/capabilities を canonical-only 既定に統一し、エージェントが迷わず legacy→canonical を解決できるようにする。
+
+### 変更概要
 - Add-in: `element.create_flush_walls`（alias: `create_flush_walls`）を追加し、既存壁に密着（面合わせ）する壁を別タイプで作成できるようにしました（既定は仕上面・ByGlobalDirection）。
   - 既定は上下拘束（Base/Top/Offset/Height）の複製まで（Attach Top/Base の完全複製は Revit 2023 API では困難なため未対応）。
 - Add-in: `room.apply_finish_wall_type_on_room_boundary`（alias: `apply_finish_wall_type_on_room_boundary`）を追加しました（部屋境界セグメント長で仕上げ壁を作成、端部結合を Allow に設定）。
@@ -25,7 +385,20 @@
   - deprecated も含める場合: `GET /debug/capabilities?includeDeprecated=1`
   - alias→canonical を一覧で確認する場合: `GET /debug/capabilities?includeDeprecated=1&grouped=1`
 
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260109.md`（詳細: 目的/変更ファイルの完全版）
+- `RevitMCPServer/Program.cs`
+- `RevitMCPServer/Engine/DurableQueue.cs`
+- `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
+- `RevitMCPAddin/Commands/ElementOps/Wall/CreateFlushWallsCommand.cs`
+- `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`
+
 ## 2026-01-08 Docs: capabilities（機械可読なコマンド一覧）を追加
+
+### 目的
+- サーバー側で「コマンド実装状況（capabilities）」を機械可読に提供し、エージェントが安全に必要パラメータを確定できるようにする。
+
+### 変更概要
 - サーバーに `GET /debug/capabilities` を追加し、現在把握しているコマンド実装状況（最後に受信したマニフェスト由来）を JSON で返すようにしました。
 - サーバー側で `docs/capabilities.jsonl`（1行=1コマンド）を自動生成するようにしました（マニフェスト読み込み/登録時、best-effort）。
 - 修正: `since` が混在しないよう、サーバー注入の `revit.status` / `status` / `revit_status` は「最後に受信したマニフェスト内でもっとも多い `since`」に合わせます（マニフェストが空の場合のみサーバー側 `since` にフォールバック）。
@@ -34,7 +407,17 @@
   - capabilities の各フィールドはスキーマ安定です（値が取得できない場合は安全な既定値で補完されます）。
   - 追加: alias 解決を確実にするため `canonical` フィールドを追加しました（deprecated alias の正規名）。
 
+### 実装変更（主なファイル）
+- `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
+- `RevitMCPServer/Docs/DocModels.cs`
+- `RevitMCPServer/Docs/ManifestRegistry.cs`
+
 ## 2026-01-08 Step 4: canonical/alias（正規名/従来名）ポリシーを強化
+
+### 目的
+- “有効コマンド（canonical）” を namespaced 名に統一し、legacy 名は deprecated alias として残すことで混乱を抑止する。
+
+### 変更概要
 - canonical（正規名）は **namespaced**（`*.*`）を基本とし、従来名は alias として残しつつ `deprecated=true` 扱いに統一。
 - `list_commands` / `search_commands` は **canonicalのみを返す**のがデフォルトになりました（`includeDeprecated=true` で deprecated を含める）。
 - capabilities では `summary`/`resultExample`/`supportsFamilyKinds`/`since`/`revitHandler` などを欠損させず、機械可読性を優先して自動補完します（best-effort）。
@@ -43,13 +426,32 @@
   - `test_cap` はテスト混入のため除外（出力されません）。
   - `/manifest/register` は同一 `source` の登録を上書き扱いに変更し、古いコマンドが残り続ける問題（stale）を回避。
 
+### 実装変更（主なファイル）
+- `RevitMCPServer/Docs/ManifestRegistry.cs`
+- `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
+- `RevitMCPAddin/Core/CommandNaming.cs`
+
 ## 2026-01-08 ViewOps: 3Dビュー作成コマンドの重複整理 + sheet.list を Read 扱いに修正
+
+### 目的
+- 同機能の重複コマンドを整理してエージェントの迷いを減らし、Read系コマンドで不要な Write/Undo を発生させない。
+
+### 変更概要
 - `view.create_focus_3d_view_from_selection` を正として統一し、重複して見えていた `view.create_clipping_3d_view_from_selection` は deprecated alias 扱いに整理（エージェントが迷わないように）。
 - deprecated alias の `summary` を `deprecated alias of <canonical>` 形式に変更（capabilities上で混乱しないように）。
 - `sheet.list`（および alias の `get_sheets`）が kind/transaction を誤って `Write` と推定していたため、推定ロジックを修正して `Read` に統一。
 - “末尾一致で辿れない legacy→canonical 変換” は `LegacyToCanonicalOverrides`（明示aliasMap）で解決するように追加（例: `place_view_on_sheet_auto` / `sheet_inspect` / `revit_batch` / `revit_status`）。
 
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Commands/ViewOps/CreateFocus3DViewFromSelectionCommand.cs`
+- `RevitMCPAddin/Core/CommandNaming.cs`
+- `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
+
 ## 2026-01-07 AutoRebar: RUG柱（RC_C_B:1C1）向けプロファイル追加 + RebarBarTypeの「径フォールバック」解決
+
+### 目的
+- RUGファミリ（例: 構造柱 `RC_C_B : 1C1`）で、`D22` 等の **鉄筋タイプ名がプロジェクトに存在しない**場合でも配筋できるようにする。
+- ファミリ固有パラメータは **ソースコードにハードコードせず**、`RebarMapping.json` のプロファイルで吸収する。
 
 ### 症状
 - `rebar_plan_auto` / `rebar_apply_plan` / `rebar_regenerate_delete_recreate` 実行時に、`Main bar type not found: D22` 等で失敗する。
@@ -77,20 +479,44 @@
 - `rebar_spacing_check` を追加し、モデル上のRebar中心線から実測の中心間距離を算出して離隔チェックします。
 - `RebarBarClearanceTable.json` の径→中心間(mm) を基準に判定し、必要なら違反ペアを返します（`includePairs=true`）。
 
+### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260107.md`（詳細: 目的/変更ファイルの完全版）
+- `RevitMCPAddin/Core/RebarAutoModelService.cs`
+- `RevitMCPAddin/RebarMapping.json`
+- `RevitMCPAddin/RebarBarClearanceTable.json`
+- `RevitMCPAddin/Commands/Rebar/RebarSpacingCheckCommand.cs`
+
 ## 2026-01-07 UI: Undo履歴の表示名をコマンド別に改善
+
+### 目的
+- Undo履歴で「どのMCPコマンドを実行したか」が判別しやすいようにする。
+
+### 変更概要
 - Undoスタックに表示される `MCP Ledger Command` を、`MCP <短いラベル>`（コマンド名から自動生成）に変更。
 
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Core/McpLedger.cs`
+
 ## 2026-01-07 Maintenance: ローカルキャッシュ自動クリーンアップ + 手動コマンド追加
+
+### 目的
+- `%LOCALAPPDATA%\\RevitMCP` 配下の古いキャッシュ（マニフェスト/一時ファイル等）の残留による混乱と肥大化を抑止する。
+
+### 変更概要
 - Revit 起動時に `%LOCALAPPDATA%\\RevitMCP` 配下の「7日より古いキャッシュ」を best-effort で自動削除するようにしました（現行ポート/稼働中ポート推定は除外）。
 - 手動実行用に `cleanup_revitmcp_cache`（dryRun 既定）を追加しました。
 - `RebarMapping.json` / `RebarBarClearanceTable.json` の探索順を「アドインフォルダ優先」に変更しました（既定は同梱ファイルを使用、`%LOCALAPPDATA%\\RevitMCP` は上書き/キャッシュ扱い）。
 
 ### 実装変更（主なファイル）
-- `RevitMCPAddin/Core/RebarAutoModelService.cs`
+- `RevitMCPAddin/App.cs`
+- `RevitMCPAddin/Core/CacheCleanupService.cs`
+- `RevitMCPAddin/Commands/System/CleanupRevitMcpCacheCommand.cs`
+- `RevitMCPAddin/Core/RebarMappingService.cs`
+- `RevitMCPAddin/Core/Rebar/RebarBarClearanceTableService.cs`
 - `RevitMCPAddin/RebarMapping.json`
-- `Manuals/FullManual/rebar_plan_auto.md`
-- `Manuals/FullManual_ja/rebar_plan_auto.md`
-- `Manuals/Runbooks/RUG/Rebar_Params_RUG_SelectedTypes_JA.md`
+- `RevitMCPAddin/RebarBarClearanceTable.json`
+- `Manuals/FullManual/cleanup_revitmcp_cache.md`
+- `Manuals/FullManual_ja/cleanup_revitmcp_cache.md`
 
 ## 2025-12-26 ? AutoRebar: 柱の主筋（各面本数）+ 梁上面基準の帯筋パターン（上3@100 / 下2@150）
 
@@ -206,6 +632,9 @@
 
 ## 2025-12-24 — ViewWorkspace: 初回スナップショット未存在時のスパム/早期断念を改善
 
+### 目的
+- 初回（スナップショット未作成）でもログスパムにならないよう抑止し、次回復元できるベースラインスナップショットを確実に残す。
+
 ### 症状
 - Revitでプロジェクトを開いた直後にログへ:
   - `auto-restore snapshot not found`
@@ -256,6 +685,9 @@
 
 ## 2025-12-25 ? get_room_finish_takeoff_context: 床/天井のレベル混入を抑止（既定で同一レベルのみ）
 
+### 目的
+- `get_room_finish_takeoff_context` の床/天井取得で別レベルの要素が混入する問題を抑止し、結果の信頼性を上げる（既定で同一レベルのみ）。
+
 ### 症状
 - `includeFloorCeilingInfo` の床/天井収集は、境界線の室内サンプル点に対して「BBoxのXY一致」で候補を拾うため、建物が上下に積層していると **別レベルの床/天井が混入**することがある。
 
@@ -272,6 +704,9 @@
 - `Manuals/Commands/revitmcp_commands_full.jsonl`
 
 ## 2025-12-25 — RebarMapping / Rebar layout コマンド追加
+
+### 目的
+- ファミリ/言語差を吸収する配筋パラメータマッピング基盤と、既存レイアウト鉄筋の検査/更新コマンドを整備する。
 
 ### 変更概要
 - `RevitMCPAddin/RebarMapping.json` を追加（論理キー → instance/type/built-in/derived/constant のマッピング）。
@@ -386,3 +821,44 @@
 - `Manuals/FullManual/move_rebars.md`
 - `Manuals/FullManual_ja/delete_rebars.md`
 - `Manuals/FullManual_ja/move_rebars.md`
+
+---
+
+## 2026-01-20 (later)
+
+### ツールスクリプト改善
+- `Manuals/Scripts/send_revit_command_durable.py`  
+  - ポーリングのリトライ上限を時間帯で自動切替（07:00〜23:00: 3回 / 23:00〜07:00: 10回）。  
+  - 上書き方法: `--max-attempts` または環境変数 `MCP_MAX_ATTEMPTS`（全時間帯共通）、`MCP_MAX_ATTEMPTS_DAY` / `MCP_MAX_ATTEMPTS_NIGHT`（時間帯別）。
+
+### インストール手順強化
+- `Manuals/Scripts/install_revitmcp_safe.ps1`
+  - Revit / RevitMCPServer を停止してから /MIR コピー（addin本体→%APPDATA%\\...\\RevitMCPAddin、server→server）。
+  - サーバーexeのSHA256ハッシュを検証。ロックや部分コピーによる破損を防止。
+
+### 追加コマンド（Transform系）
+- `element.copy_elements`（平行移動コピー。units=mm/m/ft、failIfPinned対応）
+- `element.mirror_elements`（平面ミラー、コピー有無切替、precheck/pinnedチェック）
+- `element.array_linear`（直線配列、関連あり/なし、anchor Second/Last、view指定、units対応）
+- `element.array_radial`（放射配列、関連あり/なし、angleUnits=rad/deg、anchor Second/Last、view指定、units対応）
+- `element.pin_element` / `element.pin_elements`（ピン/解除、continueOnErrorオプション）
+
+---
+
+## 2026-01-23
+
+### Detail Line 削除の改善
+- `view.delete_detail_line`（alias: `delete_detail_line`）が `elementIds[]` を受け付けるようにし、**一括削除**に対応しました。
+  - 単体は従来通り `elementId`。
+  - 安全のため、対象は `OST_Lines` の view-specific な詳細線のみ（それ以外は `skipped`）。
+- 旧実装の `delete_detail_lines` は不要になったため、実装側は削除しました（同等のことは `view.delete_detail_line` で可能）。
+
+### 実装変更（主なファイル）
+- `RevitMCPAddin/Commands/AnnotationOps/DetailLineCommands.cs`
+- `Manuals/FullManual/delete_detail_line.md`
+- `Manuals/FullManual/delete_detail_lines.md`
+- `Manuals/FullManual_ja/delete_detail_line.md`
+- `Manuals/FullManual_ja/delete_detail_lines.md`
+- `Manuals/FullManual/commands.manifest.json`
+- `Manuals/Commands/revitmcp_commands_full.jsonl`
+- `Manuals/Commands/revitmcp_commands_extended.jsonl`

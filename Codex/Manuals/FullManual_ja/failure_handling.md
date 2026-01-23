@@ -43,7 +43,10 @@
 - whitelist にない failure は安全のためロールバックします（無人実行で壊れた状態を残さない）。
 - `delete` は whitelist で `delete_warning` が許可された警告のみ削除します。
 - `resolve` は whitelist で `resolve_if_possible` が許可されたものだけ解決を試みます（best effort）。解決できない場合はロールバック（または、許可されていれば警告削除）します。
-- `failureHandling` を有効にすると、処理キューがモーダルダイアログで停止しないように（best effort で）自動Dismissすることがあります。Dismissされたダイアログは `failureHandling.issues.dialogs[]`（`dismissed`, `overrideResult`）に記録されます。
+- Revit のモーダルダイアログは、処理キューが止まらないように **常に自動Dismiss（best effort）** されます。Dismissされたダイアログは `failureHandling.issues.dialogs[]`（`dismissed`, `overrideResult`）に記録されます。
+- ダイアログ出現時は **スナップショット取得（best effort）** を試み、`failureHandling.issues.dialogs[]` に付与します:
+  - `dialogType`, `title`, `mainInstruction`, `expandedContent`, `footer`
+  - `capturePath`, `captureRisk`, `ocrText`, `ocrEngine`, `ocrStatus`
 
 ## whitelist ファイル（`failure_whitelist.json`）
 アドインは `failure_whitelist.json` を（best effort で）次から探します:
@@ -71,3 +74,5 @@
 - `failureHandling.rollbackDetected: true`
 - `failureHandling.rollbackReason`
 - `failureHandling.autoCaptured: true`（暗黙付与された場合）
+
+ロールバックが発生しない場合でも、ダイアログが出た場合は `failureHandling.issues.dialogs[]` に記録されることがあります（best effort）。

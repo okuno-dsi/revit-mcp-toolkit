@@ -30,12 +30,12 @@
 ## apply
 - [apply_3d_view_settings](apply_3d_view_settings.md)
 - [apply_conditional_coloring](apply_conditional_coloring.md)
-- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [apply_material_to_element](apply_material_to_element.md)
 - [apply_paint](apply_paint.md)
 - [apply_paint_by_reference](apply_paint_by_reference.md)
 - [apply_quick_color_scheme](apply_quick_color_scheme.md)
 - [apply_transform_delta](apply_transform_delta.md)
+- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 
 ## are
 - [are_elements_joined](are_elements_joined.md)
@@ -96,6 +96,9 @@
 - [clean_area_boundaries](clean_area_boundaries.md)
 - [clean_room_boundaries](clean_room_boundaries.md)
 
+## cleanup
+- [cleanup_revitmcp_cache](cleanup_revitmcp_cache.md)
+
 ## clear
 - [clear_conditional_coloring](clear_conditional_coloring.md)
 - [clear_scope_box](clear_scope_box.md)
@@ -123,6 +126,7 @@
 
 ## create
 - [create_3d_view](create_3d_view.md)
+- [create_focus_3d_view_from_selection](create_focus_3d_view_from_selection.md)
 - [create_architectural_column](create_architectural_column.md)
 - [create_area](create_area.md)
 - [create_area_boundary_line](create_area_boundary_line.md)
@@ -245,6 +249,7 @@
 - [delete_wall](delete_wall.md)
 - [delete_window](delete_window.md)
 - [delete_zone](delete_zone.md)
+- [delete_rebars](delete_rebars.md)
 
 ## detach
 - [detach_link](detach_link.md)
@@ -254,6 +259,9 @@
 
 ## dockable
 - [dockable_pane_sequence](dockable_pane_sequence.md)
+
+## draw
+- [draw_colored_line_segments](draw_colored_line_segments.md)
 
 ## duplicate
 - [duplicate_architectural_column_type](duplicate_architectural_column_type.md)
@@ -331,6 +339,7 @@
 - [gesture_zoom](gesture_zoom.md)
 
 ## get
+- [get_context](get_context.md)
 - [get_architectural_column_parameters](get_architectural_column_parameters.md)
 - [get_architectural_column_types](get_architectural_column_types.md)
 - [get_architectural_columns](get_architectural_columns.md)
@@ -387,6 +396,7 @@
 - [get_family_instances](get_family_instances.md)
 - [get_family_type_parameters](get_family_type_parameters.md)
 - [get_family_types](get_family_types.md)
+- [family.query_loaded](family.query_loaded.md)
 - [get_fire_protection_instances](get_fire_protection_instances.md)
 - [get_fire_protection_parameters](get_fire_protection_parameters.md)
 - [get_fire_protection_types](get_fire_protection_types.md)
@@ -432,6 +442,7 @@
 - [get_project_categories](get_project_categories.md)
 - [get_project_info](get_project_info.md)
 - [get_project_summary](get_project_summary.md)
+- [get_project_units](get_project_units.md)
 - [get_railing_parameters](get_railing_parameters.md)
 - [get_railing_type_parameters](get_railing_type_parameters.md)
 - [get_railing_types](get_railing_types.md)
@@ -448,6 +459,8 @@
 - [get_room_boundary_lines_in_view](get_room_boundary_lines_in_view.md)
 - [get_room_boundary_walls](get_room_boundary_walls.md)
 - [get_room_perimeter_with_columns](get_room_perimeter_with_columns.md)
+- [get_room_perimeter_with_columns_and_walls](get_room_perimeter_with_columns_and_walls.md)
+- [get_room_finish_takeoff_context](get_room_finish_takeoff_context.md)
 - [get_room_inner_walls_by_baseline](get_room_inner_walls_by_baseline.md)
 - [get_room_centroid](get_room_centroid.md)
 - [get_room_label_point](get_room_label_point.md)
@@ -471,8 +484,9 @@
 - [get_space_metrics](get_space_metrics.md)
 - [get_space_params](get_space_params.md)
 - [get_spaces](get_spaces.md)
- - [get_spatial_context_for_element](get_spatial_context_for_element.md)
- - [get_spatial_context_for_elements](get_spatial_context_for_elements.md)
+- [get_spatial_context_for_element](get_spatial_context_for_element.md)
+- [get_spatial_context_for_elements](get_spatial_context_for_elements.md)
+- [get_spatial_params_bulk](get_spatial_params_bulk.md)
 - [get_stacked_wall_parts](get_stacked_wall_parts.md)
 - [get_stair_flights](get_stair_flights.md)
 - [get_stair_parameters](get_stair_parameters.md)
@@ -535,6 +549,9 @@
 ## highlight
 - [highlight_overlarge_panels](highlight_overlarge_panels.md)
 
+## import
+- [import_rebar_types_from_document](import_rebar_types_from_document.md)
+
 ## inspect
 - [inspect_schedule_fields](inspect_schedule_fields.md)
 
@@ -556,6 +573,8 @@
 - [list_links](list_links.md)
 - [list_material_parameters](list_material_parameters.md)
 - [list_mullions](list_mullions.md)
+- [list_rebar_bar_types](list_rebar_bar_types.md)
+- [list_rebar_hook_types](list_rebar_hook_types.md)
 - [list_open_views](list_open_views.md)
 - [list_parking_spots](list_parking_spots.md)
 - [list_revision_clouds_in_view](list_revision_clouds_in_view.md)
@@ -605,6 +624,7 @@
 - [move_tag](move_tag.md)
 - [move_text_note](move_text_note.md)
 - [move_window](move_window.md)
+- [move_rebars](move_rebars.md)
 - [viewport_move_to_sheet_center](viewport_move_to_sheet_center.md)
 
 ## open
@@ -626,6 +646,17 @@
 
 ## purge
 - [purge_unused_types](purge_unused_types.md)
+
+## rebar
+- [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [rebar_plan_auto](rebar_plan_auto.md)
+- [rebar_apply_plan](rebar_apply_plan.md)
+- [rebar_sync_status](rebar_sync_status.md)
+- [rebar_regenerate_delete_recreate](rebar_regenerate_delete_recreate.md)
+- [rebar_layout_inspect](rebar_layout_inspect.md)
+- [rebar_layout_update](rebar_layout_update.md)
+- [rebar_layout_update_by_host](rebar_layout_update_by_host.md)
+- [rebar_spacing_check](rebar_spacing_check.md)
 
 ## refresh
 - [refresh_view](refresh_view.md)
@@ -660,6 +691,9 @@
 - [rename_wall_type](rename_wall_type.md)
 - [rename_window_type](rename_window_type.md)
 
+## resolve
+- [meta.resolve_category](meta.resolve_category.md)
+
 ## replace
 - [replace_stacked_wall_part_type](replace_stacked_wall_part_type.md)
 - [replace_toposurface_points](replace_toposurface_points.md)
@@ -671,6 +705,10 @@
 - [restore_selection](restore_selection.md)
 - [restore_view_state](restore_view_state.md)
 - [restore_view_workspace](restore_view_workspace.md)
+
+## revit
+- [revit_status](revit_status.md)
+- [revit_batch](revit_batch.md)
 
 ## rotate
 - [rotate_detail_line](rotate_detail_line.md)
@@ -687,6 +725,11 @@
 
 ## search
 - [search_commands](search_commands.md)
+
+## suggest
+- [help_suggest](help_suggest.md)
+- [spatial.suggest_params](spatial.suggest_params.md)
+
 
 ## select
 - [select_elements](select_elements.md)
@@ -859,6 +902,16 @@
 - [view_zoom](view_zoom.md)
 - [view_zoom_to_element](view_zoom_to_element.md)
 
+## view_filter
+- [view_filter.list](view_filter.list.md)
+- [view_filter.get_order](view_filter.get_order.md)
+- [view_filter.upsert](view_filter.upsert.md)
+- [view_filter.delete](view_filter.delete.md)
+- [view_filter.apply_to_view](view_filter.apply_to_view.md)
+- [view_filter.remove_from_view](view_filter.remove_from_view.md)
+- [view_filter.set_order](view_filter.set_order.md)
+
 ## visibility
 - [visibility_profile_preview](visibility_profile_preview.md)
+
 

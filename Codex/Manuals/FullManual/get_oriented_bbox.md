@@ -1,6 +1,6 @@
 # get_oriented_bbox
 
-- Category: GetOrientedBoundingBoxHandler.cs
+- Category: GeometryOps
 - Purpose: JSON-RPC "get_oriented_bbox" の実体（返却を mm へ統一）
 
 ## Overview

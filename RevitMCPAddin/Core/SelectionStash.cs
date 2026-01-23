@@ -16,6 +16,7 @@ namespace RevitMCPAddin.Core
         public DateTime ObservedUtc { get; set; } = DateTime.MinValue;
         public string DocPath { get; set; } = string.Empty;
         public string DocTitle { get; set; } = string.Empty;
+        public string DocKey { get; set; } = string.Empty;
         public int ActiveViewId { get; set; } = 0;
         public long Revision { get; set; } = 0;
         public string Hash { get; set; } = string.Empty;
@@ -41,7 +42,7 @@ namespace RevitMCPAddin.Core
             catch { return string.Empty; }
         }
 
-        public static void Set(IEnumerable<int> ids, string docPath = null, string docTitle = null, int activeViewId = 0)
+        public static void Set(IEnumerable<int> ids, string docPath = null, string docTitle = null, int activeViewId = 0, string docKey = null)
         {
             lock (_lock)
             {
@@ -53,6 +54,7 @@ namespace RevitMCPAddin.Core
                     ObservedUtc = DateTime.UtcNow,
                     DocPath = docPath ?? _snap.DocPath ?? string.Empty,
                     DocTitle = docTitle ?? _snap.DocTitle ?? string.Empty,
+                    DocKey = docKey ?? _snap.DocKey ?? string.Empty,
                     ActiveViewId = activeViewId,
                     Revision = _rev,
                     Hash = ComputeHash(arr)
@@ -67,6 +69,7 @@ namespace RevitMCPAddin.Core
                         ObservedUtc = next.ObservedUtc,
                         DocPath = next.DocPath,
                         DocTitle = next.DocTitle,
+                        DocKey = next.DocKey,
                         ActiveViewId = next.ActiveViewId,
                         Revision = next.Revision,
                         Hash = next.Hash
@@ -90,6 +93,7 @@ namespace RevitMCPAddin.Core
                     ObservedUtc = _snap.ObservedUtc,
                     DocPath = _snap.DocPath,
                     DocTitle = _snap.DocTitle,
+                    DocKey = _snap.DocKey,
                     ActiveViewId = _snap.ActiveViewId,
                     Revision = _snap.Revision,
                     Hash = _snap.Hash
@@ -107,6 +111,7 @@ namespace RevitMCPAddin.Core
                     ObservedUtc = _lastNonEmptySnap.ObservedUtc,
                     DocPath = _lastNonEmptySnap.DocPath,
                     DocTitle = _lastNonEmptySnap.DocTitle,
+                    DocKey = _lastNonEmptySnap.DocKey,
                     ActiveViewId = _lastNonEmptySnap.ActiveViewId,
                     Revision = _lastNonEmptySnap.Revision,
                     Hash = _lastNonEmptySnap.Hash

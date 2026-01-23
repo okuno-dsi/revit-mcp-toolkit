@@ -1,7 +1,7 @@
 param(
   [string]$Accore = 'C:\Program Files\Autodesk\AutoCAD 2025\accoreconsole.exe',
   [string]$Locale = 'en-US',
-  [string]$Seed = "$env:USERPROFILE\Documents\VS2022\Ver421\Codex\Work\AutoCadOut\seed.dwg",
+  [string]$Seed = '$env:USERPROFILE\Documents\VS2022\Ver421\Codex\Work\AutoCadOut\seed.dwg',
   [string]$StagingRoot1 = 'C:\CadJobs\Staging',
   [string]$StagingRoot2 = 'C:\Temp\CadJobs\Staging'
 )

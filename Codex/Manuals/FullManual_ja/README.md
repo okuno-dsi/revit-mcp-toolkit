@@ -28,6 +28,7 @@
 - [align_dimension](align_dimension.md)
 - [create_detail_arc](create_detail_arc.md)
 - [create_detail_line](create_detail_line.md)
+- [draw_colored_line_segments](draw_colored_line_segments.md)
 - [create_dimension](create_dimension.md)
 - [add_door_size_dimensions](add_door_size_dimensions.md)
 - [create_model_arc](create_model_arc.md)
@@ -139,6 +140,7 @@
 - [get_project_info](get_project_info.md)
 - [update_project_info](update_project_info.md)
 - [get_project_summary](get_project_summary.md)
+- [get_project_units](get_project_units.md)
 - [save_snapshot](save_snapshot.md)
 - [get_fill_patterns](get_fill_patterns.md)
 
@@ -149,6 +151,13 @@
 - [gen_dwg_script](gen_dwg_script.md)
 - [get_curves_by_category](get_curves_by_category.md)
 - [get_grids_with_bubbles](get_grids_with_bubbles.md)
+
+## Route
+- [egress.create_waypoint_guided_path](egress.create_waypoint_guided_path.md)
+- [route.find_shortest_paths](route.find_shortest_paths.md)
+- [path.waypoints.get](path.waypoints.get.md)
+- [path.waypoints.set](path.waypoints.set.md)
+- [path.update](path.update.md)
 
 ## ElementOps
 - [add_curtain_wall_panel](add_curtain_wall_panel.md)
@@ -268,6 +277,7 @@
 - [get_family_instances](get_family_instances.md)
 - [get_family_type_parameters](get_family_type_parameters.md)
 - [get_family_types](get_family_types.md)
+- [family.query_loaded](family.query_loaded.md) (NEW 2026-01-22)
 - [get_floor_boundary](get_floor_boundary.md)
 - [get_floor_layers](get_floor_layers.md)
 - [get_floor_parameters](get_floor_parameters.md)
@@ -279,6 +289,9 @@
 - [get_inplace_families](get_inplace_families.md)
 - [get_instance_geometry](get_instance_geometry.md)
 - [get_instances_geometry](get_instances_geometry.md)
+- [element.search_elements](element.search_elements.md)
+- [element.query_elements](element.query_elements.md)
+- [element.resolve_spatial_selection](element.resolve_spatial_selection.md)
 - [get_elements_by_category_and_level](get_elements_by_category_and_level.md)
 - [get_joined_elements](get_joined_elements.md)
 - [get_mass_instance_parameters](get_mass_instance_parameters.md)
@@ -493,7 +506,7 @@
 - [select_elements](select_elements.md)
 - [select_elements_by_filter_id](select_elements_by_filter_id.md)
 
-## GetOrientedBoundingBoxHandler.cs
+## GeometryOps
 - [get_oriented_bbox](get_oriented_bbox.md)
 
 ## GridOps
@@ -552,10 +565,22 @@
 - [agent_bootstrap](agent_bootstrap.md)
 - [list_commands](list_commands.md)
 - [describe_command](describe_command.md)
+- [help_suggest](help_suggest.md)
+- [meta.resolve_category](meta.resolve_category.md)
+- [get_context](get_context.md)
+- [revit_status](revit_status.md)
+- [revit_batch](revit_batch.md)
+- [capture.list_windows](capture.list_windows.md)
+- [capture.window](capture.window.md)
+- [capture.screen](capture.screen.md)
+- [capture.revit](capture.revit.md)
 - [get_mcp_ledger_summary](get_mcp_ledger_summary.md)
 - [search_commands](search_commands.md)
 - [start_command_logging](start_command_logging.md)
 - [stop_command_logging](stop_command_logging.md)
+
+## System
+- [cleanup_revitmcp_cache](cleanup_revitmcp_cache.md)
 
 ## Misc
 - [get_element_info](get_element_info.md)
@@ -603,6 +628,22 @@
 - [set_revision_cloud_type_parameter](set_revision_cloud_type_parameter.md)
 - [update_revision](update_revision.md)
 
+## Rebar
+- [list_rebar_bar_types](list_rebar_bar_types.md)
+- [list_rebar_hook_types](list_rebar_hook_types.md)
+- [import_rebar_types_from_document](import_rebar_types_from_document.md)
+- [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [rebar_plan_auto](rebar_plan_auto.md)
+- [rebar_apply_plan](rebar_apply_plan.md)
+- [rebar_sync_status](rebar_sync_status.md)
+- [rebar_regenerate_delete_recreate](rebar_regenerate_delete_recreate.md)
+- [rebar_layout_inspect](rebar_layout_inspect.md)
+- [rebar_layout_update](rebar_layout_update.md)
+- [rebar_layout_update_by_host](rebar_layout_update_by_host.md)
+- [rebar_spacing_check](rebar_spacing_check.md)
+- [delete_rebars](delete_rebars.md)
+- [move_rebars](move_rebars.md)
+
 ## RevitUI
 - [activate_view](activate_view.md)
 - [arrange_views](arrange_views.md)
@@ -621,6 +662,7 @@
 - [toggle_dockable_pane](toggle_dockable_pane.md)
 
 ## Room
+- [room_separation.create_lines](room_separation.create_lines.md)
 - [clean_room_boundaries](clean_room_boundaries.md)
 - [create_room](create_room.md)
 - [create_room_boundary_line](create_room_boundary_line.md)
@@ -634,9 +676,10 @@
 - [get_room_boundaries](get_room_boundaries.md)
 - [get_room_boundary_lines_in_view](get_room_boundary_lines_in_view.md)
 - [get_room_boundary_walls](get_room_boundary_walls.md)
-- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [get_room_perimeter_with_columns](get_room_perimeter_with_columns.md)
 - [get_room_perimeter_with_columns_and_walls](get_room_perimeter_with_columns_and_walls.md)
+- [get_room_finish_takeoff_context](get_room_finish_takeoff_context.md)
+- [apply_finish_wall_type_on_room_boundary](apply_finish_wall_type_on_room_boundary.md)
 - [get_room_inner_walls_by_baseline](get_room_inner_walls_by_baseline.md)
 - [get_room_centroid](get_room_centroid.md)
 - [get_room_label_point](get_room_label_point.md)
@@ -721,7 +764,9 @@
 - [classify_points_in_room](classify_points_in_room.md)
 - [get_spatial_context_for_element](get_spatial_context_for_element.md)
 - [get_spatial_context_for_elements](get_spatial_context_for_elements.md)
+- [get_spatial_params_bulk](get_spatial_params_bulk.md)
 - [map_room_area_space](map_room_area_space.md)
+- [spatial.suggest_params](spatial.suggest_params.md)
 
 ## SurfaceOps
 - [get_surface_regions](get_surface_regions.md)
@@ -745,6 +790,7 @@
 - [clear_view_template](clear_view_template.md)
 - [compare_view_states](compare_view_states.md)
 - [create_3d_view](create_3d_view.md)
+- [create_focus_3d_view_from_selection](create_focus_3d_view_from_selection.md)
 - [create_elevation_view](create_elevation_view.md)
 - [create_element_elevation_views](create_element_elevation_views.md)
 - [delete_orphan_elevation_markers](delete_orphan_elevation_markers.md)
@@ -843,6 +889,15 @@
 - [colorize_tags_by_param](colorize_tags_by_param.md)
 - [reset_tag_colors](reset_tag_colors.md)
 
+## ViewFilterOps
+- [view_filter.list](view_filter.list.md)
+- [view_filter.get_order](view_filter.get_order.md)
+- [view_filter.upsert](view_filter.upsert.md)
+- [view_filter.delete](view_filter.delete.md)
+- [view_filter.apply_to_view](view_filter.apply_to_view.md)
+- [view_filter.remove_from_view](view_filter.remove_from_view.md)
+- [view_filter.set_order](view_filter.set_order.md)
+
 ## WorksetOps
 - [create_workset](create_workset.md)
 - [get_element_workset](get_element_workset.md)
@@ -859,4 +914,5 @@
 - [list_zone_members](list_zone_members.md)
 - [remove_spaces_from_zone](remove_spaces_from_zone.md)
 - [set_zone_param](set_zone_param.md)
+
 

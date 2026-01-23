@@ -3,7 +3,7 @@
 This folder is the curated entry point for Revit MCP work: guides, commands, helper scripts, and logs.
 
 ## Ready-to-Start (Start Here)
-- Read: `START_HERE.md` at repo root for the shortest path to begin.
+- Read: `Codex/START_HERE.md` for the shortest path to begin.
 - Quickstart: `Manuals/ConnectionGuide/QUICKSTART.md` (port check, ping, bootstrap).
 - Work rules: `WORK_RULES.md` (use `Work/<ProjectName>_<ProjectID>/` for per‑project work).
 - Helper scripts (PowerShell):
@@ -16,15 +16,43 @@ This folder is the curated entry point for Revit MCP work: guides, commands, hel
     - `Manuals/Scripts/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
 
+## New (2026-01-22)
+- Python Runner UI (Revit 内で Python 実行): `Manuals/ConnectionGuide/07_基本操作_PythonRunner_UI.md`
+- MCP Client Dev Guide: `Manuals/RevitMCP_Client_Dev_Guide.md`
+- Family discovery: `family.query_loaded` (`Manuals/FullManual/family.query_loaded.md`)
+
 Quick view ops
 - Rename a view: use `rename_view` with `{ viewId, newName }`.
 - Save/restore templates and categories: `save_view_state` / `restore_view_state`.
+
+## Progress display (Codex GUI)
+- Revit Add-in writes throttled progress snapshots to `%LOCALAPPDATA%\\RevitMCP\\progress\\progress_<port>.jsonl` (JSONL).
+- Codex GUI shows the latest snapshot (progress bar + text) and auto-hides when stale.
+- Codex GUI の入力欄（プロンプト）は上下ドラッグで高さを調整できます（会話ログとの境界にスプリッタあり）。
+- Codex 実行中はタスクバーアイコンに赤いオーバーレイ＋進捗（Indeterminate）を表示し、完了時（非アクティブ時）は点滅で通知します。
+
+## Model selection (Codex GUI)
+- Use the top-bar `モデル` dropdown (editable). Empty = backend default.
+- Click `Default` to clear the model quickly.
+- Click `Refresh` to re-read `~/.codex/config.toml` and add the current default model + migration targets to the dropdown candidates.
+- Use `推論` to override `model_reasoning_effort` (e.g., `low/medium/high/xhigh`). Empty = backend default.
+- The model is stored per Codex GUI session.
+
+## Screenshot capture (server-side, consent-gated workflow)
+- Server-local capture tools (no Revit queue): `capture.list_windows`, `capture.window`, `capture.screen`, `capture.revit`
+- Default output: `%LOCALAPPDATA%\\RevitMCP\\captures\\` (PNG) and `%LOCALAPPDATA%\\RevitMCP\\logs\\capture.jsonl`
+- Safety: treat captures as sensitive; require explicit user consent before attaching any images to an AI.
+- Codex GUI: use the top-bar `Capture` button for preview + explicit consent, then attach to the next run (`--image`)
+  - Runbook: `Manuals/Runbooks/Screenshot_Capture_Consent_CodexGui_EN.md`
+  - 日本語: `Manuals/Runbooks/Screenshot_Capture_Consent_CodexGui_JA.md`
 
 ## Structure
 - ConnectionGuide: core connection and smoke‑test docs, curated guides, quickstart
 - Commands: command index and references
 - Scripts: helper scripts for connection and listing elements
+- Chat: collaborative chat workflow (`Manuals/Chat/CollaborativeChatWorkflow_*.md`)
 - Logs: moved under `Work/<ProjectName>_<ProjectID>/Logs` (Manuals/Logs is deprecated)
+- TODO: task list and pending items in `Manuals/TODO.md`
 
 For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/ConnectionGuide/INDEX.md`.
 
@@ -84,15 +112,25 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
 - Merge B/G DWGs into one file using Core Console (layers consolidated to `B` and `G`):
   - `Manuals/Scripts/merge_bg_from_seed.ps1`
   - Usage example:
-    - `pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 -ExportDir "Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale en-US`
+    - `pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 -ExportDir "Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale ja-JP`
 - Verify layers of any DWG via Core Console:
   - `Manuals/Scripts/list_dwg_layers_coreconsole.ps1`
   - Usage example:
-    - `pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 -DwgPath ".../Merged_B_G.dwg" -Locale en-US`
+    - `pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 -DwgPath ".../Merged_B_G.dwg" -Locale ja-JP`
+- Merge via AutoCAD COM (GUI AutoCAD running):
+  - `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`)
 
 ## Snapshots
 - Save current project snapshot (project info, open docs/views, sample element IDs):
   - `pwsh -ExecutionPolicy Bypass -File Manuals/Scripts/save_project_snapshot.ps1 -Port 5210 -OutRoot Work/Snapshots -MaxViews 5`
+
+## Dynamo (graph execution)
+- ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。必要時のみ限定利用してください。
+- Place .dyn files under `RevitMCPAddin/Dynamo/Scripts`.
+- Commands:
+  - `dynamo.list_scripts` (discover available graphs)
+  - `dynamo.run_script` (execute with input overrides)
 
 - Quick Reference: see `Manuals/Quick_Reference_Recipes_EN.md` for high-performance recipes (parameters, type changes, transforms, baselines/geometry, joins).
 

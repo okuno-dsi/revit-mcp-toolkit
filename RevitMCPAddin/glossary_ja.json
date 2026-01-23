@@ -1,0 +1,6738 @@
+{
+  "version": 1,
+  "language": "ja-JP",
+  "generatedAt": "2026-01-13",
+  "entries": [
+    {
+      "key": "op_create",
+      "type": "action",
+      "ja": [
+        "作る",
+        "生成する",
+        "作成",
+        "追加する",
+        "配置する",
+        "新規作成",
+        "設置する",
+        "置く"
+      ],
+      "op": "create"
+    },
+    {
+      "key": "op_delete",
+      "type": "action",
+      "ja": [
+        "消す",
+        "削除する",
+        "消去",
+        "除去する",
+        "撤去する",
+        "取り除く"
+      ],
+      "op": "delete"
+    },
+    {
+      "key": "op_update",
+      "type": "action",
+      "ja": [
+        "変更する",
+        "更新する",
+        "書き換える",
+        "編集する",
+        "修正する",
+        "設定する"
+      ],
+      "op": "update"
+    },
+    {
+      "key": "op_move",
+      "type": "action",
+      "ja": [
+        "動かす",
+        "移動する",
+        "ずらす",
+        "シフトする",
+        "位置を変える",
+        "移設"
+      ],
+      "op": "move"
+    },
+    {
+      "key": "op_rotate",
+      "type": "action",
+      "ja": [
+        "回す",
+        "回転する",
+        "向きを変える",
+        "角度を変える"
+      ],
+      "op": "rotate"
+    },
+    {
+      "key": "op_copy",
+      "type": "action",
+      "ja": [
+        "コピーする",
+        "複製する",
+        "複写する",
+        "増やす"
+      ],
+      "op": "copy"
+    },
+    {
+      "key": "op_duplicate",
+      "type": "action",
+      "ja": [
+        "複製",
+        "複製する",
+        "複製して作る",
+        "Duplicate"
+      ],
+      "op": "duplicate"
+    },
+    {
+      "key": "op_mirror",
+      "type": "action",
+      "ja": [
+        "反転",
+        "ミラー",
+        "左右反転",
+        "鏡像"
+      ],
+      "op": "mirror"
+    },
+    {
+      "key": "op_align",
+      "type": "action",
+      "ja": [
+        "揃える",
+        "整列",
+        "合わせる",
+        "位置合わせ"
+      ],
+      "op": "align"
+    },
+    {
+      "key": "op_offset",
+      "type": "action",
+      "ja": [
+        "オフセット",
+        "逃げ",
+        "寄せる",
+        "離す",
+        "セットバック"
+      ],
+      "op": "offset"
+    },
+    {
+      "key": "op_join",
+      "type": "action",
+      "ja": [
+        "結合",
+        "ジョイン",
+        "つなぐ",
+        "接合"
+      ],
+      "op": "join"
+    },
+    {
+      "key": "op_unjoin",
+      "type": "action",
+      "ja": [
+        "結合解除",
+        "アンジョイン",
+        "接合解除",
+        "切り離す"
+      ],
+      "op": "unjoin"
+    },
+    {
+      "key": "op_trim",
+      "type": "action",
+      "ja": [
+        "トリム",
+        "トリミング",
+        "切り詰め",
+        "延長/トリム",
+        "伸ばす/切る"
+      ],
+      "op": "trim_extend"
+    },
+    {
+      "key": "op_split",
+      "type": "action",
+      "ja": [
+        "分割",
+        "切断",
+        "割る",
+        "分ける"
+      ],
+      "op": "split"
+    },
+    {
+      "key": "op_select",
+      "type": "action",
+      "ja": [
+        "選ぶ",
+        "選択する",
+        "ピックする"
+      ],
+      "op": "select"
+    },
+    {
+      "key": "op_list",
+      "type": "action",
+      "ja": [
+        "一覧",
+        "リスト",
+        "列挙",
+        "表示して"
+      ],
+      "op": "list"
+    },
+    {
+      "key": "op_export",
+      "type": "action",
+      "ja": [
+        "書き出し",
+        "出力",
+        "エクスポート",
+        "保存して"
+      ],
+      "op": "export"
+    },
+    {
+      "key": "op_import",
+      "type": "action",
+      "ja": [
+        "取り込み",
+        "読み込み",
+        "インポート"
+      ],
+      "op": "import"
+    },
+    {
+      "key": "op_isolate",
+      "type": "action",
+      "ja": [
+        "隔離",
+        "一時的に表示",
+        "一時的に隠す以外",
+        "アイソレート"
+      ],
+      "op": "isolate"
+    },
+    {
+      "key": "op_hide",
+      "type": "action",
+      "ja": [
+        "隠す",
+        "非表示",
+        "表示しない"
+      ],
+      "op": "hide"
+    },
+    {
+      "key": "op_show",
+      "type": "action",
+      "ja": [
+        "表示する",
+        "見せる",
+        "可視化する"
+      ],
+      "op": "show"
+    },
+    {
+      "key": "op_filter",
+      "type": "action",
+      "ja": [
+        "フィルタ",
+        "絞り込み",
+        "条件で表示"
+      ],
+      "op": "filter"
+    },
+    {
+      "key": "op_override_graphics",
+      "type": "action",
+      "ja": [
+        "色分け",
+        "強調",
+        "ハイライト",
+        "グラフィックス上書き",
+        "見やすく"
+      ],
+      "op": "override_graphics"
+    },
+    {
+      "key": "op_apply_template",
+      "type": "action",
+      "ja": [
+        "テンプレート適用",
+        "ビューを揃える",
+        "表示設定を合わせる"
+      ],
+      "op": "apply_view_template"
+    },
+    {
+      "key": "op_crop",
+      "type": "action",
+      "ja": [
+        "クロップ",
+        "切り抜き",
+        "表示範囲を切る",
+        "トリミング"
+      ],
+      "op": "crop"
+    },
+    {
+      "key": "op_scopebox",
+      "type": "action",
+      "ja": [
+        "スコープボックス",
+        "範囲ボックス",
+        "範囲に合わせる"
+      ],
+      "op": "scopebox"
+    },
+    {
+      "key": "ent_room",
+      "type": "entity",
+      "ja": [
+        "部屋",
+        "室",
+        "ルーム",
+        "Room"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.SpatialElement"
+      ],
+      "categoryHints": [
+        "OST_Rooms"
+      ]
+    },
+    {
+      "key": "ent_space",
+      "type": "entity",
+      "ja": [
+        "スペース",
+        "Space"
+      ],
+      "categoryHints": [
+        "OST_MEPSpaces"
+      ]
+    },
+    {
+      "key": "ent_wall",
+      "type": "entity",
+      "ja": [
+        "壁",
+        "ウォール",
+        "Wall"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.Wall"
+      ],
+      "categoryHints": [
+        "OST_Walls"
+      ]
+    },
+    {
+      "key": "ent_floor",
+      "type": "entity",
+      "ja": [
+        "床",
+        "Floor"
+      ],
+      "categoryHints": [
+        "OST_Floors"
+      ]
+    },
+    {
+      "key": "ent_ceiling",
+      "type": "entity",
+      "ja": [
+        "天井",
+        "Ceiling"
+      ],
+      "categoryHints": [
+        "OST_Ceilings"
+      ]
+    },
+    {
+      "key": "ent_roof",
+      "type": "entity",
+      "ja": [
+        "屋根",
+        "Roof"
+      ],
+      "categoryHints": [
+        "OST_Roofs"
+      ]
+    },
+    {
+      "key": "ent_column",
+      "type": "entity",
+      "ja": [
+        "柱",
+        "コラム",
+        "Column"
+      ],
+      "categoryHints": [
+        "OST_Columns",
+        "OST_StructuralColumns"
+      ]
+    },
+    {
+      "key": "ent_beam",
+      "type": "entity",
+      "ja": [
+        "梁",
+        "ビーム",
+        "Beam"
+      ],
+      "categoryHints": [
+        "OST_StructuralFraming"
+      ]
+    },
+    {
+      "key": "ent_door",
+      "type": "entity",
+      "ja": [
+        "ドア",
+        "扉",
+        "建具（ドア）"
+      ],
+      "categoryHints": [
+        "OST_Doors"
+      ]
+    },
+    {
+      "key": "ent_window",
+      "type": "entity",
+      "ja": [
+        "窓",
+        "サッシ",
+        "建具（窓）"
+      ],
+      "categoryHints": [
+        "OST_Windows"
+      ]
+    },
+    {
+      "key": "ent_generic_model",
+      "type": "entity",
+      "ja": [
+        "一般モデル",
+        "汎用モデル",
+        "Generic Model"
+      ],
+      "categoryHints": [
+        "OST_GenericModel"
+      ]
+    },
+    {
+      "key": "ent_furniture",
+      "type": "entity",
+      "ja": [
+        "家具",
+        "什器",
+        "Furniture"
+      ],
+      "categoryHints": [
+        "OST_Furniture"
+      ]
+    },
+    {
+      "key": "ent_lighting",
+      "type": "entity",
+      "ja": [
+        "照明",
+        "Lighting"
+      ],
+      "categoryHints": [
+        "OST_LightingFixtures"
+      ]
+    },
+    {
+      "key": "ent_plumbing",
+      "type": "entity",
+      "ja": [
+        "衛生器具",
+        "設備（衛生）"
+      ],
+      "categoryHints": [
+        "OST_PlumbingFixtures"
+      ]
+    },
+    {
+      "key": "ent_mechanical",
+      "type": "entity",
+      "ja": [
+        "機械設備",
+        "空調機器"
+      ],
+      "categoryHints": [
+        "OST_MechanicalEquipment"
+      ]
+    },
+    {
+      "key": "ent_pipe",
+      "type": "entity",
+      "ja": [
+        "配管",
+        "パイプ",
+        "Pipe"
+      ],
+      "categoryHints": [
+        "OST_PipeCurves"
+      ]
+    },
+    {
+      "key": "ent_duct",
+      "type": "entity",
+      "ja": [
+        "ダクト",
+        "Duct"
+      ],
+      "categoryHints": [
+        "OST_DuctCurves"
+      ]
+    },
+    {
+      "key": "ent_conduit",
+      "type": "entity",
+      "ja": [
+        "電線管",
+        "コンジット"
+      ],
+      "categoryHints": [
+        "OST_Conduit"
+      ]
+    },
+    {
+      "key": "ent_cabletray",
+      "type": "entity",
+      "ja": [
+        "ケーブルトレイ"
+      ],
+      "categoryHints": [
+        "OST_CableTray"
+      ]
+    },
+    {
+      "key": "ent_level",
+      "type": "entity",
+      "ja": [
+        "レベル",
+        "階",
+        "Level"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.Level"
+      ],
+      "categoryHints": [
+        "OST_Levels"
+      ]
+    },
+    {
+      "key": "ent_grid",
+      "type": "entity",
+      "ja": [
+        "通り芯",
+        "グリッド",
+        "Grid"
+      ],
+      "categoryHints": [
+        "OST_Grids"
+      ]
+    },
+    {
+      "key": "ent_view",
+      "type": "entity",
+      "ja": [
+        "ビュー",
+        "View",
+        "画面",
+        "表示"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.View"
+      ]
+    },
+    {
+      "key": "ent_view_plan",
+      "type": "entity",
+      "ja": [
+        "平面図",
+        "プラン",
+        "Plan"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewPlan"
+      ]
+    },
+    {
+      "key": "ent_view_section",
+      "type": "entity",
+      "ja": [
+        "断面図",
+        "セクション",
+        "Section"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewSection"
+      ]
+    },
+    {
+      "key": "ent_view_elevation",
+      "type": "entity",
+      "ja": [
+        "立面図",
+        "エレベーション",
+        "Elevation"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewSection"
+      ]
+    },
+    {
+      "key": "ent_view_3d",
+      "type": "entity",
+      "ja": [
+        "3Dビュー",
+        "３Ｄ",
+        "アイソメ",
+        "パース"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.View3D"
+      ]
+    },
+    {
+      "key": "ent_sheet",
+      "type": "entity",
+      "ja": [
+        "シート",
+        "図面",
+        "Sheet"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewSheet"
+      ],
+      "categoryHints": [
+        "OST_Sheets"
+      ]
+    },
+    {
+      "key": "ent_schedule",
+      "type": "entity",
+      "ja": [
+        "集計表",
+        "数量表",
+        "スケジュール",
+        "Schedule"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewSchedule"
+      ]
+    },
+    {
+      "key": "ent_tag",
+      "type": "entity",
+      "ja": [
+        "タグ",
+        "ラベル",
+        "注釈タグ"
+      ],
+      "categoryHints": [
+        "OST_Tags"
+      ]
+    },
+    {
+      "key": "ent_textnote",
+      "type": "entity",
+      "ja": [
+        "文字",
+        "テキスト",
+        "TextNote"
+      ],
+      "categoryHints": [
+        "OST_TextNotes"
+      ]
+    },
+    {
+      "key": "ent_dimension",
+      "type": "entity",
+      "ja": [
+        "寸法",
+        "寸法線",
+        "Dimension"
+      ],
+      "categoryHints": [
+        "OST_Dimensions"
+      ]
+    },
+    {
+      "key": "ent_detail_line",
+      "type": "entity",
+      "ja": [
+        "詳細線",
+        "ディテール線"
+      ],
+      "categoryHints": [
+        "OST_Lines"
+      ]
+    },
+    {
+      "key": "ent_family",
+      "type": "entity",
+      "ja": [
+        "ファミリ",
+        "Family"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.Family"
+      ]
+    },
+    {
+      "key": "ent_family_symbol",
+      "type": "entity",
+      "ja": [
+        "ファミリタイプ",
+        "タイプ",
+        "型",
+        "FamilySymbol"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.FamilySymbol"
+      ]
+    },
+    {
+      "key": "ent_family_instance",
+      "type": "entity",
+      "ja": [
+        "ファミリインスタンス",
+        "インスタンス",
+        "FamilyInstance"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.FamilyInstance"
+      ]
+    },
+    {
+      "key": "ent_material",
+      "type": "entity",
+      "ja": [
+        "材料",
+        "マテリアル",
+        "Material"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.Material"
+      ]
+    },
+    {
+      "key": "ent_workset",
+      "type": "entity",
+      "ja": [
+        "ワークセット",
+        "Workset"
+      ],
+      "notesJa": "Worksharing environments"
+    },
+    {
+      "key": "ent_design_option",
+      "type": "entity",
+      "ja": [
+        "設計オプション",
+        "デザインオプション"
+      ],
+      "notesJa": "Design Option"
+    },
+    {
+      "key": "ent_phase",
+      "type": "entity",
+      "ja": [
+        "フェーズ",
+        "段階"
+      ],
+      "notesJa": "Phase"
+    },
+    {
+      "key": "ent_filter",
+      "type": "entity",
+      "ja": [
+        "ビュー フィルタ",
+        "フィルタ"
+      ],
+      "notesJa": "View filters"
+    },
+    {
+      "key": "ent_view_template",
+      "type": "entity",
+      "ja": [
+        "ビューテンプレート",
+        "テンプレート"
+      ],
+      "notesJa": "ViewTemplate"
+    },
+    {
+      "key": "ent_scope_box",
+      "type": "entity",
+      "ja": [
+        "スコープボックス",
+        "範囲ボックス",
+        "Scope Box"
+      ],
+      "categoryHints": [
+        "OST_VolumeOfInterest"
+      ]
+    },
+    {
+      "key": "ent_link",
+      "type": "entity",
+      "ja": [
+        "リンク",
+        "Revitリンク",
+        "CADリンク"
+      ],
+      "notesJa": "External links"
+    },
+    {
+      "key": "ent_group",
+      "type": "entity",
+      "ja": [
+        "グループ",
+        "Group"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.Group"
+      ]
+    },
+    {
+      "key": "ent_assembly",
+      "type": "entity",
+      "ja": [
+        "アセンブリ",
+        "Assembly"
+      ],
+      "notesJa": "AssemblyInstance"
+    },
+    {
+      "key": "ent_toposolid",
+      "type": "entity",
+      "ja": [
+        "地形",
+        "トポ",
+        "TopoSolid"
+      ],
+      "notesJa": "Newer Revit versions"
+    },
+    {
+      "key": "concept_finish_wall_overlay",
+      "type": "concept",
+      "ja": [
+        "内張り",
+        "ふかし",
+        "上貼り",
+        "重ね壁",
+        "二重壁",
+        "仕上げ壁を貼る",
+        "仕上げ壁を内張り",
+        "ライニング",
+        "下地壁",
+        "ボード貼り"
+      ],
+      "en": [
+        "finish wall overlay",
+        "furring wall"
+      ],
+      "boostCommands": [
+        "room.apply_finish_wall_type_on_room_boundary"
+      ],
+      "notesJa": "Prefer composite room-boundary based finish wall recipes/commands."
+    },
+    {
+      "key": "concept_room_boundary",
+      "type": "concept",
+      "ja": [
+        "部屋境界",
+        "境界線",
+        "境界セグメント",
+        "ルーム境界",
+        "部屋の周り",
+        "周長",
+        "外周",
+        "輪郭"
+      ],
+      "en": [
+        "room boundary",
+        "boundary segments"
+      ]
+    },
+    {
+      "key": "concept_room_bounding",
+      "type": "concept",
+      "ja": [
+        "ルームバウンディング",
+        "Room Bounding",
+        "部屋境界に含める",
+        "部屋判定に使う"
+      ],
+      "en": [
+        "room bounding"
+      ]
+    },
+    {
+      "key": "concept_rc_only",
+      "type": "concept",
+      "ja": [
+        "RCだけ",
+        "躯体だけ",
+        "コアだけ",
+        "構造体だけ",
+        "構造コアのみ",
+        "芯だけ"
+      ],
+      "en": [
+        "RC core only",
+        "core only"
+      ],
+      "notesJa": "Often maps to onlyRcCore=true and/or core material contains concrete."
+    },
+    {
+      "key": "concept_concrete",
+      "type": "concept",
+      "ja": [
+        "コンクリ",
+        "コンクリート",
+        "CONC",
+        "RC",
+        "鉄筋コンクリート"
+      ],
+      "en": [
+        "concrete"
+      ]
+    },
+    {
+      "key": "concept_exclude_between_rooms",
+      "type": "concept",
+      "ja": [
+        "部屋間の壁を除外",
+        "部屋と部屋の間は除外",
+        "隣室との間はやらない",
+        "界壁は除外"
+      ],
+      "en": [
+        "exclude walls between rooms"
+      ]
+    },
+    {
+      "key": "concept_auto_detect_columns",
+      "type": "concept",
+      "ja": [
+        "柱を自動検出",
+        "柱も含める",
+        "柱を拾う",
+        "柱周りも内張り"
+      ],
+      "en": [
+        "auto detect columns"
+      ]
+    },
+    {
+      "key": "concept_join_miter",
+      "type": "concept",
+      "ja": [
+        "入隅を留め",
+        "留め",
+        "miter",
+        "留め継ぎ",
+        "角は留め"
+      ],
+      "en": [
+        "miter join"
+      ]
+    },
+    {
+      "key": "concept_corner_trim",
+      "type": "concept",
+      "ja": [
+        "コーナートリム",
+        "角を整える",
+        "コーナーを切り欠く",
+        "角処理"
+      ],
+      "en": [
+        "corner trim"
+      ]
+    },
+    {
+      "key": "concept_skip_existing",
+      "type": "concept",
+      "ja": [
+        "既存はスキップ",
+        "もうあるところはやらない",
+        "重複は作らない",
+        "二重作成しない"
+      ],
+      "en": [
+        "skip existing"
+      ]
+    },
+    {
+      "key": "concept_view_crop",
+      "type": "concept",
+      "ja": [
+        "クロップ",
+        "切り抜き",
+        "表示範囲",
+        "トリミング",
+        "枠を合わせる",
+        "枠を切る",
+        "見切り"
+      ],
+      "en": [
+        "view crop"
+      ]
+    },
+    {
+      "key": "concept_view_template",
+      "type": "concept",
+      "ja": [
+        "ビューテンプレート",
+        "テンプレート",
+        "ビュー設定を揃える",
+        "表示設定を統一"
+      ],
+      "en": [
+        "view template"
+      ]
+    },
+    {
+      "key": "concept_sheet_placement",
+      "type": "concept",
+      "ja": [
+        "シートに配置",
+        "図面に載せる",
+        "シート化",
+        "レイアウト",
+        "配置する"
+      ],
+      "en": [
+        "sheet placement"
+      ]
+    },
+    {
+      "key": "concept_schedule_export",
+      "type": "concept",
+      "ja": [
+        "集計表を出力",
+        "数量表を出す",
+        "CSVにする",
+        "Excelにする",
+        "表を吐き出す"
+      ],
+      "en": [
+        "schedule export"
+      ]
+    },
+    {
+      "key": "concept_colorize_by_param",
+      "type": "concept",
+      "ja": [
+        "パラメータで色分け",
+        "属性で色分け",
+        "条件で色分け",
+        "見やすく色を付ける"
+      ],
+      "en": [
+        "colorize by parameter"
+      ]
+    },
+    {
+      "key": "concept_filter_by_param",
+      "type": "concept",
+      "ja": [
+        "パラメータで絞り込み",
+        "属性でフィルタ",
+        "条件で抽出",
+        "条件で選択"
+      ],
+      "en": [
+        "filter by parameter"
+      ]
+    },
+    {
+      "key": "concept_type_vs_instance",
+      "type": "concept",
+      "ja": [
+        "タイプかインスタンスか",
+        "型か個別か",
+        "種類と個体",
+        "タイプとインスタンス"
+      ],
+      "en": [
+        "type vs instance"
+      ],
+      "notesJa": "Used to guide parameter updates and ChangeTypeId behavior."
+    },
+    {
+      "key": "concept_parameter_update",
+      "type": "concept",
+      "ja": [
+        "パラメータ更新",
+        "パラメータ変更",
+        "属性変更",
+        "値を入れる",
+        "値を変える"
+      ],
+      "en": [
+        "parameter update"
+      ]
+    },
+    {
+      "key": "concept_parameter_readonly",
+      "type": "concept",
+      "ja": [
+        "読み取り専用",
+        "変更できない",
+        "編集不可",
+        "ロックされてる"
+      ],
+      "en": [
+        "read-only parameter"
+      ]
+    },
+    {
+      "key": "concept_move_rotate_constraints",
+      "type": "concept",
+      "ja": [
+        "動かせない",
+        "移動できない",
+        "回転できない",
+        "Locationがない"
+      ],
+      "en": [
+        "movement constraints"
+      ]
+    },
+    {
+      "key": "mod_from_selection",
+      "type": "modifier",
+      "ja": [
+        "選択したもの",
+        "選択中",
+        "今選んでる",
+        "選択要素"
+      ],
+      "flags": {
+        "fromSelection": true
+      }
+    },
+    {
+      "key": "mod_active_view",
+      "type": "modifier",
+      "ja": [
+        "アクティブビュー",
+        "今のビュー",
+        "開いてるビュー"
+      ],
+      "flags": {
+        "useActiveView": true
+      }
+    },
+    {
+      "key": "mod_all_in_view",
+      "type": "modifier",
+      "ja": [
+        "ビュー内すべて",
+        "画面内全部",
+        "表示されてる全部"
+      ],
+      "flags": {
+        "scope": "activeView"
+      }
+    },
+    {
+      "key": "mod_entire_project",
+      "type": "modifier",
+      "ja": [
+        "プロジェクト全体",
+        "全部",
+        "全要素"
+      ],
+      "flags": {
+        "scope": "project"
+      }
+    },
+    {
+      "key": "mod_current_level",
+      "type": "modifier",
+      "ja": [
+        "この階だけ",
+        "同じレベルだけ",
+        "今のレベル"
+      ],
+      "flags": {
+        "scope": "currentLevel"
+      }
+    },
+    {
+      "key": "mod_selected_level",
+      "type": "modifier",
+      "ja": [
+        "指定レベル",
+        "指定階"
+      ],
+      "flags": {
+        "scope": "specifiedLevel"
+      }
+    },
+    {
+      "key": "mod_include_links",
+      "type": "modifier",
+      "ja": [
+        "リンクも含める",
+        "リンク要素も"
+      ],
+      "flags": {
+        "includeLinks": true
+      },
+      "notesJa": "Links often read-only; default false."
+    },
+    {
+      "key": "mod_exclude_links",
+      "type": "modifier",
+      "ja": [
+        "リンクは除外",
+        "リンクは含めない"
+      ],
+      "flags": {
+        "includeLinks": false
+      }
+    },
+    {
+      "key": "unit_mm",
+      "type": "unit",
+      "ja": [
+        "mm",
+        "ミリ",
+        "ミリメートル"
+      ],
+      "unit": "mm",
+      "multiplierToBase": 1.0
+    },
+    {
+      "key": "unit_cm",
+      "type": "unit",
+      "ja": [
+        "cm",
+        "センチ",
+        "センチメートル"
+      ],
+      "unit": "mm",
+      "multiplierToBase": 10.0
+    },
+    {
+      "key": "unit_m",
+      "type": "unit",
+      "ja": [
+        "m",
+        "メートル"
+      ],
+      "unit": "mm",
+      "multiplierToBase": 1000.0
+    },
+    {
+      "key": "unit_deg",
+      "type": "unit",
+      "ja": [
+        "度",
+        "°",
+        "deg"
+      ],
+      "unit": "deg",
+      "multiplierToBase": 1.0
+    },
+    {
+      "key": "unit_rad",
+      "type": "unit",
+      "ja": [
+        "ラジアン",
+        "rad"
+      ],
+      "unit": "rad",
+      "multiplierToBase": 1.0
+    },
+    {
+      "key": "pv_boundary_finish",
+      "type": "param_value",
+      "ja": [
+        "仕上げ",
+        "仕上げ面",
+        "仕上げ側",
+        "Finish"
+      ],
+      "param": "boundaryLocation",
+      "value": "Finish"
+    },
+    {
+      "key": "pv_boundary_center",
+      "type": "param_value",
+      "ja": [
+        "中心",
+        "センター",
+        "Center"
+      ],
+      "param": "boundaryLocation",
+      "value": "Center"
+    },
+    {
+      "key": "pv_boundary_core_center",
+      "type": "param_value",
+      "ja": [
+        "芯",
+        "コア中心",
+        "CoreCenter"
+      ],
+      "param": "boundaryLocation",
+      "value": "CoreCenter"
+    },
+    {
+      "key": "pv_join_miter",
+      "type": "param_value",
+      "ja": [
+        "留め",
+        "留め継ぎ",
+        "miter",
+        "角は留め"
+      ],
+      "param": "joinType",
+      "value": "miter"
+    },
+    {
+      "key": "pv_join_butt",
+      "type": "param_value",
+      "ja": [
+        "突き付け",
+        "バット",
+        "butt"
+      ],
+      "param": "joinType",
+      "value": "butt"
+    },
+    {
+      "key": "pv_bool_true",
+      "type": "param_value",
+      "ja": [
+        "はい",
+        "有効",
+        "ON",
+        "オン",
+        "する",
+        "true"
+      ],
+      "param": "*",
+      "value": true,
+      "notesJa": "Generic boolean true; only used when param is known."
+    },
+    {
+      "key": "pv_bool_false",
+      "type": "param_value",
+      "ja": [
+        "いいえ",
+        "無効",
+        "OFF",
+        "オフ",
+        "しない",
+        "false"
+      ],
+      "param": "*",
+      "value": false,
+      "notesJa": "Generic boolean false; only used when param is known."
+    },
+    {
+      "key": "pv_exclude_between_rooms",
+      "type": "param_value",
+      "ja": [
+        "部屋間は除外",
+        "界壁は除外",
+        "隣室との間は除外"
+      ],
+      "param": "excludeWallsBetweenRooms",
+      "value": true
+    },
+    {
+      "key": "pv_include_columns",
+      "type": "param_value",
+      "ja": [
+        "柱も含める",
+        "柱を含む",
+        "柱もやる"
+      ],
+      "param": "includeBoundaryColumns",
+      "value": true
+    },
+    {
+      "key": "pv_skip_existing",
+      "type": "param_value",
+      "ja": [
+        "既存はスキップ",
+        "重複は作らない"
+      ],
+      "param": "skipExisting",
+      "value": true
+    },
+    {
+      "key": "pv_join_ends",
+      "type": "param_value",
+      "ja": [
+        "端部を結合",
+        "両端を結合",
+        "端部ジョイン"
+      ],
+      "param": "joinEnds",
+      "value": true
+    },
+    {
+      "key": "pv_corner_trim",
+      "type": "param_value",
+      "ja": [
+        "コーナートリム",
+        "角処理"
+      ],
+      "param": "cornerTrim",
+      "value": true
+    },
+    {
+      "key": "pv_only_rc_core",
+      "type": "param_value",
+      "ja": [
+        "RCだけ",
+        "躯体だけ",
+        "コアだけ"
+      ],
+      "param": "onlyRcCore",
+      "value": true
+    },
+    {
+      "key": "concept_param_type",
+      "type": "concept",
+      "ja": [
+        "タイプ",
+        "型",
+        "種類",
+        "ファミリタイプ"
+      ],
+      "en": [
+        "type"
+      ]
+    },
+    {
+      "key": "concept_param_instance",
+      "type": "concept",
+      "ja": [
+        "インスタンス",
+        "個別",
+        "この要素",
+        "この1個"
+      ],
+      "en": [
+        "instance"
+      ]
+    },
+    {
+      "key": "concept_param_level",
+      "type": "concept",
+      "ja": [
+        "レベル",
+        "階",
+        "フロア",
+        "Level"
+      ],
+      "en": [
+        "level"
+      ]
+    },
+    {
+      "key": "concept_param_name",
+      "type": "concept",
+      "ja": [
+        "名前",
+        "名称",
+        "Name"
+      ],
+      "en": [
+        "name"
+      ]
+    },
+    {
+      "key": "concept_param_id",
+      "type": "concept",
+      "ja": [
+        "ID",
+        "要素ID",
+        "elementId"
+      ],
+      "en": [
+        "id"
+      ]
+    },
+    {
+      "key": "concept_material",
+      "type": "concept",
+      "ja": [
+        "材質",
+        "材料",
+        "マテリアル"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_core",
+      "type": "concept",
+      "ja": [
+        "コア",
+        "芯",
+        "躯体"
+      ],
+      "en": [
+        "core"
+      ]
+    },
+    {
+      "key": "concept_finish",
+      "type": "concept",
+      "ja": [
+        "仕上げ",
+        "仕上材",
+        "表面"
+      ],
+      "en": [
+        "finish"
+      ]
+    },
+    {
+      "key": "concept_room",
+      "type": "concept",
+      "ja": [
+        "部屋",
+        "室",
+        "ルーム",
+        "居室",
+        "区画",
+        "Room"
+      ]
+    },
+    {
+      "key": "concept_space",
+      "type": "concept",
+      "ja": [
+        "スペース",
+        "機械室スペース",
+        "MEPスペース",
+        "Space"
+      ]
+    },
+    {
+      "key": "concept_wall",
+      "type": "concept",
+      "ja": [
+        "壁",
+        "壁体",
+        "間仕切り",
+        "外壁",
+        "内壁",
+        "ウォール",
+        "Wall"
+      ]
+    },
+    {
+      "key": "concept_floor",
+      "type": "concept",
+      "ja": [
+        "床",
+        "床版",
+        "スラブ",
+        "Floor"
+      ]
+    },
+    {
+      "key": "concept_ceiling",
+      "type": "concept",
+      "ja": [
+        "天井",
+        "天井面",
+        "Ceiling"
+      ]
+    },
+    {
+      "key": "concept_roof",
+      "type": "concept",
+      "ja": [
+        "屋根",
+        "Roof"
+      ]
+    },
+    {
+      "key": "concept_column",
+      "type": "concept",
+      "ja": [
+        "柱",
+        "柱型",
+        "構造柱",
+        "コラム"
+      ]
+    },
+    {
+      "key": "concept_beam",
+      "type": "concept",
+      "ja": [
+        "梁",
+        "大梁",
+        "小梁",
+        "構造フレーミング"
+      ]
+    },
+    {
+      "key": "concept_door",
+      "type": "concept",
+      "ja": [
+        "ドア",
+        "扉",
+        "建具",
+        "開口（ドア）"
+      ]
+    },
+    {
+      "key": "concept_window",
+      "type": "concept",
+      "ja": [
+        "窓",
+        "サッシ",
+        "開口（窓）",
+        "窓建具"
+      ]
+    },
+    {
+      "key": "concept_view",
+      "type": "concept",
+      "ja": [
+        "ビュー",
+        "画面",
+        "表示",
+        "View"
+      ]
+    },
+    {
+      "key": "concept_sheet",
+      "type": "concept",
+      "ja": [
+        "シート",
+        "図面",
+        "用紙",
+        "Sheet"
+      ]
+    },
+    {
+      "key": "concept_schedule",
+      "type": "concept",
+      "ja": [
+        "集計表",
+        "数量表",
+        "スケジュール",
+        "表"
+      ]
+    },
+    {
+      "key": "concept_tag",
+      "type": "concept",
+      "ja": [
+        "タグ",
+        "ラベル",
+        "注釈",
+        "タグ付け"
+      ]
+    },
+    {
+      "key": "concept_dimension",
+      "type": "concept",
+      "ja": [
+        "寸法",
+        "寸法線",
+        "ディメンション"
+      ]
+    },
+    {
+      "key": "concept_family",
+      "type": "concept",
+      "ja": [
+        "ファミリ",
+        "部材",
+        "コンポーネント"
+      ]
+    },
+    {
+      "key": "concept_filter",
+      "type": "concept",
+      "ja": [
+        "フィルタ",
+        "絞り込み",
+        "抽出条件"
+      ]
+    },
+    {
+      "key": "concept_override",
+      "type": "concept",
+      "ja": [
+        "色分け",
+        "強調",
+        "ハイライト",
+        "上書き表示",
+        "表示上書き"
+      ]
+    },
+    {
+      "key": "concept_export",
+      "type": "concept",
+      "ja": [
+        "出力",
+        "書き出し",
+        "エクスポート",
+        "保存"
+      ]
+    },
+    {
+      "key": "concept_import",
+      "type": "concept",
+      "ja": [
+        "取り込み",
+        "読み込み",
+        "インポート"
+      ]
+    },
+    {
+      "key": "concept_selection",
+      "type": "concept",
+      "ja": [
+        "選択",
+        "ピック",
+        "選ぶ"
+      ]
+    },
+    {
+      "key": "concept_active_view",
+      "type": "concept",
+      "ja": [
+        "アクティブビュー",
+        "今のビュー",
+        "現在のビュー"
+      ]
+    },
+    {
+      "key": "concept_isolate_hide",
+      "type": "concept",
+      "ja": [
+        "隔離",
+        "一時的に表示",
+        "一時的に非表示",
+        "アイソレート",
+        "ハイド"
+      ]
+    },
+    {
+      "key": "concept_worksharing",
+      "type": "concept",
+      "ja": [
+        "ワークシェアリング",
+        "共有",
+        "中央モデル",
+        "ローカル"
+      ]
+    },
+    {
+      "key": "concept_workset",
+      "type": "concept",
+      "ja": [
+        "ワークセット",
+        "作業セット"
+      ]
+    },
+    {
+      "key": "concept_phase",
+      "type": "concept",
+      "ja": [
+        "フェーズ",
+        "段階",
+        "工区"
+      ]
+    },
+    {
+      "key": "concept_design_option",
+      "type": "concept",
+      "ja": [
+        "設計オプション",
+        "オプション"
+      ]
+    },
+    {
+      "key": "concept_scope_box",
+      "type": "concept",
+      "ja": [
+        "スコープボックス",
+        "範囲ボックス",
+        "範囲に合わせる"
+      ]
+    },
+    {
+      "key": "concept_view_template_apply",
+      "type": "concept",
+      "ja": [
+        "テンプレート適用",
+        "表示設定を揃える",
+        "ビュー設定を統一"
+      ]
+    },
+    {
+      "key": "concept_crop_region",
+      "type": "concept",
+      "ja": [
+        "クロップ",
+        "切り抜き",
+        "表示範囲",
+        "トリミング",
+        "枠"
+      ]
+    },
+    {
+      "key": "concept_section_box",
+      "type": "concept",
+      "ja": [
+        "セクションボックス",
+        "断面ボックス",
+        "3D切断"
+      ]
+    },
+    {
+      "key": "concept_camera",
+      "type": "concept",
+      "ja": [
+        "カメラ",
+        "視点",
+        "パース"
+      ]
+    },
+    {
+      "key": "concept_pin",
+      "type": "concept",
+      "ja": [
+        "固定",
+        "ピン",
+        "ロック"
+      ]
+    },
+    {
+      "key": "concept_unpin",
+      "type": "concept",
+      "ja": [
+        "固定解除",
+        "ピン解除"
+      ]
+    },
+    {
+      "key": "concept_group",
+      "type": "concept",
+      "ja": [
+        "グループ",
+        "まとめ",
+        "一括"
+      ]
+    },
+    {
+      "key": "concept_line",
+      "type": "concept",
+      "ja": [
+        "線",
+        "ライン",
+        "線分",
+        "基準線",
+        "補助線"
+      ],
+      "en": [
+        "line"
+      ]
+    },
+    {
+      "key": "concept_boundary",
+      "type": "concept",
+      "ja": [
+        "境界",
+        "境界線",
+        "輪郭",
+        "外周",
+        "周り"
+      ],
+      "en": [
+        "boundary"
+      ]
+    },
+    {
+      "key": "concept_outline",
+      "type": "concept",
+      "ja": [
+        "輪郭",
+        "アウトライン",
+        "外形"
+      ],
+      "en": [
+        "outline"
+      ]
+    },
+    {
+      "key": "concept_offset_distance",
+      "type": "concept",
+      "ja": [
+        "オフセット",
+        "距離",
+        "離れ",
+        "逃げ"
+      ],
+      "en": [
+        "offset distance"
+      ]
+    },
+    {
+      "key": "concept_thickness",
+      "type": "concept",
+      "ja": [
+        "厚み",
+        "厚さ",
+        "t"
+      ],
+      "en": [
+        "thickness"
+      ]
+    },
+    {
+      "key": "concept_height",
+      "type": "concept",
+      "ja": [
+        "高さ",
+        "H",
+        "ハイト"
+      ],
+      "en": [
+        "height"
+      ]
+    },
+    {
+      "key": "concept_width",
+      "type": "concept",
+      "ja": [
+        "幅",
+        "W",
+        "ワイド"
+      ],
+      "en": [
+        "width"
+      ]
+    },
+    {
+      "key": "concept_length",
+      "type": "concept",
+      "ja": [
+        "長さ",
+        "L",
+        "レングス"
+      ],
+      "en": [
+        "length"
+      ]
+    },
+    {
+      "key": "concept_area",
+      "type": "concept",
+      "ja": [
+        "面積",
+        "エリア",
+        "Area"
+      ],
+      "en": [
+        "area"
+      ]
+    },
+    {
+      "key": "concept_volume",
+      "type": "concept",
+      "ja": [
+        "体積",
+        "ボリューム",
+        "Volume"
+      ],
+      "en": [
+        "volume"
+      ]
+    },
+    {
+      "key": "concept_elevation",
+      "type": "concept",
+      "ja": [
+        "標高",
+        "高さ",
+        "GL",
+        "レベル高"
+      ],
+      "en": [
+        "elevation"
+      ]
+    },
+    {
+      "key": "concept_slope",
+      "type": "concept",
+      "ja": [
+        "勾配",
+        "傾き",
+        "スロープ"
+      ],
+      "en": [
+        "slope"
+      ]
+    },
+    {
+      "key": "concept_direction",
+      "type": "concept",
+      "ja": [
+        "向き",
+        "方向",
+        "方角"
+      ],
+      "en": [
+        "direction"
+      ]
+    },
+    {
+      "key": "concept_pick_one",
+      "type": "concept",
+      "ja": [
+        "1つ選択",
+        "1個選択",
+        "単一選択",
+        "ひとつだけ"
+      ],
+      "en": [
+        "pick one"
+      ]
+    },
+    {
+      "key": "concept_pick_many",
+      "type": "concept",
+      "ja": [
+        "複数選択",
+        "まとめて選択",
+        "複数ピック"
+      ],
+      "en": [
+        "pick many"
+      ]
+    },
+    {
+      "key": "concept_fail_if_not_room",
+      "type": "concept",
+      "ja": [
+        "Roomでなければ中止",
+        "部屋じゃなければやめる",
+        "Roomを選択して"
+      ],
+      "en": [
+        "guard: must be room"
+      ]
+    },
+    {
+      "key": "concept_report_ids",
+      "type": "concept",
+      "ja": [
+        "IDを表示",
+        "要素IDを出す",
+        "一覧でID",
+        "ログにID"
+      ],
+      "en": [
+        "report ids"
+      ]
+    },
+    {
+      "key": "concept_type_change",
+      "type": "concept",
+      "ja": [
+        "タイプ変更",
+        "型を変える",
+        "種類を変える",
+        "別タイプにする"
+      ],
+      "en": [
+        "change type"
+      ]
+    },
+    {
+      "key": "concept_instance_param_set",
+      "type": "concept",
+      "ja": [
+        "インスタンスパラメータ",
+        "個別パラメータ",
+        "この要素の値"
+      ],
+      "en": [
+        "instance parameter set"
+      ]
+    },
+    {
+      "key": "concept_type_param_set",
+      "type": "concept",
+      "ja": [
+        "タイプパラメータ",
+        "型パラメータ",
+        "種類の値"
+      ],
+      "en": [
+        "type parameter set"
+      ]
+    },
+    {
+      "key": "pv_view_plan",
+      "type": "param_value",
+      "ja": [
+        "平面図",
+        "プラン"
+      ],
+      "param": "viewType",
+      "value": "Plan"
+    },
+    {
+      "key": "pv_view_section",
+      "type": "param_value",
+      "ja": [
+        "断面図",
+        "セクション"
+      ],
+      "param": "viewType",
+      "value": "Section"
+    },
+    {
+      "key": "pv_view_elevation",
+      "type": "param_value",
+      "ja": [
+        "立面図",
+        "エレベーション"
+      ],
+      "param": "viewType",
+      "value": "Elevation"
+    },
+    {
+      "key": "pv_view_3d",
+      "type": "param_value",
+      "ja": [
+        "3D",
+        "３Ｄ",
+        "アイソメ",
+        "パース"
+      ],
+      "param": "viewType",
+      "value": "ThreeD"
+    },
+    {
+      "key": "concept_mat_concrete",
+      "type": "concept",
+      "ja": [
+        "コンクリ",
+        "コンクリート",
+        "CONC",
+        "RC"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_gypsum",
+      "type": "concept",
+      "ja": [
+        "石膏ボード",
+        "PB",
+        "プラスターボード",
+        "ボード"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_steel",
+      "type": "concept",
+      "ja": [
+        "鋼材",
+        "鉄骨",
+        "スチール",
+        "SS400",
+        "H形鋼"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_wood",
+      "type": "concept",
+      "ja": [
+        "木",
+        "木材",
+        "集成材",
+        "合板"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_glass",
+      "type": "concept",
+      "ja": [
+        "ガラス",
+        "GLASS"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_tile",
+      "type": "concept",
+      "ja": [
+        "タイル",
+        "Tile"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_paint",
+      "type": "concept",
+      "ja": [
+        "塗装",
+        "ペンキ",
+        "Paint"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_insulation",
+      "type": "concept",
+      "ja": [
+        "断熱材",
+        "インシュレーション",
+        "グラスウール",
+        "ロックウール"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_mortar",
+      "type": "concept",
+      "ja": [
+        "モルタル"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "concept_mat_plaster",
+      "type": "concept",
+      "ja": [
+        "左官",
+        "プラスター"
+      ],
+      "en": [
+        "material"
+      ]
+    },
+    {
+      "key": "mod_read_only",
+      "type": "modifier",
+      "ja": [
+        "読み取りだけ",
+        "見るだけ",
+        "変更しない",
+        "調べるだけ"
+      ],
+      "flags": {
+        "intent": "read"
+      }
+    },
+    {
+      "key": "mod_write",
+      "type": "modifier",
+      "ja": [
+        "実行して",
+        "変更して",
+        "作って",
+        "消して"
+      ],
+      "flags": {
+        "intent": "write"
+      }
+    },
+    {
+      "key": "mod_preview",
+      "type": "modifier",
+      "ja": [
+        "プレビュー",
+        "見積もり",
+        "ドライラン",
+        "dry run",
+        "dryRun"
+      ],
+      "flags": {
+        "dryRun": true
+      }
+    },
+    {
+      "key": "mod_force",
+      "type": "modifier",
+      "ja": [
+        "強制",
+        "force",
+        "無視して実行"
+      ],
+      "flags": {
+        "force": true
+      },
+      "notesJa": "Should generally be disallowed or requires explicit user confirmation."
+    },
+    {
+      "key": "concept_view_range",
+      "type": "concept",
+      "ja": [
+        "ビュー範囲",
+        "表示範囲",
+        "ビューレンジ",
+        "View Range"
+      ],
+      "en": [
+        "view range"
+      ]
+    },
+    {
+      "key": "concept_cut_plane",
+      "type": "concept",
+      "ja": [
+        "切断面",
+        "カットプレーン",
+        "Cut Plane"
+      ],
+      "en": [
+        "cut plane"
+      ]
+    },
+    {
+      "key": "concept_underlay",
+      "type": "concept",
+      "ja": [
+        "アンダーレイ",
+        "下絵",
+        "下階表示"
+      ],
+      "en": [
+        "underlay"
+      ]
+    },
+    {
+      "key": "concept_discipline",
+      "type": "concept",
+      "ja": [
+        "専門分野",
+        "ディシプリン",
+        "Architecture/Structure/MEP"
+      ],
+      "en": [
+        "discipline"
+      ]
+    },
+    {
+      "key": "concept_detail_level",
+      "type": "concept",
+      "ja": [
+        "詳細レベル",
+        "詳細度",
+        "粗/中/詳細"
+      ],
+      "en": [
+        "detail level"
+      ]
+    },
+    {
+      "key": "concept_scale",
+      "type": "concept",
+      "ja": [
+        "縮尺",
+        "スケール"
+      ],
+      "en": [
+        "scale"
+      ]
+    },
+    {
+      "key": "concept_annotation_crop",
+      "type": "concept",
+      "ja": [
+        "注釈クロップ",
+        "注釈範囲",
+        "Annotation Crop"
+      ],
+      "en": [
+        "annotation crop"
+      ]
+    },
+    {
+      "key": "concept_crop_visibility",
+      "type": "concept",
+      "ja": [
+        "クロップ表示",
+        "クロップ枠を見せる"
+      ],
+      "en": [
+        "crop visibility"
+      ]
+    },
+    {
+      "key": "concept_view_filter",
+      "type": "concept",
+      "ja": [
+        "ビュー フィルタ",
+        "表示フィルタ",
+        "View Filter"
+      ],
+      "en": [
+        "view filter"
+      ]
+    },
+    {
+      "key": "concept_graphic_overrides",
+      "type": "concept",
+      "ja": [
+        "グラフィックス上書き",
+        "表示上書き",
+        "Overrides"
+      ],
+      "en": [
+        "graphic overrides"
+      ]
+    },
+    {
+      "key": "concept_hide_isolate",
+      "type": "concept",
+      "ja": [
+        "一時的に非表示/表示",
+        "一時表示/隔離",
+        "Hide/Isolate"
+      ],
+      "en": [
+        "hide isolate"
+      ]
+    },
+    {
+      "key": "concept_temporary_view_properties",
+      "type": "concept",
+      "ja": [
+        "一時的な表示プロパティ",
+        "Temporary View Properties"
+      ],
+      "en": [
+        "temporary view properties"
+      ]
+    },
+    {
+      "key": "concept_section_box",
+      "type": "concept",
+      "ja": [
+        "セクションボックス",
+        "3Dの切断箱",
+        "断面ボックス"
+      ],
+      "en": [
+        "section box"
+      ]
+    },
+    {
+      "key": "concept_camera_view",
+      "type": "concept",
+      "ja": [
+        "パース",
+        "透視図",
+        "カメラビュー"
+      ],
+      "en": [
+        "camera view"
+      ]
+    },
+    {
+      "key": "concept_view_duplicate_dependent",
+      "type": "concept",
+      "ja": [
+        "従属ビュー",
+        "依存ビュー",
+        "Dependent View"
+      ],
+      "en": [
+        "dependent view"
+      ]
+    },
+    {
+      "key": "concept_view_duplicate_with_detailing",
+      "type": "concept",
+      "ja": [
+        "詳細付き複製",
+        "注釈付き複製"
+      ],
+      "en": [
+        "duplicate with detailing"
+      ]
+    },
+    {
+      "key": "concept_scope_box_assign",
+      "type": "concept",
+      "ja": [
+        "スコープボックスを割り当て",
+        "範囲ボックスに合わせる"
+      ],
+      "en": [
+        "assign scope box"
+      ]
+    },
+    {
+      "key": "concept_view_template_lock",
+      "type": "concept",
+      "ja": [
+        "テンプレートでロック",
+        "テンプレート管理"
+      ],
+      "en": [
+        "view template lock"
+      ]
+    },
+    {
+      "key": "concept_titleblock",
+      "type": "concept",
+      "ja": [
+        "表題欄",
+        "タイトルブロック",
+        "Titleblock"
+      ],
+      "en": [
+        "title block"
+      ]
+    },
+    {
+      "key": "concept_viewport",
+      "type": "concept",
+      "ja": [
+        "ビューポート",
+        "Viewport",
+        "図面枠内のビュー"
+      ],
+      "en": [
+        "viewport"
+      ]
+    },
+    {
+      "key": "concept_guide_grid",
+      "type": "concept",
+      "ja": [
+        "ガイドグリッド",
+        "Guide Grid"
+      ],
+      "en": [
+        "guide grid"
+      ]
+    },
+    {
+      "key": "concept_revision",
+      "type": "concept",
+      "ja": [
+        "改訂",
+        "リビジョン",
+        "Revision"
+      ],
+      "en": [
+        "revision"
+      ]
+    },
+    {
+      "key": "concept_print",
+      "type": "concept",
+      "ja": [
+        "印刷",
+        "プリント",
+        "PDF出力",
+        "プロット"
+      ],
+      "en": [
+        "print"
+      ]
+    },
+    {
+      "key": "concept_export_pdf",
+      "type": "concept",
+      "ja": [
+        "PDFに出力",
+        "PDF化",
+        "PDF出力"
+      ],
+      "en": [
+        "export pdf"
+      ]
+    },
+    {
+      "key": "concept_export_dwg",
+      "type": "concept",
+      "ja": [
+        "DWGに出力",
+        "CAD出力",
+        "DWGエクスポート"
+      ],
+      "en": [
+        "export dwg"
+      ]
+    },
+    {
+      "key": "concept_export_ifc",
+      "type": "concept",
+      "ja": [
+        "IFC出力",
+        "IFCエクスポート"
+      ],
+      "en": [
+        "export ifc"
+      ]
+    },
+    {
+      "key": "concept_export_nwc",
+      "type": "concept",
+      "ja": [
+        "Navisworks出力",
+        "NWC出力"
+      ],
+      "en": [
+        "export nwc"
+      ]
+    },
+    {
+      "key": "concept_schedule_field",
+      "type": "concept",
+      "ja": [
+        "フィールド",
+        "項目",
+        "列"
+      ],
+      "en": [
+        "schedule field"
+      ]
+    },
+    {
+      "key": "concept_schedule_filter",
+      "type": "concept",
+      "ja": [
+        "集計表フィルタ",
+        "表の絞り込み"
+      ],
+      "en": [
+        "schedule filter"
+      ]
+    },
+    {
+      "key": "concept_schedule_sort",
+      "type": "concept",
+      "ja": [
+        "並べ替え",
+        "ソート",
+        "グループ化"
+      ],
+      "en": [
+        "sort/group"
+      ]
+    },
+    {
+      "key": "concept_schedule_calculated",
+      "type": "concept",
+      "ja": [
+        "計算式",
+        "計算フィールド"
+      ],
+      "en": [
+        "calculated field"
+      ]
+    },
+    {
+      "key": "concept_schedule_key",
+      "type": "concept",
+      "ja": [
+        "キー集計表",
+        "キー",
+        "Key Schedule"
+      ],
+      "en": [
+        "key schedule"
+      ]
+    },
+    {
+      "key": "concept_host",
+      "type": "concept",
+      "ja": [
+        "ホスト",
+        "host",
+        "埋め込み先",
+        "壁付け",
+        "床付け",
+        "天井付け"
+      ],
+      "en": [
+        "host"
+      ]
+    },
+    {
+      "key": "concept_work_plane",
+      "type": "concept",
+      "ja": [
+        "作業面",
+        "ワークプレーン",
+        "Work Plane"
+      ],
+      "en": [
+        "work plane"
+      ]
+    },
+    {
+      "key": "concept_face_based",
+      "type": "concept",
+      "ja": [
+        "面ベース",
+        "フェイスベース",
+        "Face-based"
+      ],
+      "en": [
+        "face based"
+      ]
+    },
+    {
+      "key": "concept_level_based",
+      "type": "concept",
+      "ja": [
+        "レベルベース",
+        "Level-based"
+      ],
+      "en": [
+        "level based"
+      ]
+    },
+    {
+      "key": "concept_instance_vs_type",
+      "type": "concept",
+      "ja": [
+        "インスタンス/タイプ",
+        "個別/種類"
+      ],
+      "en": [
+        "instance vs type"
+      ]
+    },
+    {
+      "key": "concept_change_type",
+      "type": "concept",
+      "ja": [
+        "タイプを差し替え",
+        "タイプ変更",
+        "型替え"
+      ],
+      "en": [
+        "change type"
+      ]
+    },
+    {
+      "key": "concept_swap_family",
+      "type": "concept",
+      "ja": [
+        "ファミリ差し替え",
+        "ファミリ置換"
+      ],
+      "en": [
+        "swap family"
+      ]
+    },
+    {
+      "key": "concept_constraints",
+      "type": "concept",
+      "ja": [
+        "拘束",
+        "制約",
+        "Constraints"
+      ],
+      "en": [
+        "constraints"
+      ]
+    },
+    {
+      "key": "concept_lock",
+      "type": "concept",
+      "ja": [
+        "ロック",
+        "固定",
+        "拘束する"
+      ],
+      "en": [
+        "lock"
+      ]
+    },
+    {
+      "key": "concept_unlock",
+      "type": "concept",
+      "ja": [
+        "ロック解除",
+        "固定解除"
+      ],
+      "en": [
+        "unlock"
+      ]
+    },
+    {
+      "key": "concept_pin_unpin",
+      "type": "concept",
+      "ja": [
+        "ピン/ピン解除",
+        "固定/解除"
+      ],
+      "en": [
+        "pin/unpin"
+      ]
+    },
+    {
+      "key": "concept_project_base_point",
+      "type": "concept",
+      "ja": [
+        "プロジェクトベースポイント",
+        "PBP"
+      ],
+      "en": [
+        "project base point"
+      ]
+    },
+    {
+      "key": "concept_survey_point",
+      "type": "concept",
+      "ja": [
+        "測量点",
+        "サーベイポイント"
+      ],
+      "en": [
+        "survey point"
+      ]
+    },
+    {
+      "key": "concept_shared_coordinates",
+      "type": "concept",
+      "ja": [
+        "共有座標",
+        "座標共有"
+      ],
+      "en": [
+        "shared coordinates"
+      ]
+    },
+    {
+      "key": "concept_origin",
+      "type": "concept",
+      "ja": [
+        "原点",
+        "0,0,0"
+      ],
+      "en": [
+        "origin"
+      ]
+    },
+    {
+      "key": "concept_true_north",
+      "type": "concept",
+      "ja": [
+        "真北",
+        "True North"
+      ],
+      "en": [
+        "true north"
+      ]
+    },
+    {
+      "key": "concept_project_north",
+      "type": "concept",
+      "ja": [
+        "プロジェクト北",
+        "Project North"
+      ],
+      "en": [
+        "project north"
+      ]
+    },
+    {
+      "key": "concept_area_plan",
+      "type": "concept",
+      "ja": [
+        "エリアプラン",
+        "面積図",
+        "Area Plan"
+      ],
+      "en": [
+        "area plan"
+      ]
+    },
+    {
+      "key": "concept_area_boundary",
+      "type": "concept",
+      "ja": [
+        "エリア境界",
+        "Area Boundary"
+      ],
+      "en": [
+        "area boundary"
+      ]
+    },
+    {
+      "key": "concept_space_boundary",
+      "type": "concept",
+      "ja": [
+        "スペース境界",
+        "Space Boundary"
+      ],
+      "en": [
+        "space boundary"
+      ]
+    },
+    {
+      "key": "concept_room_separation",
+      "type": "concept",
+      "ja": [
+        "部屋分離線",
+        "Room Separation Line"
+      ],
+      "en": [
+        "room separation line"
+      ]
+    },
+    {
+      "key": "concept_room_tag",
+      "type": "concept",
+      "ja": [
+        "部屋タグ",
+        "Room Tag"
+      ],
+      "en": [
+        "room tag"
+      ]
+    },
+    {
+      "key": "concept_room_numbering",
+      "type": "concept",
+      "ja": [
+        "部屋番号",
+        "室番号",
+        "ナンバリング"
+      ],
+      "en": [
+        "room numbering"
+      ]
+    },
+    {
+      "key": "concept_room_finish",
+      "type": "concept",
+      "ja": [
+        "室仕上げ",
+        "部屋仕上げ"
+      ],
+      "en": [
+        "room finish"
+      ]
+    },
+    {
+      "key": "concept_location_curve",
+      "type": "concept",
+      "ja": [
+        "ロケーション線",
+        "LocationCurve",
+        "軸線",
+        "中心線"
+      ],
+      "en": [
+        "location curve"
+      ]
+    },
+    {
+      "key": "concept_location_point",
+      "type": "concept",
+      "ja": [
+        "ロケーション点",
+        "LocationPoint",
+        "基準点"
+      ],
+      "en": [
+        "location point"
+      ]
+    },
+    {
+      "key": "concept_sketch",
+      "type": "concept",
+      "ja": [
+        "スケッチ",
+        "輪郭編集",
+        "編集スケッチ"
+      ],
+      "en": [
+        "sketch"
+      ]
+    },
+    {
+      "key": "concept_profile",
+      "type": "concept",
+      "ja": [
+        "プロファイル",
+        "断面形状",
+        "断面"
+      ],
+      "en": [
+        "profile"
+      ]
+    },
+    {
+      "key": "concept_sweep",
+      "type": "concept",
+      "ja": [
+        "スイープ",
+        "掃引"
+      ],
+      "en": [
+        "sweep"
+      ]
+    },
+    {
+      "key": "concept_extrusion",
+      "type": "concept",
+      "ja": [
+        "押し出し",
+        "押出し",
+        "Extrusion"
+      ],
+      "en": [
+        "extrusion"
+      ]
+    },
+    {
+      "key": "concept_boolean_cut",
+      "type": "concept",
+      "ja": [
+        "切り欠き",
+        "開口",
+        "ボイド",
+        "Cut"
+      ],
+      "en": [
+        "cut"
+      ]
+    },
+    {
+      "key": "concept_opening",
+      "type": "concept",
+      "ja": [
+        "開口",
+        "穴あけ",
+        "Opening"
+      ],
+      "en": [
+        "opening"
+      ]
+    },
+    {
+      "key": "mod_selected_only",
+      "type": "modifier",
+      "ja": [
+        "選択のみ",
+        "選択した分だけ",
+        "選択だけ"
+      ],
+      "flags": {
+        "scope": "selection"
+      }
+    },
+    {
+      "key": "mod_visible_only",
+      "type": "modifier",
+      "ja": [
+        "表示されているものだけ",
+        "可視要素だけ"
+      ],
+      "flags": {
+        "scope": "visibleInView"
+      }
+    },
+    {
+      "key": "mod_category_only",
+      "type": "modifier",
+      "ja": [
+        "カテゴリ指定",
+        "このカテゴリだけ"
+      ],
+      "flags": {
+        "scope": "category"
+      }
+    },
+    {
+      "key": "mod_type_only",
+      "type": "modifier",
+      "ja": [
+        "このタイプだけ",
+        "同じタイプだけ"
+      ],
+      "flags": {
+        "scope": "type"
+      }
+    },
+    {
+      "key": "mod_same_level_only",
+      "type": "modifier",
+      "ja": [
+        "同じレベルだけ",
+        "同階だけ"
+      ],
+      "flags": {
+        "scope": "level"
+      }
+    },
+    {
+      "key": "mod_same_room_only",
+      "type": "modifier",
+      "ja": [
+        "同じ部屋だけ",
+        "この部屋の中だけ"
+      ],
+      "flags": {
+        "scope": "room"
+      }
+    },
+    {
+      "key": "pv_detail_coarse",
+      "type": "param_value",
+      "ja": [
+        "粗い",
+        "粗",
+        "coarse"
+      ],
+      "param": "detailLevel",
+      "value": "Coarse"
+    },
+    {
+      "key": "pv_detail_medium",
+      "type": "param_value",
+      "ja": [
+        "中",
+        "標準",
+        "medium"
+      ],
+      "param": "detailLevel",
+      "value": "Medium"
+    },
+    {
+      "key": "pv_detail_fine",
+      "type": "param_value",
+      "ja": [
+        "詳細",
+        "細かい",
+        "fine"
+      ],
+      "param": "detailLevel",
+      "value": "Fine"
+    },
+    {
+      "key": "pv_disc_arch",
+      "type": "param_value",
+      "ja": [
+        "意匠",
+        "建築",
+        "architecture"
+      ],
+      "param": "discipline",
+      "value": "Architectural"
+    },
+    {
+      "key": "pv_disc_struct",
+      "type": "param_value",
+      "ja": [
+        "構造",
+        "structure"
+      ],
+      "param": "discipline",
+      "value": "Structural"
+    },
+    {
+      "key": "pv_disc_mech",
+      "type": "param_value",
+      "ja": [
+        "機械",
+        "空調",
+        "mechanical"
+      ],
+      "param": "discipline",
+      "value": "Mechanical"
+    },
+    {
+      "key": "pv_disc_elec",
+      "type": "param_value",
+      "ja": [
+        "電気",
+        "electrical"
+      ],
+      "param": "discipline",
+      "value": "Electrical"
+    },
+    {
+      "key": "pv_disc_plumb",
+      "type": "param_value",
+      "ja": [
+        "衛生",
+        "plumbing"
+      ],
+      "param": "discipline",
+      "value": "Plumbing"
+    },
+    {
+      "key": "pv_disc_coord",
+      "type": "param_value",
+      "ja": [
+        "調整",
+        "coordination"
+      ],
+      "param": "discipline",
+      "value": "Coordination"
+    },
+    {
+      "key": "pv_crop_on",
+      "type": "param_value",
+      "ja": [
+        "クロップON",
+        "枠を有効",
+        "切り抜き有効"
+      ],
+      "param": "cropEnabled",
+      "value": true
+    },
+    {
+      "key": "pv_crop_off",
+      "type": "param_value",
+      "ja": [
+        "クロップOFF",
+        "枠を無効",
+        "切り抜き無効"
+      ],
+      "param": "cropEnabled",
+      "value": false
+    },
+    {
+      "key": "pv_crop_visible_on",
+      "type": "param_value",
+      "ja": [
+        "クロップ枠を表示",
+        "枠を見せる"
+      ],
+      "param": "cropVisible",
+      "value": true
+    },
+    {
+      "key": "pv_crop_visible_off",
+      "type": "param_value",
+      "ja": [
+        "クロップ枠を非表示",
+        "枠を隠す"
+      ],
+      "param": "cropVisible",
+      "value": false
+    },
+    {
+      "key": "pv_anno_crop_on",
+      "type": "param_value",
+      "ja": [
+        "注釈クロップON"
+      ],
+      "param": "annotationCropEnabled",
+      "value": true
+    },
+    {
+      "key": "pv_anno_crop_off",
+      "type": "param_value",
+      "ja": [
+        "注釈クロップOFF"
+      ],
+      "param": "annotationCropEnabled",
+      "value": false
+    },
+    {
+      "key": "mod_exactly",
+      "type": "modifier",
+      "ja": [
+        "ぴったり",
+        "厳密に",
+        "exact"
+      ],
+      "flags": {
+        "tolerance": "exact"
+      }
+    },
+    {
+      "key": "mod_approx",
+      "type": "modifier",
+      "ja": [
+        "だいたい",
+        "おおよそ",
+        "適当に",
+        "近い感じで"
+      ],
+      "flags": {
+        "tolerance": "approx"
+      }
+    },
+    {
+      "key": "mod_keep_existing",
+      "type": "modifier",
+      "ja": [
+        "既存を維持",
+        "そのまま残す"
+      ],
+      "flags": {
+        "keepExisting": true
+      }
+    },
+    {
+      "key": "mod_replace_existing",
+      "type": "modifier",
+      "ja": [
+        "置き換え",
+        "差し替え",
+        "上書き"
+      ],
+      "flags": {
+        "replaceExisting": true
+      }
+    },
+    {
+      "key": "concept_batch",
+      "type": "concept",
+      "ja": [
+        "一括",
+        "まとめて",
+        "バッチ",
+        "大量に",
+        "複数を一度に"
+      ],
+      "en": [
+        "batch"
+      ]
+    },
+    {
+      "key": "concept_auto",
+      "type": "concept",
+      "ja": [
+        "自動",
+        "オート",
+        "勝手に",
+        "自動的に"
+      ],
+      "en": [
+        "auto"
+      ]
+    },
+    {
+      "key": "concept_detect",
+      "type": "concept",
+      "ja": [
+        "検出",
+        "自動検出",
+        "見つける"
+      ],
+      "en": [
+        "detect"
+      ]
+    },
+    {
+      "key": "concept_smart",
+      "type": "concept",
+      "ja": [
+        "いい感じに",
+        "賢く",
+        "うまいこと",
+        "整えて"
+      ],
+      "en": [
+        "smart"
+      ]
+    },
+    {
+      "key": "concept_cleanup",
+      "type": "concept",
+      "ja": [
+        "整理",
+        "クリーンアップ",
+        "片付け",
+        "整える"
+      ],
+      "en": [
+        "cleanup"
+      ]
+    },
+    {
+      "key": "concept_export_csv",
+      "type": "concept",
+      "ja": [
+        "CSV",
+        "csv",
+        "カンマ区切り"
+      ],
+      "en": [
+        "csv"
+      ]
+    },
+    {
+      "key": "concept_export_xlsx",
+      "type": "concept",
+      "ja": [
+        "Excel",
+        "エクセル",
+        "xlsx"
+      ],
+      "en": [
+        "xlsx"
+      ]
+    },
+    {
+      "key": "concept_export_json",
+      "type": "concept",
+      "ja": [
+        "JSON",
+        "json"
+      ],
+      "en": [
+        "json"
+      ]
+    },
+    {
+      "key": "concept_export_pdf",
+      "type": "concept",
+      "ja": [
+        "PDF",
+        "pdf"
+      ],
+      "en": [
+        "pdf"
+      ]
+    },
+    {
+      "key": "concept_export_dwg",
+      "type": "concept",
+      "ja": [
+        "DWG",
+        "dwg",
+        "AutoCAD"
+      ],
+      "en": [
+        "dwg"
+      ]
+    },
+    {
+      "key": "concept_export_ifc",
+      "type": "concept",
+      "ja": [
+        "IFC",
+        "ifc"
+      ],
+      "en": [
+        "ifc"
+      ]
+    },
+    {
+      "key": "concept_export_nwc",
+      "type": "concept",
+      "ja": [
+        "NWC",
+        "nwc",
+        "Navisworks"
+      ],
+      "en": [
+        "nwc"
+      ]
+    },
+    {
+      "key": "ent_callout",
+      "type": "entity",
+      "ja": [
+        "詳細ビュー",
+        "コールアウト",
+        "Callout"
+      ],
+      "categoryHints": [
+        "OST_Viewers"
+      ]
+    },
+    {
+      "key": "ent_viewport_type",
+      "type": "entity",
+      "ja": [
+        "ビューポートタイプ",
+        "Viewport Type"
+      ],
+      "notesJa": "Viewport label settings"
+    },
+    {
+      "key": "ent_titleblock_type",
+      "type": "entity",
+      "ja": [
+        "表題欄タイプ",
+        "Titleblock Type"
+      ],
+      "notesJa": "Titleblock family symbol/type"
+    },
+    {
+      "key": "ent_revision_cloud",
+      "type": "entity",
+      "ja": [
+        "改訂雲",
+        "Revision Cloud"
+      ],
+      "categoryHints": [
+        "OST_RevisionClouds"
+      ]
+    },
+    {
+      "key": "ent_scopebox",
+      "type": "entity",
+      "ja": [
+        "スコープボックス",
+        "Scope Box"
+      ],
+      "categoryHints": [
+        "OST_VolumeOfInterest"
+      ]
+    },
+    {
+      "key": "op_rename",
+      "type": "action",
+      "ja": [
+        "名前変更",
+        "リネーム",
+        "名称変更"
+      ],
+      "op": "rename"
+    },
+    {
+      "key": "concept_rename",
+      "type": "concept",
+      "ja": [
+        "名前を変える",
+        "名称を変える",
+        "リネーム"
+      ],
+      "en": [
+        "rename"
+      ]
+    },
+    {
+      "key": "concept_numbering",
+      "type": "concept",
+      "ja": [
+        "番号を振る",
+        "ナンバリング",
+        "通し番号"
+      ],
+      "en": [
+        "numbering"
+      ]
+    },
+    {
+      "key": "pv_joinends_true",
+      "type": "param_value",
+      "ja": [
+        "端部結合する",
+        "端部を結合",
+        "ジョインする"
+      ],
+      "param": "joinEnds",
+      "value": true
+    },
+    {
+      "key": "pv_joinends_false",
+      "type": "param_value",
+      "ja": [
+        "端部結合しない",
+        "ジョインしない"
+      ],
+      "param": "joinEnds",
+      "value": false
+    },
+    {
+      "key": "pv_cornertrim_false",
+      "type": "param_value",
+      "ja": [
+        "角処理しない",
+        "コーナートリムなし"
+      ],
+      "param": "cornerTrim",
+      "value": false
+    },
+    {
+      "key": "concept_partition",
+      "type": "concept",
+      "ja": [
+        "間仕切り",
+        "パーティション",
+        "軽量壁",
+        "LGS壁"
+      ],
+      "en": [
+        "partition"
+      ]
+    },
+    {
+      "key": "concept_finish",
+      "type": "concept",
+      "ja": [
+        "仕上げ",
+        "仕上材",
+        "仕上げ面",
+        "仕上げライン",
+        "仕上げ側"
+      ],
+      "en": [
+        "finish"
+      ]
+    },
+    {
+      "key": "concept_core_structural",
+      "type": "concept",
+      "ja": [
+        "躯体",
+        "構造体",
+        "構造コア",
+        "芯",
+        "コア"
+      ],
+      "en": [
+        "core_structural"
+      ]
+    },
+    {
+      "key": "concept_fire_rating",
+      "type": "concept",
+      "ja": [
+        "耐火",
+        "防火",
+        "耐火性能",
+        "防火区画"
+      ],
+      "en": [
+        "fire_rating"
+      ]
+    },
+    {
+      "key": "concept_acoustic",
+      "type": "concept",
+      "ja": [
+        "遮音",
+        "防音",
+        "音"
+      ],
+      "en": [
+        "acoustic"
+      ]
+    },
+    {
+      "key": "concept_insulation",
+      "type": "concept",
+      "ja": [
+        "断熱",
+        "保温",
+        "保冷"
+      ],
+      "en": [
+        "insulation"
+      ]
+    },
+    {
+      "key": "concept_slab",
+      "type": "concept",
+      "ja": [
+        "スラブ",
+        "床版",
+        "床スラブ"
+      ],
+      "en": [
+        "slab"
+      ]
+    },
+    {
+      "key": "concept_opening_door",
+      "type": "concept",
+      "ja": [
+        "開口",
+        "ドア開口",
+        "建具開口"
+      ],
+      "en": [
+        "opening_door"
+      ]
+    },
+    {
+      "key": "concept_opening_window",
+      "type": "concept",
+      "ja": [
+        "開口",
+        "窓開口",
+        "サッシ開口"
+      ],
+      "en": [
+        "opening_window"
+      ]
+    },
+    {
+      "key": "concept_finish_code",
+      "type": "concept",
+      "ja": [
+        "仕上げコード",
+        "仕上記号"
+      ],
+      "en": [
+        "finish_code"
+      ]
+    },
+    {
+      "key": "concept_room_name",
+      "type": "concept",
+      "ja": [
+        "部屋名",
+        "室名",
+        "用途"
+      ],
+      "en": [
+        "room_name"
+      ]
+    },
+    {
+      "key": "concept_room_number",
+      "type": "concept",
+      "ja": [
+        "部屋番号",
+        "室番号",
+        "Room Number"
+      ],
+      "en": [
+        "room_number"
+      ]
+    },
+    {
+      "key": "concept_mark",
+      "type": "concept",
+      "ja": [
+        "マーク",
+        "記号",
+        "Mark"
+      ],
+      "en": [
+        "mark"
+      ]
+    },
+    {
+      "key": "concept_comments",
+      "type": "concept",
+      "ja": [
+        "コメント",
+        "備考"
+      ],
+      "en": [
+        "comments"
+      ]
+    },
+    {
+      "key": "concept_phase_created",
+      "type": "concept",
+      "ja": [
+        "作成フェーズ",
+        "新設",
+        "作成段階"
+      ],
+      "en": [
+        "phase_created"
+      ]
+    },
+    {
+      "key": "concept_phase_demolished",
+      "type": "concept",
+      "ja": [
+        "解体フェーズ",
+        "撤去",
+        "取り壊し"
+      ],
+      "en": [
+        "phase_demolished"
+      ]
+    },
+    {
+      "key": "concept_move_nudge",
+      "type": "concept",
+      "ja": [
+        "ちょい移動",
+        "微調整",
+        "少し動かす",
+        "ちょっとずらす"
+      ],
+      "en": [
+        "nudge"
+      ]
+    },
+    {
+      "key": "concept_move_by_vector",
+      "type": "concept",
+      "ja": [
+        "ベクトルで移動",
+        "XYZで移動",
+        "座標で移動"
+      ],
+      "en": [
+        "move by vector"
+      ]
+    },
+    {
+      "key": "concept_move_to_point",
+      "type": "concept",
+      "ja": [
+        "点に移動",
+        "指定位置へ"
+      ],
+      "en": [
+        "move to point"
+      ]
+    },
+    {
+      "key": "concept_param_offset",
+      "type": "concept",
+      "ja": [
+        "オフセット",
+        "オフセット距離",
+        "基準からの距離"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_base_offset",
+      "type": "concept",
+      "ja": [
+        "基準オフセット",
+        "下端オフセット",
+        "ベースオフセット"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_top_offset",
+      "type": "concept",
+      "ja": [
+        "上端オフセット",
+        "トップオフセット"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_unconnected_height",
+      "type": "concept",
+      "ja": [
+        "非接続高さ",
+        "高さ（非接続）"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_level",
+      "type": "concept",
+      "ja": [
+        "基準レベル",
+        "参照レベル",
+        "Level"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_top_constraint",
+      "type": "concept",
+      "ja": [
+        "上部拘束",
+        "上部制約",
+        "Top Constraint"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_base_constraint",
+      "type": "concept",
+      "ja": [
+        "下部拘束",
+        "下部制約",
+        "Base Constraint"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_sill_height",
+      "type": "concept",
+      "ja": [
+        "敷居高さ",
+        "Sill Height"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_head_height",
+      "type": "concept",
+      "ja": [
+        "まぐさ高さ",
+        "Head Height"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_width",
+      "type": "concept",
+      "ja": [
+        "幅",
+        "W"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_height",
+      "type": "concept",
+      "ja": [
+        "高さ",
+        "H"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_length",
+      "type": "concept",
+      "ja": [
+        "長さ",
+        "L"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_thickness",
+      "type": "concept",
+      "ja": [
+        "厚み",
+        "t"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_diameter",
+      "type": "concept",
+      "ja": [
+        "径",
+        "直径",
+        "φ"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_slope",
+      "type": "concept",
+      "ja": [
+        "勾配",
+        "傾き"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_material",
+      "type": "concept",
+      "ja": [
+        "材料",
+        "マテリアル"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_type_mark",
+      "type": "concept",
+      "ja": [
+        "タイプマーク",
+        "Type Mark"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_mark",
+      "type": "concept",
+      "ja": [
+        "マーク",
+        "Mark"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "concept_param_comments",
+      "type": "concept",
+      "ja": [
+        "コメント",
+        "備考",
+        "Comments"
+      ],
+      "en": [
+        "parameter"
+      ]
+    },
+    {
+      "key": "pv_side_interior",
+      "type": "param_value",
+      "ja": [
+        "室内側",
+        "内側",
+        "インテリア",
+        "Interior"
+      ],
+      "param": "side",
+      "value": "Interior",
+      "notesJa": "Ambiguous: could mean wall interior vs room side. Use context disambiguation."
+    },
+    {
+      "key": "pv_side_exterior",
+      "type": "param_value",
+      "ja": [
+        "外側",
+        "エクステリア",
+        "Exterior"
+      ],
+      "param": "side",
+      "value": "Exterior"
+    },
+    {
+      "key": "concept_cat_walls",
+      "type": "concept",
+      "ja": [
+        "壁カテゴリ",
+        "壁(カテゴリ)"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_doors",
+      "type": "concept",
+      "ja": [
+        "ドアカテゴリ",
+        "扉(カテゴリ)"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_windows",
+      "type": "concept",
+      "ja": [
+        "窓カテゴリ",
+        "サッシ(カテゴリ)"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_rooms",
+      "type": "concept",
+      "ja": [
+        "部屋カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_floors",
+      "type": "concept",
+      "ja": [
+        "床カテゴリ",
+        "スラブ(カテゴリ)"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_columns",
+      "type": "concept",
+      "ja": [
+        "柱カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_beams",
+      "type": "concept",
+      "ja": [
+        "梁カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_grids",
+      "type": "concept",
+      "ja": [
+        "通り芯カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_levels",
+      "type": "concept",
+      "ja": [
+        "レベルカテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_tags",
+      "type": "concept",
+      "ja": [
+        "タグカテゴリ",
+        "注釈カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_sheets",
+      "type": "concept",
+      "ja": [
+        "シートカテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_views",
+      "type": "concept",
+      "ja": [
+        "ビューカテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_cat_schedules",
+      "type": "concept",
+      "ja": [
+        "集計表カテゴリ"
+      ],
+      "en": [
+        "category"
+      ]
+    },
+    {
+      "key": "concept_crop_to_room",
+      "type": "concept",
+      "ja": [
+        "部屋に合わせてクロップ",
+        "部屋範囲に切る",
+        "部屋ぴったりに切り抜く"
+      ],
+      "en": [
+        "crop to room"
+      ]
+    },
+    {
+      "key": "concept_crop_to_scopebox",
+      "type": "concept",
+      "ja": [
+        "スコープボックスに合わせてクロップ",
+        "範囲ボックスに合わせる"
+      ],
+      "en": [
+        "crop to scope box"
+      ]
+    },
+    {
+      "key": "concept_align_viewports",
+      "type": "concept",
+      "ja": [
+        "ビューポートを揃える",
+        "図面上で揃える",
+        "配置を整える"
+      ],
+      "en": [
+        "align viewports"
+      ]
+    },
+    {
+      "key": "concept_auto_layout_sheet",
+      "type": "concept",
+      "ja": [
+        "シートを自動レイアウト",
+        "図面配置を自動",
+        "いい感じに並べる"
+      ],
+      "en": [
+        "auto layout sheet"
+      ]
+    },
+    {
+      "key": "concept_checkout",
+      "type": "concept",
+      "ja": [
+        "要素を借用",
+        "チェックアウト",
+        "編集権限を取る"
+      ],
+      "en": [
+        "checkout"
+      ]
+    },
+    {
+      "key": "concept_relinquish",
+      "type": "concept",
+      "ja": [
+        "要素を返却",
+        "リリンキッシュ",
+        "借用解除"
+      ],
+      "en": [
+        "relinquish"
+      ]
+    },
+    {
+      "key": "concept_sync",
+      "type": "concept",
+      "ja": [
+        "同期",
+        "中央と同期",
+        "Sync with Central"
+      ],
+      "en": [
+        "sync"
+      ]
+    },
+    {
+      "key": "concept_audit",
+      "type": "concept",
+      "ja": [
+        "監査",
+        "オーディット"
+      ],
+      "en": [
+        "audit"
+      ]
+    },
+    {
+      "key": "concept_detach",
+      "type": "concept",
+      "ja": [
+        "切り離し",
+        "デタッチ"
+      ],
+      "en": [
+        "detach"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_contains",
+      "type": "concept",
+      "ja": [
+        "含む",
+        "含まれる",
+        "部分一致"
+      ],
+      "en": [
+        "contains"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_equals",
+      "type": "concept",
+      "ja": [
+        "一致",
+        "等しい",
+        "完全一致"
+      ],
+      "en": [
+        "equals"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_startswith",
+      "type": "concept",
+      "ja": [
+        "で始まる",
+        "前方一致"
+      ],
+      "en": [
+        "startsWith"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_endswith",
+      "type": "concept",
+      "ja": [
+        "で終わる",
+        "後方一致"
+      ],
+      "en": [
+        "endsWith"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_greater",
+      "type": "concept",
+      "ja": [
+        "より大きい",
+        ">",
+        "以上"
+      ],
+      "en": [
+        "greater"
+      ]
+    },
+    {
+      "key": "concept_filter_rule_less",
+      "type": "concept",
+      "ja": [
+        "より小さい",
+        "<",
+        "以下"
+      ],
+      "en": [
+        "less"
+      ]
+    },
+    {
+      "key": "concept_result_created_ids",
+      "type": "concept",
+      "ja": [
+        "作成されたID",
+        "作成ID",
+        "createdWallIds",
+        "作成した要素ID"
+      ],
+      "en": [
+        "created ids"
+      ]
+    },
+    {
+      "key": "concept_result_skipped_reason",
+      "type": "concept",
+      "ja": [
+        "スキップ理由",
+        "除外理由",
+        "できなかった理由"
+      ],
+      "en": [
+        "skipped reasons"
+      ]
+    },
+    {
+      "key": "concept_result_counts",
+      "type": "concept",
+      "ja": [
+        "件数",
+        "数",
+        "カウント",
+        "createdCount"
+      ],
+      "en": [
+        "counts"
+      ]
+    },
+    {
+      "key": "concept_result_warnings",
+      "type": "concept",
+      "ja": [
+        "警告",
+        "注意",
+        "warnings"
+      ],
+      "en": [
+        "warnings"
+      ]
+    },
+    {
+      "key": "ent_stairs",
+      "type": "entity",
+      "ja": [
+        "階段",
+        "Stairs"
+      ],
+      "categoryHints": [
+        "OST_Stairs"
+      ]
+    },
+    {
+      "key": "ent_ramp",
+      "type": "entity",
+      "ja": [
+        "スロープ",
+        "Ramp",
+        "ランプ"
+      ],
+      "categoryHints": [
+        "OST_Ramps"
+      ]
+    },
+    {
+      "key": "ent_railing",
+      "type": "entity",
+      "ja": [
+        "手すり",
+        "レール",
+        "Railing"
+      ],
+      "categoryHints": [
+        "OST_Railings"
+      ]
+    },
+    {
+      "key": "ent_curtain_wall",
+      "type": "entity",
+      "ja": [
+        "カーテンウォール",
+        "CW",
+        "ガラスカーテン壁"
+      ],
+      "categoryHints": [
+        "OST_CurtainWallPanels",
+        "OST_CurtainWallMullions",
+        "OST_Walls"
+      ]
+    },
+    {
+      "key": "ent_curtain_panel",
+      "type": "entity",
+      "ja": [
+        "カーテンパネル",
+        "Curtain Panel"
+      ],
+      "categoryHints": [
+        "OST_CurtainWallPanels"
+      ]
+    },
+    {
+      "key": "ent_mullion",
+      "type": "entity",
+      "ja": [
+        "マリオン",
+        "方立",
+        "Mullion"
+      ],
+      "categoryHints": [
+        "OST_CurtainWallMullions"
+      ]
+    },
+    {
+      "key": "ent_stair_run",
+      "type": "entity",
+      "ja": [
+        "階段ラン",
+        "Stair Run"
+      ],
+      "categoryHints": [
+        "OST_StairsRuns"
+      ]
+    },
+    {
+      "key": "ent_stair_landing",
+      "type": "entity",
+      "ja": [
+        "階段踊り場",
+        "Landing"
+      ],
+      "categoryHints": [
+        "OST_StairsLandings"
+      ]
+    },
+    {
+      "key": "ent_foundation",
+      "type": "entity",
+      "ja": [
+        "基礎",
+        "Foundation"
+      ],
+      "categoryHints": [
+        "OST_StructuralFoundation"
+      ]
+    },
+    {
+      "key": "ent_footing",
+      "type": "entity",
+      "ja": [
+        "独立基礎",
+        "フーチング",
+        "Footing"
+      ],
+      "categoryHints": [
+        "OST_StructuralFoundation"
+      ]
+    },
+    {
+      "key": "ent_wall_foundation",
+      "type": "entity",
+      "ja": [
+        "布基礎",
+        "Wall Foundation"
+      ],
+      "categoryHints": [
+        "OST_StructuralFoundation"
+      ]
+    },
+    {
+      "key": "ent_rebar",
+      "type": "entity",
+      "ja": [
+        "鉄筋",
+        "Rebar"
+      ],
+      "categoryHints": [
+        "OST_Rebar"
+      ]
+    },
+    {
+      "key": "ent_rebar_set",
+      "type": "entity",
+      "ja": [
+        "鉄筋セット",
+        "Rebar Set"
+      ],
+      "categoryHints": [
+        "OST_Rebar"
+      ]
+    },
+    {
+      "key": "ent_fabric_reinf",
+      "type": "entity",
+      "ja": [
+        "メッシュ筋",
+        "ファブリック補強筋"
+      ],
+      "categoryHints": [
+        "OST_FabricReinforcement"
+      ]
+    },
+    {
+      "key": "ent_area_reinf",
+      "type": "entity",
+      "ja": [
+        "面補強筋",
+        "エリア補強"
+      ],
+      "categoryHints": [
+        "OST_AreaReinforcement"
+      ]
+    },
+    {
+      "key": "ent_connection",
+      "type": "entity",
+      "ja": [
+        "構造接合",
+        "コネクション",
+        "接合部"
+      ],
+      "categoryHints": [
+        "OST_StructConnections"
+      ]
+    },
+    {
+      "key": "ent_brace",
+      "type": "entity",
+      "ja": [
+        "ブレース",
+        "筋かい"
+      ],
+      "categoryHints": [
+        "OST_StructuralFraming"
+      ]
+    },
+    {
+      "key": "ent_truss",
+      "type": "entity",
+      "ja": [
+        "トラス",
+        "Truss"
+      ],
+      "categoryHints": [
+        "OST_StructuralTruss"
+      ]
+    },
+    {
+      "key": "ent_slab_edge",
+      "type": "entity",
+      "ja": [
+        "スラブエッジ",
+        "Slab Edge"
+      ],
+      "categoryHints": [
+        "OST_SlabEdge"
+      ]
+    },
+    {
+      "key": "ent_fascia",
+      "type": "entity",
+      "ja": [
+        "破風",
+        "Fascia"
+      ],
+      "categoryHints": [
+        "OST_Fascia"
+      ]
+    },
+    {
+      "key": "ent_gutter",
+      "type": "entity",
+      "ja": [
+        "雨樋",
+        "樋",
+        "Gutter"
+      ],
+      "categoryHints": [
+        "OST_Gutter"
+      ]
+    },
+    {
+      "key": "ent_soffit",
+      "type": "entity",
+      "ja": [
+        "軒天",
+        "ソフィット",
+        "Soffit"
+      ],
+      "categoryHints": [
+        "OST_Soffit"
+      ]
+    },
+    {
+      "key": "ent_opening",
+      "type": "entity",
+      "ja": [
+        "開口",
+        "Opening",
+        "穴"
+      ],
+      "categoryHints": [
+        "OST_ShaftOpening",
+        "OST_Openings"
+      ]
+    },
+    {
+      "key": "ent_shaft_opening",
+      "type": "entity",
+      "ja": [
+        "シャフト開口",
+        "Shaft Opening"
+      ],
+      "categoryHints": [
+        "OST_ShaftOpening"
+      ]
+    },
+    {
+      "key": "ent_mass",
+      "type": "entity",
+      "ja": [
+        "マス",
+        "Mass"
+      ],
+      "categoryHints": [
+        "OST_Mass"
+      ]
+    },
+    {
+      "key": "ent_topography",
+      "type": "entity",
+      "ja": [
+        "地形",
+        "トポ",
+        "Topo"
+      ],
+      "categoryHints": [
+        "OST_Topography",
+        "OST_Toposolid"
+      ]
+    },
+    {
+      "key": "ent_building_pad",
+      "type": "entity",
+      "ja": [
+        "建物パッド",
+        "Building Pad"
+      ],
+      "categoryHints": [
+        "OST_BuildingPad"
+      ]
+    },
+    {
+      "key": "ent_property_line",
+      "type": "entity",
+      "ja": [
+        "敷地境界線",
+        "Property Line"
+      ],
+      "categoryHints": [
+        "OST_PropertyLines"
+      ]
+    },
+    {
+      "key": "ent_site_component",
+      "type": "entity",
+      "ja": [
+        "敷地コンポーネント",
+        "植栽",
+        "Parking"
+      ],
+      "categoryHints": [
+        "OST_Planting",
+        "OST_Parking"
+      ]
+    },
+    {
+      "key": "ent_pipe_fitting",
+      "type": "entity",
+      "ja": [
+        "配管継手",
+        "継手",
+        "Pipe Fitting"
+      ],
+      "categoryHints": [
+        "OST_PipeFitting"
+      ]
+    },
+    {
+      "key": "ent_pipe_accessory",
+      "type": "entity",
+      "ja": [
+        "配管付属品",
+        "バルブ",
+        "Pipe Accessory"
+      ],
+      "categoryHints": [
+        "OST_PipeAccessory"
+      ]
+    },
+    {
+      "key": "ent_duct_fitting",
+      "type": "entity",
+      "ja": [
+        "ダクト継手",
+        "Duct Fitting"
+      ],
+      "categoryHints": [
+        "OST_DuctFitting"
+      ]
+    },
+    {
+      "key": "ent_duct_accessory",
+      "type": "entity",
+      "ja": [
+        "ダクト付属品",
+        "Duct Accessory"
+      ],
+      "categoryHints": [
+        "OST_DuctAccessory"
+      ]
+    },
+    {
+      "key": "ent_flex_pipe",
+      "type": "entity",
+      "ja": [
+        "フレキ管",
+        "Flex Pipe"
+      ],
+      "categoryHints": [
+        "OST_FlexPipeCurves"
+      ]
+    },
+    {
+      "key": "ent_flex_duct",
+      "type": "entity",
+      "ja": [
+        "フレキダクト",
+        "Flex Duct"
+      ],
+      "categoryHints": [
+        "OST_FlexDuctCurves"
+      ]
+    },
+    {
+      "key": "ent_sprinkler",
+      "type": "entity",
+      "ja": [
+        "スプリンクラー",
+        "Sprinkler"
+      ],
+      "categoryHints": [
+        "OST_Sprinklers"
+      ]
+    },
+    {
+      "key": "ent_fire_alarm",
+      "type": "entity",
+      "ja": [
+        "火災報知",
+        "火報",
+        "Fire Alarm"
+      ],
+      "categoryHints": [
+        "OST_FireAlarmDevices"
+      ]
+    },
+    {
+      "key": "ent_data_device",
+      "type": "entity",
+      "ja": [
+        "情報機器",
+        "データ機器",
+        "Data Device"
+      ],
+      "categoryHints": [
+        "OST_DataDevices"
+      ]
+    },
+    {
+      "key": "ent_electrical_fixture",
+      "type": "entity",
+      "ja": [
+        "電気器具",
+        "Electrical Fixture"
+      ],
+      "categoryHints": [
+        "OST_ElectricalFixtures"
+      ]
+    },
+    {
+      "key": "ent_light",
+      "type": "entity",
+      "ja": [
+        "照明器具",
+        "ライト",
+        "Light Fixture"
+      ],
+      "categoryHints": [
+        "OST_LightingFixtures"
+      ]
+    },
+    {
+      "key": "ent_mechanical_terminal",
+      "type": "entity",
+      "ja": [
+        "空調端末",
+        "吹出口",
+        "Mechanical Terminal"
+      ],
+      "categoryHints": [
+        "OST_MechanicalEquipment",
+        "OST_DuctTerminal"
+      ]
+    },
+    {
+      "key": "ent_duct_terminal",
+      "type": "entity",
+      "ja": [
+        "吹出口",
+        "給排気口",
+        "Duct Terminal"
+      ],
+      "categoryHints": [
+        "OST_DuctTerminal"
+      ]
+    },
+    {
+      "key": "ent_plumbing_fixture",
+      "type": "entity",
+      "ja": [
+        "衛生器具",
+        "便器",
+        "洗面",
+        "Plumbing Fixture"
+      ],
+      "categoryHints": [
+        "OST_PlumbingFixtures"
+      ]
+    },
+    {
+      "key": "ent_pipe_insulation",
+      "type": "entity",
+      "ja": [
+        "配管断熱",
+        "保温",
+        "Pipe Insulation"
+      ],
+      "categoryHints": [
+        "OST_PipeInsulations"
+      ]
+    },
+    {
+      "key": "ent_duct_insulation",
+      "type": "entity",
+      "ja": [
+        "ダクト断熱",
+        "保温",
+        "Duct Insulation"
+      ],
+      "categoryHints": [
+        "OST_DuctInsulations"
+      ]
+    },
+    {
+      "key": "ent_cabletray_fitting",
+      "type": "entity",
+      "ja": [
+        "ケーブルトレイ継手",
+        "Cable Tray Fitting"
+      ],
+      "categoryHints": [
+        "OST_CableTrayFitting"
+      ]
+    },
+    {
+      "key": "ent_conduit_fitting",
+      "type": "entity",
+      "ja": [
+        "電線管継手",
+        "Conduit Fitting"
+      ],
+      "categoryHints": [
+        "OST_ConduitFitting"
+      ]
+    },
+    {
+      "key": "concept_stairs",
+      "type": "concept",
+      "ja": [
+        "階段",
+        "Stairs"
+      ]
+    },
+    {
+      "key": "concept_ramp",
+      "type": "concept",
+      "ja": [
+        "スロープ",
+        "Ramp",
+        "ランプ"
+      ]
+    },
+    {
+      "key": "concept_railing",
+      "type": "concept",
+      "ja": [
+        "手すり",
+        "レール",
+        "Railing"
+      ]
+    },
+    {
+      "key": "concept_curtain_wall",
+      "type": "concept",
+      "ja": [
+        "カーテンウォール",
+        "CW",
+        "ガラスカーテン壁"
+      ]
+    },
+    {
+      "key": "concept_curtain_panel",
+      "type": "concept",
+      "ja": [
+        "カーテンパネル",
+        "Curtain Panel"
+      ]
+    },
+    {
+      "key": "concept_mullion",
+      "type": "concept",
+      "ja": [
+        "マリオン",
+        "方立",
+        "Mullion"
+      ]
+    },
+    {
+      "key": "concept_stair_run",
+      "type": "concept",
+      "ja": [
+        "階段ラン",
+        "Stair Run"
+      ]
+    },
+    {
+      "key": "concept_stair_landing",
+      "type": "concept",
+      "ja": [
+        "階段踊り場",
+        "Landing"
+      ]
+    },
+    {
+      "key": "concept_foundation",
+      "type": "concept",
+      "ja": [
+        "基礎",
+        "Foundation"
+      ]
+    },
+    {
+      "key": "concept_footing",
+      "type": "concept",
+      "ja": [
+        "独立基礎",
+        "フーチング",
+        "Footing"
+      ]
+    },
+    {
+      "key": "concept_wall_foundation",
+      "type": "concept",
+      "ja": [
+        "布基礎",
+        "Wall Foundation"
+      ]
+    },
+    {
+      "key": "concept_rebar",
+      "type": "concept",
+      "ja": [
+        "鉄筋",
+        "Rebar"
+      ]
+    },
+    {
+      "key": "concept_rebar_set",
+      "type": "concept",
+      "ja": [
+        "鉄筋セット",
+        "Rebar Set"
+      ]
+    },
+    {
+      "key": "concept_fabric_reinf",
+      "type": "concept",
+      "ja": [
+        "メッシュ筋",
+        "ファブリック補強筋"
+      ]
+    },
+    {
+      "key": "concept_area_reinf",
+      "type": "concept",
+      "ja": [
+        "面補強筋",
+        "エリア補強"
+      ]
+    },
+    {
+      "key": "concept_connection",
+      "type": "concept",
+      "ja": [
+        "構造接合",
+        "コネクション",
+        "接合部"
+      ]
+    },
+    {
+      "key": "concept_brace",
+      "type": "concept",
+      "ja": [
+        "ブレース",
+        "筋かい"
+      ]
+    },
+    {
+      "key": "concept_truss",
+      "type": "concept",
+      "ja": [
+        "トラス",
+        "Truss"
+      ]
+    },
+    {
+      "key": "concept_slab_edge",
+      "type": "concept",
+      "ja": [
+        "スラブエッジ",
+        "Slab Edge"
+      ]
+    },
+    {
+      "key": "concept_fascia",
+      "type": "concept",
+      "ja": [
+        "破風",
+        "Fascia"
+      ]
+    },
+    {
+      "key": "concept_gutter",
+      "type": "concept",
+      "ja": [
+        "雨樋",
+        "樋",
+        "Gutter"
+      ]
+    },
+    {
+      "key": "concept_soffit",
+      "type": "concept",
+      "ja": [
+        "軒天",
+        "ソフィット",
+        "Soffit"
+      ]
+    },
+    {
+      "key": "concept_opening",
+      "type": "concept",
+      "ja": [
+        "開口",
+        "Opening",
+        "穴"
+      ]
+    },
+    {
+      "key": "concept_shaft_opening",
+      "type": "concept",
+      "ja": [
+        "シャフト開口",
+        "Shaft Opening"
+      ]
+    },
+    {
+      "key": "concept_mass",
+      "type": "concept",
+      "ja": [
+        "マス",
+        "Mass"
+      ]
+    },
+    {
+      "key": "concept_topography",
+      "type": "concept",
+      "ja": [
+        "地形",
+        "トポ",
+        "Topo"
+      ]
+    },
+    {
+      "key": "concept_building_pad",
+      "type": "concept",
+      "ja": [
+        "建物パッド",
+        "Building Pad"
+      ]
+    },
+    {
+      "key": "concept_property_line",
+      "type": "concept",
+      "ja": [
+        "敷地境界線",
+        "Property Line"
+      ]
+    },
+    {
+      "key": "concept_site_component",
+      "type": "concept",
+      "ja": [
+        "敷地コンポーネント",
+        "植栽",
+        "Parking"
+      ]
+    },
+    {
+      "key": "concept_pipe_fitting",
+      "type": "concept",
+      "ja": [
+        "配管継手",
+        "継手",
+        "Pipe Fitting"
+      ]
+    },
+    {
+      "key": "concept_pipe_accessory",
+      "type": "concept",
+      "ja": [
+        "配管付属品",
+        "バルブ",
+        "Pipe Accessory"
+      ]
+    },
+    {
+      "key": "concept_duct_fitting",
+      "type": "concept",
+      "ja": [
+        "ダクト継手",
+        "Duct Fitting"
+      ]
+    },
+    {
+      "key": "concept_duct_accessory",
+      "type": "concept",
+      "ja": [
+        "ダクト付属品",
+        "Duct Accessory"
+      ]
+    },
+    {
+      "key": "concept_flex_pipe",
+      "type": "concept",
+      "ja": [
+        "フレキ管",
+        "Flex Pipe"
+      ]
+    },
+    {
+      "key": "concept_flex_duct",
+      "type": "concept",
+      "ja": [
+        "フレキダクト",
+        "Flex Duct"
+      ]
+    },
+    {
+      "key": "concept_sprinkler",
+      "type": "concept",
+      "ja": [
+        "スプリンクラー",
+        "Sprinkler"
+      ]
+    },
+    {
+      "key": "concept_fire_alarm",
+      "type": "concept",
+      "ja": [
+        "火災報知",
+        "火報",
+        "Fire Alarm"
+      ]
+    },
+    {
+      "key": "concept_data_device",
+      "type": "concept",
+      "ja": [
+        "情報機器",
+        "データ機器",
+        "Data Device"
+      ]
+    },
+    {
+      "key": "concept_electrical_fixture",
+      "type": "concept",
+      "ja": [
+        "電気器具",
+        "Electrical Fixture"
+      ]
+    },
+    {
+      "key": "concept_light",
+      "type": "concept",
+      "ja": [
+        "照明器具",
+        "ライト",
+        "Light Fixture"
+      ]
+    },
+    {
+      "key": "concept_mechanical_terminal",
+      "type": "concept",
+      "ja": [
+        "空調端末",
+        "吹出口",
+        "Mechanical Terminal"
+      ]
+    },
+    {
+      "key": "concept_duct_terminal",
+      "type": "concept",
+      "ja": [
+        "吹出口",
+        "給排気口",
+        "Duct Terminal"
+      ]
+    },
+    {
+      "key": "concept_plumbing_fixture",
+      "type": "concept",
+      "ja": [
+        "衛生器具",
+        "便器",
+        "洗面",
+        "Plumbing Fixture"
+      ]
+    },
+    {
+      "key": "concept_pipe_insulation",
+      "type": "concept",
+      "ja": [
+        "配管断熱",
+        "保温",
+        "Pipe Insulation"
+      ]
+    },
+    {
+      "key": "concept_duct_insulation",
+      "type": "concept",
+      "ja": [
+        "ダクト断熱",
+        "保温",
+        "Duct Insulation"
+      ]
+    },
+    {
+      "key": "concept_cabletray_fitting",
+      "type": "concept",
+      "ja": [
+        "ケーブルトレイ継手",
+        "Cable Tray Fitting"
+      ]
+    },
+    {
+      "key": "concept_conduit_fitting",
+      "type": "concept",
+      "ja": [
+        "電線管継手",
+        "Conduit Fitting"
+      ]
+    },
+    {
+      "key": "ent_view_legend",
+      "type": "entity",
+      "ja": [
+        "凡例",
+        "レジェンド",
+        "Legend"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.View"
+      ]
+    },
+    {
+      "key": "ent_view_drafting",
+      "type": "entity",
+      "ja": [
+        "製図ビュー",
+        "ドラフティングビュー",
+        "Drafting View"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewDrafting"
+      ]
+    },
+    {
+      "key": "ent_view_assembly",
+      "type": "entity",
+      "ja": [
+        "アセンブリビュー",
+        "Assembly View"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.View"
+      ]
+    },
+    {
+      "key": "ent_view_schedule",
+      "type": "entity",
+      "ja": [
+        "集計表ビュー",
+        "Schedule View"
+      ],
+      "revitClassHints": [
+        "Autodesk.Revit.DB.ViewSchedule"
+      ]
+    },
+    {
+      "key": "concept_view_legend",
+      "type": "concept",
+      "ja": [
+        "凡例",
+        "レジェンド"
+      ],
+      "en": [
+        "legend view"
+      ]
+    },
+    {
+      "key": "concept_view_drafting",
+      "type": "concept",
+      "ja": [
+        "製図ビュー",
+        "ドラフティング"
+      ],
+      "en": [
+        "drafting view"
+      ]
+    },
+    {
+      "key": "ent_filled_region",
+      "type": "entity",
+      "ja": [
+        "塗り潰し領域",
+        "フィルドリージョン",
+        "Filled Region"
+      ],
+      "categoryHints": [
+        "OST_FilledRegion"
+      ]
+    },
+    {
+      "key": "ent_masking_region",
+      "type": "entity",
+      "ja": [
+        "マスキング領域",
+        "Masking Region"
+      ],
+      "categoryHints": [
+        "OST_MaskingRegion"
+      ]
+    },
+    {
+      "key": "ent_detail_component",
+      "type": "entity",
+      "ja": [
+        "詳細部品",
+        "Detail Component"
+      ],
+      "categoryHints": [
+        "OST_DetailComponents"
+      ]
+    },
+    {
+      "key": "ent_repeating_detail",
+      "type": "entity",
+      "ja": [
+        "繰り返し詳細",
+        "Repeating Detail"
+      ],
+      "categoryHints": [
+        "OST_RepeatingDetail"
+      ]
+    },
+    {
+      "key": "ent_keynote",
+      "type": "entity",
+      "ja": [
+        "キーノート",
+        "Keynote"
+      ],
+      "categoryHints": [
+        "OST_KeynoteTags"
+      ]
+    },
+    {
+      "key": "ent_spot_elevation",
+      "type": "entity",
+      "ja": [
+        "スポット標高",
+        "Spot Elevation"
+      ],
+      "categoryHints": [
+        "OST_SpotElevations"
+      ]
+    },
+    {
+      "key": "ent_spot_coordinate",
+      "type": "entity",
+      "ja": [
+        "スポット座標",
+        "Spot Coordinate"
+      ],
+      "categoryHints": [
+        "OST_SpotCoordinates"
+      ]
+    },
+    {
+      "key": "ent_spot_slope",
+      "type": "entity",
+      "ja": [
+        "スポット勾配",
+        "Spot Slope"
+      ],
+      "categoryHints": [
+        "OST_SpotSlopes"
+      ]
+    },
+    {
+      "key": "ent_symbol",
+      "type": "entity",
+      "ja": [
+        "シンボル",
+        "注釈シンボル",
+        "Symbol"
+      ],
+      "categoryHints": [
+        "OST_GenericAnnotation"
+      ]
+    },
+    {
+      "key": "concept_filled_region",
+      "type": "concept",
+      "ja": [
+        "塗り潰し",
+        "ハッチ",
+        "塗りつぶし領域"
+      ],
+      "en": [
+        "filled region"
+      ]
+    },
+    {
+      "key": "concept_masking_region",
+      "type": "concept",
+      "ja": [
+        "マスキング",
+        "隠し領域"
+      ],
+      "en": [
+        "masking region"
+      ]
+    },
+    {
+      "key": "concept_keynote",
+      "type": "concept",
+      "ja": [
+        "キーノート",
+        "注釈キー"
+      ],
+      "en": [
+        "keynote"
+      ]
+    },
+    {
+      "key": "concept_purge_unused",
+      "type": "concept",
+      "ja": [
+        "未使用を削除",
+        "不要をパージ",
+        "パージ",
+        "Purge Unused"
+      ],
+      "en": [
+        "purge unused"
+      ]
+    },
+    {
+      "key": "concept_audit_compact",
+      "type": "concept",
+      "ja": [
+        "監査",
+        "コンパクト",
+        "軽量化"
+      ],
+      "en": [
+        "audit/compact"
+      ]
+    },
+    {
+      "key": "concept_reload_links",
+      "type": "concept",
+      "ja": [
+        "リンク再読み込み",
+        "リンク更新",
+        "再ロード"
+      ],
+      "en": [
+        "reload links"
+      ]
+    },
+    {
+      "key": "concept_manage_warnings",
+      "type": "concept",
+      "ja": [
+        "警告を整理",
+        "警告を確認",
+        "Warnings"
+      ],
+      "en": [
+        "warnings management"
+      ]
+    },
+    {
+      "key": "concept_auto_number_rooms",
+      "type": "concept",
+      "ja": [
+        "部屋番号を自動採番",
+        "室番号を振る",
+        "部屋をナンバリング"
+      ],
+      "en": [
+        "auto number rooms"
+      ]
+    },
+    {
+      "key": "concept_auto_tag_rooms",
+      "type": "concept",
+      "ja": [
+        "部屋タグを自動配置",
+        "室名タグを自動",
+        "タグを一括配置"
+      ],
+      "en": [
+        "auto tag rooms"
+      ]
+    },
+    {
+      "key": "concept_auto_dimension_doors",
+      "type": "concept",
+      "ja": [
+        "ドアを自動寸法",
+        "建具寸法を一括"
+      ],
+      "en": [
+        "auto dimension doors"
+      ]
+    },
+    {
+      "key": "concept_auto_create_sheets",
+      "type": "concept",
+      "ja": [
+        "シートを自動作成",
+        "図面を自動生成"
+      ],
+      "en": [
+        "auto create sheets"
+      ]
+    },
+    {
+      "key": "concept_auto_place_views_on_sheets",
+      "type": "concept",
+      "ja": [
+        "ビューをシートに自動配置",
+        "図面に自動配置"
+      ],
+      "en": [
+        "auto place views"
+      ]
+    },
+    {
+      "key": "concept_auto_create_view_set",
+      "type": "concept",
+      "ja": [
+        "ビューセットを自動作成",
+        "印刷セット作る"
+      ],
+      "en": [
+        "view set"
+      ]
+    },
+    {
+      "key": "concept_publish",
+      "type": "concept",
+      "ja": [
+        "発行",
+        "パブリッシュ",
+        "Publish"
+      ],
+      "en": [
+        "publish"
+      ]
+    },
+    {
+      "key": "pv_bool_enable",
+      "type": "param_value",
+      "ja": [
+        "有効",
+        "オン",
+        "ON",
+        "enable"
+      ],
+      "param": "*",
+      "value": true
+    },
+    {
+      "key": "pv_bool_disable",
+      "type": "param_value",
+      "ja": [
+        "無効",
+        "オフ",
+        "OFF",
+        "disable"
+      ],
+      "param": "*",
+      "value": false
+    },
+    {
+      "key": "pv_scope_project",
+      "type": "param_value",
+      "ja": [
+        "全体",
+        "プロジェクト全体"
+      ],
+      "param": "scope",
+      "value": "project"
+    },
+    {
+      "key": "pv_scope_view",
+      "type": "param_value",
+      "ja": [
+        "このビュー",
+        "現ビュー",
+        "アクティブビュー"
+      ],
+      "param": "scope",
+      "value": "activeView"
+    },
+    {
+      "key": "pv_scope_selection",
+      "type": "param_value",
+      "ja": [
+        "選択",
+        "選択範囲"
+      ],
+      "param": "scope",
+      "value": "selection"
+    },
+    {
+      "key": "concept_justify_left",
+      "type": "concept",
+      "ja": [
+        "左揃え",
+        "左寄せ"
+      ],
+      "en": [
+        "left"
+      ]
+    },
+    {
+      "key": "concept_justify_center",
+      "type": "concept",
+      "ja": [
+        "中央揃え",
+        "センター"
+      ],
+      "en": [
+        "center"
+      ]
+    },
+    {
+      "key": "concept_justify_right",
+      "type": "concept",
+      "ja": [
+        "右揃え",
+        "右寄せ"
+      ],
+      "en": [
+        "right"
+      ]
+    },
+    {
+      "key": "pv_justify_left",
+      "type": "param_value",
+      "ja": [
+        "左揃え",
+        "左寄せ"
+      ],
+      "param": "justification",
+      "value": "Left"
+    },
+    {
+      "key": "pv_justify_center",
+      "type": "param_value",
+      "ja": [
+        "中央揃え",
+        "センター"
+      ],
+      "param": "justification",
+      "value": "Center"
+    },
+    {
+      "key": "pv_justify_right",
+      "type": "param_value",
+      "ja": [
+        "右揃え",
+        "右寄せ"
+      ],
+      "param": "justification",
+      "value": "Right"
+    },
+    {
+      "key": "concept_orientation_horizontal",
+      "type": "concept",
+      "ja": [
+        "水平",
+        "横"
+      ],
+      "en": [
+        "horizontal"
+      ]
+    },
+    {
+      "key": "concept_orientation_vertical",
+      "type": "concept",
+      "ja": [
+        "垂直",
+        "縦"
+      ],
+      "en": [
+        "vertical"
+      ]
+    },
+    {
+      "key": "pv_orientation_horizontal",
+      "type": "param_value",
+      "ja": [
+        "水平",
+        "横"
+      ],
+      "param": "orientation",
+      "value": "Horizontal"
+    },
+    {
+      "key": "pv_orientation_vertical",
+      "type": "param_value",
+      "ja": [
+        "垂直",
+        "縦"
+      ],
+      "param": "orientation",
+      "value": "Vertical"
+    },
+    {
+      "key": "concept_no_selection",
+      "type": "concept",
+      "ja": [
+        "何も選択してない",
+        "未選択",
+        "選択なし"
+      ],
+      "en": [
+        "no selection"
+      ]
+    },
+    {
+      "key": "concept_select_one",
+      "type": "concept",
+      "ja": [
+        "1つだけ選んで",
+        "単一選択して"
+      ],
+      "en": [
+        "select one"
+      ]
+    },
+    {
+      "key": "concept_select_room",
+      "type": "concept",
+      "ja": [
+        "Roomを選択して",
+        "部屋を選んで"
+      ],
+      "en": [
+        "select room"
+      ]
+    },
+    {
+      "key": "mod_limit_results",
+      "type": "modifier",
+      "ja": [
+        "上位だけ",
+        "最大5件",
+        "少しだけ"
+      ],
+      "flags": {
+        "limit": 5
+      }
+    },
+    {
+      "key": "mod_verbose",
+      "type": "modifier",
+      "ja": [
+        "詳しく",
+        "詳細に",
+        "全部出して"
+      ],
+      "flags": {
+        "verbosity": "high"
+      }
+    },
+    {
+      "key": "mod_concise",
+      "type": "modifier",
+      "ja": [
+        "簡潔に",
+        "短く"
+      ],
+      "flags": {
+        "verbosity": "low"
+      }
+    },
+    {
+      "key": "mod_safe_mode",
+      "type": "modifier",
+      "ja": [
+        "安全に",
+        "慎重に",
+        "壊さないで"
+      ],
+      "flags": {
+        "safeMode": true
+      }
+    },
+    {
+      "key": "concept_report",
+      "type": "concept",
+      "ja": [
+        "レポート",
+        "報告",
+        "結果をまとめて",
+        "ログ"
+      ],
+      "en": [
+        "report"
+      ]
+    },
+    {
+      "key": "concept_log",
+      "type": "concept",
+      "ja": [
+        "ログ",
+        "log",
+        "記録"
+      ],
+      "en": [
+        "log"
+      ]
+    },
+    {
+      "key": "concept_diff",
+      "type": "concept",
+      "ja": [
+        "差分",
+        "変更点",
+        "diff"
+      ],
+      "en": [
+        "diff"
+      ]
+    },
+    {
+      "key": "concept_system_family",
+      "type": "concept",
+      "ja": [
+        "システムファミリ",
+        "システムファミリー",
+        "System Family"
+      ],
+      "en": [
+        "system family"
+      ],
+      "notesJa": "Examples: Wall/Floor/Ceiling/Roof. Often LocationCurve/Sketch-based; geometry edits constrained."
+    },
+    {
+      "key": "concept_loadable_family",
+      "type": "concept",
+      "ja": [
+        "ロード可能ファミリ",
+        "ロードファミリ",
+        "Loadable Family"
+      ],
+      "en": [
+        "loadable family"
+      ],
+      "notesJa": "Examples: Door/Window/Furniture. Typically FamilyInstance/LocationPoint."
+    },
+    {
+      "key": "concept_inplace_family",
+      "type": "concept",
+      "ja": [
+        "インプレースファミリ",
+        "現場加工ファミリ",
+        "In-place"
+      ],
+      "en": [
+        "in-place family"
+      ],
+      "notesJa": "Recommended policy: treat as read-only or limited support; often complex edits."
+    },
+    {
+      "key": "concept_type_parameter",
+      "type": "concept",
+      "ja": [
+        "タイプパラメータ",
+        "型パラメータ",
+        "タイプ側の値"
+      ],
+      "en": [
+        "type parameter"
+      ]
+    },
+    {
+      "key": "concept_instance_parameter",
+      "type": "concept",
+      "ja": [
+        "インスタンスパラメータ",
+        "個別パラメータ",
+        "インスタンス側の値"
+      ],
+      "en": [
+        "instance parameter"
+      ]
+    },
+    {
+      "key": "concept_read_only_param",
+      "type": "concept",
+      "ja": [
+        "読み取り専用パラメータ",
+        "編集不可パラメータ"
+      ],
+      "en": [
+        "read-only parameter"
+      ]
+    },
+    {
+      "key": "concept_change_typeid",
+      "type": "concept",
+      "ja": [
+        "ChangeTypeId",
+        "タイプID変更",
+        "型替え"
+      ],
+      "en": [
+        "ChangeTypeId"
+      ]
+    },
+    {
+      "key": "concept_element_location_null",
+      "type": "concept",
+      "ja": [
+        "Locationがnull",
+        "ロケーションなし",
+        "移動不可"
+      ],
+      "en": [
+        "no location"
+      ]
+    },
+    {
+      "key": "concept_adjacency_probe",
+      "type": "concept",
+      "ja": [
+        "隣接判定",
+        "隣接プローブ",
+        "隣接距離",
+        "プローブ距離"
+      ],
+      "en": [
+        "adjacency probe"
+      ]
+    },
+    {
+      "key": "concept_probe_distance",
+      "type": "concept",
+      "ja": [
+        "判定距離",
+        "プローブ距離",
+        "距離配列"
+      ],
+      "en": [
+        "probe distances"
+      ]
+    },
+    {
+      "key": "concept_room_side",
+      "type": "concept",
+      "ja": [
+        "部屋側",
+        "室内側",
+        "ルーム側"
+      ],
+      "en": [
+        "room side"
+      ]
+    },
+    {
+      "key": "concept_wall_side",
+      "type": "concept",
+      "ja": [
+        "壁側",
+        "外壁側"
+      ],
+      "en": [
+        "wall side"
+      ]
+    },
+    {
+      "key": "concept_temp_room_bounding",
+      "type": "concept",
+      "ja": [
+        "一時的にルームバウンディングON",
+        "一時Room Bounding"
+      ],
+      "en": [
+        "temporary room bounding"
+      ]
+    },
+    {
+      "key": "concept_restrict_columns",
+      "type": "concept",
+      "ja": [
+        "柱の対象制限",
+        "柱は対象壁に接するものだけ"
+      ],
+      "en": [
+        "restrict columns"
+      ]
+    },
+    {
+      "key": "concept_view_filter_rule",
+      "type": "concept",
+      "ja": [
+        "フィルタルール",
+        "条件式",
+        "ルール"
+      ],
+      "en": [
+        "filter rule"
+      ]
+    },
+    {
+      "key": "concept_override_by_category",
+      "type": "concept",
+      "ja": [
+        "カテゴリごとに上書き",
+        "カテゴリの表示上書き"
+      ],
+      "en": [
+        "category override"
+      ]
+    },
+    {
+      "key": "concept_override_by_element",
+      "type": "concept",
+      "ja": [
+        "要素ごとに上書き",
+        "要素の表示上書き"
+      ],
+      "en": [
+        "element override"
+      ]
+    },
+    {
+      "key": "concept_hide_category",
+      "type": "concept",
+      "ja": [
+        "カテゴリを隠す",
+        "カテゴリ非表示"
+      ],
+      "en": [
+        "hide category"
+      ]
+    },
+    {
+      "key": "concept_hide_elements",
+      "type": "concept",
+      "ja": [
+        "要素を隠す",
+        "選択を非表示"
+      ],
+      "en": [
+        "hide elements"
+      ]
+    },
+    {
+      "key": "concept_unhide",
+      "type": "concept",
+      "ja": [
+        "再表示",
+        "非表示解除",
+        "隠し解除"
+      ],
+      "en": [
+        "unhide"
+      ]
+    },
+    {
+      "key": "concept_isolate_elements",
+      "type": "concept",
+      "ja": [
+        "要素を隔離",
+        "選択だけ表示"
+      ],
+      "en": [
+        "isolate elements"
+      ]
+    },
+    {
+      "key": "concept_reset_temporary_hide_isolate",
+      "type": "concept",
+      "ja": [
+        "一時的な非表示/隔離を解除",
+        "一時表示を戻す"
+      ],
+      "en": [
+        "reset hide/isolate"
+      ]
+    },
+    {
+      "key": "concept_view_template_remove",
+      "type": "concept",
+      "ja": [
+        "テンプレート解除",
+        "テンプレート外す"
+      ],
+      "en": [
+        "remove view template"
+      ]
+    },
+    {
+      "key": "concept_view_template_assign",
+      "type": "concept",
+      "ja": [
+        "テンプレート割当",
+        "テンプレート適用"
+      ],
+      "en": [
+        "assign view template"
+      ]
+    },
+    {
+      "key": "concept_sheet_create",
+      "type": "concept",
+      "ja": [
+        "シート作成",
+        "図面作成",
+        "新規シート"
+      ],
+      "en": [
+        "create sheet"
+      ]
+    },
+    {
+      "key": "concept_sheet_number",
+      "type": "concept",
+      "ja": [
+        "シート番号",
+        "図面番号",
+        "Sheet Number"
+      ],
+      "en": [
+        "sheet number"
+      ]
+    },
+    {
+      "key": "concept_sheet_name",
+      "type": "concept",
+      "ja": [
+        "シート名",
+        "図面名"
+      ],
+      "en": [
+        "sheet name"
+      ]
+    },
+    {
+      "key": "concept_place_legend",
+      "type": "concept",
+      "ja": [
+        "凡例を配置",
+        "レジェンド配置"
+      ],
+      "en": [
+        "place legend"
+      ]
+    },
+    {
+      "key": "concept_place_schedule",
+      "type": "concept",
+      "ja": [
+        "集計表を配置",
+        "表をシートに載せる"
+      ],
+      "en": [
+        "place schedule"
+      ]
+    },
+    {
+      "key": "concept_place_view",
+      "type": "concept",
+      "ja": [
+        "ビューを配置",
+        "ビューポート配置"
+      ],
+      "en": [
+        "place view"
+      ]
+    },
+    {
+      "key": "concept_viewport_title",
+      "type": "concept",
+      "ja": [
+        "ビューポートタイトル",
+        "ビュータイトル"
+      ],
+      "en": [
+        "viewport title"
+      ]
+    },
+    {
+      "key": "concept_align_to_grid",
+      "type": "concept",
+      "ja": [
+        "グリッドに合わせる",
+        "ガイドグリッドに合わせる"
+      ],
+      "en": [
+        "align to guide grid"
+      ]
+    },
+    {
+      "key": "concept_print_set",
+      "type": "concept",
+      "ja": [
+        "印刷セット",
+        "ビューセット",
+        "Print Set"
+      ],
+      "en": [
+        "print set"
+      ]
+    },
+    {
+      "key": "concept_print_range",
+      "type": "concept",
+      "ja": [
+        "印刷範囲",
+        "範囲指定"
+      ],
+      "en": [
+        "print range"
+      ]
+    },
+    {
+      "key": "concept_export_image",
+      "type": "concept",
+      "ja": [
+        "画像出力",
+        "PNG出力",
+        "JPEG出力"
+      ],
+      "en": [
+        "export image"
+      ]
+    },
+    {
+      "key": "concept_export_dwf",
+      "type": "concept",
+      "ja": [
+        "DWF出力",
+        "DWFエクスポート"
+      ],
+      "en": [
+        "export dwf"
+      ]
+    },
+    {
+      "key": "concept_pdf_merge",
+      "type": "concept",
+      "ja": [
+        "PDF結合",
+        "PDFをまとめる"
+      ],
+      "en": [
+        "pdf merge"
+      ]
+    },
+    {
+      "key": "concept_select_by_category",
+      "type": "concept",
+      "ja": [
+        "カテゴリで選択",
+        "カテゴリ指定で選択"
+      ],
+      "en": [
+        "select by category"
+      ]
+    },
+    {
+      "key": "concept_select_by_parameter",
+      "type": "concept",
+      "ja": [
+        "パラメータで選択",
+        "条件で選択"
+      ],
+      "en": [
+        "select by parameter"
+      ]
+    },
+    {
+      "key": "concept_select_similar",
+      "type": "concept",
+      "ja": [
+        "類似を選択",
+        "同じものを選択"
+      ],
+      "en": [
+        "select similar"
+      ]
+    },
+    {
+      "key": "concept_select_all_instances",
+      "type": "concept",
+      "ja": [
+        "すべてのインスタンスを選択",
+        "同タイプ全選択"
+      ],
+      "en": [
+        "select all instances"
+      ]
+    },
+    {
+      "key": "concept_invert_selection",
+      "type": "concept",
+      "ja": [
+        "選択反転",
+        "逆選択"
+      ],
+      "en": [
+        "invert selection"
+      ]
+    },
+    {
+      "key": "unit_inch",
+      "type": "unit",
+      "ja": [
+        "インチ",
+        "in"
+      ],
+      "unit": "inch",
+      "multiplierToBase": 1.0
+    },
+    {
+      "key": "unit_ft",
+      "type": "unit",
+      "ja": [
+        "フィート",
+        "ft"
+      ],
+      "unit": "ft",
+      "multiplierToBase": 1.0
+    },
+    {
+      "key": "pv_hide_on",
+      "type": "param_value",
+      "ja": [
+        "非表示にする",
+        "隠す"
+      ],
+      "param": "hide",
+      "value": true
+    },
+    {
+      "key": "pv_hide_off",
+      "type": "param_value",
+      "ja": [
+        "表示する",
+        "見せる"
+      ],
+      "param": "hide",
+      "value": false
+    },
+    {
+      "key": "pv_isolate_on",
+      "type": "param_value",
+      "ja": [
+        "隔離する",
+        "選択だけ表示"
+      ],
+      "param": "isolate",
+      "value": true
+    },
+    {
+      "key": "pv_join_square",
+      "type": "param_value",
+      "ja": [
+        "直角",
+        "スクエア",
+        "角は直角"
+      ],
+      "param": "joinType",
+      "value": "square"
+    },
+    {
+      "key": "pv_join_round",
+      "type": "param_value",
+      "ja": [
+        "丸め",
+        "ラウンド"
+      ],
+      "param": "joinType",
+      "value": "round"
+    },
+    {
+      "key": "concept_viz_color",
+      "type": "concept",
+      "ja": [
+        "色",
+        "カラー",
+        "色付け",
+        "着色",
+        "カラーリング"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_pattern",
+      "type": "concept",
+      "ja": [
+        "パターン",
+        "ハッチ",
+        "模様"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_transparency",
+      "type": "concept",
+      "ja": [
+        "透明",
+        "透過",
+        "透明度"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_lineweight",
+      "type": "concept",
+      "ja": [
+        "線の太さ",
+        "線幅",
+        "ラインウェイト"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_linecolor",
+      "type": "concept",
+      "ja": [
+        "線色",
+        "ラインカラー"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_halftone",
+      "type": "concept",
+      "ja": [
+        "ハーフトーン",
+        "薄く表示"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_surface",
+      "type": "concept",
+      "ja": [
+        "表面",
+        "サーフェス"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_viz_cut",
+      "type": "concept",
+      "ja": [
+        "切断",
+        "カット"
+      ],
+      "en": [
+        "visualization"
+      ]
+    },
+    {
+      "key": "concept_properties_palette",
+      "type": "concept",
+      "ja": [
+        "プロパティ",
+        "プロパティパレット"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_project_browser",
+      "type": "concept",
+      "ja": [
+        "プロジェクトブラウザ",
+        "ブラウザ"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_ribbon",
+      "type": "concept",
+      "ja": [
+        "リボン",
+        "ツールバー"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_context_menu",
+      "type": "concept",
+      "ja": [
+        "右クリックメニュー",
+        "コンテキストメニュー"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_selection_filter_ui",
+      "type": "concept",
+      "ja": [
+        "選択フィルタ",
+        "フィルタ選択"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_manage_tab",
+      "type": "concept",
+      "ja": [
+        "管理タブ"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_modify_tab",
+      "type": "concept",
+      "ja": [
+        "修正タブ"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_architecture_tab",
+      "type": "concept",
+      "ja": [
+        "建築タブ"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_structure_tab",
+      "type": "concept",
+      "ja": [
+        "構造タブ"
+      ],
+      "en": [
+        "ui"
+      ]
+    },
+    {
+      "key": "concept_systems_tab",
+      "type": "concept",
+      "ja": [
+        "設備タブ"
+      ],
+      "en": [
+        "ui"
+      ]
+    }
+  ]
+}

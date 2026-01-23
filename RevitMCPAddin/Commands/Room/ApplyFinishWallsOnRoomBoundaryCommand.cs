@@ -30,7 +30,12 @@ namespace RevitMCPAddin.Commands.Room
             "roomId/elementId is optional; when omitted, the selected Room is used.",
             "boundaryLocation: Finish|Center|CoreCenter|CoreBoundary (default Finish).",
             "onlyRcCore=true filters host walls by coreMaterialNameContains (default '*コンクリート').",
+            "excludeWallsBetweenRooms=true skips wall boundary segments when another Room is detected on the opposite side (default false).",
+            "adjacencyProbeDistancesMm controls probe distances (mm) used by excludeWallsBetweenRooms (default [250,500,750]).",
             "includeBoundaryColumns=true also processes boundary segments whose element is a Column/StructuralColumn (default true).",
+            "restrictBoundaryColumnsToEligibleWalls=true limits boundary column segments to those adjacent to eligible wall segments (default false).",
+            "tempEnableRoomBoundingOnColumns=true temporarily enables Room Bounding on candidate columns so columns appear in Room.GetBoundarySegments (default true).",
+            "autoDetectColumnsInRoom=true auto-detects candidate columns near the room bbox (default true).",
             "skipExisting=true attempts to detect existing finish walls of the same type on the room side.",
             "Units: mm for numeric params; internal units are ft."
         })]
@@ -43,6 +48,7 @@ namespace RevitMCPAddin.Commands.Room
             public int LoopIndex;
             public int SegmentIndex;
             public Curve BoundaryCurve = null!;
+            public Curve? BaselineCurve;
             public int BoundaryElementId;
             public string BoundaryElementKind = string.Empty; // Wall | Column
             public int? BoundaryCategoryId;
@@ -142,7 +148,7 @@ namespace RevitMCPAddin.Commands.Room
             double sampleZFt = ComputeRoomSampleZ(doc, room, baseOffsetFt, roomHeightFt.Value);
 
             // ----------------------------
-            // Boundary segments
+            // Boundary options
             // ----------------------------
             string boundaryLocationStr = p.Value<string>("boundaryLocation") ?? p.Value<string>("boundary_location") ?? "Finish";
             var boundaryLocation = SpatialUtils.ParseBoundaryLocation(boundaryLocationStr, SpatialElementBoundaryLocation.Finish);
@@ -152,14 +158,6 @@ namespace RevitMCPAddin.Commands.Room
             double minSegmentLengthMm = p.Value<double?>("minSegmentLengthMm") ?? 1.0;
             if (minSegmentLengthMm < 0) minSegmentLengthMm = 0;
 
-            IList<IList<BoundarySegment>>? loops = null;
-            try { loops = room.GetBoundarySegments(options); } catch { loops = null; }
-
-            if (loops == null || loops.Count == 0)
-                return ResultUtil.Err("部屋の境界線を取得できませんでした（Room が閉じていない可能性があります）。", "ROOM_BOUNDARY_UNAVAILABLE");
-
-            int loopCountToProcess = includeIslands ? loops.Count : Math.Min(1, loops.Count);
-
             // ----------------------------
             // Host wall filter (RC core)
             // ----------------------------
@@ -168,133 +166,66 @@ namespace RevitMCPAddin.Commands.Room
             var coreTokens = SplitTokens(coreMatContains);
             var wallTypeRcCache = new Dictionary<int, bool>();
 
+            // ----------------------------
+            // Host wall adjacency filter (rooms on both sides)
+            // ----------------------------
+            bool excludeWallsBetweenRooms = p.Value<bool?>("excludeWallsBetweenRooms") ?? false;
+            double[] adjacencyProbeDistancesMm = ParseMmDistances(p, "adjacencyProbeDistancesMm", new[] { 250.0, 500.0, 750.0 });
+            bool restrictBoundaryColumnsToEligibleWalls = p.Value<bool?>("restrictBoundaryColumnsToEligibleWalls") ?? false;
+
             bool includeBoundaryColumns = p.Value<bool?>("includeBoundaryColumns") ?? true;
 
-            var tasks = new List<SegTask>();
-            var skipped = new List<object>();
+            // ----------------------------
+            // Column detection / temporary Room Bounding
+            // ----------------------------
+            bool autoDetectColumnsInRoom = p.Value<bool?>("autoDetectColumnsInRoom") ?? includeBoundaryColumns;
+            double searchMarginMm = p.Value<double?>("searchMarginMm") ?? 1000.0;
+            if (searchMarginMm < 0) searchMarginMm = 0;
+            bool tempEnableRoomBoundingOnColumns = p.Value<bool?>("tempEnableRoomBoundingOnColumns") ?? includeBoundaryColumns;
 
-            for (int li = 0; li < loopCountToProcess; li++)
+            var columnIds = new List<ElementId>();
+            var columnIdSet = new HashSet<int>();
+            if (p.TryGetValue("columnIds", out var colTok) && colTok is JArray colArr)
             {
-                var loop = loops[li];
-                if (loop == null) continue;
-                for (int si = 0; si < loop.Count; si++)
+                foreach (var t in colArr)
                 {
-                    var seg = loop[si];
-                    if (seg == null) continue;
-
-                    Curve? c = null;
-                    try { c = seg.GetCurve(); } catch { c = null; }
-                    if (c == null)
-                    {
-                        skipped.Add(new { loopIndex = li, segmentIndex = si, reason = "no curve" });
-                        continue;
-                    }
-
-                    double lenMm = 0.0;
-                    try { lenMm = UnitHelper.FtToMm(c.ApproximateLength); } catch { lenMm = 0.0; }
-                    if (lenMm < minSegmentLengthMm)
-                    {
-                        skipped.Add(new { loopIndex = li, segmentIndex = si, reason = "too short", lengthMm = Math.Round(lenMm, 3) });
-                        continue;
-                    }
-
-                    var boundaryElement = seg.ElementId != ElementId.InvalidElementId ? doc.GetElement(seg.ElementId) : null;
-                    if (boundaryElement == null)
-                    {
-                        skipped.Add(new { loopIndex = li, segmentIndex = si, boundaryElementId = seg.ElementId.IntValue(), reason = "boundary element not found" });
-                        continue;
-                    }
-
-                    var catId = GetCategoryIdIntSafe(boundaryElement);
-                    var catName = GetCategoryNameSafe(boundaryElement);
-
-                    // ---- Wall boundary ----
-                    var hostWall = boundaryElement as Autodesk.Revit.DB.Wall;
-                    if (hostWall != null)
-                    {
-                        bool rcOk = true;
-                        if (onlyRcCore)
-                        {
-                            int tid = 0;
-                            try { tid = hostWall.GetTypeId().IntValue(); } catch { tid = 0; }
-                            if (tid <= 0)
-                            {
-                                rcOk = false;
-                            }
-                            else if (wallTypeRcCache.TryGetValue(tid, out var cached))
-                            {
-                                rcOk = cached;
-                            }
-                            else
-                            {
-                                bool isMatch = IsWallTypeCoreMaterialMatch(doc, hostWall, coreTokens);
-                                wallTypeRcCache[tid] = isMatch;
-                                rcOk = isMatch;
-                            }
-                        }
-
-                        if (!rcOk)
-                        {
-                            skipped.Add(new { loopIndex = li, segmentIndex = si, hostWallId = hostWall.Id.IntValue(), reason = "core material not matched" });
-                            continue;
-                        }
-
-                        tasks.Add(new SegTask
-                        {
-                            LoopIndex = li,
-                            SegmentIndex = si,
-                            BoundaryElementId = hostWall.Id.IntValue(),
-                            BoundaryElementKind = "Wall",
-                            BoundaryCategoryId = catId,
-                            BoundaryCategoryName = catName,
-                            HostWallId = hostWall.Id.IntValue(),
-                            HostColumnId = null,
-                            BoundaryCurve = c
-                        });
-                        continue;
-                    }
-
-                    // ---- Column boundary ----
-                    if (includeBoundaryColumns && IsColumnBoundaryElement(boundaryElement))
-                    {
-                        tasks.Add(new SegTask
-                        {
-                            LoopIndex = li,
-                            SegmentIndex = si,
-                            BoundaryElementId = boundaryElement.Id.IntValue(),
-                            BoundaryElementKind = "Column",
-                            BoundaryCategoryId = catId,
-                            BoundaryCategoryName = catName,
-                            HostWallId = null,
-                            HostColumnId = boundaryElement.Id.IntValue(),
-                            BoundaryCurve = c
-                        });
-                        continue;
-                    }
-
-                    skipped.Add(new
-                    {
-                        loopIndex = li,
-                        segmentIndex = si,
-                        boundaryElementId = boundaryElement.Id.IntValue(),
-                        boundaryElementCategoryId = catId,
-                        boundaryElementCategoryName = catName,
-                        reason = includeBoundaryColumns ? "unsupported boundary element" : "columns disabled or unsupported boundary element"
-                    });
+                    if (t.Type != JTokenType.Integer) continue;
+                    int idInt = t.Value<int>();
+                    if (idInt <= 0) continue;
+                    if (columnIdSet.Add(idInt))
+                        columnIds.Add(Autodesk.Revit.DB.ElementIdCompat.From(idInt));
                 }
             }
 
-            if (tasks.Count == 0)
+            var autoDetectedColumns = new List<ElementId>();
+            if (includeBoundaryColumns && autoDetectColumnsInRoom)
             {
-                return ResultUtil.Ok(new
+                try
                 {
-                    roomId = room.Id.IntValue(),
-                    createdWallIds = Array.Empty<int>(),
-                    createdCount = 0,
-                    skipped,
-                    note = "No eligible boundary segments."
-                });
+                    var detected = AutoDetectColumnsInRoom(doc, room, searchMarginMm);
+                    if (detected != null)
+                    {
+                        foreach (var eid in detected)
+                        {
+                            int idInt = eid.IntValue();
+                            if (idInt <= 0) continue;
+                            if (columnIdSet.Add(idInt))
+                                columnIds.Add(eid);
+                            autoDetectedColumns.Add(eid);
+                        }
+                    }
+                }
+                catch
+                {
+                    autoDetectedColumns = new List<ElementId>();
+                }
             }
+
+            int[] autoDetectedColumnIds = autoDetectedColumns
+                .Select(x => x != null ? x.IntValue() : 0)
+                .Where(x => x > 0)
+                .Distinct()
+                .ToArray();
 
             // ----------------------------
             // Existing finish walls (best-effort)
@@ -312,39 +243,6 @@ namespace RevitMCPAddin.Commands.Room
 
             var tol = new GeometryUtils.Tolerance(existingMaxOffsetMm, existingMaxAngleDeg);
 
-            var existingFinishWalls = new List<Autodesk.Revit.DB.Wall>();
-            if (skipExisting)
-            {
-                var roomBbox = ComputeBoundaryBBoxFt(tasks, existingSearchMarginMm);
-                try
-                {
-                    var allWalls = new FilteredElementCollector(doc)
-                        .OfCategory(BuiltInCategory.OST_Walls)
-                        .WhereElementIsNotElementType()
-                        .Cast<Autodesk.Revit.DB.Wall>();
-
-                    foreach (var w in allWalls)
-                    {
-                        if (w == null) continue;
-                        ElementId? tid = null;
-                        try { tid = w.GetTypeId(); } catch { tid = null; }
-                        if (tid == null || tid == ElementId.InvalidElementId) continue;
-                        if (tid != finishWallType.Id) continue;
-
-                        if (roomBbox != null)
-                        {
-                            BoundingBoxXYZ? bb = null;
-                            try { bb = w.get_BoundingBox(null); } catch { bb = null; }
-                            if (bb == null) continue;
-                            if (!BboxIntersects(roomBbox, bb)) continue;
-                        }
-
-                        existingFinishWalls.Add(w);
-                    }
-                }
-                catch { existingFinishWalls = new List<Autodesk.Revit.DB.Wall>(); }
-            }
-
             // ----------------------------
             // Create walls
             // ----------------------------
@@ -356,6 +254,22 @@ namespace RevitMCPAddin.Commands.Room
             double probeDistMm = p.Value<double?>("probeDistMm") ?? 200.0;
             if (probeDistMm < 1.0) probeDistMm = 1.0;
 
+            bool cornerTrim = p.Value<bool?>("cornerTrim") ?? true;
+            double cornerTrimMaxExtensionMm = p.Value<double?>("cornerTrimMaxExtensionMm") ?? 2000.0;
+            if (cornerTrimMaxExtensionMm < 0) cornerTrimMaxExtensionMm = 0;
+            int cornerTrimAppliedCount = 0;
+            int cornerTrimSkippedCount = 0;
+            int excludedWallsBetweenRoomsCount = 0;
+            int excludedBoundaryColumnSegmentsCount = 0;
+            int[] excludedWallIdsBetweenRooms = Array.Empty<int>();
+            int[] excludedBoundaryColumnIds = Array.Empty<int>();
+            int[] eligibleBoundaryColumnIds = Array.Empty<int>();
+
+            var tasks = new List<SegTask>();
+            var skipped = new List<object>();
+            var toggledColumnIds = new List<int>();
+            var loopSegmentCountByIndex = new Dictionary<int, int>();
+
             var createdWallIds = new List<int>();
             var perSegment = new List<object>();
 
@@ -364,29 +278,442 @@ namespace RevitMCPAddin.Commands.Room
                 tx.Start();
                 TxnUtil.ConfigureProceedWithWarnings(tx);
 
-                foreach (var t in tasks)
+                // (1) Temporarily enable Room Bounding on candidate columns so they appear in Room.GetBoundarySegments
+                Dictionary<int, int> originalRoomBoundingByColumnId = new Dictionary<int, int>();
+                if (includeBoundaryColumns && tempEnableRoomBoundingOnColumns && columnIds.Count > 0)
                 {
-                    try
+                    foreach (var id in columnIds)
                     {
-                        if (skipExisting && HasExistingFinishWallOnSegment(room, t.BoundaryCurve, existingFinishWalls, tol, existingMinOverlapMm, sampleZFt))
+                        if (id == null || id == ElementId.InvalidElementId) continue;
+                        var e = doc.GetElement(id);
+                        if (e == null) continue;
+                        if (!IsColumnBoundaryElement(e)) continue;
+
+                        var pRoomBound = e.get_Parameter(BuiltInParameter.WALL_ATTR_ROOM_BOUNDING);
+                        if (pRoomBound == null || pRoomBound.IsReadOnly) continue;
+
+                        int orig = 0;
+                        try { orig = pRoomBound.AsInteger(); } catch { orig = 0; }
+                        originalRoomBoundingByColumnId[id.IntValue()] = orig;
+
+                        if (orig != 1)
                         {
-                            perSegment.Add(new
+                            try
                             {
-                                loopIndex = t.LoopIndex,
-                                segmentIndex = t.SegmentIndex,
-                                boundaryElementId = t.BoundaryElementId,
-                                boundaryElementKind = t.BoundaryElementKind,
-                                boundaryElementCategoryId = t.BoundaryCategoryId,
-                                boundaryElementCategoryName = t.BoundaryCategoryName,
-                                hostWallId = t.HostWallId,
-                                hostColumnId = t.HostColumnId,
-                                status = "skip",
-                                reason = "already exists"
+                                pRoomBound.Set(1);
+                                toggledColumnIds.Add(id.IntValue());
+                            }
+                            catch { /* ignore */ }
+                        }
+                    }
+
+                    try { doc.Regenerate(); } catch { /* ignore */ }
+                }
+
+                // (2) Get boundary loops (after temp RoomBounding)
+                IList<IList<BoundarySegment>>? loops = null;
+                try { loops = room.GetBoundarySegments(options); } catch { loops = null; }
+
+                if (loops == null || loops.Count == 0)
+                {
+                    tx.RollBack();
+                    return ResultUtil.Err("部屋の境界線を取得できませんでした（Room が閉じていない可能性があります）。", "ROOM_BOUNDARY_UNAVAILABLE");
+                }
+
+                int loopCountToProcess = includeIslands ? loops.Count : Math.Min(1, loops.Count);
+
+                for (int li = 0; li < loopCountToProcess; li++)
+                {
+                    var loop = loops[li];
+                    if (loop == null) continue;
+                    if (!loopSegmentCountByIndex.ContainsKey(li))
+                        loopSegmentCountByIndex[li] = loop.Count;
+                    for (int si = 0; si < loop.Count; si++)
+                    {
+                        var seg = loop[si];
+                        if (seg == null) continue;
+
+                        Curve? c = null;
+                        try { c = seg.GetCurve(); } catch { c = null; }
+                        if (c == null)
+                        {
+                            skipped.Add(new { loopIndex = li, segmentIndex = si, reason = "no curve" });
+                            continue;
+                        }
+
+                        double lenMm = 0.0;
+                        try { lenMm = UnitHelper.FtToMm(c.ApproximateLength); } catch { lenMm = 0.0; }
+                        if (lenMm < minSegmentLengthMm)
+                        {
+                            skipped.Add(new { loopIndex = li, segmentIndex = si, reason = "too short", lengthMm = Math.Round(lenMm, 3) });
+                            continue;
+                        }
+
+                        var boundaryElement = seg.ElementId != ElementId.InvalidElementId ? doc.GetElement(seg.ElementId) : null;
+                        if (boundaryElement == null)
+                        {
+                            skipped.Add(new { loopIndex = li, segmentIndex = si, boundaryElementId = seg.ElementId.IntValue(), reason = "boundary element not found" });
+                            continue;
+                        }
+
+                        var catId = GetCategoryIdIntSafe(boundaryElement);
+                        var catName = GetCategoryNameSafe(boundaryElement);
+
+                        // ---- Wall boundary ----
+                        var hostWall = boundaryElement as Autodesk.Revit.DB.Wall;
+                        if (hostWall != null)
+                        {
+                            bool rcOk = true;
+                            if (onlyRcCore)
+                            {
+                                int tid = 0;
+                                try { tid = hostWall.GetTypeId().IntValue(); } catch { tid = 0; }
+                                if (tid <= 0)
+                                {
+                                    rcOk = false;
+                                }
+                                else if (wallTypeRcCache.TryGetValue(tid, out var cached))
+                                {
+                                    rcOk = cached;
+                                }
+                                else
+                                {
+                                    bool isMatch = IsWallTypeCoreMaterialMatch(doc, hostWall, coreTokens);
+                                    wallTypeRcCache[tid] = isMatch;
+                                    rcOk = isMatch;
+                                }
+                            }
+
+                            if (!rcOk)
+                            {
+                                skipped.Add(new { loopIndex = li, segmentIndex = si, hostWallId = hostWall.Id.IntValue(), reason = "core material not matched" });
+                                continue;
+                            }
+
+                            tasks.Add(new SegTask
+                            {
+                                LoopIndex = li,
+                                SegmentIndex = si,
+                                BoundaryElementId = hostWall.Id.IntValue(),
+                                BoundaryElementKind = "Wall",
+                                BoundaryCategoryId = catId,
+                                BoundaryCategoryName = catName,
+                                HostWallId = hostWall.Id.IntValue(),
+                                HostColumnId = null,
+                                BoundaryCurve = c
                             });
                             continue;
                         }
 
-                        var baseline = ComputeFinishWallBaselineInsideRoom(room, t.BoundaryCurve, finishWallType.Width * 0.5, sampleZFt, probeDistMm);
+                        // ---- Column boundary ----
+                        if (includeBoundaryColumns && IsColumnBoundaryElement(boundaryElement))
+                        {
+                            tasks.Add(new SegTask
+                            {
+                                LoopIndex = li,
+                                SegmentIndex = si,
+                                BoundaryElementId = boundaryElement.Id.IntValue(),
+                                BoundaryElementKind = "Column",
+                                BoundaryCategoryId = catId,
+                                BoundaryCategoryName = catName,
+                                HostWallId = null,
+                                HostColumnId = boundaryElement.Id.IntValue(),
+                                BoundaryCurve = c
+                            });
+                            continue;
+                        }
+
+                        skipped.Add(new
+                        {
+                            loopIndex = li,
+                            segmentIndex = si,
+                            boundaryElementId = boundaryElement.Id.IntValue(),
+                            boundaryElementCategoryId = catId,
+                            boundaryElementCategoryName = catName,
+                            reason = includeBoundaryColumns ? "unsupported boundary element" : "columns disabled or unsupported boundary element"
+                        });
+                    }
+                }
+
+                if (tasks.Count == 0)
+                {
+                    tx.RollBack();
+                    return ResultUtil.Ok(new
+                    {
+                        roomId = room.Id.IntValue(),
+                        roomName = room.Name ?? string.Empty,
+                        levelId = room.LevelId.IntValue(),
+                        boundaryLocation = boundaryLocation.ToString(),
+                        wallTypeId = finishWallType.Id.IntValue(),
+                        wallTypeName = finishWallType.Name ?? string.Empty,
+                        onlyRcCore,
+                        coreMaterialNameContains = coreMatContains,
+                        excludeWallsBetweenRooms,
+                        adjacencyProbeDistancesMm,
+                        excludedWallsBetweenRoomsCount,
+                        excludedWallIdsBetweenRooms,
+                        includeBoundaryColumns,
+                        restrictBoundaryColumnsToEligibleWalls,
+                        eligibleBoundaryColumnIds,
+                        excludedBoundaryColumnSegmentsCount,
+                        excludedBoundaryColumnIds,
+                        tempEnableRoomBoundingOnColumns,
+                        autoDetectColumnsInRoom,
+                        searchMarginMm,
+                        autoDetectedColumnIds,
+                        toggledColumnIds = toggledColumnIds.ToArray(),
+                        skipExisting,
+                        createdCount = 0,
+                        createdWallIds = Array.Empty<int>(),
+                        roomHeightMm = Math.Round(UnitHelper.FtToMm(roomHeightFt.Value), 3),
+                        roomHeightSource,
+                        baseOffsetMm = Math.Round(UnitHelper.FtToMm(baseOffsetFt), 3),
+                        joinEnds,
+                        joinType = joinType.ToString(),
+                        segments = Array.Empty<object>(),
+                        skipped,
+                        note = "No eligible boundary segments."
+                    });
+                }
+
+                // (3) Precompute baselines (offset inside room by half thickness)
+                double halfThicknessFt = 0.0;
+                try { halfThicknessFt = finishWallType.Width * 0.5; } catch { halfThicknessFt = 0.0; }
+
+                foreach (var t in tasks)
+                {
+                    try
+                    {
+                        t.BaselineCurve = ComputeFinishWallBaselineInsideRoom(room, t.BoundaryCurve, halfThicknessFt, sampleZFt, probeDistMm);
+                    }
+                    catch
+                    {
+                        t.BaselineCurve = null;
+                    }
+                }
+
+                // (3.5) Optionally filter wall segments that appear to have rooms on BOTH sides
+                // (i.e., exclude walls between rooms; keep walls that do not have a room on the opposite side)
+                if (excludeWallsBetweenRooms && adjacencyProbeDistancesMm.Length > 0)
+                {
+                    BoundingBoxXYZ? boundaryBbox = null;
+                    try
+                    {
+                        double maxProbe = adjacencyProbeDistancesMm.Length > 0 ? adjacencyProbeDistancesMm.Max() : 0.0;
+                        boundaryBbox = ComputeBoundaryBBoxFt(tasks, Math.Max(0.0, maxProbe + 500.0));
+                    }
+                    catch { boundaryBbox = null; }
+
+                    // Keep the room inclusion check consistent with get_candidate_exterior_walls:
+                    // - Same Level
+                    // - XY-based inclusion via Room.IsPointInRoom (Z is evaluated near each Room's base level)
+                    var otherRooms = CollectOtherRoomsForAdjacency(doc, room, boundaryBbox);
+
+                    var removed = new List<SegTask>();
+                    var removedWallIds = new List<int>();
+
+                    foreach (var t in tasks)
+                    {
+                        if (t == null) continue;
+                        if (!string.Equals(t.BoundaryElementKind, "Wall", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!t.HostWallId.HasValue || t.HostWallId.Value <= 0) continue;
+
+                        Autodesk.Revit.DB.Wall? hostWallElem = null;
+                        try { hostWallElem = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.HostWallId.Value)) as Autodesk.Revit.DB.Wall; }
+                        catch { hostWallElem = null; }
+                        if (hostWallElem == null) continue;
+
+                        Autodesk.Revit.DB.Architecture.Room? neighbor = null;
+                        try
+                        {
+                            neighbor = FindOtherRoomAcrossWallLikeExteriorLogic(
+                                doc,
+                                room,
+                                hostWallElem,
+                                otherRooms,
+                                t.BoundaryCurve,
+                                sampleZFt,
+                                adjacencyProbeDistancesMm);
+                        }
+                        catch { neighbor = null; }
+
+                        if (neighbor != null)
+                        {
+                            removed.Add(t);
+                            excludedWallsBetweenRoomsCount++;
+                            removedWallIds.Add(t.HostWallId.Value);
+
+                            skipped.Add(new
+                            {
+                                loopIndex = t.LoopIndex,
+                                segmentIndex = t.SegmentIndex,
+                                hostWallId = t.HostWallId.Value,
+                                reason = "excluded: other room found across wall",
+                                otherRoomId = neighbor.Id.IntValue(),
+                                otherRoomName = neighbor.Name ?? string.Empty,
+                                adjacencyProbeDistancesMm = adjacencyProbeDistancesMm
+                            });
+                        }
+                    }
+
+                    foreach (var t in removed) tasks.Remove(t);
+                    excludedWallIdsBetweenRooms = removedWallIds.Where(x => x > 0).Distinct().ToArray();
+                }
+
+                // (3.6) Optionally restrict boundary columns to those adjacent to eligible wall segments
+                if (restrictBoundaryColumnsToEligibleWalls)
+                {
+                    var wallSegKeys = new HashSet<string>();
+                    foreach (var t in tasks)
+                    {
+                        if (t == null) continue;
+                        if (!string.Equals(t.BoundaryElementKind, "Wall", StringComparison.OrdinalIgnoreCase)) continue;
+                        wallSegKeys.Add(t.LoopIndex + ":" + t.SegmentIndex);
+                    }
+
+                    var eligibleCols = new HashSet<int>();
+                    foreach (var t in tasks)
+                    {
+                        if (t == null) continue;
+                        if (!string.Equals(t.BoundaryElementKind, "Column", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!t.HostColumnId.HasValue || t.HostColumnId.Value <= 0) continue;
+
+                        int segCount = -1;
+                        if (loopSegmentCountByIndex != null && loopSegmentCountByIndex.TryGetValue(t.LoopIndex, out var c))
+                            segCount = c;
+                        if (segCount <= 0) continue;
+
+                        int prev = t.SegmentIndex - 1;
+                        if (prev < 0) prev = segCount - 1;
+                        int next = t.SegmentIndex + 1;
+                        if (next >= segCount) next = 0;
+
+                        if (wallSegKeys.Contains(t.LoopIndex + ":" + prev) || wallSegKeys.Contains(t.LoopIndex + ":" + next))
+                            eligibleCols.Add(t.HostColumnId.Value);
+                    }
+
+                    var removed = new List<SegTask>();
+                    var removedColIds = new List<int>();
+                    foreach (var t in tasks)
+                    {
+                        if (t == null) continue;
+                        if (!string.Equals(t.BoundaryElementKind, "Column", StringComparison.OrdinalIgnoreCase)) continue;
+                        if (!t.HostColumnId.HasValue || t.HostColumnId.Value <= 0) continue;
+                        if (eligibleCols.Contains(t.HostColumnId.Value)) continue;
+
+                        removed.Add(t);
+                        excludedBoundaryColumnSegmentsCount++;
+                        removedColIds.Add(t.HostColumnId.Value);
+
+                        skipped.Add(new
+                        {
+                            loopIndex = t.LoopIndex,
+                            segmentIndex = t.SegmentIndex,
+                            hostColumnId = t.HostColumnId.Value,
+                            reason = "excluded: column not connected to eligible wall segments"
+                        });
+                    }
+
+                    foreach (var t in removed) tasks.Remove(t);
+                    excludedBoundaryColumnIds = removedColIds.Where(x => x > 0).Distinct().ToArray();
+                    eligibleBoundaryColumnIds = eligibleCols.Where(x => x > 0).Distinct().ToArray();
+                }
+
+                if (tasks.Count == 0)
+                {
+                    tx.RollBack();
+                    return ResultUtil.Ok(new
+                    {
+                        roomId = room.Id.IntValue(),
+                        roomName = room.Name ?? string.Empty,
+                        levelId = room.LevelId.IntValue(),
+                        boundaryLocation = boundaryLocation.ToString(),
+                        wallTypeId = finishWallType.Id.IntValue(),
+                        wallTypeName = finishWallType.Name ?? string.Empty,
+                        onlyRcCore,
+                        coreMaterialNameContains = coreMatContains,
+                        excludeWallsBetweenRooms,
+                        adjacencyProbeDistancesMm,
+                        excludedWallsBetweenRoomsCount,
+                        excludedWallIdsBetweenRooms,
+                        includeBoundaryColumns,
+                        restrictBoundaryColumnsToEligibleWalls,
+                        eligibleBoundaryColumnIds,
+                        excludedBoundaryColumnSegmentsCount,
+                        excludedBoundaryColumnIds,
+                        tempEnableRoomBoundingOnColumns,
+                        autoDetectColumnsInRoom,
+                        searchMarginMm,
+                        autoDetectedColumnIds,
+                        toggledColumnIds = toggledColumnIds.ToArray(),
+                        skipExisting,
+                        createdCount = 0,
+                        createdWallIds = Array.Empty<int>(),
+                        roomHeightMm = Math.Round(UnitHelper.FtToMm(roomHeightFt.Value), 3),
+                        roomHeightSource,
+                        baseOffsetMm = Math.Round(UnitHelper.FtToMm(baseOffsetFt), 3),
+                        joinEnds,
+                        joinType = joinType.ToString(),
+                        segments = Array.Empty<object>(),
+                        skipped,
+                        note = "No eligible boundary segments (after filters)."
+                    });
+                }
+
+                // (4) Corner-trim baselines so consecutive segments connect (miter-like)
+                if (cornerTrim)
+                {
+                    try
+                    {
+                        CornerTrimBaselines(room, tasks, loopSegmentCountByIndex, sampleZFt, cornerTrimMaxExtensionMm, ref cornerTrimAppliedCount, ref cornerTrimSkippedCount);
+                    }
+                    catch
+                    {
+                        // best-effort
+                    }
+                }
+
+                // (5) Collect existing finish walls (inside the same transaction / temp-bounding state)
+                var existingFinishWalls = new List<Autodesk.Revit.DB.Wall>();
+                if (skipExisting)
+                {
+                    var roomBbox = ComputeBoundaryBBoxFt(tasks, existingSearchMarginMm);
+                    try
+                    {
+                        int finishTypeIdInt = finishWallType.Id.IntValue();
+                        var allWalls = new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_Walls)
+                            .WhereElementIsNotElementType()
+                            .Cast<Autodesk.Revit.DB.Wall>();
+
+                        foreach (var w in allWalls)
+                        {
+                            if (w == null) continue;
+                            int tidInt = 0;
+                            try { tidInt = w.GetTypeId().IntValue(); } catch { tidInt = 0; }
+                            if (tidInt <= 0) continue;
+                            if (tidInt != finishTypeIdInt) continue;
+
+                            if (roomBbox != null)
+                            {
+                                BoundingBoxXYZ? bb = null;
+                                try { bb = w.get_BoundingBox(null); } catch { bb = null; }
+                                if (bb == null) continue;
+                                if (!BboxIntersects(roomBbox, bb)) continue;
+                            }
+
+                            existingFinishWalls.Add(w);
+                        }
+                    }
+                    catch { existingFinishWalls = new List<Autodesk.Revit.DB.Wall>(); }
+                }
+
+                // (6) Create walls
+                foreach (var t in tasks)
+                {
+                    try
+                    {
+                        var baseline = t.BaselineCurve;
                         if (baseline == null)
                         {
                             perSegment.Add(new
@@ -401,6 +728,24 @@ namespace RevitMCPAddin.Commands.Room
                                 hostColumnId = t.HostColumnId,
                                 status = "skip",
                                 reason = "baseline failed"
+                            });
+                            continue;
+                        }
+
+                        if (skipExisting && HasExistingFinishWallOnSegment(room, baseline, existingFinishWalls, tol, existingMinOverlapMm, sampleZFt))
+                        {
+                            perSegment.Add(new
+                            {
+                                loopIndex = t.LoopIndex,
+                                segmentIndex = t.SegmentIndex,
+                                boundaryElementId = t.BoundaryElementId,
+                                boundaryElementKind = t.BoundaryElementKind,
+                                boundaryElementCategoryId = t.BoundaryCategoryId,
+                                boundaryElementCategoryName = t.BoundaryCategoryName,
+                                hostWallId = t.HostWallId,
+                                hostColumnId = t.HostColumnId,
+                                status = "skip",
+                                reason = "already exists"
                             });
                             continue;
                         }
@@ -494,6 +839,35 @@ namespace RevitMCPAddin.Commands.Room
                     }
                 }
 
+                // (7) Restore Room Bounding on columns (best-effort, but if it fails we rollback for safety)
+                if (originalRoomBoundingByColumnId.Count > 0)
+                {
+                    var restoreFailed = new List<int>();
+                    foreach (var kv in originalRoomBoundingByColumnId)
+                    {
+                        try
+                        {
+                            var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(kv.Key));
+                            if (e == null) continue;
+                            var pRoomBound = e.get_Parameter(BuiltInParameter.WALL_ATTR_ROOM_BOUNDING);
+                            if (pRoomBound == null || pRoomBound.IsReadOnly) continue;
+                            pRoomBound.Set(kv.Value);
+                        }
+                        catch
+                        {
+                            restoreFailed.Add(kv.Key);
+                        }
+                    }
+
+                    if (restoreFailed.Count > 0)
+                    {
+                        tx.RollBack();
+                        return ResultUtil.Err("柱の Room Bounding を元に戻せませんでした: " + string.Join(",", restoreFailed), "COLUMN_ROOM_BOUNDING_RESTORE_FAILED");
+                    }
+
+                    try { doc.Regenerate(); } catch { /* ignore */ }
+                }
+
                 try { doc.Regenerate(); } catch { /* ignore */ }
 
                 var st = tx.Commit();
@@ -504,7 +878,7 @@ namespace RevitMCPAddin.Commands.Room
                 }
             }
 
-            return ResultUtil.Ok(new
+                return ResultUtil.Ok(new
             {
                 roomId = room.Id.IntValue(),
                 roomName = room.Name ?? string.Empty,
@@ -514,8 +888,25 @@ namespace RevitMCPAddin.Commands.Room
                 wallTypeName = finishWallType.Name ?? string.Empty,
                 onlyRcCore,
                 coreMaterialNameContains = coreMatContains,
+                excludeWallsBetweenRooms,
+                adjacencyProbeDistancesMm,
+                excludedWallsBetweenRoomsCount,
+                excludedWallIdsBetweenRooms,
                 includeBoundaryColumns,
+                restrictBoundaryColumnsToEligibleWalls,
+                eligibleBoundaryColumnIds,
+                excludedBoundaryColumnSegmentsCount,
+                excludedBoundaryColumnIds,
+                tempEnableRoomBoundingOnColumns,
+                autoDetectColumnsInRoom,
+                searchMarginMm,
+                autoDetectedColumnIds,
+                toggledColumnIds = toggledColumnIds.ToArray(),
                 skipExisting,
+                cornerTrim,
+                cornerTrimMaxExtensionMm,
+                cornerTrimAppliedCount,
+                cornerTrimSkippedCount,
                 createdCount = createdWallIds.Count,
                 createdWallIds = createdWallIds.ToArray(),
                 roomHeightMm = Math.Round(UnitHelper.FtToMm(roomHeightFt.Value), 3),
@@ -666,6 +1057,217 @@ namespace RevitMCPAddin.Commands.Room
             return false;
         }
 
+        private static double[] ParseMmDistances(JObject p, string key, double[] defaultValues)
+        {
+            if (p == null) return defaultValues ?? Array.Empty<double>();
+            if (string.IsNullOrWhiteSpace(key)) return defaultValues ?? Array.Empty<double>();
+
+            try
+            {
+                if (p.TryGetValue(key, out var tok) && tok != null)
+                {
+                    var list = new List<double>();
+
+                    if (tok is JArray arr)
+                    {
+                        foreach (var t in arr)
+                        {
+                            if (t == null) continue;
+                            if (t.Type == JTokenType.Integer || t.Type == JTokenType.Float)
+                            {
+                                double v = 0.0;
+                                try { v = t.Value<double>(); } catch { v = 0.0; }
+                                if (v > 0.0) list.Add(v);
+                            }
+                            else if (t.Type == JTokenType.String)
+                            {
+                                var s = (t.Value<string>() ?? string.Empty).Trim();
+                                if (double.TryParse(s, out var v) && v > 0.0) list.Add(v);
+                            }
+                        }
+                    }
+                    else if (tok.Type == JTokenType.String)
+                    {
+                        var s = (tok.Value<string>() ?? string.Empty).Trim();
+                        foreach (var part in SplitTokens(s))
+                        {
+                            if (double.TryParse(part, out var v) && v > 0.0) list.Add(v);
+                        }
+                    }
+                    else if (tok.Type == JTokenType.Integer || tok.Type == JTokenType.Float)
+                    {
+                        double v = 0.0;
+                        try { v = tok.Value<double>(); } catch { v = 0.0; }
+                        if (v > 0.0) list.Add(v);
+                    }
+
+                    var arr2 = list
+                        .Where(x => x > 0.0)
+                        .Distinct()
+                        .OrderBy(x => x)
+                        .ToArray();
+
+                    if (arr2.Length > 0) return arr2;
+                }
+            }
+            catch { /* ignore */ }
+
+            return defaultValues ?? Array.Empty<double>();
+        }
+
+        private static IList<Autodesk.Revit.DB.Architecture.Room> CollectOtherRoomsForAdjacency(
+            Document doc,
+            Autodesk.Revit.DB.Architecture.Room targetRoom,
+            BoundingBoxXYZ? boundaryBbox)
+        {
+            var rooms = new List<Autodesk.Revit.DB.Architecture.Room>();
+            if (doc == null || targetRoom == null) return rooms;
+
+            try
+            {
+                var collector = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType();
+
+                if (boundaryBbox != null)
+                {
+                    try
+                    {
+                        var outline = new Outline(boundaryBbox.Min, boundaryBbox.Max);
+                        collector = collector.WherePasses(new BoundingBoxIntersectsFilter(outline));
+                    }
+                    catch { /* ignore */ }
+                }
+
+                foreach (var e in collector)
+                {
+                    var r = e as Autodesk.Revit.DB.Architecture.Room;
+                    if (r == null) continue;
+                    if (r.Id.IntValue() == targetRoom.Id.IntValue()) continue;
+
+                    // Same level only (practical for adjacency on plan)
+                    try
+                    {
+                        if (r.LevelId != targetRoom.LevelId) continue;
+                    }
+                    catch { /* ignore */ }
+
+                    // Skip unplaced rooms (Area==0)
+                    try
+                    {
+                        if (r.Area <= 1e-9) continue;
+                    }
+                    catch { /* ignore */ }
+
+                    rooms.Add(r);
+                }
+            }
+            catch
+            {
+                rooms = new List<Autodesk.Revit.DB.Architecture.Room>();
+            }
+
+            return rooms;
+        }
+
+        private static Autodesk.Revit.DB.Architecture.Room? TryFindRoomInInteriorRoomVolume(
+            Document doc,
+            IList<Autodesk.Revit.DB.Architecture.Room> rooms,
+            XYZ p)
+        {
+            if (doc == null || rooms == null || rooms.Count == 0) return null;
+            if (p == null) return null;
+
+            foreach (var r in rooms)
+            {
+                if (r == null) continue;
+
+                try
+                {
+                    double zTest = p.Z;
+                    try
+                    {
+                        var baseLevel = doc.GetElement(r.LevelId) as Level;
+                        if (baseLevel != null)
+                        {
+                            zTest = baseLevel.Elevation + 0.1; // same as get_candidate_exterior_walls
+                        }
+                    }
+                    catch
+                    {
+                        zTest = p.Z;
+                    }
+
+                    var testPt = new XYZ(p.X, p.Y, zTest);
+                    if (r.IsPointInRoom(testPt)) return r;
+                }
+                catch
+                {
+                    // ignore and continue
+                }
+            }
+
+            return null;
+        }
+
+        private static Autodesk.Revit.DB.Architecture.Room? FindOtherRoomAcrossWallLikeExteriorLogic(
+            Document doc,
+            Autodesk.Revit.DB.Architecture.Room targetRoom,
+            Autodesk.Revit.DB.Wall hostWall,
+            IList<Autodesk.Revit.DB.Architecture.Room> otherRooms,
+            Curve boundaryCurve,
+            double sampleZFt,
+            double[] probeDistancesMm)
+        {
+            if (doc == null || targetRoom == null || hostWall == null) return null;
+            if (otherRooms == null || otherRooms.Count == 0) return null;
+            if (boundaryCurve == null) return null;
+            if (probeDistancesMm == null || probeDistancesMm.Length == 0) return null;
+
+            // Wall normal direction in XY (same as get_candidate_exterior_walls)
+            XYZ orient = null;
+            try
+            {
+                orient = hostWall.Orientation;
+                if (orient != null && orient.GetLength() > 1e-9)
+                    orient = orient.Normalize();
+            }
+            catch { orient = null; }
+
+            if (orient == null || Math.Abs(orient.Z) > 1e-3) return null;
+
+            orient = new XYZ(orient.X, orient.Y, 0.0);
+            if (orient.GetLength() > 1e-9) orient = orient.Normalize();
+            if (orient.GetLength() <= 1e-9) return null;
+
+            // Sample along the boundary segment length (segment-local), using the same sample ratios as get_candidate_exterior_walls
+            double[] ts = { 0.1, 0.3, 0.5, 0.7, 0.9 };
+            foreach (double t in ts)
+            {
+                XYZ basePt;
+                try { basePt = boundaryCurve.Evaluate(t, true); }
+                catch { continue; }
+
+                var baseZ = new XYZ(basePt.X, basePt.Y, sampleZFt);
+
+                foreach (var mm in probeDistancesMm)
+                {
+                    if (mm <= 0.0) continue;
+                    double lenFt = UnitHelper.MmToFt(mm);
+                    var pA = baseZ + orient * lenFt;
+                    var pB = baseZ - orient * lenFt;
+
+                    var rA = TryFindRoomInInteriorRoomVolume(doc, otherRooms, pA);
+                    if (rA != null) return rA;
+
+                    var rB = TryFindRoomInInteriorRoomVolume(doc, otherRooms, pB);
+                    if (rB != null) return rB;
+                }
+            }
+
+            return null;
+        }
+
         private static double? TryGetRoomHeightFt(Autodesk.Revit.DB.Architecture.Room room)
         {
             if (room == null) return null;
@@ -721,6 +1323,98 @@ namespace RevitMCPAddin.Commands.Room
                 z = baseOffsetFt + Math.Min(UnitHelper.MmToFt(300.0), heightFt * 0.25);
             }
             return z;
+        }
+
+        /// <summary>
+        /// Auto-detect candidate columns near the room bbox (expanded by searchMarginMm),
+        /// then keep those that appear to intersect the room (best-effort).
+        /// </summary>
+        private static IList<ElementId> AutoDetectColumnsInRoom(Document doc, Autodesk.Revit.DB.Architecture.Room room, double searchMarginMm)
+        {
+            var result = new List<ElementId>();
+            if (doc == null || room == null) return result;
+
+            BoundingBoxXYZ? roomBb = null;
+            try { roomBb = room.get_BoundingBox(null); } catch { roomBb = null; }
+            if (roomBb == null) return result;
+
+            if (searchMarginMm < 0) searchMarginMm = 0;
+            double marginFt = UnitUtils.ConvertToInternalUnits(searchMarginMm, UnitTypeId.Millimeters);
+
+            var min = new XYZ(roomBb.Min.X - marginFt, roomBb.Min.Y - marginFt, roomBb.Min.Z - marginFt);
+            var max = new XYZ(roomBb.Max.X + marginFt, roomBb.Max.Y + marginFt, roomBb.Max.Z + marginFt);
+            var outline = new Outline(min, max);
+            var bbFilter = new BoundingBoxIntersectsFilter(outline);
+
+            var filters = new List<ElementFilter>
+            {
+                new ElementCategoryFilter(BuiltInCategory.OST_Columns),
+                new ElementCategoryFilter(BuiltInCategory.OST_StructuralColumns)
+            };
+            var catFilter = new LogicalOrFilter(filters);
+
+            var collector = new FilteredElementCollector(doc)
+                .WherePasses(catFilter)
+                .WherePasses(bbFilter)
+                .WhereElementIsNotElementType();
+
+            foreach (var e in collector)
+            {
+                var fi = e as FamilyInstance;
+                if (fi == null) continue;
+
+                BoundingBoxXYZ? bb = null;
+                try { bb = fi.get_BoundingBox(null); } catch { bb = null; }
+                if (bb == null) continue;
+
+                if (IntersectsRoomApprox(room, bb, roomBb))
+                    result.Add(fi.Id);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Best-effort intersection: sample points (center + 4 corners) at a mid height where
+        /// the column bbox and room bbox overlap in Z, and check Room.IsPointInRoom.
+        /// </summary>
+        private static bool IntersectsRoomApprox(Autodesk.Revit.DB.Architecture.Room room, BoundingBoxXYZ colBb, BoundingBoxXYZ roomBb)
+        {
+            if (room == null || colBb == null || roomBb == null) return false;
+
+            double zMin = Math.Max(colBb.Min.Z, roomBb.Min.Z);
+            double zMax = Math.Min(colBb.Max.Z, roomBb.Max.Z);
+            if (zMax <= zMin) return false;
+
+            double zMid = 0.5 * (zMin + zMax);
+
+            double xMin = colBb.Min.X, xMax = colBb.Max.X;
+            double yMin = colBb.Min.Y, yMax = colBb.Max.Y;
+            double xMid = 0.5 * (xMin + xMax);
+            double yMid = 0.5 * (yMin + yMax);
+
+            var pts = new[]
+            {
+                new XYZ(xMid, yMid, zMid),
+                new XYZ(xMin, yMin, zMid),
+                new XYZ(xMax, yMin, zMid),
+                new XYZ(xMax, yMax, zMid),
+                new XYZ(xMin, yMax, zMid)
+            };
+
+            foreach (var pt in pts)
+            {
+                try
+                {
+                    if (room.IsPointInRoom(pt)) return true;
+                }
+                catch
+                {
+                    // ignore per-point failures
+                }
+            }
+
+            return false;
         }
 
         private static BoundingBoxXYZ? ComputeBoundaryBBoxFt(List<SegTask> tasks, double marginMm)
@@ -911,6 +1605,148 @@ namespace RevitMCPAddin.Commands.Room
             catch { /* ignore */ }
 
             return offPos ?? offNeg;
+        }
+
+        private static void CornerTrimBaselines(
+            Autodesk.Revit.DB.Architecture.Room room,
+            List<SegTask> tasks,
+            Dictionary<int, int> loopSegmentCountByIndex,
+            double sampleZFt,
+            double maxExtensionMm,
+            ref int appliedCount,
+            ref int skippedCount)
+        {
+            if (room == null || tasks == null || tasks.Count == 0) return;
+
+            // Per task start/end override points
+            var startOverride = new Dictionary<SegTask, XYZ>();
+            var endOverride = new Dictionary<SegTask, XYZ>();
+
+            var byLoop = tasks.GroupBy(t => t.LoopIndex).ToList();
+            foreach (var g in byLoop)
+            {
+                int loopIndex = g.Key;
+                int loopSegCount = -1;
+                if (loopSegmentCountByIndex != null && loopSegmentCountByIndex.TryGetValue(loopIndex, out var c))
+                    loopSegCount = c;
+
+                var map = new Dictionary<int, SegTask>();
+                foreach (var t in g)
+                {
+                    if (!map.ContainsKey(t.SegmentIndex))
+                        map[t.SegmentIndex] = t;
+                }
+
+                foreach (var kv in map)
+                {
+                    var curr = kv.Value;
+                    if (curr == null) continue;
+
+                    int nextIndex = curr.SegmentIndex + 1;
+                    if (loopSegCount > 0 && curr.SegmentIndex == loopSegCount - 1)
+                        nextIndex = 0;
+
+                    if (!map.TryGetValue(nextIndex, out var next) || next == null) continue;
+
+                    // Only treat truly consecutive segments (avoid trimming across skipped segments)
+                    if (loopSegCount > 0)
+                    {
+                        bool isWrap = curr.SegmentIndex == loopSegCount - 1 && next.SegmentIndex == 0;
+                        bool isConsecutive = next.SegmentIndex == curr.SegmentIndex + 1;
+                        if (!isWrap && !isConsecutive) continue;
+                    }
+                    else
+                    {
+                        if (next.SegmentIndex != curr.SegmentIndex + 1) continue;
+                    }
+
+                    var aLine = curr.BaselineCurve as Line;
+                    var bLine = next.BaselineCurve as Line;
+                    if (aLine == null || bLine == null)
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    var a0 = aLine.GetEndPoint(0);
+                    var a1 = aLine.GetEndPoint(1);
+                    var b0 = bLine.GetEndPoint(0);
+                    var b1 = bLine.GetEndPoint(1);
+
+                    if (!TryIntersectInfiniteLines2D(a0, a1, b0, b1, out var ip))
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Limit extension so we do not create extreme spikes
+                    double daMm = UnitHelper.FtToMm(Math.Sqrt(Math.Pow(ip.X - a1.X, 2) + Math.Pow(ip.Y - a1.Y, 2)));
+                    double dbMm = UnitHelper.FtToMm(Math.Sqrt(Math.Pow(ip.X - b0.X, 2) + Math.Pow(ip.Y - b0.Y, 2)));
+                    if ((maxExtensionMm > 0 && daMm > maxExtensionMm) || (maxExtensionMm > 0 && dbMm > maxExtensionMm))
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Midpoint inside-room safety check (best-effort)
+                    var aMid = new XYZ(0.5 * (a0.X + ip.X), 0.5 * (a0.Y + ip.Y), sampleZFt);
+                    var bMid = new XYZ(0.5 * (ip.X + b1.X), 0.5 * (ip.Y + b1.Y), sampleZFt);
+                    bool aOk = false;
+                    bool bOk = false;
+                    try { aOk = room.IsPointInRoom(aMid); } catch { aOk = false; }
+                    try { bOk = room.IsPointInRoom(bMid); } catch { bOk = false; }
+                    if (!aOk || !bOk)
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
+                    endOverride[curr] = new XYZ(ip.X, ip.Y, a1.Z);
+                    startOverride[next] = new XYZ(ip.X, ip.Y, b0.Z);
+                    appliedCount++;
+                }
+            }
+
+            // Apply overrides
+            foreach (var t in tasks)
+            {
+                var line = t.BaselineCurve as Line;
+                if (line == null) continue;
+
+                var s = line.GetEndPoint(0);
+                var e = line.GetEndPoint(1);
+
+                if (startOverride.TryGetValue(t, out var so)) s = so;
+                if (endOverride.TryGetValue(t, out var eo)) e = eo;
+
+                if (Math.Abs(s.X - e.X) < 1e-9 && Math.Abs(s.Y - e.Y) < 1e-9)
+                    continue;
+
+                try { t.BaselineCurve = Line.CreateBound(s, e); }
+                catch { /* ignore */ }
+            }
+        }
+
+        private static bool TryIntersectInfiniteLines2D(XYZ a0, XYZ a1, XYZ b0, XYZ b1, out XYZ intersection)
+        {
+            intersection = XYZ.Zero;
+
+            double x1 = a0.X, y1 = a0.Y;
+            double x2 = a1.X, y2 = a1.Y;
+            double x3 = b0.X, y3 = b0.Y;
+            double x4 = b1.X, y4 = b1.Y;
+
+            double den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (Math.Abs(den) < 1e-12) return false;
+
+            double det1 = x1 * y2 - y1 * x2;
+            double det2 = x3 * y4 - y3 * x4;
+
+            double px = (det1 * (x3 - x4) - (x1 - x2) * det2) / den;
+            double py = (det1 * (y3 - y4) - (y1 - y2) * det2) / den;
+
+            intersection = new XYZ(px, py, a0.Z);
+            return true;
         }
     }
 }

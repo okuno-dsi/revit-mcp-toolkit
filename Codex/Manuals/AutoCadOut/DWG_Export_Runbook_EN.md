@@ -30,6 +30,18 @@ Outputs
 - `Codex/Work/Project_…/DWG/command.txt` (AutoCAD merge payload)
 - `Codex/Work/Project_…/DWG/Merged/walls_types_merged.dwg` (when -AutoMerge)
 
+Optional (COM merge, AutoCAD running)
+- If AutoCadMCP is not available, you can merge DWGs with AutoCAD COM:
+  - Script: `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`). No other external libraries.
+  - Example:
+```
+python tools/AutoCad/merge_dwgs_by_map_com.py \
+  --source-dir "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg" \
+  --out-dwg "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\MERGED_DWG_COM.dwg" \
+  --map-csv "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\layermap.csv"
+```
+
 What the Script Does (High Level)
 1) Save state: `save_view_state` on the active view.
 2) Collect IDs in view: walls vs. non‑walls.
@@ -70,14 +82,14 @@ Purpose
 - When you already have `seed.dwg`, `B.dwg`, and `G.dwg` (e.g., from beam‑filtered views), merge them into a single DWG where all B elements are on layer `B` and all G elements are on layer `G`.
 
 Prerequisites
-- AutoCAD 2025 Core Console installed: `C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe`.
+- AutoCAD 2026 Core Console installed: `C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe`.
 - Export folder like `Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS` containing `seed.dwg`, `B.dwg`, `G.dwg`.
 
 Run
 ```
 pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 \
   -ExportDir "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250" \
-  -Locale en-US
+  -Locale ja-JP
 ```
 
 Outputs
@@ -89,7 +101,7 @@ Verification (optional)
 ```
 pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 \
   -DwgPath "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
-  -Locale en-US
+  -Locale ja-JP
 ```
 - A `layers.txt` is written next to the DWG or reported in output.
 

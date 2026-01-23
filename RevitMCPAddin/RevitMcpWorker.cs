@@ -15,7 +15,9 @@ using RevitMCPAddin.Commands.Debug;
 using RevitMCPAddin.Commands.DocOps;
 using RevitMCPAddin.Commands.DocumentOps;
 using RevitMCPAddin.Commands.DoorOps;
+using RevitMCPAddin.Commands.DynamoOps;
 using RevitMCPAddin.Commands.DxfOps;
+using RevitMCPAddin.Commands.Egress;
 using RevitMCPAddin.Commands.ElementOps;
 using RevitMCPAddin.Commands.ElementOps.ArchitecturalColumn;
 using RevitMCPAddin.Commands.ElementOps.Ceiling;
@@ -39,6 +41,7 @@ using RevitMCPAddin.Commands.ElementOps.Wall;
 using RevitMCPAddin.Commands.ElementOps.Window;
 using RevitMCPAddin.Commands.ExcelPlan;
 using RevitMCPAddin.Commands.Export;
+using RevitMCPAddin.Commands.Family;
 using RevitMCPAddin.Commands.FamilyOps;
 using RevitMCPAddin.Commands.FireProtection;
 using RevitMCPAddin.Commands.FloorOps;
@@ -71,6 +74,7 @@ using RevitMCPAddin.Commands.Spatial;
 using RevitMCPAddin.Commands.SurfaceOps;
 using RevitMCPAddin.Commands.TypeOps;
 using RevitMCPAddin.Commands.ViewOps;
+using RevitMCPAddin.Commands.ViewFilterOps;
 using RevitMCPAddin.Commands.Visualization;
 using RevitMCPAddin.Commands.VisualizationOps;
 using RevitMCPAddin.Commands.WindowOps;
@@ -217,6 +221,8 @@ namespace RevitMCPAddin
             {
                 new SearchCommandsHandler(),
                 new DescribeCommandHandler(),
+                new HelpSuggestHandler(),
+                new RevitMCPAddin.Commands.MetaOps.ResolveCategoryCommand(),
                 new GetContextCommand(),
                 batchHandler,
 
@@ -236,8 +242,20 @@ namespace RevitMCPAddin
                 new RevitMCPAddin.Commands.DocumentOps.UpdateProjectInfoCommand(),
                 new GetProjectCategoriesCommand(),
                 new GetProjectSummaryCommand(),
+                new GetProjectUnitsCommand(),
                 new GetFillPatternsCommand(),
                 new SaveSnapshotCommand(),
+
+                // Dynamo
+                new DynamoListScriptsCommand(),
+                new DynamoRunScriptCommand(),
+
+                // Route / Egress (PathOfTravel)
+                new FindShortestPathsCommand(),
+                new GetPathWaypointsCommand(),
+                new SetPathWaypointsCommand(),
+                new UpdatePathOfTravelCommand(),
+                new CreateWaypointGuidedEgressPathCommand(),
 
                 // 選択要素
                 new GetSelectedElementIdsCommand(),
@@ -260,6 +278,16 @@ namespace RevitMCPAddin
                 new CreateElevationViewCommand(),
                 new CompareViewStatesCommand(),
                 new GetViewsCommand(),
+
+                // View Filter management (V/G -> Filters)
+                new ViewFilterListCommand(),
+                new ViewFilterUpsertCommand(),
+                new ViewFilterDeleteCommand(),
+                new ViewFilterApplyToViewCommand(),
+                new ViewFilterRemoveFromViewCommand(),
+                new ViewFilterGetOrderCommand(),
+                new ViewFilterSetOrderCommand(),
+
                 new GetCategoryVisibilityCommand(),
                 new SetCategoryOverrideCommand(),
                 new SetCategoryVisibilityBulkCommand(),
@@ -364,7 +392,10 @@ namespace RevitMCPAddin
                 new DeleteSpatialVolumeOverlaysCommand(),
                 new GetSpatialContextForElementCommand(),
                 new GetSpatialContextForElementsCommand(),
-
+                new ResolveSpatialSelectionCommand(),
+                new GetSpatialParamsBulkCommand(),
+                new SuggestSpatialParamsCommand(),
+ 
                 // 3DViewOps
                 new Create3DViewCommand(),
                 new CreatePerspectiveViewCommand(),
@@ -494,6 +525,7 @@ namespace RevitMCPAddin
                 new SetDetailLineStyleCommand(),
                 new SetDetailLinesStyleCommand(),
                 new ExplodeModelLineToDetailCommand(),
+                new DrawColoredLineSegmentsCommand(),
 
                 // Tag
                 new GetTagSymbolsCommand(),
@@ -549,9 +581,18 @@ namespace RevitMCPAddin
                 // Element General
                 new GetBoundingBoxCommand(),
                 new GetElementInfoHandler(),
+                new SearchElementsCommand(),
+                new QueryElementsCommand(),
                 new GetInstanceGeometryCommand(),
                 new GetInstancesGeometryCommand(),
                 new ApplyTransformDeltaCommand(),
+                // Element transform utilities (copy/mirror/array/pin)
+                new CopyElementsCommand(),
+                new MirrorElementsCommand(),
+                new ArrayLinearCommand(),
+                new ArrayRadialCommand(),
+                new PinElementCommand(),
+                new PinElementsCommand(),
                 new JoinElementsCommand(),
                 new UnjoinElementsCommand(),
                 new AreElementsJoinedCommand(),
@@ -999,6 +1040,7 @@ namespace RevitMCPAddin
                 // Family Instances
                 new GetFamilyInstancesCommand(),
                 new GetFamilyTypesCommand(),
+                new QueryLoadedFamiliesCommand(),
                 new CreateFamilyInstanceCommand(),
                 new MoveFamilyInstanceCommand(),
                 new DeleteFamilyInstanceCommand(),

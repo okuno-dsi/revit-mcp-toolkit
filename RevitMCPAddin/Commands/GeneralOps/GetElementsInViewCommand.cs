@@ -26,13 +26,24 @@ namespace RevitMCPAddin.Commands.GeneralOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params ?? new JObject();
 
-            if (!p.TryGetValue("viewId", out var viewToken))
-                return new { ok = false, msg = "Missing parameter: viewId" };
-
-            int viewId = viewToken.Value<int>();
-            var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
-            if (view == null)
-                return new { ok = false, msg = $"View not found: {viewId}" };
+            bool usedActiveView = false;
+            View view = null;
+            int viewId = 0;
+            if (p.TryGetValue("viewId", out var viewToken))
+            {
+                viewId = viewToken.Value<int>();
+                view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
+                if (view == null)
+                    return new { ok = false, msg = $"View not found: {viewId}" };
+            }
+            else
+            {
+                view = doc.ActiveView;
+                if (view == null)
+                    return new { ok = false, msg = "Missing parameter: viewId (no active view available)" };
+                viewId = view.Id.IntValue();
+                usedActiveView = true;
+            }
 
             bool grouped = p.TryGetValue("grouped", out var gTok) && gTok.Type == JTokenType.Boolean && gTok.Value<bool>();
 
@@ -40,8 +51,15 @@ namespace RevitMCPAddin.Commands.GeneralOps
             var shape = p["_shape"] as JObject;
             bool idsOnly = shape?.Value<bool?>("idsOnly") ?? false;
             var page = shape?["page"] as JObject;
-            int limit = page?.Value<int?>("limit") ?? int.MaxValue;
-            int skip = page?.Value<int?>("skip") ?? page?.Value<int?>("offset") ?? 0;
+            int limit = page?.Value<int?>("limit")
+                        ?? p.Value<int?>("count")
+                        ?? p.Value<int?>("limit")
+                        ?? int.MaxValue;
+            int skip = page?.Value<int?>("skip")
+                       ?? page?.Value<int?>("offset")
+                       ?? p.Value<int?>("skip")
+                       ?? p.Value<int?>("offset")
+                       ?? 0;
 
             bool summaryOnly = p.Value<bool?>("summaryOnly") ?? false;
             bool includeIndependentTags = p.Value<bool?>("includeIndependentTags") ?? true;
@@ -54,7 +72,17 @@ namespace RevitMCPAddin.Commands.GeneralOps
             var includeCategoryIdsPf = (pf?["includeCategoryIds"] as JArray)?.Values<int>()?.ToHashSet() ?? new HashSet<int>();
             var excludeCategoryIdsFilter = (pf?["excludeCategoryIds"] as JArray)?.Values<int>()?.ToHashSet() ?? new HashSet<int>();
             foreach (var x in includeCategoryIdsPf) categoryIdsFilter.Add(x);
-            var categoryNamesFilter = (p["categoryNames"] as JArray)?.Values<string>()?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var categoryNamesRaw = (p["categoryNames"] as JArray)?.Values<string>()?.Where(s => !string.IsNullOrWhiteSpace(s))?.ToList()
+                                   ?? new List<string>();
+            var categoryNamesFilter = new HashSet<string>(categoryNamesRaw, StringComparer.OrdinalIgnoreCase);
+            var unresolvedCategoryNamesFilter = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rawName in categoryNamesRaw)
+            {
+                if (CategoryResolver.TryResolveCategory(rawName, out var bic))
+                    categoryIdsFilter.Add((int)bic);
+                else
+                    unresolvedCategoryNamesFilter.Add(rawName);
+            }
             string categoryNameContains = p.Value<string>("categoryNameContains");
             string familyNameContains = p.Value<string>("familyNameContains");
             string typeNameContains = p.Value<string>("typeNameContains");
@@ -77,6 +105,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             // 集合: 直接指定 categoryIds + _filter.includeCategoryIds の和集合
             var includeCatsAll = new HashSet<int>(categoryIdsFilter);
             foreach (var x in includeCategoryIdsPf) includeCatsAll.Add(x);
+            bool usedCategoryFilter = false;
             if (includeCatsAll.Count > 0)
             {
                 try
@@ -89,6 +118,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                     {
                         var catOr = (catFilters.Count == 1) ? catFilters[0] : (ElementFilter)new LogicalOrFilter(catFilters);
                         collector = collector.WherePasses(catOr);
+                        usedCategoryFilter = true;
                     }
                 }
                 catch { /* fallback to unfiltered when category filter construction fails */ }
@@ -174,6 +204,16 @@ namespace RevitMCPAddin.Commands.GeneralOps
             var allElems = collector.ToElements()
                                      .Where(e => includeIndependentTags || !(e is IndependentTag))
                                      .ToList();
+            if (usedCategoryFilter && allElems.Count == 0)
+            {
+                // Fallback: category filter can be too strict for some views/locales.
+                var fallback = new FilteredElementCollector(doc, view.Id);
+                if (!includeElementTypes)
+                    fallback = fallback.WhereElementIsNotElementType();
+                allElems = fallback.ToElements()
+                                   .Where(e => includeIndependentTags || !(e is IndependentTag))
+                                   .ToList();
+            }
             // helpers (family/type names)
             string ResolveFamilyName(Element e)
             {
@@ -223,9 +263,9 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 {
                     if (catId.HasValue && excludeCategoryIdsFilter.Contains(catId.Value)) return false;
                 }
-                if (categoryNamesFilter.Count > 0)
+                if (unresolvedCategoryNamesFilter.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(catName) || !categoryNamesFilter.Contains(catName)) return false;
+                    if (string.IsNullOrWhiteSpace(catName) || !unresolvedCategoryNamesFilter.Contains(catName)) return false;
                 }
                 if (!string.IsNullOrWhiteSpace(categoryNameContains))
                 {
@@ -274,7 +314,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                     idList.Add(e.Id.IntValue());
                     if (idList.Count >= limit) break;
                 }
-                return new { ok = true, totalCount, elementIds = idList };
+                return new { ok = true, totalCount, elementIds = idList, viewId, usedActiveView };
             }
 
             // rows（要約）を構築
@@ -292,7 +332,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             var rows = rowsAll.Skip(skip).Take(limit).ToList();
 
             if (!grouped || summaryOnly)
-                return new { ok = true, totalCount, rows };
+                return new { ok = true, totalCount, rows, items = rows, viewId, usedActiveView };
 
             // グルーピング出力（レベル→カテゴリ→elementIds）
             var groupedLevels = rows
@@ -327,7 +367,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
                 })
                 .ToList();
 
-            return new { ok = true, totalCount, levels = groupedLevels };
+            return new { ok = true, totalCount, levels = groupedLevels, viewId, usedActiveView };
         }
     }
 }

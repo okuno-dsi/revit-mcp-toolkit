@@ -17,8 +17,10 @@
 | batchSize | int | いいえ/状況による | 800 |
 | detachViewTemplate | bool | いいえ/状況による | false |
 | g | int | いいえ/状況による | 0 |
+| lineRgb | object | いいえ/状況による |  | 線色を `{r,g,b}`（0-255）で指定（任意）。未指定なら `r/g/b` を使用。 |
 | maxMillisPerTx | int | いいえ/状況による | 3000 |
 | r | int | いいえ/状況による | 255 |
+| fillRgb | object | いいえ/状況による |  | 塗りつぶし（Surface/Cut パターン色）を `{r,g,b}`（0-255）で指定（任意）。未指定なら `r/g/b` を使用。 |
 | refreshView | bool | いいえ/状況による | true |
 | startIndex | int | いいえ/状況による | 0 |
 | transparency | int | いいえ/状況による | 40 |

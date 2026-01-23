@@ -50,6 +50,9 @@ Notes & Tips
 - View templates can block operations. The reference uses `show_all_in_view` with `detachViewTemplate:true` on each iteration and restores the template at the end.
 - For very large models, consider disabling `hiddenElements` re-application and rely on state restore + targeted hides.
 - If AutoMerge isn’t available, keep the generated `command.txt` and run it later against AutoCadMCP.
+- Optional COM merge (AutoCAD GUI running):
+  - Script: `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`). No other external libraries.
 
 Quick Runbook (Walls by Type)
 This is a concrete, ready-to-run flow specialized for wall types. The generic pattern above remains reusable for other group keys.
@@ -73,4 +76,3 @@ pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -A
 
 Expected outputs under `.../DWG/`:
 - `seed.dwg` (all walls hidden), `walls_<TYPE>.dwg` per wall type, `command.txt`, and `Merged/walls_types_merged.dwg` when auto-merged.
-

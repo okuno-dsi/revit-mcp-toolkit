@@ -30,7 +30,7 @@ namespace RevitMCPAddin.Core
                         ["include3dOrientation"] = true
                     }
                 };
-                File.WriteAllText(path, jo.ToString());
+                File.WriteAllText(path, JsonNetCompat.ToIndentedJson(jo));
             }
             else
             {
@@ -52,7 +52,7 @@ namespace RevitMCPAddin.Core
                     if (vw["includeZoom"] == null) vw["includeZoom"] = true;
                     if (vw["include3dOrientation"] == null) vw["include3dOrientation"] = true;
 
-                    File.WriteAllText(path, root.ToString());
+                    File.WriteAllText(path, JsonNetCompat.ToIndentedJson(root));
                 }
                 catch
                 {

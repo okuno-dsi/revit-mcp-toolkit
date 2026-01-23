@@ -185,21 +185,19 @@ namespace RevitMCPAddin.Core
 
             try
             {
-                Room? room = null;
-
                 if (!string.IsNullOrWhiteSpace(phaseName))
                 {
                     var phase = FindPhaseByName(doc, phaseName!);
                     if (phase != null)
                     {
-                        room = doc.GetRoomAtPoint(pt, phase);
                         phaseUsed = phase;
-                        if (room != null)
+                        var roomInPhase = FindRoomByPointInPhase(doc, pt, phase.Id);
+                        if (roomInPhase != null)
                         {
-                            message = $"Room was resolved using phase '{phase.Name}'.";
-                            return room;
+                            message = $"Room was resolved using Room.IsPointInRoom (phase '{phase.Name}').";
+                            return roomInPhase;
                         }
-                        message = $"No Room found at point for phase '{phase.Name}'.";
+                        message = $"No Room found at point using Room.IsPointInRoom for phase '{phase.Name}'.";
                         return null;
                     }
 
@@ -207,17 +205,16 @@ namespace RevitMCPAddin.Core
                     message = $"Phase '{phaseName}' was not found. Falling back to final project phase.";
                 }
 
-                // phaseName 未指定または Phase 解決に失敗した場合は final phase
-                room = doc.GetRoomAtPoint(pt);
-                if (room != null)
+                // phaseName 未指定または Phase 解決に失敗した場合は全 Room を対象に判定
+                var roomAny = FindRoomByPoint(doc, pt);
+                if (roomAny != null)
                 {
-                    // final phase は API 仕様上の内部決定に委ねる
-                    message = "Room was resolved using the final project phase.";
-                    return room;
+                    message = "Room was resolved using Room.IsPointInRoom.";
+                    return roomAny;
                 }
 
                 if (string.IsNullOrEmpty(message))
-                    message = "No Room found at the reference point.";
+                    message = "No Room found at the reference point using Room.IsPointInRoom.";
 
                 return null;
             }
@@ -226,6 +223,79 @@ namespace RevitMCPAddin.Core
                 message = "Room 解決中に例外が発生しました: " + ex.Message;
                 return null;
             }
+        }
+
+        private static Room? FindRoomByPointInPhase(Document doc, XYZ pt, ElementId phaseId)
+        {
+            try
+            {
+                var rooms = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SpatialElement))
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Rooms)
+                    .Cast<SpatialElement>()
+                    .OfType<Room>()
+                    .Where(r => r != null && GetRoomPhaseId(r) == phaseId);
+
+                foreach (var r in rooms)
+                {
+                    bool inside = false;
+                    try { inside = r.IsPointInRoom(pt); } catch { }
+                    if (inside) return r;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+            return null;
+        }
+
+        private static Room? FindRoomByPoint(Document doc, XYZ pt)
+        {
+            try
+            {
+                var rooms = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SpatialElement))
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && e.Category.Id.IntValue() == (int)BuiltInCategory.OST_Rooms)
+                    .Cast<SpatialElement>()
+                    .OfType<Room>();
+
+                foreach (var r in rooms)
+                {
+                    bool inside = false;
+                    try { inside = r.IsPointInRoom(pt); } catch { }
+                    if (inside) return r;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+            return null;
+        }
+
+        private static ElementId GetRoomPhaseId(Room r)
+        {
+            if (r == null) return ElementId.InvalidElementId;
+            try
+            {
+                var p = r.get_Parameter(BuiltInParameter.PHASE_CREATED);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                    return p.AsElementId();
+            }
+            catch { }
+
+            try
+            {
+                var p = r.get_Parameter(BuiltInParameter.ROOM_PHASE);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                    return p.AsElementId();
+            }
+            catch { }
+
+            return ElementId.InvalidElementId;
         }
 
         private static Phase? FindPhaseByName(Document doc, string phaseName)

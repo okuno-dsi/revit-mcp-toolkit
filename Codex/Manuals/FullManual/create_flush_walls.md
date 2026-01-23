@@ -1,5 +1,9 @@
 # Create Flush Walls (face-aligned to existing walls)
 
+- Category: ElementOps
+- Kind: write
+- Purpose: Create new walls of a specified type, aligned (“flush”) to a chosen side/plane reference of existing walls.
+
 Creates new walls of a specified type, aligned (“flush”) to a chosen side/plane reference of existing walls.
 
 Typical use: create a finishing wall type (e.g. `"(内壁)W5"`) tightly attached to the **-Y** side of selected walls.
@@ -55,4 +59,3 @@ Create walls flush to the **global -Y** side of currently selected walls:
 ## Notes
 - Alignment is computed from the source wall’s `LocationCurve` (centerline) and `CompoundStructure` layer widths (more stable than face-based offsets).
 - Walls without a `LocationCurve` are skipped and reported via `warnings`.
-

@@ -26,9 +26,23 @@ namespace RevitMCPAddin.Commands.ViewOps
                 if (doc == null) return new { ok = false, msg = "No active document." };
 
                 var p = cmd.Params as JObject ?? new JObject();
-                var viewId = Autodesk.Revit.DB.ElementIdCompat.From((int)p.Value<int?>("viewId"));
-                var view = doc.GetElement(viewId) as View;
-                if (view == null) return new { ok = false, msg = $"View not found: {viewId.IntValue()}" };
+                bool usedActiveView = false;
+                View view = null;
+                int viewIdInt = 0;
+                if (p.TryGetValue("viewId", out var vTok))
+                {
+                    var viewId = Autodesk.Revit.DB.ElementIdCompat.From(vTok.Value<int>());
+                    view = doc.GetElement(viewId) as View;
+                    if (view == null) return new { ok = false, msg = $"View not found: {viewId.IntValue()}" };
+                    viewIdInt = view.Id.IntValue();
+                }
+                else
+                {
+                    view = doc.ActiveView;
+                    if (view == null) return new { ok = false, msg = "Missing parameter: viewId (no active view available)" };
+                    viewIdInt = view.Id.IntValue();
+                    usedActiveView = true;
+                }
 
                 // ビューに「表示対象として存在する」要素だけ
                 var elems = new FilteredElementCollector(doc, view.Id)
@@ -85,8 +99,10 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = true,
-                    viewId = view.Id.IntValue(),
-                    categories = items
+                    viewId = viewIdInt,
+                    usedActiveView,
+                    categories = items,
+                    items
                 };
             }
             catch (Exception ex)

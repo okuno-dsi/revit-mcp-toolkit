@@ -1,5 +1,4 @@
 ﻿#nullable enable
-using System.Text.Json.Serialization;
 using Newtonsoft.Json;
 
 namespace RevitMCPAddin.Models
@@ -9,17 +8,17 @@ namespace RevitMCPAddin.Models
     /// </summary>
     public class Point3D
     {
-        [JsonPropertyName("x")]
         [JsonProperty("x")]
         public double X { get; set; }
 
-        [JsonPropertyName("y")]
         [JsonProperty("y")]
         public double Y { get; set; }
 
-        [JsonPropertyName("z")]
         [JsonProperty("z")]
         public double Z { get; set; }
+
+        [JsonProperty("unit")]
+        public string Unit { get; set; } = "mm";
 
         public Point3D() { }
 

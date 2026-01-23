@@ -22,8 +22,10 @@ The implementation applies a solid fill (surface + cut) and line color overrides
 | batchSize | int | no/depends | 800 |
 | detachViewTemplate | bool | no/depends | false |
 | g | int | no/depends | 0 |
+| lineRgb | object | no/depends |  | Optional line color override `{r,g,b}` (0-255). If omitted, uses `r/g/b`. |
 | maxMillisPerTx | int | no/depends | 3000 |
 | r | int | no/depends | 255 |
+| fillRgb | object | no/depends |  | Optional fill (surface/cut patterns) color `{r,g,b}` (0-255). If omitted, uses `r/g/b`. |
 | refreshView | bool | no/depends | true |
 | startIndex | int | no/depends | 0 |
 | transparency | int | no/depends | 40 |

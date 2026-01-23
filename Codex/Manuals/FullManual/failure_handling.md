@@ -43,7 +43,10 @@ Shorthand accepted:
 - Any non-whitelisted failure triggers rollback (to avoid unattended model corruption).
 - In `delete` mode, only whitelist rules that allow `delete_warning` are deleted.
 - In `resolve` mode, only whitelist rules that allow `resolve_if_possible` are resolved (best effort); if not resolved, rollback (or delete warning when allowed).
-- When `failureHandling` is enabled, Revit modal dialogs may be auto-dismissed (best effort) to avoid blocking automation; dismissed dialogs are recorded in `failureHandling.issues.dialogs[]` (`dismissed`, `overrideResult`).
+- Revit modal dialogs are auto-dismissed (best effort) to avoid blocking automation. Dismissed dialogs are recorded in `failureHandling.issues.dialogs[]` (`dismissed`, `overrideResult`).
+- When a dialog appears, the router attempts to capture a dialog snapshot (best effort) and attach it to `failureHandling.issues.dialogs[]`:
+  - `dialogType`, `title`, `mainInstruction`, `expandedContent`, `footer`
+  - `capturePath`, `captureRisk`, `ocrText`, `ocrEngine`, `ocrStatus`
 
 ## Whitelist file (`failure_whitelist.json`)
 The add-in loads `failure_whitelist.json` (best effort) from:
@@ -71,3 +74,5 @@ Additionally, when a command results in **rollback / transaction not committed**
 - `failureHandling.rollbackDetected: true`
 - `failureHandling.rollbackReason`
 - `failureHandling.autoCaptured: true` (when attached implicitly)
+
+Dialogs may also be attached even when rollback does not occur (best effort), so you can review what was dismissed without having to re-run the command.

@@ -1,5 +1,10 @@
 # revit.status
 
+
+- Category: MetaOps
+- Kind: read
+- Purpose: Server-only status/telemetry. Works even when Revit is busy (does not enqueue a Revit job).
+
 Server‑only status/telemetry command. Works even when Revit is busy because it does **not** enqueue a Revit job.
 
 ## What it returns

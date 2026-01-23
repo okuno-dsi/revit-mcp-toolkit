@@ -42,6 +42,7 @@ __pycache__/
 *.lib
 *.obj
 *.p7s
+*.pyd
 
 # Common generated files
 *.cache
@@ -87,6 +88,8 @@ Codex/Manuals/Work/
 Codex/Trash/
 Codex/tools/Work/
 Codex/Logs/
+Codex/cleanup_*.md
+Codex/git_igonore_items_list.md
 **/logs/
 **/Logs/
 **/temp/
@@ -96,6 +99,8 @@ Codex/Logs/
 **/tmp_*
 *.bak_*
 *.bak.*
+
+/RevitMCPAddin/python/
 
 # Local update notes / per-day changelogs (keep summary in Manuals/UpdateLog.md)
 /UPDATE_NOTES_*.md

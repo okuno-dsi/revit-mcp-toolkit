@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.Misc
                 try { docPath = doc.PathName ?? string.Empty; } catch { }
                 try { docTitle = doc.Title ?? string.Empty; } catch { }
                 try { viewId = uidoc.ActiveView?.Id?.IntValue() ?? 0; } catch { }
-                SelectionStash.Set(ids, docPath, docTitle, viewId);
+                SelectionStash.Set(ids, docPath, docTitle, viewId, AppServices.CurrentDocKey);
             }
 
             var snapOut = SelectionStash.GetSnapshot();
@@ -84,6 +84,7 @@ namespace RevitMCPAddin.Commands.Misc
                 revision = snapOut.Revision,
                 docPath = snapOut.DocPath,
                 docTitle = snapOut.DocTitle,
+                docKey = snapOut.DocKey,
                 activeViewId = snapOut.ActiveViewId,
                 hash = snapOut.Hash
             };

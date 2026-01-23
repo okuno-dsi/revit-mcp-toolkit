@@ -193,11 +193,70 @@ namespace RevitMCPAddin.Commands.RoomOps
     }
 
     // ----------------------------------------------------------------
-    // 1) create_room_boundary_line
+    // 1) room_separation.create_lines (legacy: create_room_boundary_line)
     // ----------------------------------------------------------------
+    [RpcCommand("room_separation.create_lines",
+        Aliases = new[]
+        {
+            "create_room_boundary_line",
+            "room_separation.create_line"
+        },
+        Category = "Room",
+        Tags = new[] { "Room", "RoomSeparationLine", "Boundary", "Create" },
+        Risk = RiskLevel.Medium,
+        Kind = "write",
+        Summary = "Create room separation lines (Room Boundary Lines) in a plan view from line segments (mm).",
+        Requires = new[] { "segments|start,end" },
+        Constraints = new[]
+        {
+            "Works only in ViewPlan (Floor/Ceiling plan).",
+            "Units: x/y/z are in mm by default. Optional param unit: mm|m|ft (default mm).",
+            "Z is snapped to the view level elevation by default (snapZToViewLevel=true).",
+            "segments: [{ start:{x,y,z}, end:{x,y,z} }, ...] (line segments only).",
+            "For single-line legacy usage, pass start/end at the top level."
+        })]
     public class CreateRoomBoundaryLineCommand : IRevitCommandHandler
     {
         public string CommandName => "create_room_boundary_line";
+
+        private static ForgeTypeId ResolveLengthUnit(JToken unitTok)
+        {
+            try
+            {
+                var u = (unitTok == null ? "" : (unitTok.Type == JTokenType.Null ? "" : unitTok.ToString()))
+                    .Trim()
+                    .ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(u) || u == "mm" || u == "millimeter" || u == "millimeters") return UnitTypeId.Millimeters;
+                if (u == "m" || u == "meter" || u == "meters") return UnitTypeId.Meters;
+                if (u == "ft" || u == "foot" || u == "feet") return UnitTypeId.Feet;
+            }
+            catch { /* ignore */ }
+            return UnitTypeId.Millimeters;
+        }
+
+        private static bool TryParsePoint(JToken tok, ForgeTypeId unit, out XYZ xyz, out string reason)
+        {
+            xyz = null;
+            reason = "";
+            try
+            {
+                if (!(tok is JObject o)) { reason = "座標は {x,y,z} のオブジェクトで指定してください。"; return false; }
+                if (!o.ContainsKey("x") || !o.ContainsKey("y")) { reason = "座標は x,y が必要です。"; return false; }
+                var x = (double)o["x"];
+                var y = (double)o["y"];
+                var z = o.ContainsKey("z") ? (double)o["z"] : 0.0;
+                var ix = UnitUtils.ConvertToInternalUnits(x, unit);
+                var iy = UnitUtils.ConvertToInternalUnits(y, unit);
+                var iz = UnitUtils.ConvertToInternalUnits(z, unit);
+                xyz = new XYZ(ix, iy, iz);
+                return true;
+            }
+            catch
+            {
+                reason = "座標の数値解釈に失敗しました。";
+                return false;
+            }
+        }
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
@@ -206,38 +265,109 @@ namespace RevitMCPAddin.Commands.RoomOps
                 return ResultUtil.Err(why);
             var doc = view.Document;
 
-            XYZ s, e;
-            string whyS, whyE;
-            bool okS = PointConv.TryParsePointMm(p["start"], out s, out whyS);
-            bool okE = PointConv.TryParsePointMm(p["end"], out e, out whyE);
+            var viewPlan = view as ViewPlan;
+            if (viewPlan == null)
+                return ResultUtil.Err("Room separation lines can only be created in a plan view (ViewPlan).");
+            if (viewPlan.GenLevel == null)
+                return ResultUtil.Err("このビューの GenLevel が取得できません。床/天井プランで実行してください。");
 
-            if (!okS || !okE)
-            {
-                var errs = new List<string>();
-                if (!okS && !string.IsNullOrEmpty(whyS)) errs.Add(whyS);
-                if (!okE && !string.IsNullOrEmpty(whyE)) errs.Add(whyE);
-                var msg = errs.Count > 0 ? string.Join(" / ", errs) : "start/end の座標解釈に失敗しました（mm想定: {x,y,z}）。";
-                return ResultUtil.Err(msg);
-            }
-
-            if (!RoomBoundaryUtil.TryGetSketchPlane(doc, view, out var sp, out var reason))
-                return ResultUtil.Err(reason);
+            var unit = ResolveLengthUnit(p["unit"]);
+            var snapZ = p.Value<bool?>("snapZToViewLevel") ?? true;
+            var levelZ = viewPlan.GenLevel.Elevation; // internal ft
 
             try
             {
                 using var tx = new Transaction(doc, "Create Room Boundary Line");
                 tx.Start();
 
-                // Revit 2023: CurveArray を使用し、戻りは ModelCurveArray
                 var ca = new CurveArray();
-                ca.Append(Line.CreateBound(s, e));
+                var skipped = new List<object>();
+
+                // SketchPlane: create on the view level plane (no nested transaction).
+                SketchPlane sp = viewPlan.SketchPlane;
+                if (sp == null)
+                {
+                    var plane = Plane.CreateByNormalAndOrigin(viewPlan.ViewDirection, new XYZ(0, 0, levelZ));
+                    sp = SketchPlane.Create(doc, plane);
+                }
+
+                // Prefer segments[]; fallback to legacy start/end.
+                if (p["segments"] is JArray segs && segs.Count > 0)
+                {
+                    for (int i = 0; i < segs.Count; i++)
+                    {
+                        var seg = segs[i] as JObject;
+                        if (seg == null)
+                        {
+                            skipped.Add(new { index = i, reason = "segments[] は {start,end} のオブジェクト配列で指定してください。" });
+                            continue;
+                        }
+
+                        if (!TryParsePoint(seg["start"], unit, out var s, out var whyS))
+                        {
+                            skipped.Add(new { index = i, reason = whyS });
+                            continue;
+                        }
+                        if (!TryParsePoint(seg["end"], unit, out var e, out var whyE))
+                        {
+                            skipped.Add(new { index = i, reason = whyE });
+                            continue;
+                        }
+
+                        if (snapZ)
+                        {
+                            s = new XYZ(s.X, s.Y, levelZ);
+                            e = new XYZ(e.X, e.Y, levelZ);
+                        }
+
+                        if (s.DistanceTo(e) < 1e-9)
+                        {
+                            skipped.Add(new { index = i, reason = "ゼロ長さの線分は作成できません。" });
+                            continue;
+                        }
+
+                        ca.Append(Line.CreateBound(s, e));
+                    }
+                }
+                else
+                {
+                    string whyS = "", whyE = "";
+                    if (!TryParsePoint(p["start"], unit, out var s, out whyS) ||
+                        !TryParsePoint(p["end"], unit, out var e, out whyE))
+                    {
+                        tx.RollBack();
+                        var msg = ("start/end の座標解釈に失敗しました。 " + (whyS + " " + whyE).Trim()).Trim();
+                        return ResultUtil.Err(string.IsNullOrWhiteSpace(msg) ? "start/end の座標解釈に失敗しました。" : msg);
+                    }
+
+                    if (snapZ)
+                    {
+                        s = new XYZ(s.X, s.Y, levelZ);
+                        e = new XYZ(e.X, e.Y, levelZ);
+                    }
+
+                    if (s.DistanceTo(e) < 1e-9)
+                    {
+                        tx.RollBack();
+                        return ResultUtil.Err("ゼロ長さの線分は作成できません。");
+                    }
+
+                    ca.Append(Line.CreateBound(s, e));
+                }
+
+                if (ca.Size == 0)
+                {
+                    tx.RollBack();
+                    return ResultUtil.Err(new { msg = "作成できる線分がありません。", skipped });
+                }
+
                 ModelCurveArray created = doc.Create.NewRoomBoundaryLines(sp, ca, view);
 
                 var ids = new List<int>();
                 foreach (ModelCurve mc in created) ids.Add(mc.Id.IntValue());
 
                 tx.Commit();
-                return ResultUtil.Ok(new { created = ids, count = ids.Count });
+                return ResultUtil.Ok(new { created = ids, count = ids.Count, skipped });
             }
             catch (Exception ex)
             {

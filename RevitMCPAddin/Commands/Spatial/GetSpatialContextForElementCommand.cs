@@ -35,6 +35,7 @@ namespace RevitMCPAddin.Commands.Spatial
             string phaseName = p.Value<string>("phaseName") ?? string.Empty;
             string mode = (p.Value<string>("mode") ?? "3d").Trim().ToLowerInvariant(); // 現状は参照のみ
             bool bboxFootprintProbe = p.Value<bool?>("bboxFootprintProbe") ?? true;
+            bool requireSameLevel = p.Value<bool?>("requireSameLevel") ?? p.Value<bool?>("sameLevelOnly") ?? true;
 
             var includeToken = p["include"] as JArray;
             var includeSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -59,6 +60,7 @@ namespace RevitMCPAddin.Commands.Spatial
             }
 
             var messages = new List<string>();
+            var elementLevelId = GetElementLevelId(element);
 
             // 代表点
             var refPt = SpatialUtils.GetReferencePoint(doc, element, out var refMsg);
@@ -99,7 +101,23 @@ namespace RevitMCPAddin.Commands.Spatial
                 var room = SpatialUtils.TryGetRoomWithVerticalProbe(doc, element, refPt, phaseName, out var phaseUsed, out var roomMsg, bboxFootprintProbe);
                 if (!string.IsNullOrEmpty(roomMsg)) messages.Add(roomMsg);
 
-                if (room != null)
+                // フォールバック: レベル一致要求時にヒットしない場合、XY据え置きでZを要素レベル標高に投影して判定
+                if (room == null && requireSameLevel && elementLevelId != ElementId.InvalidElementId)
+                {
+                    var lvl = doc.GetElement(elementLevelId) as Level;
+                    if (lvl != null)
+                    {
+                        var projPt = new XYZ(refPt.X, refPt.Y, lvl.Elevation);
+                        room = SpatialUtils.TryGetRoomAtPoint(doc, projPt, phaseName, out phaseUsed, out roomMsg);
+                        if (!string.IsNullOrEmpty(roomMsg)) messages.Add(roomMsg + " (projected Z to level elevation)");
+                        if (room != null && room.LevelId != elementLevelId)
+                        {
+                            room = null;
+                        }
+                    }
+                }
+
+                if (room != null && (!requireSameLevel || elementLevelId == ElementId.InvalidElementId || room.LevelId == elementLevelId))
                 {
                     var levelName = string.Empty;
                     try
@@ -261,6 +279,39 @@ namespace RevitMCPAddin.Commands.Spatial
                 areaSchemes = schemesArr,
                 messages
             };
+        }
+
+        private static ElementId GetElementLevelId(Element e)
+        {
+            if (e == null) return ElementId.InvalidElementId;
+
+            try
+            {
+                if (e is SpatialElement se && se.LevelId != ElementId.InvalidElementId)
+                    return se.LevelId;
+            }
+            catch { }
+
+            try
+            {
+                if (e.LevelId != ElementId.InvalidElementId)
+                    return e.LevelId;
+            }
+            catch { }
+
+            try
+            {
+                var p = e.get_Parameter(BuiltInParameter.LEVEL_PARAM);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                {
+                    var id = p.AsElementId();
+                    if (id != null && id != ElementId.InvalidElementId)
+                        return id;
+                }
+            }
+            catch { }
+
+            return ElementId.InvalidElementId;
         }
     }
 }

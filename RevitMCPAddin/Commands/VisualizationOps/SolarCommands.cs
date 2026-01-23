@@ -464,7 +464,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     ["max"] = max,
                     ["items"] = JArray.FromObject(entries)
                 };
-                File.WriteAllText(jsonPath, root.ToString());
+                File.WriteAllText(jsonPath, RevitMCPAddin.Core.JsonNetCompat.ToIndentedJson(root));
             }
 
             SolarUtil.Info($"[Sunlight] targets={entries.Count}, csv={csvPath}, json={jsonPath}");

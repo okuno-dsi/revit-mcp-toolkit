@@ -51,8 +51,8 @@ namespace RevitMCPAddin.Core.Failures
                 _whitelistIndex = tmp;
 
             // In automation, modal dialogs block subsequent commands and can deadlock the job queue.
-            // Default to dismiss dialogs whenever failureHandling is enabled.
-            _dismissDialogs = (mode != FailureHandlingMode.Off);
+            // Default to dismiss dialogs for all commands (even when failureHandling is Off).
+            _dismissDialogs = true;
 
             Issues = new RevitMCPAddin.Core.Failures.CommandIssues();
             try { _ctxScope = FailureHandlingContext.Push(_mode, Issues); } catch { _ctxScope = null; }
@@ -286,16 +286,44 @@ namespace RevitMCPAddin.Core.Failures
             try { dialogId = e.DialogId ?? string.Empty; } catch { dialogId = string.Empty; }
 
             string message = string.Empty;
+            string dialogType = e.GetType().Name;
+            string title = string.Empty;
+            string mainInstruction = string.Empty;
+            string expandedContent = string.Empty;
+            string footer = string.Empty;
             try
             {
-                var prop = e.GetType().GetProperty("Message", BindingFlags.Public | BindingFlags.Instance);
-                if (prop != null && prop.PropertyType == typeof(string))
-                    message = (string)(prop.GetValue(e, null) ?? string.Empty);
+                // Prefer TaskDialog detailed fields when available.
+                var td = e as TaskDialogShowingEventArgs;
+                if (td != null)
+                {
+                    dialogType = "TaskDialog";
+                    message = td.Message ?? string.Empty;
+                    title = TryGetStringProp(td, "Title");
+                    mainInstruction = TryGetStringProp(td, "MainInstruction");
+                    expandedContent = TryGetStringProp(td, "ExpandedContent");
+                    footer = TryGetStringProp(td, "FooterText");
+                }
+                else
+                {
+                    message = TryGetStringProp(e, "Message");
+                }
             }
             catch { /* ignore */ }
 
             bool dismissed = false;
             int overrideResult = 0;
+
+            DialogCaptureItem capItem = null;
+            if (_dismissDialogs)
+            {
+                try
+                {
+                    var capRes = DialogCaptureUtil.TryCaptureActiveDialogs();
+                    capItem = DialogCaptureUtil.PickPrimaryCapture(capRes);
+                }
+                catch { /* ignore */ }
+            }
 
             if (_dismissDialogs)
             {
@@ -316,11 +344,34 @@ namespace RevitMCPAddin.Core.Failures
                 {
                     dialogId = dialogId,
                     message = message,
+                    dialogType = dialogType,
+                    title = title,
+                    mainInstruction = mainInstruction,
+                    expandedContent = expandedContent,
+                    footer = footer,
+                    capturePath = capItem != null ? capItem.path : string.Empty,
+                    captureRisk = capItem != null ? capItem.risk : string.Empty,
+                    ocrText = capItem != null ? capItem.ocrText : string.Empty,
+                    ocrEngine = capItem != null ? capItem.ocrEngine : string.Empty,
+                    ocrStatus = capItem != null ? capItem.ocrStatus : string.Empty,
                     dismissed = dismissed,
                     overrideResult = overrideResult
                 });
             }
             catch { /* ignore */ }
+        }
+
+        private static string TryGetStringProp(object obj, string name)
+        {
+            try
+            {
+                if (obj == null || string.IsNullOrWhiteSpace(name)) return string.Empty;
+                var prop = obj.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance);
+                if (prop != null && prop.PropertyType == typeof(string))
+                    return (string)(prop.GetValue(obj, null) ?? string.Empty);
+            }
+            catch { }
+            return string.Empty;
         }
 
         private static bool TryResolveFailureBestEffort(FailuresAccessor fa, FailureMessageAccessor f)

@@ -204,10 +204,10 @@ namespace RevitMCPAddin.Commands.CompareOps
                 if (keys != null && keys.Length > 0)
                 {
                     var parts = new List<string>(keys.Length);
-                    foreach (var k in keys) { var token = o.SelectToken(k) ?? o[k]; parts.Add((token != null) ? token.ToString(Newtonsoft.Json.Formatting.None) : ""); }
+                    foreach (var k in keys) { var token = o.SelectToken(k) ?? o[k]; parts.Add((token != null) ? JsonNetCompat.ToCompactJson(token) : ""); }
                     return "k:" + string.Join("|", parts);
                 }
-                return "h:" + o.ToString(Newtonsoft.Json.Formatting.None);
+                return "h:" + JsonNetCompat.ToCompactJson(o);
             }
 
             foreach (var j in leftRows?.OfType<JObject>() ?? Enumerable.Empty<JObject>()) { var k = KeyOf(j); if (!lmap.ContainsKey(k)) lmap[k] = j; }

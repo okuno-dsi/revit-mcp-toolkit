@@ -6,10 +6,13 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;     // RevitLogger
+using RevitMCPAddin.Core.Ledger;
 using RevitMCPAddin.Core.Net; // ServerProcessManager
+using RevitMCPAddin.Core.Progress;
 using RevitMCPAddin.Core.ViewWorkspace;
 using RevitMCPAddin.Manifest;
 using RevitMCPAddin.UI;
+using RevitMCPAddin.UI.Chat;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -25,6 +28,12 @@ namespace RevitMCPAddin
     {
         public static UIControlledApplication? UIControlledApp { get; internal set; }
         public static int CurrentPort { get; internal set; }
+        public static string? CurrentDocPathHint { get; internal set; }
+        public static string? CurrentDocKey { get; internal set; }
+        public static string? CurrentUserId { get; internal set; }
+        public static string? CurrentUserName { get; internal set; }
+        public static bool CurrentDocIsCloud { get; internal set; }
+        public static string? CurrentChatDisabledReason { get; internal set; }
     }
 
     public class App : IExternalApplication
@@ -33,9 +42,11 @@ namespace RevitMCPAddin
         private static int _workerStarted = 0;
         private static int _ribbonBuilt = 0;
         private static int _selectionMonitorStarted = 0;
+        private static int _chatPaneRegistered = 0;
 
         private static DateTime _lastSelPollUtc = DateTime.MinValue;
         private static string _lastSelDocPath = string.Empty;
+        private static string _lastSelDocKey = string.Empty;
         private static int _lastSelViewId = 0;
         private static int[] _lastSelIdsSorted = Array.Empty<int>();
 
@@ -61,11 +72,16 @@ namespace RevitMCPAddin
             string logs = Path.Combine(root, "logs");
             string locks = Path.Combine(root, "locks");
             string queue = Path.Combine(root, "queue");
+            string progress = Path.Combine(root, "progress");
             try { Directory.CreateDirectory(logs); } catch (Exception ex) { RevitLogger.Warn($"CreateDirectory(logs) failed: {ex.Message}"); }
             try { Directory.CreateDirectory(locks); } catch (Exception ex) { RevitLogger.Warn($"CreateDirectory(locks) failed: {ex.Message}"); }
             // Initialize queue root (per-port subdir is resolved by the server). Do not clean shared root.
             try { Directory.CreateDirectory(queue); RevitLogger.Info("Queue directory initialized."); }
             catch (Exception ex) { RevitLogger.Warn($"CreateDirectory(queue) failed: {ex.Message}"); }
+            try { Directory.CreateDirectory(progress); } catch (Exception ex) { RevitLogger.Warn($"CreateDirectory(progress) failed: {ex.Message}"); }
+
+            // Progress snapshots (JSONL) for long-running operations (read-only external viewers such as CodexGUI).
+            try { ProgressHub.Initialize(progress); } catch (Exception ex) { RevitLogger.Warn($"ProgressHub.Initialize failed: {ex.Message}"); }
 
             // 3) 起動時クリーンアップ（古ロック・古ログ）
             TryCleanupStaleArtifacts(logs, locks);
@@ -94,6 +110,7 @@ namespace RevitMCPAddin
 
             // ポート確定後に addin_<port>.log へ切替
             RevitLogger.SwitchToPortLog(port, overwriteAtStart: true);
+            try { ProgressHub.SwitchToPort(port, overwriteAtStart: true); } catch (Exception ex) { RevitLogger.Warn($"ProgressHub.SwitchToPort failed: {ex.Message}"); }
             RevitLogger.Info($"PORT: {port} // {msg}");
 
             // Ensure per-port queue directory exists for diagnostics (server uses this path for jobs)
@@ -134,9 +151,11 @@ namespace RevitMCPAddin
 
             // 6) Ribbon / Worker
             TryBuildRibbon(application, port);
+            TryRegisterChatDockablePane(application);
             TryStartWorker(application, port);
             TryStartSelectionMonitor(application);
             try { ViewWorkspaceService.Initialize(application); } catch (Exception ex) { RevitLogger.Warn($"ViewWorkspaceService.Initialize failed: {ex.Message}"); }
+            try { ChatInviteNotifier.Start(); } catch { }
 
             // ENV（参照用）
             try
@@ -185,6 +204,7 @@ namespace RevitMCPAddin
 
             try { _worker?.Stop(); } catch (Exception ex) { RevitLogger.Warn($"Worker.Stop failed: {ex.Message}"); }
             try { ViewWorkspaceService.Shutdown(application); } catch { }
+            try { ChatInviteNotifier.Stop(); } catch { }
             TryStopSelectionMonitor(application);
 
             SafeStopAll("OnShutdown");
@@ -333,17 +353,46 @@ namespace RevitMCPAddin
                 try { docPath = doc.PathName ?? string.Empty; } catch { }
                 try { docTitle = doc.Title ?? string.Empty; } catch { }
                 try { viewId = uidoc.ActiveView?.Id?.IntValue() ?? 0; } catch { }
+                string docKey = AppServices.CurrentDocKey ?? _lastSelDocKey ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(docKey) || !string.Equals(docPath, _lastSelDocPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        if (LedgerDocKeyProvider.TryGetDocKey(doc, out var dk, out _, out _))
+                            docKey = dk;
+                        else if (LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out dk, out _, out _))
+                            docKey = dk;
+                    }
+                    catch { /* ignore */ }
+
+                    if (!string.IsNullOrWhiteSpace(docKey))
+                    {
+                        AppServices.CurrentDocKey = docKey;
+                        _lastSelDocKey = docKey;
+                    }
+                }
 
                 bool sameIds = SameSortedIds(idsArr, _lastSelIdsSorted);
                 bool sameDoc = string.Equals(docPath, _lastSelDocPath, StringComparison.OrdinalIgnoreCase);
                 bool sameView = viewId == _lastSelViewId;
+
+                // Bootstrap chat context even when ViewActivated didn't fire yet (common on startup).
+                // Do this before early-return so chat works even if selection/doc/view are unchanged.
+                try
+                {
+                    if (!sameDoc || string.IsNullOrWhiteSpace(AppServices.CurrentDocPathHint))
+                    {
+                        ChatInviteNotifier.UpdateContextFromDocument(doc);
+                    }
+                }
+                catch { /* keep Idling safe */ }
                 if (sameIds && sameDoc && sameView) return;
 
                 _lastSelIdsSorted = idsArr;
                 _lastSelDocPath = docPath ?? string.Empty;
                 _lastSelViewId = viewId;
 
-                SelectionStash.Set(idsArr, docPath, docTitle, viewId);
+                SelectionStash.Set(idsArr, docPath, docTitle, viewId, docKey);
 
                 // Step 7: bump revision on selection changes (doc/view changes are captured via events).
                 if (!sameIds)
@@ -364,10 +413,26 @@ namespace RevitMCPAddin
                 var doc = e != null ? e.Document : null;
                 if (doc == null) return;
                 RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "ViewActivated");
+                try { ChatInviteNotifier.UpdateContextFromDocument(doc); } catch { }
             }
             catch
             {
                 // keep handler safe
+            }
+        }
+
+        private void TryRegisterChatDockablePane(UIControlledApplication application)
+        {
+            if (Interlocked.Exchange(ref _chatPaneRegistered, 1) == 1) return;
+
+            try
+            {
+                application.RegisterDockablePane(ChatDockablePaneIds.PaneId, ChatDockablePaneIds.PaneTitle, new ChatDockablePaneProvider());
+                RevitLogger.Info("Chat DockablePane registered.");
+            }
+            catch (Exception ex)
+            {
+                RevitLogger.Warn($"Chat DockablePane register failed: {ex.GetType().Name}: {ex.Message}");
             }
         }
 

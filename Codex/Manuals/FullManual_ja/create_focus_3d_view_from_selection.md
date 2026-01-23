@@ -1,5 +1,9 @@
 ﻿# 選択要素から 3D クリッピングビュー（セクションボックス）を作成
 
+- カテゴリ: ViewOps
+- 種別: write
+- 目的: 選択要素を包む SectionBox を設定した 3D ビューを作成し、必要に応じてアクティブ化します。
+
 現在の選択要素（または指定した `elementIds`）を包む **SectionBox** を設定した新しい 3D ビュー（正投影）を作成し、必要に応じてそのビューをアクティブにします。
 
 このコマンドは、複数コマンドを連続実行する方式（`get_selected_element_ids` → `create_3d_view` → `activate_view` → `set_section_box_by_elements` → `view_fit`）よりも **1回のRPCで完結** させることで、往復回数を減らし待ち時間を短縮する目的で追加されています。
@@ -34,4 +38,3 @@
 - `viewId`, `name`, `activated`
 - `sectionBox`: `{min:{x,y,z}, max:{x,y,z}}`（**mm**）
 - `skipped`: BoundingBox 集計から除外された要素（BoundingBox が無い等）
-

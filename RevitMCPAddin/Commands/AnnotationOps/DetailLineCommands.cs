@@ -397,21 +397,64 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
             var doc = uiapp.ActiveUIDocument.Document;
-            int id = ((JObject)cmd.Params).Value<int>("elementId");
+            var p = (JObject)cmd.Params;
 
-            using (var tx = new Transaction(doc, "Delete Detail Line"))
+            // Backward-compatible:
+            // - elementId (int): single
+            // - elementIds (int[]): bulk
+            var rawIds = new List<int>();
+            if (p.TryGetValue("elementIds", out var arrTok) && arrTok is JArray arr && arr.Count > 0)
+            {
+                foreach (var t in arr)
+                {
+                    try { rawIds.Add(t.Value<int>()); }
+                    catch { /* ignore */ }
+                }
+            }
+            else
+            {
+                rawIds.Add(p.Value<int>("elementId"));
+            }
+
+            // Resolve only view-specific detail curves (OST_Lines) to be safe
+            var targetIds = new List<ElementId>();
+            var skipped = new List<object>();
+            foreach (var iid in rawIds.Distinct())
+            {
+                try
+                {
+                    var eid = Autodesk.Revit.DB.ElementIdCompat.From(iid);
+                    var ce = doc.GetElement(eid) as CurveElement;
+                    if (ce == null || !ce.ViewSpecific || ce.Category == null || ce.Category.Id.IntValue() != (int)BuiltInCategory.OST_Lines)
+                    {
+                        skipped.Add(new { elementId = iid, msg = "Not a view-specific detail line (OST_Lines)." });
+                        continue;
+                    }
+                    targetIds.Add(eid);
+                }
+                catch (Exception ex)
+                {
+                    skipped.Add(new { elementId = iid, msg = "Invalid elementId: " + ex.Message });
+                }
+            }
+
+            if (targetIds.Count == 0)
+                return new { ok = false, msg = "No valid detail lines to delete.", requested = rawIds.Count, skipped = skipped };
+
+            using (var tx = new Transaction(doc, "Delete Detail Line(s)"))
             {
                 try
                 {
                     tx.Start();
-                    doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
+                    var deleted = doc.Delete(targetIds);
+                    int cnt = deleted != null ? deleted.Count : 0;
                     tx.Commit();
-                    return new { ok = true };
+                    return new { ok = cnt > 0, requested = rawIds.Count, deletedCount = cnt, skipped = skipped };
                 }
                 catch (Exception ex)
                 {
                     tx.RollBack();
-                    return new { ok = false, msg = "Failed to delete detail line: " + ex.Message };
+                    return new { ok = false, msg = "Failed to delete detail line(s): " + ex.Message, requested = rawIds.Count, skipped = skipped };
                 }
             }
         }
@@ -518,44 +561,6 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     tx.RollBack();
                     return new { ok = false, msg = "Failed to set bulk line style: " + ex.Message };
                 }
-            }
-        }
-    }
-
-    // 10) 削除 (複数)
-    public class DeleteDetailLinesCommand : IRevitCommandHandler
-    {
-        public string CommandName => "delete_detail_lines";
-
-        public object Execute(UIApplication uiapp, RequestCommand cmd)
-        {
-            var doc = uiapp.ActiveUIDocument.Document;
-            var p = (JObject)cmd.Params;
-
-            try
-            {
-                var ids = new List<ElementId>();
-                if (p.TryGetValue("elementIds", out var arrTok) && arrTok is JArray arr && arr.Count > 0)
-                {
-                    foreach (var t in arr) ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(t.Value<int>()));
-                }
-                else
-                {
-                    ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
-                }
-
-                using (var tx = new Transaction(doc, "Delete Detail Lines"))
-                {
-                    tx.Start();
-                    var deleted = doc.Delete(ids);
-                    int cnt = deleted != null ? deleted.Count : 0;
-                    tx.Commit();
-                    return new { ok = cnt > 0, deletedCount = cnt };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new { ok = false, msg = "Failed to delete: " + ex.Message };
             }
         }
     }

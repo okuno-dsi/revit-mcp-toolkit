@@ -58,7 +58,7 @@ Example (raw JSON body)
     "output": "C:/.../Work/AutoCadOut/Merged/merged.dwg",
     "rename": { "include": ["A-WALL-____-MCUT"], "format": "{old}_{stem}" },
     "accore": {
-      "path": "C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe",
+      "path": "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe",
       "seed": "C:/Seed/empty_seed.dwg",
       "locale": "en-US",
       "timeoutMs": 900000
@@ -125,7 +125,7 @@ Configuration
 Troubleshooting
 
 - Port in use: stop the other listener on 5251 or run with `--urls`.
-- Accore path invalid: set `accore.path` to the installed version (e.g., AutoCAD 2025 path).
+- Accore path invalid: set `accore.path` to the installed version (e.g., AutoCAD 2026 path).
 - Seed missing: provide a valid `seed` or place `Work/AutoCadOut/seed.dwg`.
 - Timeout: increase `accore.timeoutMs` for large models.
 - Logs encoding: logs are UTF?8 with BOM; open in a Unicode?capable editor.
@@ -151,12 +151,12 @@ Collecting Logs (support bundle)
 Operational Notes
 
 - Accore path consistency
-  - Ensure `accore.path` points to the actual `accoreconsole.exe` installed (e.g., `C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe`).
+  - Ensure `accore.path` points to the actual `accoreconsole.exe` installed (e.g., `C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe`).
   - If multiple AutoCAD versions exist, prefer an explicit path in requests to avoid ambiguity.
 
 - Layer name exact match
   - `rename.include` matches layer names exactly. Wildcards are not expanded by the server.
-  - Mitigation: use `Work/Tools/DumpLayersViaDXF.ps1` to list layers first, then enumerate needed names under `include`.
+  - Mitigation: use `tools/AutoCad/DumpLayersViaDXF.ps1` to list layers first, then enumerate needed names under `include`.
 
 - Stem collisions (duplicate destination layers)
   - Destination layers derive from `format({old},{stem})`. If two inputs share the same `stem`, they can map into identical destination layers.
@@ -216,8 +216,8 @@ Mapping Preview
 
 Layer Verification Tools
 
-- `Work/Tools/DumpLayersViaDXF.ps1` ? exports DXF and parses LAYER names (ASCII), useful for automation.
-- `Work/Tools/ListDWGLayers.ps1` ? writes a `.layers.txt` by running a short LISP in Core Console.
+- `tools/AutoCad/DumpLayersViaDXF.ps1` ? exports DXF and parses LAYER names (ASCII), useful for automation.
+- `tools/AutoCad/ListDWGLayers.ps1` ? writes a `.layers.txt` by running a short LISP in Core Console.
 - Expect that post?merge the source layers like `<stem>$0$<old>` are removed and only the destination layers remain.
 
 Security Notes

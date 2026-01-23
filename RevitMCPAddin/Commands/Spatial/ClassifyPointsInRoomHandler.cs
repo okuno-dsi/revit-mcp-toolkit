@@ -22,6 +22,7 @@ namespace RevitMCPAddin.Commands.Spatial
             var p = cmd.Params as JObject ?? new JObject();
             var roomId = ReadElemId(p["roomId"]);
             var pts = p["points"] as JArray; // [[x_mm,y_mm,z_mm], ...]
+            bool projectZToLevel = p.Value<bool?>("projectZToLevel") ?? true; // デフォルト: Zをレベル標高に投影して判定
 
             if (roomId == null || pts == null || pts.Count == 0)
                 return new { ok = false, msg = "roomId と points(mm) を指定してください。" };
@@ -29,10 +30,31 @@ namespace RevitMCPAddin.Commands.Spatial
             var se = doc.GetElement(roomId) as SpatialElement;
             if (se == null) return new { ok = false, msg = "指定IDは Room/Space ではありません。" };
 
+            // レベル標高の取得（Room/Space 共通で LevelId を見る）
+            double? levelElevation = null;
+            try
+            {
+                var levelId = se.LevelId;
+                if (levelId != null && levelId != ElementId.InvalidElementId)
+                {
+                    var lvl = doc.GetElement(levelId) as Level;
+                    levelElevation = lvl?.Elevation;
+                }
+            }
+            catch { /* ignore */ }
+
             bool IsInside(XYZ pft)
             {
-                if (se is Autodesk.Revit.DB.Architecture.Room r) return r.IsPointInRoom(pft);
-                if (se is Autodesk.Revit.DB.Mechanical.Space s) return s.IsPointInSpace(pft);
+                XYZ targetPt = pft;
+
+                if (projectZToLevel && levelElevation.HasValue)
+                {
+                    // XYはそのまま、Zだけレベル標高に投影
+                    targetPt = new XYZ(pft.X, pft.Y, levelElevation.Value);
+                }
+
+                if (se is Autodesk.Revit.DB.Architecture.Room r) return r.IsPointInRoom(targetPt);
+                if (se is Autodesk.Revit.DB.Mechanical.Space s) return s.IsPointInSpace(targetPt);
                 return false; // その他SpatialElementは未対応
             }
 

@@ -42,6 +42,10 @@ param(
 
   [string]$Model,
 
+  [string]$ReasoningEffort,
+
+  [string[]]$ImagePaths,
+
   [switch]$ShowStatus,
 
   [ValidateSet("codex", "local-llm", "local-llm-gguf")]
@@ -133,17 +137,56 @@ function Get-RepoRoot {
 }
 
 $map = Load-SessionMap
+
+function Ensure-Hashtable([object]$obj) {
+  if ($null -eq $obj) { return @{} }
+  if ($obj -is [System.Collections.IDictionary]) { return [hashtable]$obj }
+  $ht = @{}
+  try {
+    $obj.PSObject.Properties | ForEach-Object {
+      $ht[$_.Name] = $_.Value
+    }
+  } catch {
+    # ignore
+  }
+  return $ht
+}
+
+# Model is authoritative when explicitly passed:
+# - non-empty: set model
+# - empty/whitespace: clear model (use backend default)
+$hasModelParam = $PSBoundParameters.ContainsKey('Model')
+$modelNormalized = $null
+if ($hasModelParam) {
+  $m = $Model
+  if ($m) { $m = $m.Trim() }
+  if ($m) { $modelNormalized = $m } else { $modelNormalized = $null }
+}
+
+$hasEffortParam = $PSBoundParameters.ContainsKey('ReasoningEffort')
+$effortNormalized = $null
+if ($hasEffortParam) {
+  $e = $ReasoningEffort
+  if ($e) { $e = $e.Trim() }
+  if ($e) { $effortNormalized = $e } else { $effortNormalized = $null }
+}
+
 if (-not $map.ContainsKey($SessionId)) {
   $map[$SessionId] = @{
     codexSessionId = $null
-    model          = $Model
+    model          = $modelNormalized
+    reasoning_effort = $effortNormalized
     createdAt      = (Get-Date).ToString('o')
     lastUsedAt     = $null
   }
 } else {
-  # モデル名は最新の指定で上書き（空なら前回を維持）
-  if ($Model) {
-    $map[$SessionId].model = $Model
+  # Normalize legacy entries loaded as PSCustomObject so we can add new keys safely.
+  $map[$SessionId] = Ensure-Hashtable $map[$SessionId]
+  if ($hasModelParam) {
+    $map[$SessionId].model = $modelNormalized
+  }
+  if ($hasEffortParam) {
+    $map[$SessionId].reasoning_effort = $effortNormalized
   }
 }
 
@@ -180,6 +223,28 @@ switch ($Backend) {
     if ($entry.model) {
       $tokens += @('--model', $entry.model)
     }
+    if ($entry.reasoning_effort) {
+      # Override Codex reasoning effort (TOML string).
+      $tokens += @('--config', ('model_reasoning_effort="{0}"' -f $entry.reasoning_effort))
+    }
+
+    # Optional image attachments (consent-gated by GUI; still validate paths here).
+    $images = @()
+    if ($ImagePaths) {
+      foreach ($p in $ImagePaths) {
+        if (-not $p) { continue }
+        $pp = $p.Trim()
+        if (-not $pp) { continue }
+        if (Test-Path -LiteralPath $pp -PathType Leaf) {
+          $images += $pp
+        }
+      }
+    }
+    if ($images.Count -gt 0) {
+      $tokens += '--image'
+      $tokens += $images
+    }
+
     $tokens += '-'
     if ($codexSessionId) {
       $tokens += @('resume', $codexSessionId)
@@ -278,4 +343,3 @@ switch ($Backend) {
     exit 1
   }
 }
-

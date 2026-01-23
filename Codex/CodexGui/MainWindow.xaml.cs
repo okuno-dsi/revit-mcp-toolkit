@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -13,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
+using System.Windows.Shell;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
@@ -34,11 +36,14 @@ public partial class MainWindow : Window
     private bool _halPulseIncreasing;
     private bool _isBusy;
     private readonly string _baseTitle = "Codex GUI";
+    private ImageSource? _taskbarBusyOverlayIcon;
 
     // These static fields are used to pass per-call options to the
     // PowerShell process builder without complicating the signature.
     private static string? _currentModelForProcess;
+    private static string? _currentReasoningEffortForProcess;
     private static bool _currentIsStatusRequestForProcess;
+    private static string[]? _currentImagePathsForProcess;
     private static Process? _currentPwshProcess;
     private static bool _wasCancelledByUser;
 
@@ -52,6 +57,46 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, string> _sessionLogPaths = new();
     private System.Windows.IDataObject? _startupClipboardSnapshot;
     private bool _startupClipboardRestored;
+
+    // RevitMCP progress (reads %LOCALAPPDATA%\RevitMCP\progress\progress_<port>.jsonl)
+    private readonly System.Windows.Threading.DispatcherTimer _revitProgressTimer;
+    private bool _revitProgressRefreshing;
+    private int _revitProgressPort;
+    private string? _revitProgressLastLine;
+    private RevitProgressSnapshot? _revitProgressLastSnapshot;
+
+    // Pending images to attach to the next Codex run (requires explicit consent via CaptureConsentWindow).
+    private readonly List<string> _pendingImagePaths = new();
+
+    // Model selector: MRU list + built-in presets (editable ComboBox).
+    private const int MaxRecentModels = 12;
+    private static readonly string[] BuiltInModelPresets =
+    {
+        // Keep this list small and focused. It is only for quick picks;
+        // users can still type arbitrary model names in the editable ComboBox.
+        "gpt-5.2-codex",
+        "gpt-5.2",
+        "gpt-5.1-codex",
+        "gpt-5.1",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "o3",
+        "o4-mini"
+    };
+    private readonly List<string> _recentModels = new();
+    private readonly List<string> _codexConfigModelPresets = new();
+    private readonly Dictionary<string, string> _codexConfigModelMigrations = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] BuiltInReasoningEffortPresets =
+    {
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+    };
+
+    private string? _codexConfigDefaultModel;
+    private string? _codexConfigDefaultReasoningEffort;
 
     private enum HalPulsePhase
     {
@@ -110,10 +155,30 @@ public partial class MainWindow : Window
     private const double FallFadeInSeconds = 3.0;
     private const double FallFadeToNormalSeconds = 3.0;
 
+    private double _traceExpandedHeight = 160;
+
+    public sealed class CodexRunCompletedEventArgs : EventArgs
+    {
+        public string SessionId { get; set; } = string.Empty;
+        public string SessionName { get; set; } = string.Empty;
+        public string Prompt { get; set; } = string.Empty;
+        public string PromptForCodex { get; set; } = string.Empty;
+        public string Output { get; set; } = string.Empty;
+        public string Error { get; set; } = string.Empty;
+        public int ExitCode { get; set; }
+        public bool WasCancelled { get; set; }
+        public bool HadStreamingOutput { get; set; }
+        public DateTimeOffset StartedUtc { get; set; }
+        public DateTimeOffset EndedUtc { get; set; }
+    }
+
+    public event EventHandler<CodexRunCompletedEventArgs>? CodexRunCompleted;
+
     public MainWindow()
     {
         InitializeComponent();
         _baseTitle = Title;
+        try { _taskbarBusyOverlayIcon = TryFindResource("BusyOverlayIcon") as ImageSource; } catch { }
         Loaded += MainWindow_OnLoaded;
         PromptTextBox.KeyDown += PromptTextBox_OnKeyDown;
         KeyDown += MainWindow_OnKeyDown;
@@ -138,6 +203,159 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromMilliseconds(16)
         };
         _shakeTimer.Tick += ShakeTimer_OnTick;
+
+        _revitProgressTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _revitProgressTimer.Tick += async (_, _) => { await RefreshRevitProgressAsync(); };
+    }
+
+    private void UpdateTaskbarBusyState(bool isBusy)
+    {
+        try
+        {
+            if (MainTaskbarItemInfo == null) return;
+
+            if (isBusy)
+            {
+                MainTaskbarItemInfo.ProgressState = TaskbarItemProgressState.Indeterminate;
+                MainTaskbarItemInfo.Overlay = _taskbarBusyOverlayIcon;
+            }
+            else
+            {
+                MainTaskbarItemInfo.ProgressState = TaskbarItemProgressState.None;
+                MainTaskbarItemInfo.Overlay = null;
+            }
+        }
+        catch { /* ignore */ }
+    }
+
+    private void FlashTaskbarIfNotActive()
+    {
+        try
+        {
+            if (IsActive) return;
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            var info = new FLASHWINFO
+            {
+                cbSize = (uint)Marshal.SizeOf(typeof(FLASHWINFO)),
+                hwnd = hwnd,
+                dwFlags = FLASHW_TRAY | FLASHW_TIMERNOFG,
+                uCount = 3,
+                dwTimeout = 0
+            };
+
+            FlashWindowEx(ref info);
+        }
+        catch { /* ignore */ }
+    }
+
+    private void TraceExpander_OnExpanded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Restore a reasonable trace height and make the splitter available again.
+            if (TraceSplitterRow != null) TraceSplitterRow.Height = new GridLength(6);
+            if (TraceSplitter != null) TraceSplitter.Visibility = Visibility.Visible;
+
+            if (TraceRow != null)
+            {
+                var h = _traceExpandedHeight;
+                if (double.IsNaN(h) || double.IsInfinity(h) || h < 80) h = 160;
+                TraceRow.Height = new GridLength(h);
+            }
+        }
+        catch { }
+    }
+
+    private void TraceExpander_OnCollapsed(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Remember last expanded height (if meaningful), then collapse to header-only.
+            if (TraceRow != null && TraceRow.Height.IsAbsolute)
+            {
+                var h = TraceRow.Height.Value;
+                if (!double.IsNaN(h) && !double.IsInfinity(h) && h >= 80)
+                    _traceExpandedHeight = h;
+            }
+
+            if (TraceSplitter != null) TraceSplitter.Visibility = Visibility.Collapsed;
+            if (TraceSplitterRow != null) TraceSplitterRow.Height = new GridLength(0);
+            if (TraceRow != null) TraceRow.Height = GridLength.Auto;
+        }
+        catch { }
+    }
+
+    private void TraceSplitter_OnDragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        try
+        {
+            if (TraceRow == null) return;
+            var h = TraceRow.ActualHeight;
+            if (!double.IsNaN(h) && !double.IsInfinity(h) && h >= 80)
+                _traceExpandedHeight = h;
+        }
+        catch { }
+    }
+
+    public void SendPromptFromExternal(string prompt)
+    {
+        TrySendPromptFromExternal(prompt);
+    }
+
+    public bool TrySendPromptFromExternal(string prompt)
+    {
+        try
+        {
+            var text = (prompt ?? string.Empty).TrimEnd('\r', '\n');
+            if (string.IsNullOrWhiteSpace(text)) return false;
+
+            bool accepted = false;
+            Dispatcher.Invoke(() =>
+            {
+                if (_isSending) return;
+
+                // Ensure we have a session selected (create one if needed) to avoid modal dialogs.
+                if (SessionComboBox.SelectedItem is not SessionInfo)
+                {
+                    if (_sessions.Count == 0)
+                    {
+                        var session = new SessionInfo
+                        {
+                            Id = Guid.NewGuid().ToString("N"),
+                            Name = "Session 1",
+                            CodexSessionId = null,
+                            LastUsedUtc = DateTime.UtcNow
+                        };
+                        EnsurePromptHistoryInitialized(session);
+                        _sessions.Add(session);
+                        SaveSessions();
+                        RefreshSessionComboBox();
+                    }
+                    else
+                    {
+                        SessionComboBox.SelectedItem = GetLastUsedSession() ?? _sessions[0];
+                    }
+                }
+
+                if (SessionComboBox.SelectedItem is not SessionInfo) return;
+
+                PromptTextBox.Text = text;
+                PromptTextBox.CaretIndex = PromptTextBox.Text.Length;
+                PromptTextBox.Focus();
+                accepted = true;
+            });
+
+            return accepted;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
@@ -162,6 +380,11 @@ public partial class MainWindow : Window
         // 現在の BG/FG とスライダー値を反映
         ApplyColorsButton_OnClick(this, new RoutedEventArgs());
 
+        // Populate model / reasoning presets after settings are loaded.
+        RefreshCodexConfigPresets();
+        RefreshModelComboBoxItems();
+        RefreshReasoningEffortComboBoxItems();
+
         // Busy インジケータ初期表示（停止中は 00:00 を赤で表示）
         BusyIndicatorTextBlock.Text = "00:00";
         BusyIndicatorTextBlock.Foreground = BusyRedBrush;
@@ -173,6 +396,34 @@ public partial class MainWindow : Window
 
         // HAL 君風のタスクバー用アイコンを生成
         CreateHalLikeTaskbarIcon();
+
+        // RevitMCP progress poller (file-based, no Revit API calls)
+        try
+        {
+            _revitProgressTimer.Start();
+            _ = RefreshRevitProgressAsync();
+        }
+        catch { }
+
+        UpdateAttachedImagesIndicator();
+    }
+
+    private void UpdateAttachedImagesIndicator()
+    {
+        try
+        {
+            if (AttachedImagesCountTextBlock == null) return;
+            if (_pendingImagePaths.Count <= 0)
+            {
+                AttachedImagesCountTextBlock.Text = "";
+                AttachedImagesCountTextBlock.ToolTip = null;
+                return;
+            }
+
+            AttachedImagesCountTextBlock.Text = $"img:{_pendingImagePaths.Count}";
+            AttachedImagesCountTextBlock.ToolTip = string.Join(Environment.NewLine, _pendingImagePaths);
+        }
+        catch { }
     }
 
     private static string GetSessionsFilePath()
@@ -272,6 +523,20 @@ public partial class MainWindow : Window
                 if (v > OpacitySlider.Maximum) v = OpacitySlider.Maximum;
                 OpacitySlider.Value = v;
             }
+
+            // Model MRU list (optional)
+            _recentModels.Clear();
+            if (settings.RecentModels != null)
+            {
+                foreach (var m in settings.RecentModels)
+                {
+                    var t = (m ?? string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(t)) continue;
+                    if (_recentModels.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) continue;
+                    _recentModels.Add(t);
+                    if (_recentModels.Count >= MaxRecentModels) break;
+                }
+            }
         }
         catch
         {
@@ -309,7 +574,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            ModelTextBox.Text = string.Empty;
+            if (ModelComboBox != null) ModelComboBox.Text = string.Empty;
             PromptHistoryListBox.ItemsSource = null;
         }
     }
@@ -347,9 +612,23 @@ public partial class MainWindow : Window
 
     private void SessionComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // Commit edits for the previous session (model field) before switching.
+        try
+        {
+            if (e.RemovedItems != null && e.RemovedItems.Count > 0 && e.RemovedItems[0] is SessionInfo prev)
+            {
+                ApplyModelFromUiToSession(prev);
+                ApplyReasoningEffortFromUiToSession(prev);
+                SaveSessions();
+                RememberRecentModel(prev.Model);
+            }
+        }
+        catch { }
+
         if (SessionComboBox.SelectedItem is SessionInfo session)
         {
-            ModelTextBox.Text = session.Model ?? string.Empty;
+            if (ModelComboBox != null) ModelComboBox.Text = session.Model ?? string.Empty;
+            if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = session.ReasoningEffort ?? string.Empty;
             if (SessionIdTextBlock != null)
             {
                 SessionIdTextBlock.Text = session.Id;
@@ -358,7 +637,8 @@ public partial class MainWindow : Window
         }
         else
         {
-            ModelTextBox.Text = string.Empty;
+            if (ModelComboBox != null) ModelComboBox.Text = string.Empty;
+            if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = string.Empty;
             if (SessionIdTextBlock != null)
             {
                 SessionIdTextBlock.Text = string.Empty;
@@ -428,8 +708,360 @@ public partial class MainWindow : Window
 
     private void ApplyModelFromUiToSession(SessionInfo session)
     {
-        var modelText = ModelTextBox.Text?.Trim();
+        var modelText = (ModelComboBox?.Text ?? string.Empty).Trim();
         session.Model = string.IsNullOrWhiteSpace(modelText) ? null : modelText;
+    }
+
+    private void ApplyReasoningEffortFromUiToSession(SessionInfo session)
+    {
+        var effortText = (ReasoningEffortComboBox?.Text ?? string.Empty).Trim();
+        session.ReasoningEffort = string.IsNullOrWhiteSpace(effortText) ? null : effortText;
+    }
+
+    private void ModelComboBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        try
+        {
+            if (SessionComboBox.SelectedItem is not SessionInfo session) return;
+            ApplyModelFromUiToSession(session);
+            SaveSessions();
+            RememberRecentModel(session.Model);
+        }
+        catch { }
+    }
+
+    private void ReasoningEffortComboBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        try
+        {
+            if (SessionComboBox.SelectedItem is not SessionInfo session) return;
+            ApplyReasoningEffortFromUiToSession(session);
+            SaveSessions();
+        }
+        catch { }
+    }
+
+    private void ClearModelButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ModelComboBox != null) ModelComboBox.Text = string.Empty;
+            if (SessionComboBox.SelectedItem is SessionInfo session)
+            {
+                session.Model = null;
+                SaveSessions();
+            }
+        }
+        catch { }
+    }
+
+    private void ClearReasoningEffortButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = string.Empty;
+            if (SessionComboBox.SelectedItem is SessionInfo session)
+            {
+                session.ReasoningEffort = null;
+                SaveSessions();
+            }
+        }
+        catch { }
+    }
+
+    private void RefreshModelsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            RefreshCodexConfigPresets();
+            RefreshModelComboBoxItems();
+            RefreshReasoningEffortComboBoxItems();
+        }
+        catch { }
+    }
+
+    private void RefreshModelComboBoxItems()
+    {
+        try
+        {
+            if (ModelComboBox == null) return;
+
+            var currentText = ModelComboBox.Text ?? string.Empty;
+            var items = new List<string>();
+
+            void Add(string? m)
+            {
+                var t = (m ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(t)) return;
+                if (items.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) return;
+                items.Add(t);
+            }
+
+            foreach (var m in _recentModels) Add(m);
+            foreach (var m in _codexConfigModelPresets) Add(m);
+            foreach (var m in BuiltInModelPresets) Add(m);
+
+            ModelComboBox.ItemsSource = items;
+            ModelComboBox.Text = currentText;
+        }
+        catch { }
+    }
+
+    private void RefreshReasoningEffortComboBoxItems()
+    {
+        try
+        {
+            if (ReasoningEffortComboBox == null) return;
+
+            var currentText = ReasoningEffortComboBox.Text ?? string.Empty;
+            var items = new List<string>();
+
+            void Add(string? e)
+            {
+                var t = (e ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(t)) return;
+                if (items.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) return;
+                items.Add(t);
+            }
+
+            // Put the current Codex config default first (if present), so it is discoverable.
+            Add(_codexConfigDefaultReasoningEffort);
+            foreach (var e in BuiltInReasoningEffortPresets) Add(e);
+
+            ReasoningEffortComboBox.ItemsSource = items;
+            ReasoningEffortComboBox.Text = currentText;
+        }
+        catch { }
+    }
+
+    private void RefreshCodexConfigPresets()
+    {
+        try
+        {
+            _codexConfigModelPresets.Clear();
+            _codexConfigModelMigrations.Clear();
+            _codexConfigDefaultModel = null;
+            _codexConfigDefaultReasoningEffort = null;
+
+            var configPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".codex",
+                "config.toml");
+
+            if (!File.Exists(configPath))
+            {
+                UpdateModelAndReasoningTooltips();
+                return;
+            }
+
+            string? currentSection = null;
+
+            foreach (var rawLine in File.ReadAllLines(configPath, Encoding.UTF8))
+            {
+                var line = StripTomlComment(rawLine).Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                if (line.StartsWith("[", StringComparison.Ordinal) && line.EndsWith("]", StringComparison.Ordinal))
+                {
+                    currentSection = line.Substring(1, line.Length - 2).Trim();
+                    continue;
+                }
+
+                var eq = line.IndexOf('=');
+                if (eq <= 0) continue;
+
+                var key = UnquoteTomlString(line.Substring(0, eq).Trim());
+                var value = UnquoteTomlString(line.Substring(eq + 1).Trim());
+
+                if (string.IsNullOrWhiteSpace(key)) continue;
+
+                if (string.IsNullOrWhiteSpace(currentSection))
+                {
+                    if (string.Equals(key, "model", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _codexConfigDefaultModel = value;
+                        AddModelPreset(value);
+                    }
+                    else if (string.Equals(key, "model_reasoning_effort", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _codexConfigDefaultReasoningEffort = value;
+                    }
+                }
+                else if (string.Equals(currentSection, "notice.model_migrations", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        _codexConfigModelMigrations[key] = value;
+                        AddModelPreset(key);
+                        AddModelPreset(value);
+                    }
+                }
+            }
+
+            // If a default model has a migration target, include it explicitly (discoverability).
+            if (!string.IsNullOrWhiteSpace(_codexConfigDefaultModel)
+                && _codexConfigModelMigrations.TryGetValue(_codexConfigDefaultModel, out var migrated))
+            {
+                AddModelPreset(migrated);
+            }
+
+            // Best-effort: add models that Codex has actually used recently (from ~/.codex/sessions/**.jsonl).
+            // This is more reliable than hardcoding, and avoids depending on remote "list models" APIs.
+            AddModelsFromCodexSessionLogs(maxFiles: 24, maxLinesPerFile: 600);
+
+            UpdateModelAndReasoningTooltips();
+        }
+        catch
+        {
+            // ignore
+        }
+
+        string StripTomlComment(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            var inQuote = false;
+            for (var i = 0; i < s.Length; i++)
+            {
+                var c = s[i];
+                if (c == '"' && (i == 0 || s[i - 1] != '\\'))
+                {
+                    inQuote = !inQuote;
+                }
+                if (!inQuote && c == '#')
+                {
+                    return s.Substring(0, i);
+                }
+            }
+            return s;
+        }
+
+        string UnquoteTomlString(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+            var t = s.Trim();
+            if (t.StartsWith("\"", StringComparison.Ordinal) && t.EndsWith("\"", StringComparison.Ordinal) && t.Length >= 2)
+            {
+                t = t.Substring(1, t.Length - 2);
+                t = t.Replace("\\\"", "\"");
+            }
+            return t.Trim();
+        }
+
+        void AddModelPreset(string? model)
+        {
+            var t = (model ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(t)) return;
+            if (_codexConfigModelPresets.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) return;
+            _codexConfigModelPresets.Add(t);
+        }
+
+        void AddModelsFromCodexSessionLogs(int maxFiles, int maxLinesPerFile)
+        {
+            try
+            {
+                var sessionsRoot = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".codex",
+                    "sessions");
+
+                if (!Directory.Exists(sessionsRoot)) return;
+
+                var modelRegex = new Regex("\"model\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.Compiled);
+
+                var files = new DirectoryInfo(sessionsRoot)
+                    .EnumerateFiles("*.jsonl", SearchOption.AllDirectories)
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Take(Math.Max(1, maxFiles))
+                    .ToList();
+
+                foreach (var f in files)
+                {
+                    try
+                    {
+                        using var sr = new StreamReader(f.FullName, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                        for (var i = 0; i < Math.Max(1, maxLinesPerFile); i++)
+                        {
+                            var line = sr.ReadLine();
+                            if (line == null) break;
+                            var m = modelRegex.Match(line);
+                            if (m.Success)
+                            {
+                                var value = m.Groups[1].Value?.Trim();
+                                AddModelPreset(value);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // ignore and continue
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+    }
+
+    private void UpdateModelAndReasoningTooltips()
+    {
+        try
+        {
+            if (ModelComboBox != null)
+            {
+                var sb = new StringBuilder();
+                sb.Append("Codex モデル名（空欄=デフォルト）。");
+                if (!string.IsNullOrWhiteSpace(_codexConfigDefaultModel))
+                {
+                    sb.AppendLine();
+                    sb.Append("Codex config default: ").Append(_codexConfigDefaultModel);
+                    if (_codexConfigModelMigrations.TryGetValue(_codexConfigDefaultModel, out var migrated) &&
+                        !string.IsNullOrWhiteSpace(migrated) &&
+                        !string.Equals(migrated, _codexConfigDefaultModel, StringComparison.OrdinalIgnoreCase))
+                    {
+                        sb.Append(" → ").Append(migrated);
+                    }
+                }
+                ModelComboBox.ToolTip = sb.ToString();
+            }
+
+            if (ReasoningEffortComboBox != null)
+            {
+                var sb = new StringBuilder();
+                sb.Append("model_reasoning_effort（空欄=デフォルト）。");
+                if (!string.IsNullOrWhiteSpace(_codexConfigDefaultReasoningEffort))
+                {
+                    sb.AppendLine();
+                    sb.Append("Codex config default: ").Append(_codexConfigDefaultReasoningEffort);
+                }
+                ReasoningEffortComboBox.ToolTip = sb.ToString();
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private void RememberRecentModel(string? model)
+    {
+        try
+        {
+            var t = (model ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(t)) return;
+
+            _recentModels.RemoveAll(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase));
+            _recentModels.Insert(0, t);
+            if (_recentModels.Count > MaxRecentModels)
+            {
+                _recentModels.RemoveRange(MaxRecentModels, _recentModels.Count - MaxRecentModels);
+            }
+
+            RefreshModelComboBoxItems();
+            SaveUiSettings();
+        }
+        catch { }
     }
 
     private void ApplyFontButton_OnClick(object sender, RoutedEventArgs e)
@@ -532,6 +1164,7 @@ public partial class MainWindow : Window
         _isBusy = true;
         _busyStartUtc = DateTime.UtcNow;
         _busySpinnerIndex = 0;
+        UpdateTaskbarBusyState(true);
 
         // 経過時間を赤文字で表示（スピナーは使用しない）
         BusyIndicatorTextBlock.Foreground = BusyRedBrush;
@@ -559,6 +1192,8 @@ public partial class MainWindow : Window
     {
         _isBusy = false;
         _busyStartUtc = null;
+        UpdateTaskbarBusyState(false);
+        FlashTaskbarIfNotActive();
 
         // 停止中は 00:00 を赤文字で表示
         BusyIndicatorTextBlock.Text = "00:00";
@@ -656,7 +1291,8 @@ public partial class MainWindow : Window
                 WindowState = WindowState,
                 BgColorHex = BgColorTextBox?.Text,
                 FgColorHex = FgColorTextBox?.Text,
-                Opacity = OpacitySlider?.Value
+                Opacity = OpacitySlider?.Value,
+                RecentModels = _recentModels.Count > 0 ? _recentModels.ToList() : null
             };
 
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
@@ -1128,6 +1764,7 @@ public partial class MainWindow : Window
         }
 
         ApplyModelFromUiToSession(session);
+        RememberRecentModel(session.Model);
 
         _isSending = true;
         StatusButton.IsEnabled = false;
@@ -1177,6 +1814,63 @@ public partial class MainWindow : Window
             _isSending = false;
             StatusButton.IsEnabled = true;
             StopBusyIndicator();
+        }
+    }
+
+    private void ChatMonitorButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var w = new ChatMonitorWindow(this)
+            {
+                Owner = this
+            };
+            w.Show();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Chat Monitor を開けませんでした。\n" + ex.Message, "Codex GUI",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void CaptureButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!TryGetRevitMcpPort(out var port) || port <= 0)
+            {
+                MessageBox.Show(this,
+                    "RevitMCP サーバーのポートが特定できません。\nRevitMCPServer を起動してから再度お試しください。",
+                    "Codex GUI",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var w = new CaptureConsentWindow(port)
+            {
+                Owner = this
+            };
+            var ok = w.ShowDialog() ?? false;
+            if (!ok) return;
+
+            _pendingImagePaths.Clear();
+            _pendingImagePaths.AddRange(w.ApprovedImagePaths);
+            UpdateAttachedImagesIndicator();
+
+            if (_pendingImagePaths.Count > 0)
+            {
+                AppendSystemMessage($"画像を添付対象に設定しました: {_pendingImagePaths.Count} 件");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                "Capture の実行に失敗しました。\n" + ex.Message,
+                "Codex GUI",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
@@ -1318,6 +2012,7 @@ public partial class MainWindow : Window
         }
 
         ApplyModelFromUiToSession(session);
+        RememberRecentModel(session.Model);
         EnsurePromptHistoryInitialized(session);
 
         var prompt = PromptTextBox.Text.TrimEnd();
@@ -1343,6 +2038,14 @@ public partial class MainWindow : Window
         SendButton.IsEnabled = false;
         StartBusyIndicator();
 
+        var startedUtc = DateTimeOffset.MinValue;
+        var endedUtc = DateTimeOffset.MinValue;
+        var output = string.Empty;
+        var error = string.Empty;
+        var exitCode = -1;
+        var hadStreamingOutput = false;
+        var wasCancelled = false;
+
         try
         {
             session.LastUsedUtc = DateTime.UtcNow;
@@ -1362,9 +2065,47 @@ public partial class MainWindow : Window
             AppendUserMessage(prompt);
             PromptTextBox.Clear();
 
-            var (output, error, exitCode, hadStreamingOutput) = await RunPromptThroughPowerShellAsync(promptForCodex, session, isStatusRequest: false);
+            var imagesForThisRun = _pendingImagePaths.ToArray();
+            if (imagesForThisRun.Length > 0)
+            {
+                _pendingImagePaths.Clear();
+                UpdateAttachedImagesIndicator();
+                AppendSystemMessage($"画像を添付して実行します: {imagesForThisRun.Length} 件");
+            }
 
-            if (_wasCancelledByUser)
+            var modelLabel = string.IsNullOrWhiteSpace(session.Model) ? "(default)" : session.Model;
+            AppendSystemMessage($"model: {modelLabel}");
+            var effortLabel = string.IsNullOrWhiteSpace(session.ReasoningEffort) ? "(default)" : session.ReasoningEffort;
+            AppendSystemMessage($"reasoning_effort: {effortLabel}");
+
+            startedUtc = DateTimeOffset.UtcNow;
+            try
+            {
+                (output, error, exitCode, hadStreamingOutput) = await RunPromptThroughPowerShellAsync(
+                    promptForCodex,
+                    session,
+                    isStatusRequest: false,
+                    imagePaths: imagesForThisRun);
+            }
+            catch (Exception ex)
+            {
+                // Restore pending images if the process failed to start.
+                if (imagesForThisRun.Length > 0)
+                {
+                    _pendingImagePaths.Clear();
+                    _pendingImagePaths.AddRange(imagesForThisRun);
+                    UpdateAttachedImagesIndicator();
+                }
+
+                output = string.Empty;
+                error = ex.ToString();
+                exitCode = -1;
+                hadStreamingOutput = false;
+            }
+            endedUtc = DateTimeOffset.UtcNow;
+
+            wasCancelled = _wasCancelledByUser;
+            if (wasCancelled)
             {
                 AppendSystemMessage("ユーザーにより Codex の実行を中断しました。");
                 _wasCancelledByUser = false;
@@ -1402,6 +2143,29 @@ public partial class MainWindow : Window
             SendButton.IsEnabled = true;
             PromptTextBox.Focus();
             StopBusyIndicator();
+
+            try
+            {
+                var args = new CodexRunCompletedEventArgs
+                {
+                    SessionId = session.Id,
+                    SessionName = session.Name,
+                    Prompt = prompt,
+                    PromptForCodex = promptForCodex,
+                    Output = output ?? string.Empty,
+                    Error = error ?? string.Empty,
+                    ExitCode = exitCode,
+                    WasCancelled = wasCancelled,
+                    HadStreamingOutput = hadStreamingOutput,
+                    StartedUtc = startedUtc == DateTimeOffset.MinValue ? DateTimeOffset.UtcNow : startedUtc,
+                    EndedUtc = endedUtc == DateTimeOffset.MinValue ? DateTimeOffset.UtcNow : endedUtc
+                };
+                CodexRunCompleted?.Invoke(this, args);
+            }
+            catch
+            {
+                // ignore
+            }
         }
     }
 
@@ -1439,6 +2203,12 @@ public partial class MainWindow : Window
 
         fileName ??= "pwsh";
 
+        static string EscapePwshDoubleQuotedArg(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            return value.Replace("`", "``").Replace("\"", "`\"");
+        }
+
         var argsBuilder = new StringBuilder();
         argsBuilder.Append("-NoLogo -NoProfile -ExecutionPolicy Bypass ");
         argsBuilder.Append("-File ");
@@ -1448,9 +2218,25 @@ public partial class MainWindow : Window
         argsBuilder.Append(" -SessionId ");
         argsBuilder.Append('"').Append(sessionId).Append('"');
 
-        // Pass model (optional) and status flag
+        // Pass model (optional), reasoning effort (optional) and status flag
         argsBuilder.Append(" -Model ");
-        argsBuilder.Append('"').Append(_currentModelForProcess ?? string.Empty).Append('"');
+        argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentModelForProcess ?? string.Empty)).Append('"');
+        argsBuilder.Append(" -ReasoningEffort ");
+        argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentReasoningEffortForProcess ?? string.Empty)).Append('"');
+
+        if (_currentImagePathsForProcess != null && _currentImagePathsForProcess.Length > 0)
+        {
+            argsBuilder.Append(" -ImagePaths");
+            foreach (var p in _currentImagePathsForProcess)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                var val = p.Trim();
+                if (string.IsNullOrWhiteSpace(val)) continue;
+                // PowerShell escaping for double-quoted args.
+                val = val.Replace("`", "``").Replace("\"", "`\"");
+                argsBuilder.Append(' ').Append('"').Append(val).Append('"');
+            }
+        }
         if (_currentIsStatusRequestForProcess)
         {
             argsBuilder.Append(" -ShowStatus");
@@ -1472,7 +2258,8 @@ public partial class MainWindow : Window
 private static async Task<(string output, string error, int exitCode, bool hadStreamingOutput)> RunPromptThroughPowerShellAsync(
         string prompt,
         SessionInfo session,
-        bool isStatusRequest)
+        bool isStatusRequest,
+        IReadOnlyList<string>? imagePaths = null)
     {
         var baseDir = AppContext.BaseDirectory;
         var scriptPath = Path.Combine(baseDir, "run_codex_prompt.ps1");
@@ -1490,7 +2277,11 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             await File.WriteAllTextAsync(tempFile, prompt, Encoding.UTF8);
 
             _currentModelForProcess = session.Model ?? string.Empty;
+            _currentReasoningEffortForProcess = session.ReasoningEffort ?? string.Empty;
             _currentIsStatusRequestForProcess = isStatusRequest;
+            _currentImagePathsForProcess = (!isStatusRequest && imagePaths != null && imagePaths.Count > 0)
+                ? imagePaths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray()
+                : null;
 
             var psi = CreatePowerShellStartInfo(scriptPath, tempFile, session.Id);
             using var process = new Process { StartInfo = psi };
@@ -1501,10 +2292,9 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             var outputBuilder = new StringBuilder();
             var errorTask = process.StandardError.ReadToEndAsync();
             var hadStreamingOutput = false;
-            var isFirstAssistantChunk = true;
+            var isFirstAnswerLine = true;
             string? lastUiLine = null;
             var seenLines = new HashSet<string>(StringComparer.Ordinal);
-            var stopAfterTokensUsed = false;
 
             // Codex CLI の出力を行単位で読み取りつつ、
             // 「codex」以降のアシスタント回答がまるごと 2 回連続で出力されるケースでは
@@ -1530,6 +2320,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                         var rawLine = line ?? string.Empty;
                         var cleanLine = AnsiRegex.Replace(rawLine, string.Empty);
                         cleanLine = BracketAnsiRegex.Replace(cleanLine, string.Empty);
+                        var isCodexMarkerLine = string.Equals(cleanLine.Trim(), "codex", StringComparison.OrdinalIgnoreCase);
 
                         // "tokens used" 以降に現れるブロックは、内容が重複することが多いので、
                         // トークン情報だけ取り込んで以降の行は無視する。
@@ -1546,11 +2337,10 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                             {
                                 if (Application.Current?.MainWindow is MainWindow mw2)
                                 {
-                                    mw2.AppendSystemMessage(cleanLine);
+                                    mw2.AppendTraceLine(cleanLine);
                                 }
                             });
 
-                            stopAfterTokensUsed = true;
                             break;
                         }
 
@@ -1568,6 +2358,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                             firstAnswerLine = null;
                             answerLineCount = 0;
                             skippingDuplicateAnswer = false;
+                            isFirstAnswerLine = true;
                         }
                         else if (inCodexSection)
                         {
@@ -1596,6 +2387,11 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                             }
                         }
 
+                        if (IsIgnorableCodexNoiseLine(cleanLine))
+                        {
+                            continue;
+                        }
+
                         lock (outputBuilder)
                         {
                             // 同じ行が同一呼び出し中に複数回現れる場合は、一度だけ記録・表示する
@@ -1619,14 +2415,29 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                                 }
                                 lastUiLine = cleanLine;
 
-                                if (isFirstAssistantChunk)
+                                if (isCodexMarkerLine)
                                 {
-                                    isFirstAssistantChunk = false;
-                                    mw.AppendAssistantMessage(cleanLine);
+                                    // Marker line is useful for parsing, but not useful for UI.
+                                    return;
+                                }
+
+                                if (inCodexSection)
+                                {
+                                    // Only the answer section goes to the main conversation.
+                                    if (isFirstAnswerLine && !string.IsNullOrWhiteSpace(cleanLine))
+                                    {
+                                        isFirstAnswerLine = false;
+                                        mw.AppendAssistantMessage(cleanLine);
+                                    }
+                                    else
+                                    {
+                                        mw.AppendLine(cleanLine);
+                                    }
                                 }
                                 else
                                 {
-                                    mw.AppendLine(cleanLine);
+                                    // Everything else (thinking/exec/logs) goes to the trace panel.
+                                    mw.AppendTraceLine(cleanLine);
                                 }
                             }
                         });
@@ -1651,6 +2462,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
         }
         finally
         {
+            _currentImagePathsForProcess = null;
             _currentPwshProcess = null;
             try
             {
@@ -1708,6 +2520,373 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
     private void AppendAssistantMessage(string text)
     {
         AppendLine($"[Codex] {text}");
+    }
+
+    private void AppendTraceLine(string text)
+    {
+        text ??= string.Empty;
+
+        // Keep trace output readable but less prominent than the main conversation.
+        var clean = AnsiRegex.Replace(text, string.Empty);
+        clean = BracketAnsiRegex.Replace(clean, string.Empty);
+
+        if (IsIgnorableCodexNoiseLine(clean))
+        {
+            return;
+        }
+
+        TraceTextBox.AppendText(clean + Environment.NewLine);
+        TraceTextBox.ScrollToEnd();
+
+        try
+        {
+            if (SessionComboBox.SelectedItem is SessionInfo session)
+            {
+                if (!_sessionLogPaths.TryGetValue(session.Id, out var logPath))
+                {
+                    logPath = CreateSessionLogFile(session);
+                    _sessionLogPaths[session.Id] = logPath;
+                }
+
+                File.AppendAllText(logPath, "[Trace] " + clean + Environment.NewLine, Encoding.UTF8);
+            }
+        }
+        catch
+        {
+            // ignore logging failures
+        }
+    }
+
+    private static bool IsIgnorableCodexNoiseLine(string cleanLine)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(cleanLine)) return false;
+            // Codex CLI internal flag; not an actionable error for users.
+            if (cleanLine.IndexOf("codex_core::codex: needs_follow_up", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private sealed class RevitProgressSnapshot
+    {
+        public DateTime TsUtc { get; set; }
+        public string JobId { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public int Total { get; set; }
+        public int Done { get; set; }
+        public double? Percent { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private static string GetRevitMcpStateFilePath()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(local, "RevitMCP", "server_state.json");
+    }
+
+    private static string GetRevitMcpProgressFilePath(int port)
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(local, "RevitMCP", "progress", $"progress_{port}.jsonl");
+    }
+
+    private static bool TryGetRevitMcpPort(out int port)
+    {
+        port = 0;
+        try
+        {
+            var path = GetRevitMcpStateFilePath();
+            if (!File.Exists(path)) return false;
+
+            var json = File.ReadAllText(path, Encoding.UTF8);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("port", out var p)) return false;
+
+            if (p.ValueKind == JsonValueKind.Number && p.TryGetInt32(out port)) return port > 0;
+            if (p.ValueKind == JsonValueKind.String && int.TryParse((p.ToString() ?? "").Trim(), out port)) return port > 0;
+            return false;
+        }
+        catch
+        {
+            port = 0;
+            return false;
+        }
+    }
+
+    private static string? TryReadLastJsonlLine(string path, int maxBytes = 65536)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            if (!File.Exists(path)) return null;
+
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (fs.Length <= 0) return null;
+
+            var readSize = (int)Math.Min(maxBytes, fs.Length);
+            fs.Seek(-readSize, SeekOrigin.End);
+            var buffer = new byte[readSize];
+            var n = fs.Read(buffer, 0, readSize);
+            if (n <= 0) return null;
+
+            var txt = Encoding.UTF8.GetString(buffer, 0, n);
+            txt = txt.Replace("\r\n", "\n").Replace("\r", "\n");
+
+            // Trim trailing newlines
+            var end = txt.Length;
+            while (end > 0 && txt[end - 1] == '\n') end--;
+            if (end <= 0) return null;
+
+            var lastNl = txt.LastIndexOf('\n', end - 1);
+            var line = lastNl >= 0 ? txt.Substring(lastNl + 1, end - (lastNl + 1)) : txt.Substring(0, end);
+
+            line = line.Trim();
+            return string.IsNullOrWhiteSpace(line) ? null : line;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool TryParseRevitProgressSnapshot(string jsonLine, out RevitProgressSnapshot snapshot)
+    {
+        snapshot = new RevitProgressSnapshot();
+        try
+        {
+            if (string.IsNullOrWhiteSpace(jsonLine)) return false;
+            using var doc = JsonDocument.Parse(jsonLine);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return false;
+
+            if (root.TryGetProperty("tsUtc", out var tsEl))
+            {
+                var ts = (tsEl.ToString() ?? "").Trim();
+                if (DateTime.TryParse(ts, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
+                {
+                    snapshot.TsUtc = dt.Kind == DateTimeKind.Utc ? dt : dt.ToUniversalTime();
+                }
+            }
+
+            if (root.TryGetProperty("jobId", out var jobEl)) snapshot.JobId = (jobEl.ToString() ?? "").Trim();
+            if (root.TryGetProperty("title", out var titleEl)) snapshot.Title = (titleEl.ToString() ?? "").Trim();
+            if (root.TryGetProperty("message", out var msgEl)) snapshot.Message = (msgEl.ToString() ?? "").Trim();
+
+            if (root.TryGetProperty("total", out var totalEl)) snapshot.Total = TryReadInt32(totalEl);
+            if (root.TryGetProperty("done", out var doneEl)) snapshot.Done = TryReadInt32(doneEl);
+
+            if (root.TryGetProperty("percent", out var pctEl))
+            {
+                if (pctEl.ValueKind == JsonValueKind.Number && pctEl.TryGetDouble(out var d))
+                    snapshot.Percent = d;
+                else if (pctEl.ValueKind == JsonValueKind.String &&
+                         double.TryParse((pctEl.ToString() ?? "").Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var dd))
+                    snapshot.Percent = dd;
+                else
+                    snapshot.Percent = null;
+            }
+
+            return true;
+        }
+        catch
+        {
+            snapshot = new RevitProgressSnapshot();
+            return false;
+        }
+    }
+
+    private static int TryReadInt32(JsonElement el)
+    {
+        try
+        {
+            if (el.ValueKind == JsonValueKind.Number)
+            {
+                if (el.TryGetInt32(out var i)) return i;
+                if (el.TryGetInt64(out var l))
+                {
+                    if (l > int.MaxValue) return int.MaxValue;
+                    if (l < int.MinValue) return int.MinValue;
+                    return (int)l;
+                }
+                return 0;
+            }
+
+            if (el.ValueKind == JsonValueKind.String)
+            {
+                if (int.TryParse((el.ToString() ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var i))
+                    return i;
+            }
+
+            return 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static bool IsTerminalProgressMessage(string? message)
+    {
+        try
+        {
+            var m = (message ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(m)) return false;
+            if (string.Equals(m, "done", StringComparison.OrdinalIgnoreCase)) return true;
+            if (m.StartsWith("done", StringComparison.OrdinalIgnoreCase)) return true;
+            if (m.StartsWith("failed", StringComparison.OrdinalIgnoreCase)) return true;
+            if (m.StartsWith("error", StringComparison.OrdinalIgnoreCase)) return true;
+            if (m.StartsWith("cancel", StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task RefreshRevitProgressAsync()
+    {
+        if (_revitProgressRefreshing) return;
+        _revitProgressRefreshing = true;
+
+        try
+        {
+            if (!TryGetRevitMcpPort(out var port) || port <= 0)
+            {
+                _revitProgressPort = 0;
+                _revitProgressLastLine = null;
+                _revitProgressLastSnapshot = null;
+                HideRevitProgressUi();
+                return;
+            }
+
+            if (port != _revitProgressPort)
+            {
+                _revitProgressPort = port;
+                _revitProgressLastLine = null;
+                _revitProgressLastSnapshot = null;
+            }
+
+            var path = GetRevitMcpProgressFilePath(port);
+            var line = await Task.Run(() => TryReadLastJsonlLine(path)).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                HideRevitProgressUi();
+                return;
+            }
+
+            if (string.Equals(line, _revitProgressLastLine, StringComparison.Ordinal))
+            {
+                if (_revitProgressLastSnapshot != null)
+                {
+                    UpdateRevitProgressUi(_revitProgressLastSnapshot);
+                    return;
+                }
+            }
+
+            if (!TryParseRevitProgressSnapshot(line, out var snap))
+            {
+                HideRevitProgressUi();
+                return;
+            }
+
+            _revitProgressLastLine = line;
+            _revitProgressLastSnapshot = snap;
+            UpdateRevitProgressUi(snap);
+        }
+        catch
+        {
+            HideRevitProgressUi();
+        }
+        finally
+        {
+            _revitProgressRefreshing = false;
+        }
+    }
+
+    private void HideRevitProgressUi()
+    {
+        try
+        {
+            if (RevitProgressBar != null) RevitProgressBar.Visibility = Visibility.Collapsed;
+            if (RevitProgressTextBlock != null) RevitProgressTextBlock.Visibility = Visibility.Collapsed;
+        }
+        catch { }
+    }
+
+    private void UpdateRevitProgressUi(RevitProgressSnapshot snap)
+    {
+        try
+        {
+            var nowUtc = DateTime.UtcNow;
+            var tsUtc = snap.TsUtc;
+            if (tsUtc == default)
+            {
+                HideRevitProgressUi();
+                return;
+            }
+
+            var age = nowUtc - tsUtc;
+            if (age > TimeSpan.FromSeconds(20))
+            {
+                HideRevitProgressUi();
+                return;
+            }
+
+            var msg = (snap.Message ?? "").Trim();
+            if (IsTerminalProgressMessage(msg) && age > TimeSpan.FromSeconds(6))
+            {
+                HideRevitProgressUi();
+                return;
+            }
+
+            var title = (snap.Title ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(title)) title = "RevitMCP";
+
+            var isIndeterminate = snap.Total <= 0 || snap.Percent == null;
+
+            if (RevitProgressBar != null)
+            {
+                RevitProgressBar.Visibility = Visibility.Visible;
+                RevitProgressBar.IsIndeterminate = isIndeterminate;
+                if (!isIndeterminate)
+                {
+                    var pct = snap.Percent.GetValueOrDefault();
+                    if (double.IsNaN(pct) || double.IsInfinity(pct)) pct = 0;
+                    RevitProgressBar.Value = Math.Max(0, Math.Min(100, pct));
+                }
+            }
+
+            if (RevitProgressTextBlock != null)
+            {
+                RevitProgressTextBlock.Visibility = Visibility.Visible;
+
+                string text;
+                if (isIndeterminate)
+                {
+                    text = string.IsNullOrWhiteSpace(msg) ? title : $"{title} — {msg}";
+                }
+                else
+                {
+                    var pct = snap.Percent.GetValueOrDefault();
+                    var detail = $"{snap.Done}/{snap.Total} ({pct:0.#}%)";
+                    if (!string.IsNullOrWhiteSpace(msg)) detail += " " + msg;
+                    text = $"{title} — {detail}";
+                }
+
+                RevitProgressTextBlock.Text = text;
+            }
+        }
+        catch
+        {
+            HideRevitProgressUi();
+        }
     }
 
     private void OpacitySlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -1833,6 +3012,10 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             var bgA = Color.FromArgb(a, bg.R, bg.G, bg.B);
             var fgBrush = new SolidColorBrush(Color.FromArgb(0xFF, fg.R, fg.G, fg.B));
 
+            // Secondary text color for trace: move 30% toward BG (less prominent, but readable).
+            var traceRgb = BlendRgb(fg, bg, 0.30);
+            var traceBrush = new SolidColorBrush(Color.FromArgb(0xFF, traceRgb.R, traceRgb.G, traceRgb.B));
+
             if (BackdropBorder != null) BackdropBorder.Background = new SolidColorBrush(bgA);
             if (ConversationTextBox != null)
             {
@@ -1856,6 +3039,34 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                 PromptHistoryListBox.Background = new SolidColorBrush(bgA);
                 PromptHistoryListBox.Foreground = fgBrush;
             }
+            if (TraceExpander != null)
+            {
+                TraceExpander.Background = new SolidColorBrush(bgA);
+                TraceExpander.Foreground = traceBrush;
+            }
+            if (TraceTextBox != null)
+            {
+                TraceTextBox.Foreground = traceBrush;
+            }
+            if (BusyIndicatorTextBlock != null)
+            {
+                BusyIndicatorTextBlock.Foreground = traceBrush;
+            }
+            if (TraceSplitter != null)
+            {
+                var splitter = BlendRgb(bg, fg, 0.08); // subtle but visible
+                TraceSplitter.Background = new SolidColorBrush(Color.FromArgb(0xFF, splitter.R, splitter.G, splitter.B));
+            }
+            if (RevitProgressTextBlock != null)
+            {
+                RevitProgressTextBlock.Foreground = traceBrush;
+            }
+            if (RevitProgressBar != null)
+            {
+                var track = BlendRgb(bg, fg, 0.12);
+                RevitProgressBar.Foreground = fgBrush;
+                RevitProgressBar.Background = new SolidColorBrush(Color.FromArgb(a, track.R, track.G, track.B));
+            }
             // Window-level foreground
             Foreground = fgBrush;
         }
@@ -1863,6 +3074,23 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
 
         // 色と不透明度の変更を保存
         SaveUiSettings();
+    }
+
+    private static Color BlendRgb(Color a, Color b, double t)
+    {
+        try
+        {
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+            byte r = (byte)Math.Round(a.R + (b.R - a.R) * t);
+            byte g = (byte)Math.Round(a.G + (b.G - a.G) * t);
+            byte bb = (byte)Math.Round(a.B + (b.B - a.B) * t);
+            return Color.FromRgb(r, g, bb);
+        }
+        catch
+        {
+            return a;
+        }
     }
 
     // Windows 10+ acrylic/blur behind via SetWindowCompositionAttribute
@@ -1934,6 +3162,22 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
     [DllImport("user32.dll")]
     private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WINDOWCOMPOSITIONATTRIBDATA data);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FLASHWINFO
+    {
+        public uint cbSize;
+        public IntPtr hwnd;
+        public uint dwFlags;
+        public uint uCount;
+        public uint dwTimeout;
+    }
+
+    private const uint FLASHW_TRAY = 0x00000002;
+    private const uint FLASHW_TIMERNOFG = 0x0000000C;
+
+    [DllImport("user32.dll")]
+    private static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
+
     private void Window_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2)
@@ -1943,7 +3187,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
         }
 
         var pos = e.GetPosition(this);
-        bool nearEdge = pos.X <= ResizeBorder || pos.X >= ActualWidth - ResizeBorder || pos.Y <= ResizeBorder || pos.Y >= ActualHeight - ResizeBorder;
+        bool nearEdge = pos.X < ResizeBorder || pos.X >= ActualWidth - ResizeBorder || pos.Y < ResizeBorder || pos.Y >= ActualHeight - ResizeBorder;
         if (!nearEdge && !IsInteractiveElement(e.OriginalSource as DependencyObject))
         {
             try { DragMove(); } catch { }
@@ -2008,7 +3252,8 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
     private const int HTBOTTOMLEFT = 16;
     private const int HTBOTTOMRIGHT = 17;
 
-    private const int ResizeBorder = 16; // px, broader for easier hit
+    // Match RootGrid's margin to avoid stealing clicks from the top toolbar controls.
+    private const int ResizeBorder = 8; // px
 
     private static int GetXLParam(IntPtr lp)
     {
@@ -2035,15 +3280,28 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             double width = ActualWidth;
             double height = ActualHeight;
 
-            bool left = mouse.X <= ResizeBorder;
+            // If the cursor is over an interactive control, don't steal the hit-test.
+            try
+            {
+                var hit = InputHitTest(mouse) as DependencyObject;
+                if (IsInteractiveElement(hit))
+                {
+                    handled = true;
+                    return new IntPtr(HTCLIENT);
+                }
+            }
+            catch { }
+
+            bool left = mouse.X < ResizeBorder;
             bool right = mouse.X >= width - ResizeBorder;
-            bool top = mouse.Y <= ResizeBorder;
+            bool top = mouse.Y < ResizeBorder;
             bool bottom = mouse.Y >= height - ResizeBorder;
 
-            if (left && top) { handled = true; return new IntPtr(HTTOPLEFT); }
-            if (right && top) { handled = true; return new IntPtr(HTTOPRIGHT); }
-            if (left && bottom) { handled = true; return new IntPtr(HTBOTTOMLEFT); }
-            if (right && bottom) { handled = true; return new IntPtr(HTBOTTOMRIGHT); }
+            if (top && left) { handled = true; return new IntPtr(HTTOPLEFT); }
+            if (top && right) { handled = true; return new IntPtr(HTTOPRIGHT); }
+            if (bottom && left) { handled = true; return new IntPtr(HTBOTTOMLEFT); }
+            if (bottom && right) { handled = true; return new IntPtr(HTBOTTOMRIGHT); }
+
             if (left) { handled = true; return new IntPtr(HTLEFT); }
             if (right) { handled = true; return new IntPtr(HTRIGHT); }
             if (top) { handled = true; return new IntPtr(HTTOP); }
@@ -2053,6 +3311,109 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             return new IntPtr(HTCLIENT);
         }
         return IntPtr.Zero;
+    }
+
+    private void ResizeLeftThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromLeft(e.HorizontalChange);
+    }
+
+    private void ResizeRightThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromRight(e.HorizontalChange);
+    }
+
+    private void ResizeTopThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromTop(e.VerticalChange);
+    }
+
+    private void ResizeBottomThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromBottom(e.VerticalChange);
+    }
+
+    private void ResizeTopLeftThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromLeft(e.HorizontalChange);
+        ResizeFromTop(e.VerticalChange);
+    }
+
+    private void ResizeTopRightThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromRight(e.HorizontalChange);
+        ResizeFromTop(e.VerticalChange);
+    }
+
+    private void ResizeBottomLeftThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromLeft(e.HorizontalChange);
+        ResizeFromBottom(e.VerticalChange);
+    }
+
+    private void ResizeBottomRightThumb_OnDragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        ResizeFromRight(e.HorizontalChange);
+        ResizeFromBottom(e.VerticalChange);
+    }
+
+    private bool TryGetResizeBounds(out double left, out double top, out double width, out double height)
+    {
+        left = Left;
+        top = Top;
+
+        width = double.IsNaN(Width) ? ActualWidth : Width;
+        height = double.IsNaN(Height) ? ActualHeight : Height;
+
+        if (double.IsNaN(left) || double.IsInfinity(left)) left = RestoreBounds.Left;
+        if (double.IsNaN(top) || double.IsInfinity(top)) top = RestoreBounds.Top;
+        if (double.IsNaN(width) || double.IsInfinity(width) || width <= 0) width = ActualWidth;
+        if (double.IsNaN(height) || double.IsInfinity(height) || height <= 0) height = ActualHeight;
+
+        return !double.IsNaN(width) && !double.IsInfinity(width) && width > 0
+               && !double.IsNaN(height) && !double.IsInfinity(height) && height > 0;
+    }
+
+    private void ResizeFromLeft(double horizontalChange)
+    {
+        if (WindowState != WindowState.Normal) return;
+        if (!TryGetResizeBounds(out var left, out _, out var width, out _)) return;
+
+        var rightEdge = left + width;
+        var newWidth = Math.Max(MinWidth, width - horizontalChange);
+        var newLeft = rightEdge - newWidth;
+
+        Width = newWidth;
+        Left = newLeft;
+    }
+
+    private void ResizeFromRight(double horizontalChange)
+    {
+        if (WindowState != WindowState.Normal) return;
+        if (!TryGetResizeBounds(out _, out _, out var width, out _)) return;
+
+        Width = Math.Max(MinWidth, width + horizontalChange);
+    }
+
+    private void ResizeFromTop(double verticalChange)
+    {
+        if (WindowState != WindowState.Normal) return;
+        if (!TryGetResizeBounds(out _, out var top, out _, out var height)) return;
+
+        var bottomEdge = top + height;
+        var newHeight = Math.Max(MinHeight, height - verticalChange);
+        var newTop = bottomEdge - newHeight;
+
+        Height = newHeight;
+        Top = newTop;
+    }
+
+    private void ResizeFromBottom(double verticalChange)
+    {
+        if (WindowState != WindowState.Normal) return;
+        if (!TryGetResizeBounds(out _, out _, out _, out var height)) return;
+
+        Height = Math.Max(MinHeight, height + verticalChange);
     }
 
     private void AppendSeparatorLine()
@@ -2216,6 +3577,7 @@ public class UiSettings
     public string? BgColorHex { get; set; }
     public string? FgColorHex { get; set; }
     public double? Opacity { get; set; }
+    public List<string>? RecentModels { get; set; }
 }
 
 public class SessionInfo
@@ -2233,6 +3595,8 @@ public class SessionInfo
     public DateTime LastUsedUtc { get; set; } = DateTime.UtcNow;
 
     public string? Model { get; set; }
+
+    public string? ReasoningEffort { get; set; }
 
     public List<string>? PromptHistory { get; set; }
 
