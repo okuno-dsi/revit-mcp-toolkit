@@ -2,7 +2,7 @@
 
 ## Summary (Short)
 - 2026-01-23: Codex GUI の入力欄リサイズ／タスクバー通知、Python Runner の MCP コマンド強調。
-- 2026-01-22: Python Runner UX 改善（保存先統一・出力見やすさ・アイコン刷新）＋ Client Dev Guide 追加。
+- 2026-01-22: Python Runner 初登場（専用Pythonスクリプトで実行を効率化）＋保存先統一/出力改善/アイコン刷新、Client Dev Guide 追加。
 - 2026-01-20: ダイアログ自動Dismiss＋キャプチャ/OCR、空間系 bulk 取得と提案コマンド追加。
 - 2026-01-21 Dynamo 実行は **不安定なため推奨しません**（必要時のみ・検証前提）。
 
@@ -25,14 +25,16 @@
 ### 変更概要
 - Add-in: `rpc("element.copy_elements", ...)` や `{"method":"doc.get_project_info", ...}` の **メソッド名**を濃い茶色＋ボールドで強調表示。
 
-## 2026-01-22 Add-in: Python Runner UX + Client Guide
+## 2026-01-22 Add-in: Python Runner (初登場) + Client Guide
 
 ### 目的
+- Revit 内で **専用Pythonスクリプトを実行**できるようにし、作業効率を高める。
 - Python Runner の保存先をプロジェクト単位に統一し、ゴミ混入を防止する。
 - 出力の視認性を改善し、結果だけをコピーしやすくする。
 - MCP クライアント実装の注意点をまとめ、再発防止の指針を追加する。
 
 ### 変更概要
+- Add-in: Python Runner を追加（Revit 内で専用Pythonスクリプトを実行する入口）。
 - Add-in: Python Runner の既定フォルダを `Work/<RevitFileName>_<docKey>/python_script` に変更。
 - Add-in: Save/Save As 前に dedent（共通先頭空白の削除）を適用。
 - Add-in: 出力ウィンドウの時刻表示を「出力開始時のみ」に変更。
