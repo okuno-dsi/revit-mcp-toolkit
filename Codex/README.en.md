@@ -8,7 +8,7 @@
 ## First steps
 
 - ? Quick path (connection check / basic operations): `Codex/START_HERE.md`
-- ? Utilities to check/stop the server: `tools/README.md`
+- ? Utilities to check/stop the server: `Tools/README.md`
 - ? Japanese version: `README.md`
 
 ---

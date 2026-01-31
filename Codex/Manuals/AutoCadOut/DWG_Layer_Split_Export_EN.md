@@ -51,7 +51,7 @@ Notes & Tips
 - For very large models, consider disabling `hiddenElements` re-application and rely on state restore + targeted hides.
 - If AutoMerge isn’t available, keep the generated `command.txt` and run it later against AutoCadMCP.
 - Optional COM merge (AutoCAD GUI running):
-  - Script: `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - Script: `Tools/AutoCad/merge_dwgs_by_map_com.py`
   - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`). No other external libraries.
 
 Quick Runbook (Walls by Type)

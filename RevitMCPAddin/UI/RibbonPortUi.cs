@@ -17,6 +17,7 @@ using System.Reflection;
 using Imaging = System.Windows.Media.Imaging;
 // WPF
 using Media = System.Windows.Media;
+using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.UI
 {
@@ -27,7 +28,6 @@ namespace RevitMCPAddin.UI
         public const string PanelName = "RevitMCPServer";   // 既存
         public const string DevPanelName = "Developer";     // 追加
         public const string GuiPanelName = "GUI";           // Codex GUI 用
-        public const string ScriptPanelName = "Script";     // Python Script Runner
 
         // ---- Port ----
         public const string ButtonNamePort = "ShowPort";
@@ -64,6 +64,10 @@ namespace RevitMCPAddin.UI
         public const string ButtonNamePythonRunner = "PythonRunner";
         public const string ButtonClassPythonRunner = "RevitMCPAddin.Commands.ShowPythonRunnerCommand";
 
+        // ---- Build Info ----
+        public const string ButtonNameBuildInfo = "ShowBuildInfo";
+        public const string ButtonClassShowBuildInfo = "RevitMCPAddin.Commands.SystemOps.ShowBuildInfoCommand";
+
         // ★ 新規: Settings 操作用
         public const string ButtonNameOpenSettings = "OpenSettings";
         public const string ButtonNameReloadSettings = "ReloadSettings";
@@ -94,6 +98,20 @@ namespace RevitMCPAddin.UI
                 var base32 = PortIconBuilder.ResolveIconPath(iconDir, "port_base_32.png");
                 portBtn.Image = PortIconBuilder.BuildPortBadge(_currentPort, 16, base16);
                 portBtn.LargeImage = PortIconBuilder.BuildPortBadge(_currentPort, 32, base32);
+            }
+
+            // --- Build Info (version/commit) ---
+            var buildVer = BuildInfo.GetDisplayVersion();
+            var buildBtn = EnsurePushButton(panel, ButtonNameBuildInfo, "Build\n" + buildVer, asm, ButtonClassShowBuildInfo);
+            buildBtn.ToolTip = "RevitMCP Add-in build: " + buildVer;
+            buildBtn.LongDescription = "ビルド日時＋コミットIDを含むバージョン表記です。";
+            {
+                buildBtn.Image = PortIconBuilder.BuildSquareIcon(16,
+                    fill: Media.Color.FromRgb(90, 90, 90),
+                    stroke: Media.Color.FromRgb(40, 40, 40));
+                buildBtn.LargeImage = PortIconBuilder.BuildSquareIcon(32,
+                    fill: Media.Color.FromRgb(90, 90, 90),
+                    stroke: Media.Color.FromRgb(40, 40, 40));
             }
 
             // =============== Server（緑／赤） ===============
@@ -189,18 +207,6 @@ namespace RevitMCPAddin.UI
                 btnReloadSettings.LargeImage = PortIconBuilder.BuildTriangleIcon(32,
                     fill: Media.Color.FromRgb(120, 120, 120), stroke: Media.Color.FromRgb(60, 60, 60));
             }
-
-            // ===== Python Script Runner パネル（人間専用）=====
-            var scriptPanel = app.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == ScriptPanelName)
-                            ?? app.CreateRibbonPanel(TabName, ScriptPanelName);
-
-            var btnPythonRunner = EnsurePushButton(scriptPanel, ButtonNamePythonRunner, "Python\nRunner", asm, ButtonClassPythonRunner);
-            btnPythonRunner.ToolTip = "人間専用の Python Script Runner を開きます（AI/MCP からは起動不可）。";
-            btnPythonRunner.LongDescription = "設計者が用意した Python スクリプトを実行するためのUI。";
-            {
-                btnPythonRunner.Image = PortIconBuilder.BuildTextBadge("Py", 16);
-                btnPythonRunner.LargeImage = PortIconBuilder.BuildTextBadge("Py", 32);
-            }
         }
 
         public static void UpdatePort(UIControlledApplication app, int newPort, string? iconDir = null)
@@ -282,11 +288,20 @@ namespace RevitMCPAddin.UI
 
             string asm = Assembly.GetExecutingAssembly().Location;
 
+            // Python Runner（人間専用）: Codex GUI の左に配置
+            var btnPythonRunner = EnsurePushButton(panel, ButtonNamePythonRunner, "Python\nRunner", asm, ButtonClassPythonRunner);
+            btnPythonRunner.ToolTip = "人間専用の Python Script Runner を開きます（AI/MCP からは起動不可）。";
+            btnPythonRunner.LongDescription = "設計者が用意した Python スクリプトを実行するためのUI。";
+            {
+                btnPythonRunner.Image = PortIconBuilder.BuildTextBadge("Py", 16);
+                btnPythonRunner.LargeImage = PortIconBuilder.BuildTextBadge("Py", 32);
+            }
+
             var btnCodexGui = EnsurePushButton(panel, ButtonNameLaunchCodexGui, "Codex\nGUI", asm, ButtonClassLaunchCodexGui);
             btnCodexGui.ToolTip = "Codex GUI (Revit MCP 用フロントエンド) を起動します。";
             {
-                btnCodexGui.Image = PortIconBuilder.BuildFolderIcon(16);
-                btnCodexGui.LargeImage = PortIconBuilder.BuildFolderIcon(32);
+                btnCodexGui.Image = PortIconBuilder.BuildHalIcon(16);
+                btnCodexGui.LargeImage = PortIconBuilder.BuildHalIcon(32);
             }
 
             var btnChat = EnsurePushButton(panel, ButtonNameToggleChatPane, "Chat", asm, ButtonClassToggleChatPane);
@@ -599,6 +614,66 @@ namespace RevitMCPAddin.UI
                     (paperPen.Brush as Media.SolidColorBrush)!.Freeze(); paperPen.Freeze();
                     dc.DrawRoundedRectangle(paperFill, paperPen, paper, sizePx * 0.02, sizePx * 0.02);
                 }
+            }
+            return ToBitmap(dv, sizePx);
+        }
+
+        // HAL icon (for Codex GUI button)
+        public static Media.ImageSource BuildHalIcon(int sizePx)
+        {
+            var dv = new Media.DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                // Match CodexGUI taskbar icon (HAL-like)
+                var center = new System.Windows.Point(sizePx / 2.0, sizePx / 2.0);
+                var outerRadius = sizePx * 0.48;
+                var ringRadius = sizePx * 0.36;
+                var redRadius = sizePx * 0.26 * 0.5; // small red lens
+
+                // Black disk
+                var diskFill = new Media.SolidColorBrush(Media.Color.FromRgb(0x11, 0x11, 0x11));
+                diskFill.Freeze();
+                dc.DrawEllipse(diskFill, null, center, outerRadius, outerRadius);
+
+                // Silver ring
+                var ringBrush = new Media.SolidColorBrush(Media.Color.FromRgb(0xC0, 0xC0, 0xC0));
+                ringBrush.Freeze();
+                var ringPen = new Media.Pen(ringBrush, Math.Max(1, sizePx * 0.06));
+                ringPen.Freeze();
+                dc.DrawEllipse(null, ringPen, center, ringRadius, ringRadius);
+
+                // Red lens
+                var redBrush = new Media.RadialGradientBrush
+                {
+                    Center = new System.Windows.Point(0.5, 0.5),
+                    GradientOrigin = new System.Windows.Point(0.45, 0.35),
+                    RadiusX = 0.6,
+                    RadiusY = 0.6
+                };
+                redBrush.GradientStops.Add(new Media.GradientStop(Media.Color.FromRgb(0xFF, 0x44, 0x44), 0.0));
+                redBrush.GradientStops.Add(new Media.GradientStop(Media.Color.FromRgb(0xCC, 0x00, 0x00), 0.4));
+                redBrush.GradientStops.Add(new Media.GradientStop(Media.Color.FromRgb(0x00, 0x00, 0x00), 1.0));
+                redBrush.Freeze();
+                dc.DrawEllipse(redBrush, null, center, redRadius, redRadius);
+
+                // Highlight (small)
+                var highlight = new Media.RadialGradientBrush
+                {
+                    Center = new System.Windows.Point(0.35, 0.3),
+                    GradientOrigin = new System.Windows.Point(0.32, 0.25),
+                    RadiusX = 0.4,
+                    RadiusY = 0.4,
+                    Opacity = 0.7
+                };
+                highlight.GradientStops.Add(new Media.GradientStop(Media.Color.FromArgb(180, 255, 255, 255), 0.0));
+                highlight.GradientStops.Add(new Media.GradientStop(Media.Color.FromArgb(0, 255, 255, 255), 1.0));
+                highlight.Freeze();
+                dc.DrawEllipse(
+                    highlight,
+                    null,
+                    new System.Windows.Point(center.X - sizePx * 0.06, center.Y - sizePx * 0.10),
+                    redRadius * 0.55,
+                    redRadius * 0.55);
             }
             return ToBitmap(dv, sizePx);
         }

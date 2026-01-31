@@ -37,7 +37,6 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [move_detail_line](move_detail_line.md)
 - [rotate_detail_line](rotate_detail_line.md)
 - [delete_detail_line](delete_detail_line.md)
-- [delete_detail_lines](delete_detail_lines.md)
 - [get_line_styles](get_line_styles.md)
 - [set_detail_line_style](set_detail_line_style.md)
 - [set_detail_lines_style](set_detail_lines_style.md)
@@ -149,7 +148,6 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_curves_by_category](get_curves_by_category.md)
 - [get_grids_with_bubbles](get_grids_with_bubbles.md)
 - [export_curves_to_dxf](export_curves_to_dxf.md)
-- [generate_dwg_merge_script_manual](generate_dwg_merge_script_manual.md)
 - [generate_dwg_merge_script](generate_dwg_merge_script.md)
 - [gen_dwg_script](gen_dwg_script.md)
 
@@ -597,6 +595,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [get_instance_parameters_bulk](get_instance_parameters_bulk.md)
 - [update_parameters_batch](update_parameters_batch.md)
 - [set_parameter_for_elements](set_parameter_for_elements.md)
+- [param.transfer_values](param.transfer_values.md)
 - [add_shared_project_parameter](add_shared_project_parameter.md)
 - [remove_project_parameter_binding](remove_project_parameter_binding.md)
 
@@ -633,6 +632,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [list_rebar_hook_types](list_rebar_hook_types.md)
 - [import_rebar_types_from_document](import_rebar_types_from_document.md)
 - [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [get_rebar_hosts_and_params](get_rebar_hosts_and_params.md)
 - [rebar_plan_auto](rebar_plan_auto.md)
 - [rebar_apply_plan](rebar_apply_plan.md)
 - [rebar_sync_status](rebar_sync_status.md)

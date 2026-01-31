@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -23,11 +24,13 @@ namespace CodexGui;
 public partial class MainWindow : Window
 {
     private const string SessionsFileName = "CodexGuiSessions.json";
+    internal const int MaxSessionNameLength = 28;
     private const string RevitIntroInstruction =
         "このディレクトリにあるREAD_FIRST_RevitMCP_EN.md を読んでRevitへの接続を準備してください。" +
         "一時保存データはすべてWorkフォルダ内にプロジェクト専用のフォルダを作成してそこに保存すること。" +
         "セキュリティ以上危険を及ぼす可能性のある操作やスクリプトの作成やコードの作成は行わないこと。" +
         "システムディレクトリやファイルには一切触れないこと。" +
+        "Pythonスクリプトの作成を求められた場合は、必ず```python```のコードブロックで全文を出力すること。" +
         "ユーザーには可能な限り親切に対応すること。";
 
     private readonly List<SessionInfo> _sessions = new();
@@ -64,6 +67,10 @@ public partial class MainWindow : Window
     private int _revitProgressPort;
     private string? _revitProgressLastLine;
     private RevitProgressSnapshot? _revitProgressLastSnapshot;
+    private DateTime _lastProjectSyncUtc = DateTime.MinValue;
+    private string? _lastProjectDocGuid;
+    private string? _lastSavedPythonHash;
+    private readonly object _pythonSaveLock = new();
 
     // Pending images to attach to the next Codex run (requires explicit consent via CaptureConsentWindow).
     private readonly List<string> _pendingImagePaths = new();
@@ -209,6 +216,8 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromSeconds(1)
         };
         _revitProgressTimer.Tick += async (_, _) => { await RefreshRevitProgressAsync(); };
+
+        CodexRunCompleted += MainWindow_OnCodexRunCompleted;
     }
 
     private void UpdateTaskbarBusyState(bool isBusy)
@@ -362,6 +371,7 @@ public partial class MainWindow : Window
     {
         LoadSessions();
         RefreshSessionComboBox();
+        _ = EnsureProjectSessionAsync(forceSelect: true);
 
         // フォント設定の初期値
         if (FontFamilyComboBox.Items.Count > 0)
@@ -430,6 +440,16 @@ public partial class MainWindow : Window
     {
         var baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, SessionsFileName);
+    }
+
+    internal static string TruncateForUi(string text, int maxLen)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var t = text.Trim();
+        if (maxLen <= 0) return string.Empty;
+        if (t.Length <= maxLen) return t;
+        if (maxLen <= 1) return t.Substring(0, 1);
+        return t.Substring(0, maxLen - 1) + "…";
     }
 
     private static string GetUiSettingsFilePath()
@@ -576,6 +596,672 @@ public partial class MainWindow : Window
         {
             if (ModelComboBox != null) ModelComboBox.Text = string.Empty;
             PromptHistoryListBox.ItemsSource = null;
+            AllPromptHistoryListBox.ItemsSource = null;
+        }
+    }
+
+    private async Task EnsureProjectSessionAsync(bool forceSelect)
+    {
+        try
+        {
+            // Throttle to avoid frequent RPC calls
+            if ((DateTime.UtcNow - _lastProjectSyncUtc) < TimeSpan.FromSeconds(10))
+            {
+                return;
+            }
+
+            var ctx = await TryGetActiveProjectContextAsync();
+            if (ctx == null || string.IsNullOrWhiteSpace(ctx.DocGuid))
+            {
+                return;
+            }
+
+            _lastProjectSyncUtc = DateTime.UtcNow;
+            if (!string.Equals(_lastProjectDocGuid, ctx.DocGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                _lastProjectDocGuid = ctx.DocGuid;
+            }
+
+            var session = _sessions.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.ProjectId)
+                                                        && string.Equals(s.ProjectId, ctx.DocGuid, StringComparison.OrdinalIgnoreCase));
+            if (session == null)
+            {
+                var name = BuildAutoSessionName(ctx.DocTitle, ctx.DocGuid);
+                session = new SessionInfo
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    Name = name,
+                    ProjectId = ctx.DocGuid,
+                    ProjectName = ctx.DocTitle,
+                    CodexSessionId = null,
+                    LastUsedUtc = DateTime.UtcNow
+                };
+                EnsurePromptHistoryInitialized(session);
+                _sessions.Add(session);
+                SaveSessions();
+                RefreshSessionComboBox();
+                AppendSystemMessage($"プロジェクト用セッションを作成しました: {session.Name}");
+            }
+            else
+            {
+                // If this session looks auto-generated and the project title is known, refresh name.
+                if (string.IsNullOrWhiteSpace(session.ProjectName) && !string.IsNullOrWhiteSpace(ctx.DocTitle))
+                {
+                    session.ProjectName = ctx.DocTitle;
+                }
+                if (!string.IsNullOrWhiteSpace(ctx.DocTitle) &&
+                    (string.IsNullOrWhiteSpace(session.Name) ||
+                     session.Name.StartsWith("Session ", StringComparison.OrdinalIgnoreCase)))
+                {
+                    session.Name = BuildAutoSessionName(ctx.DocTitle, ctx.DocGuid);
+                    SaveSessions();
+                    RefreshSessionComboBox();
+                }
+            }
+
+            bool shouldSelect = forceSelect;
+            if (!shouldSelect)
+            {
+                if (SessionComboBox.SelectedItem is not SessionInfo current)
+                {
+                    shouldSelect = true;
+                }
+                else if (!string.Equals(current.ProjectId ?? "", ctx.DocGuid ?? "", StringComparison.OrdinalIgnoreCase))
+                {
+                    shouldSelect = true;
+                }
+            }
+
+            if (shouldSelect && SessionComboBox.SelectedItem != session)
+            {
+                SessionComboBox.SelectedItem = session;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static string BuildAutoSessionName(string? docTitle, string? docGuid)
+    {
+        var name = (docTitle ?? string.Empty).Trim();
+        var guidShort = string.Empty;
+        if (!string.IsNullOrWhiteSpace(docGuid))
+        {
+            guidShort = docGuid.Trim();
+            if (guidShort.Length > 8) guidShort = guidShort.Substring(0, 8);
+        }
+
+        if (!string.IsNullOrWhiteSpace(guidShort))
+        {
+            if (string.IsNullOrWhiteSpace(name)) name = $"Project_{guidShort}";
+            else name = $"{name}_{guidShort}";
+        }
+
+        if (string.IsNullOrWhiteSpace(name)) name = "Session";
+        return TruncateForUi(name, MaxSessionNameLength);
+    }
+
+    private sealed class ProjectContext
+    {
+        public string? DocGuid { get; set; }
+        public string? DocTitle { get; set; }
+        public string? DocPath { get; set; }
+    }
+
+    private async Task<ProjectContext?> TryGetActiveProjectContextAsync()
+    {
+        try
+        {
+            if (!TryGetRevitMcpPort(out var port) || port <= 0) return null;
+
+            var baseUrl = $"http://127.0.0.1:{port}";
+            var endpoints = new[] { "/rpc", "/jsonrpc" };
+            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+
+            foreach (var ep in endpoints)
+            {
+                try
+                {
+                    var url = baseUrl + ep;
+                    var payload = new Dictionary<string, object?>
+                    {
+                        ["jsonrpc"] = "2.0",
+                        ["id"] = "codex-gui-context",
+                        ["method"] = "help.get_context",
+                        ["params"] = new Dictionary<string, object?>
+                        {
+                            ["includeSelectionIds"] = false,
+                            ["maxSelectionIds"] = 0
+                        }
+                    };
+                    var json = JsonSerializer.Serialize(payload);
+                    using var resp = await client.PostAsync(url,
+                        new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json"));
+                    if (!resp.IsSuccessStatusCode) continue;
+
+                    var text = await resp.Content.ReadAsStringAsync();
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+
+                    using var doc = JsonDocument.Parse(text);
+                    var root = doc.RootElement;
+                    var unwrapped = UnwrapJsonRpcResult(root);
+                    if (TryReadBool(unwrapped, new[] { "queued" }) == true)
+                    {
+                        var jobId = TryReadString(unwrapped, new[] { "jobId" }) ?? TryReadString(unwrapped, new[] { "job_id" });
+                        if (!string.IsNullOrWhiteSpace(jobId))
+                        {
+                            var jobResult = await PollJobResultAsync(client, baseUrl, jobId);
+                            if (jobResult.HasValue)
+                            {
+                                unwrapped = jobResult.Value;
+                            }
+                        }
+                    }
+                    if (unwrapped.ValueKind != JsonValueKind.Object) continue;
+
+                    var ctx = new ProjectContext
+                    {
+                        DocGuid = TryReadString(unwrapped, new[] { "data", "docGuid" })
+                                  ?? TryReadString(unwrapped, new[] { "document", "docGuid" })
+                                  ?? TryReadString(unwrapped, new[] { "project", "documentGuid" })
+                                  ?? TryReadString(unwrapped, new[] { "project", "docGuid" })
+                                  ?? TryReadString(unwrapped, new[] { "docGuid" }),
+                        DocTitle = TryReadString(unwrapped, new[] { "data", "docTitle" })
+                                   ?? TryReadString(unwrapped, new[] { "document", "docTitle" })
+                                   ?? TryReadString(unwrapped, new[] { "project", "title" })
+                                   ?? TryReadString(unwrapped, new[] { "project", "name" })
+                                   ?? TryReadString(unwrapped, new[] { "docTitle" })
+                                   ?? TryReadString(unwrapped, new[] { "title" }),
+                        DocPath = TryReadString(unwrapped, new[] { "data", "docPath" })
+                                  ?? TryReadString(unwrapped, new[] { "document", "docPath" })
+                                  ?? TryReadString(unwrapped, new[] { "project", "docPath" })
+                                  ?? TryReadString(unwrapped, new[] { "docPath" })
+                    };
+
+                    if (string.IsNullOrWhiteSpace(ctx.DocTitle) && !string.IsNullOrWhiteSpace(ctx.DocPath))
+                    {
+                        try
+                        {
+                            ctx.DocTitle = Path.GetFileNameWithoutExtension(ctx.DocPath);
+                        }
+                        catch { /* ignore */ }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(ctx.DocGuid) && !string.IsNullOrWhiteSpace(ctx.DocPath))
+                    {
+                        try
+                        {
+                            ctx.DocGuid = "path-" + ShortHash(ctx.DocPath);
+                        }
+                        catch { /* ignore */ }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(ctx.DocGuid) || !string.IsNullOrWhiteSpace(ctx.DocTitle))
+                    {
+                        return ctx;
+                    }
+                }
+                catch
+                {
+                    // try next endpoint
+                }
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+
+        return null;
+    }
+
+    private void MainWindow_OnCodexRunCompleted(object? sender, CodexRunCompletedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(e.Output)) return;
+
+        var session = _sessions.FirstOrDefault(s => s.Id == e.SessionId);
+        var sessionName = session?.Name ?? e.SessionName;
+        var projectName = session?.ProjectName;
+        var projectId = session?.ProjectId;
+        var output = e.Output;
+
+        _ = Task.Run(async () =>
+        {
+            await TrySavePythonScriptFromOutputAsync(output, sessionName, projectName, projectId, e.Prompt);
+        });
+    }
+
+    private async Task TrySavePythonScriptFromOutputAsync(string output, string? sessionName, string? projectName, string? projectId, string? prompt)
+    {
+        try
+        {
+            var code = ExtractPythonCodeBlock(output);
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            code = NormalizePythonCode(code);
+            code = EnsureScriptMetadata(code, prompt, sessionName);
+            var hash = ShortHash(code);
+            lock (_pythonSaveLock)
+            {
+                if (string.Equals(_lastSavedPythonHash, hash, StringComparison.OrdinalIgnoreCase)) return;
+                _lastSavedPythonHash = hash;
+            }
+
+            var docTitle = projectName;
+            var docGuid = projectId;
+            if (string.IsNullOrWhiteSpace(docTitle) || string.IsNullOrWhiteSpace(docGuid))
+            {
+                var ctx = await TryGetActiveProjectContextAsync();
+                if (ctx != null)
+                {
+                    if (string.IsNullOrWhiteSpace(docTitle)) docTitle = ctx.DocTitle;
+                    if (string.IsNullOrWhiteSpace(docGuid)) docGuid = ctx.DocGuid;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(docGuid))
+            {
+                var seed = string.IsNullOrWhiteSpace(docTitle) ? (sessionName ?? "unknown") : docTitle;
+                docGuid = "session-" + ShortHash(seed);
+            }
+
+            var workProject = ResolveWorkProjectFolder(docTitle, docGuid);
+            if (string.IsNullOrWhiteSpace(workProject)) return;
+
+            var scriptDir = Path.Combine(workProject, "python_script");
+            Directory.CreateDirectory(scriptDir);
+
+            var fileName = $"codex_{DateTime.Now:yyyyMMdd_HHmmss}.py";
+            var scriptPath = Path.Combine(scriptDir, fileName);
+            File.WriteAllText(scriptPath, code, new UTF8Encoding(false));
+
+            UpdatePythonRunnerInbox(scriptPath, sessionName, docTitle, docGuid);
+            UpdatePythonRunnerLastScript(scriptPath);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static string NormalizePythonCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return string.Empty;
+        var trimmed = code.Trim('\r', '\n');
+        var dedented = DedentCommonLeadingWhitespace(trimmed);
+        var normalized = dedented.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
+        return normalized;
+    }
+
+    private static string EnsureScriptMetadata(string code, string? prompt, string? sessionName)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return string.Empty;
+
+        var lines = code.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
+        var scanLines = lines.Take(Math.Min(12, lines.Count)).ToList();
+        if (scanLines.Any(l => l.IndexOf("@feature", StringComparison.OrdinalIgnoreCase) >= 0) ||
+            scanLines.Any(l => l.IndexOf("@keywords", StringComparison.OrdinalIgnoreCase) >= 0))
+        {
+            return code;
+        }
+
+        var feature = ExtractFeatureFromPrompt(prompt, sessionName);
+        var keywords = ExtractKeywordsFromPrompt(prompt);
+
+        var insertAt = 0;
+        if (lines.Count > 0 && lines[0].StartsWith("#!"))
+        {
+            insertAt = 1;
+        }
+
+        if (insertAt < lines.Count && IsEncodingLine(lines[insertAt]))
+        {
+            insertAt++;
+        }
+
+        var header = new List<string>
+        {
+            $"# @feature: {feature}",
+            $"# @keywords: {keywords}"
+        };
+
+        lines.InsertRange(insertAt, header);
+        if (insertAt + header.Count < lines.Count && !string.IsNullOrWhiteSpace(lines[insertAt + header.Count]))
+        {
+            lines.Insert(insertAt + header.Count, string.Empty);
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string ExtractFeatureFromPrompt(string? prompt, string? sessionName)
+    {
+        var fallback = string.IsNullOrWhiteSpace(sessionName) ? "Codex Script" : sessionName!;
+        if (string.IsNullOrWhiteSpace(prompt)) return fallback;
+
+        var first = prompt
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
+            .Select(l => l.Trim())
+            .FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+
+        if (string.IsNullOrWhiteSpace(first)) return fallback;
+
+        first = Regex.Replace(first, "^[-*>\\s]+", string.Empty);
+        if (first.Length > 120) first = first.Substring(0, 120);
+        return string.IsNullOrWhiteSpace(first) ? fallback : first;
+    }
+
+    private static string ExtractKeywordsFromPrompt(string? prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt)) return string.Empty;
+        var rx = new Regex("(?:keywords?|キーワード)\\s*[:：]\\s*(?<kw>.+)", RegexOptions.IgnoreCase);
+        foreach (var line in prompt.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+        {
+            var m = rx.Match(line);
+            if (m.Success)
+            {
+                return m.Groups["kw"].Value.Trim();
+            }
+        }
+        return string.Empty;
+    }
+
+    private static bool IsEncodingLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+        return Regex.IsMatch(line, "^\\s*#.*coding[:=]\\s*[-\\w.]+", RegexOptions.IgnoreCase);
+    }
+
+    private static string? ExtractPythonCodeBlock(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var pyFence = Regex.Match(text, "```(?:python|py)\\s*\\r?\\n(?<code>[\\s\\S]*?)```", RegexOptions.IgnoreCase);
+        if (pyFence.Success)
+        {
+            return pyFence.Groups["code"].Value;
+        }
+
+        // Only accept explicitly labeled python fences to avoid mixing prose and code.
+        return null;
+    }
+
+    // Intentionally no heuristic fallback: python code is only extracted from ```python fences.
+
+    private static string? ResolveWorkProjectFolder(string? docTitle, string? docKey)
+    {
+        var root = ResolveWorkRoot();
+        if (string.IsNullOrWhiteSpace(root)) return null;
+
+        var workDir = Path.Combine(root, "Work");
+        if (!Directory.Exists(workDir)) return null;
+
+        var dirs = Directory.GetDirectories(workDir);
+        if (!string.IsNullOrWhiteSpace(docKey))
+        {
+            var keyToken = "_" + docKey.Trim();
+            var match = dirs.FirstOrDefault(d =>
+                Path.GetFileName(d).EndsWith(keyToken, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(match)) return match;
+        }
+
+        var safeTitle = SanitizePathSegment(docTitle);
+        if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = "Project";
+        var safeKey = SanitizePathSegment(docKey);
+        if (string.IsNullOrWhiteSpace(safeKey)) safeKey = "unknown";
+
+        var created = Path.Combine(workDir, $"{safeTitle}_{safeKey}");
+        Directory.CreateDirectory(created);
+        return created;
+    }
+
+    private static string? ResolveWorkRoot()
+    {
+        var env1 = Environment.GetEnvironmentVariable("REVIT_MCP_WORK_ROOT");
+        if (!string.IsNullOrWhiteSpace(env1) && Directory.Exists(env1)) return env1;
+
+        var env2 = Environment.GetEnvironmentVariable("CODEX_MCP_ROOT");
+        if (!string.IsNullOrWhiteSpace(env2) && Directory.Exists(env2)) return env2;
+
+        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrWhiteSpace(docs))
+        {
+            var p1 = Path.Combine(docs, "Codex_MCP", "Codex");
+            if (Directory.Exists(p1)) return p1;
+
+            var p2 = Path.Combine(docs, "Codex");
+            if (Directory.Exists(p2)) return p2;
+        }
+
+        try
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            for (int i = 0; i < 6 && dir != null; i++)
+            {
+                if (Directory.Exists(Path.Combine(dir.FullName, "Work")))
+                {
+                    return dir.FullName;
+                }
+                dir = dir.Parent;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+
+        return null;
+    }
+
+    private static string SanitizePathSegment(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string(name.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
+        return cleaned.Trim();
+    }
+
+    private sealed class PythonRunnerPaths
+    {
+        public List<string>? roots { get; set; }
+        public List<string>? files { get; set; }
+        public List<string>? excluded { get; set; }
+        public string? lastScript { get; set; }
+    }
+
+    private static void UpdatePythonRunnerLastScript(string scriptPath)
+    {
+        try
+        {
+            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP");
+            Directory.CreateDirectory(baseDir);
+            var path = Path.Combine(baseDir, "python_runner_paths.json");
+
+            PythonRunnerPaths cfg;
+            if (File.Exists(path))
+            {
+                try
+                {
+                    cfg = JsonSerializer.Deserialize<PythonRunnerPaths>(File.ReadAllText(path, Encoding.UTF8)) ?? new PythonRunnerPaths();
+                }
+                catch
+                {
+                    cfg = new PythonRunnerPaths();
+                }
+            }
+            else
+            {
+                cfg = new PythonRunnerPaths();
+            }
+
+            cfg.lastScript = scriptPath;
+            var json = JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json, new UTF8Encoding(false));
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static void UpdatePythonRunnerInbox(string scriptPath, string? sessionName, string? docTitle, string? docGuid)
+    {
+        try
+        {
+            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP");
+            Directory.CreateDirectory(baseDir);
+            var path = Path.Combine(baseDir, "python_runner_inbox.json");
+            var obj = new Dictionary<string, object?>
+            {
+                ["path"] = scriptPath,
+                ["source"] = "CodexGUI",
+                ["sessionName"] = sessionName,
+                ["docTitle"] = docTitle,
+                ["docGuid"] = docGuid,
+                ["savedAt"] = DateTimeOffset.UtcNow.ToString("O")
+            };
+            var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, json, new UTF8Encoding(false));
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private static string DedentCommonLeadingWhitespace(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        var lines = text.Replace("\r\n", "\n").Split('\n');
+        int min = int.MaxValue;
+        foreach (var raw in lines)
+        {
+            var line = raw ?? "";
+            if (line.Trim().Length == 0) continue;
+            int count = 0;
+            while (count < line.Length && (line[count] == ' ' || line[count] == '\t')) count++;
+            if (count < min) min = count;
+            if (min == 0) break;
+        }
+        if (min == int.MaxValue || min == 0) return string.Join("\n", lines).Replace("\n", Environment.NewLine);
+        var adjusted = lines.Select(l => (l ?? "").Length >= min ? (l ?? "").Substring(min) : (l ?? ""));
+        return string.Join(Environment.NewLine, adjusted);
+    }
+
+    private static async Task<JsonElement?> PollJobResultAsync(System.Net.Http.HttpClient client, string baseUrl, string jobId)
+    {
+        try
+        {
+            var url = baseUrl.TrimEnd('/') + "/job/" + jobId;
+            var deadline = DateTime.UtcNow.AddSeconds(8);
+            while (DateTime.UtcNow < deadline)
+            {
+                using var resp = await client.GetAsync(url);
+                var code = (int)resp.StatusCode;
+                if (code == 202 || code == 204)
+                {
+                    await Task.Delay(300);
+                    continue;
+                }
+                if (!resp.IsSuccessStatusCode) return null;
+                var text = await resp.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(text)) return null;
+                using var doc = JsonDocument.Parse(text);
+                var root = doc.RootElement;
+                var state = TryReadString(root, new[] { "state" }) ?? "";
+                if (string.Equals(state, "SUCCEEDED", StringComparison.OrdinalIgnoreCase))
+                {
+                    var resultJson = TryReadString(root, new[] { "result_json" });
+                    if (string.IsNullOrWhiteSpace(resultJson)) return root;
+                    using var inner = JsonDocument.Parse(resultJson);
+                    return UnwrapJsonRpcResult(inner.RootElement);
+                }
+                if (string.Equals(state, "FAILED", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(state, "TIMEOUT", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(state, "DEAD", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+                await Task.Delay(300);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+        return null;
+    }
+
+    private static bool? TryReadBool(JsonElement root, string[] path)
+    {
+        try
+        {
+            var cur = root;
+            foreach (var p in path)
+            {
+                if (cur.ValueKind != JsonValueKind.Object || !cur.TryGetProperty(p, out var next))
+                    return null;
+                cur = next;
+            }
+            if (cur.ValueKind == JsonValueKind.True) return true;
+            if (cur.ValueKind == JsonValueKind.False) return false;
+            if (cur.ValueKind == JsonValueKind.String)
+            {
+                var s = cur.GetString();
+                if (bool.TryParse(s, out var b)) return b;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    private static JsonElement UnwrapJsonRpcResult(JsonElement root)
+    {
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("result", out var r1) &&
+            r1.ValueKind == JsonValueKind.Object)
+        {
+            if (r1.TryGetProperty("result", out var r2) && r2.ValueKind == JsonValueKind.Object)
+                return r2;
+            return r1;
+        }
+        return root;
+    }
+
+    private static string? TryReadString(JsonElement root, string[] path)
+    {
+        try
+        {
+            var cur = root;
+            foreach (var p in path)
+            {
+                if (cur.ValueKind != JsonValueKind.Object) return null;
+                if (!cur.TryGetProperty(p, out var next)) return null;
+                cur = next;
+            }
+            return (cur.ToString() ?? "").Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string ShortHash(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "00000000";
+        try
+        {
+            using var sha1 = SHA1.Create();
+            var bytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(text));
+            var hex = BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
+            return hex.Length >= 8 ? hex.Substring(0, 8) : hex;
+        }
+        catch
+        {
+            return "00000000";
         }
     }
 
@@ -593,13 +1279,29 @@ public partial class MainWindow : Window
         return best;
     }
 
-    private void NewSessionButton_OnClick(object sender, RoutedEventArgs e)
+    private async void NewSessionButton_OnClick(object sender, RoutedEventArgs e)
     {
+        ProjectContext? ctx = null;
+        try
+        {
+            ctx = await TryGetActiveProjectContextAsync();
+        }
+        catch { /* ignore */ }
+
         var name = $"Session {_sessions.Count + 1}";
+        var projectId = ctx?.DocGuid;
+        var projectName = ctx?.DocTitle;
+        if (!string.IsNullOrWhiteSpace(projectId))
+        {
+            name = BuildAutoSessionName(projectName, projectId);
+        }
+
         var session = new SessionInfo
         {
             Id = Guid.NewGuid().ToString("N"),
             Name = name,
+            ProjectId = projectId,
+            ProjectName = projectName,
             CodexSessionId = null,
             LastUsedUtc = DateTime.UtcNow
         };
@@ -1132,12 +1834,71 @@ public partial class MainWindow : Window
         if (session == null)
         {
             PromptHistoryListBox.ItemsSource = null;
+            AllPromptHistoryListBox.ItemsSource = null;
             return;
         }
 
         EnsurePromptHistoryInitialized(session);
         PromptHistoryListBox.ItemsSource = null;
         PromptHistoryListBox.ItemsSource = session.PromptHistory;
+        RefreshAllPromptHistory();
+    }
+
+    private void RefreshAllPromptHistory()
+    {
+        var items = new List<PromptHistoryItem>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var s in _sessions.OrderByDescending(x => x.LastUsedUtc))
+        {
+            if (s.PromptHistory == null) continue;
+            foreach (var p in s.PromptHistory)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                var key = p.Trim();
+                if (!seen.Add(key)) continue;
+                var display = $"{TruncateForUi(s.Name, 16)}: {TruncateForUi(key, 80)}";
+                items.Add(new PromptHistoryItem
+                {
+                    Prompt = key,
+                    SessionId = s.Id,
+                    SessionName = s.Name,
+                    Display = display
+                });
+            }
+        }
+
+        AllPromptHistoryListBox.ItemsSource = null;
+        AllPromptHistoryListBox.ItemsSource = items;
+    }
+
+    private bool IsAllPromptTabSelected()
+    {
+        try
+        {
+            if (PromptHistoryTab?.SelectedIndex == 1) return true;
+        }
+        catch { /* ignore */ }
+        return false;
+    }
+
+    private IEnumerable<string> EnumerateSelectedPrompts()
+    {
+        if (IsAllPromptTabSelected())
+        {
+            foreach (var item in AllPromptHistoryListBox.SelectedItems)
+            {
+                if (item is PromptHistoryItem phi && !string.IsNullOrWhiteSpace(phi.Prompt))
+                    yield return phi.Prompt.TrimEnd('\r', '\n');
+            }
+            yield break;
+        }
+
+        foreach (var item in PromptHistoryListBox.SelectedItems)
+        {
+            if (item is string prompt && !string.IsNullOrWhiteSpace(prompt))
+                yield return prompt.TrimEnd('\r', '\n');
+        }
     }
 
     private static void TrimPromptHistory(SessionInfo session, int maxCount)
@@ -1876,7 +2637,8 @@ public partial class MainWindow : Window
 
     private void UsePromptButton_OnClick(object sender, RoutedEventArgs e)
     {
-        if (PromptHistoryListBox.SelectedItems == null || PromptHistoryListBox.SelectedItems.Count == 0)
+        var selected = EnumerateSelectedPrompts().ToList();
+        if (selected.Count == 0)
         {
             MessageBox.Show(this, "使用するプロンプトを選択してください。", "Codex GUI",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1887,13 +2649,8 @@ public partial class MainWindow : Window
         var builder = new StringBuilder(existing);
         var inserted = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var item in PromptHistoryListBox.SelectedItems)
+        foreach (var prompt in selected)
         {
-            if (item is not string prompt || string.IsNullOrWhiteSpace(prompt))
-            {
-                continue;
-            }
-
             // すでに同じ内容が入力欄に含まれている場合や、この操作中に追加済みの場合はスキップ
             if (existing.Contains(prompt, StringComparison.Ordinal) || inserted.Contains(prompt))
             {
@@ -1922,6 +2679,13 @@ public partial class MainWindow : Window
 
     private void DeletePromptButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (IsAllPromptTabSelected())
+        {
+            MessageBox.Show(this, "全プロンプトは削除できません。セッション履歴から削除してください。", "Codex GUI",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         if (SessionComboBox.SelectedItem is not SessionInfo session)
         {
             MessageBox.Show(this, "セッションを選択してください。", "Codex GUI",
@@ -1946,6 +2710,13 @@ public partial class MainWindow : Window
 
     private void EditPromptButton_OnClick(object sender, RoutedEventArgs e)
     {
+        if (IsAllPromptTabSelected())
+        {
+            MessageBox.Show(this, "全プロンプトは編集できません。セッション履歴から編集してください。", "Codex GUI",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         if (SessionComboBox.SelectedItem is not SessionInfo session)
         {
             MessageBox.Show(this, "セッションを選択してください。", "Codex GUI",
@@ -1997,12 +2768,30 @@ public partial class MainWindow : Window
         UsePromptButton_OnClick(sender, e);
     }
 
+    private void AllPromptHistoryListBox_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        UsePromptButton_OnClick(sender, e);
+    }
+
+    private void PromptHistoryTab_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        try
+        {
+            var isAll = IsAllPromptTabSelected();
+            if (EditPromptButton != null) EditPromptButton.IsEnabled = !isAll;
+            if (DeletePromptButton != null) DeletePromptButton.IsEnabled = !isAll;
+        }
+        catch { /* ignore */ }
+    }
+
     private async void SendButton_OnClick(object sender, RoutedEventArgs e)
     {
         if (_isSending)
         {
             return;
         }
+
+        await EnsureProjectSessionAsync(forceSelect: true);
 
         if (SessionComboBox.SelectedItem is not SessionInfo session)
         {
@@ -2799,6 +3588,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             _revitProgressLastLine = line;
             _revitProgressLastSnapshot = snap;
             UpdateRevitProgressUi(snap);
+            await EnsureProjectSessionAsync(forceSelect: false);
         }
         catch
         {
@@ -2956,6 +3746,10 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             {
                 PromptHistoryListBox.Background = new SolidColorBrush(Color.FromArgb(a, 0x10, 0x22, 0x40));
             }
+            if (AllPromptHistoryListBox != null)
+            {
+                AllPromptHistoryListBox.Background = new SolidColorBrush(Color.FromArgb(a, 0x10, 0x22, 0x40));
+            }
         }
         catch { }
     }
@@ -3038,6 +3832,11 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             {
                 PromptHistoryListBox.Background = new SolidColorBrush(bgA);
                 PromptHistoryListBox.Foreground = fgBrush;
+            }
+            if (AllPromptHistoryListBox != null)
+            {
+                AllPromptHistoryListBox.Background = new SolidColorBrush(bgA);
+                AllPromptHistoryListBox.Foreground = fgBrush;
             }
             if (TraceExpander != null)
             {
@@ -3586,6 +4385,13 @@ public class SessionInfo
 
     public string Name { get; set; } = string.Empty;
 
+    public string DisplayName
+        => MainWindow.TruncateForUi(Name, MainWindow.MaxSessionNameLength);
+
+    public string? ProjectId { get; set; } // docGuid
+
+    public string? ProjectName { get; set; }
+
     /// <summary>
     /// 実際の Codex セッションID を保存したい場合に使用します。
     /// このサンプル実装では未使用ですが、PowerShell スクリプト側でマッピングに利用できます。
@@ -3604,4 +4410,12 @@ public class SessionInfo
     /// このセッションで RevitMCP 用の初期インストラクションを Codex に送ったかどうか。
     /// </summary>
     public bool HasSentRevitIntro { get; set; }
+}
+
+internal sealed class PromptHistoryItem
+{
+    public string Display { get; set; } = string.Empty;
+    public string Prompt { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
+    public string SessionName { get; set; } = string.Empty;
 }

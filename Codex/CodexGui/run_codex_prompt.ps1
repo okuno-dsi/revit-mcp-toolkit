@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Bridge script between Codex GUI and the actual Codex CLI or backend.
 
@@ -56,6 +56,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 try { chcp 65001 > $null } catch {}
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+try { if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPreference = $false } } catch {}
 
 if (-not (Test-Path -LiteralPath $PromptFile -PathType Leaf)) {
   throw "Prompt file not found: $PromptFile"
@@ -252,6 +253,8 @@ switch ($Backend) {
 
     $tempOut = Join-Path $env:TEMP ("codex_gui_out_{0}.txt" -f ([System.Guid]::NewGuid().ToString('N')))
     Push-Location $repoRoot
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
       if ($prompt) {
         # Codex の出力をファイルに保存しつつ、そのまま標準出力にも流す
@@ -261,6 +264,7 @@ switch ($Backend) {
       }
       $exit = $LASTEXITCODE
     } finally {
+      $ErrorActionPreference = $prevEap
       Pop-Location
     }
 
@@ -343,3 +347,4 @@ switch ($Backend) {
     exit 1
   }
 }
+

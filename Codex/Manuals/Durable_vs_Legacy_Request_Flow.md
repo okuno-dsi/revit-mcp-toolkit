@@ -4,7 +4,7 @@ This document compares the “durable” job-based sender and the traditional (l
 
 - Durable sender: `Manuals/Scripts/send_revit_command_durable.py`
 - Legacy sender: (deprecated here) — use durable wrapper `..\..\NVIDIA-Nemotron-v3\tool\send_revit_command.py` which implements durable flow
-- Optional resilient wrapper: `tools/mcp_safe.py`
+- Optional resilient wrapper: `Tools/mcp_safe.py`
 
 ## Overview
 - Legacy flow polls a global queue via `GET /get_result` after `POST /enqueue`.
@@ -81,7 +81,7 @@ This document compares the “durable” job-based sender and the traditional (l
 - Keep `params: {}` in requests even when no parameters are required.
 - Use `--force` or `/enqueue?force=1` if a conflicting job is already running.
 - Prefer durable sender by default when the server exposes `/job/{jobId}`; otherwise, fall back to the legacy sender.
-- For retries/backoff on busy/timeout conditions, you can also use the resilient wrapper `tools/mcp_safe.py`.
+- For retries/backoff on busy/timeout conditions, you can also use the resilient wrapper `Tools/mcp_safe.py`.
 
 ## Observation (This Workspace)
 - On 2025-10-14, port `5210` timed out with the legacy sender for `ping_server`, while the durable sender succeeded quickly. Ports `5211` and `5212` also responded successfully with the durable sender.

@@ -446,9 +446,12 @@ Notes:
 - (high)
   - `get_type_parameters_bulk` — read
   - `get_instance_parameters_bulk` — read
+- (normal)
+  - `param.transfer_values` — write (aliases: `param_transfer_values`, `transfer_parameter_values`)
 
 ## Rebar
 - (normal)
+  - `get_rebar_hosts_and_params` — read
   - `rebar_layout_inspect` — read
   - `rebar_layout_update` — write (alias: `rebar_arrangement_update`)
   - `rebar_layout_update_by_host` — write

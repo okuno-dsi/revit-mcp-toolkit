@@ -57,7 +57,7 @@
             { "kind": "derived", "name": "hostcover.top" },
             { "kind": "constant", "value": 40 }
           ],
-          "validation": { "min": 0, "max": 500 }
+          "validation": { "min": 40, "max": 500 }
         },
         "Host.Cover.Bottom": {
           "type": "double",
@@ -184,6 +184,78 @@
           ],
           "validation": { "min": 0, "max": 200 }
         },
+        "Beam.Attr.MainBar.TopCountStart": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側上端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側上端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCountMid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCountEnd": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側上端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側上端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount2Start": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側上端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側上端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount2Mid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount2End": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側上端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側上端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount3Start": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側上端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側上端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount3Mid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央上端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央上端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.TopCount3End": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側上端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側上端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
         "Beam.Attr.MainBar.BottomCount": {
           "type": "int",
           "sources": [
@@ -205,6 +277,78 @@
           "sources": [
             { "kind": "typeParam", "name": "中央下端3段筋太径本数" },
             { "kind": "instanceParam", "name": "中央下端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCountStart": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側下端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側下端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCountMid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCountEnd": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側下端1段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側下端1段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount2Start": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側下端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側下端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount2Mid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount2End": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側下端2段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側下端2段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount3Start": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "始点側下端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "始点側下端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount3Mid": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "中央下端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "中央下端3段筋太径本数" }
+          ],
+          "validation": { "min": 0, "max": 200 }
+        },
+        "Beam.Attr.MainBar.BottomCount3End": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "終点側下端3段筋太径本数" },
+            { "kind": "instanceParam", "name": "終点側下端3段筋太径本数" }
           ],
           "validation": { "min": 0, "max": 200 }
         },
@@ -254,6 +398,191 @@
       }
     },
     {
+      "name": "sirbim_column_attr_jp_v1",
+      "priority": 105,
+      "appliesTo": {
+        "categories": ["OST_StructuralColumns"],
+        "requiresTypeParamsAny": ["柱脚主筋X1段筋太径本数", "柱脚主筋Y1段筋太径本数", "柱脚フープピッチ"]
+      },
+      "map": {
+        "Common.MainBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋太径" },
+            { "kind": "typeParam", "name": "柱頭主筋太径" },
+            { "kind": "instanceParam", "name": "柱脚主筋太径" },
+            { "kind": "instanceParam", "name": "柱頭主筋太径" },
+            { "kind": "constant", "value": "D22" }
+          ],
+          "validation": { "min": 1, "max": 200 }
+        },
+        "Common.TieBar.BarType": {
+          "type": "string",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚フープ径" },
+            { "kind": "typeParam", "name": "柱頭フープ径" },
+            { "kind": "instanceParam", "name": "柱脚フープ径" },
+            { "kind": "instanceParam", "name": "柱頭フープ径" },
+            { "kind": "constant", "value": "D10" }
+          ],
+          "validation": { "min": 1, "max": 200 }
+        },
+        "Common.Arrangement.Rule": {
+          "type": "string",
+          "sources": [{ "kind": "constant", "value": "maximum_spacing" }]
+        },
+        "Common.Arrangement.Spacing": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚フープピッチ" },
+            { "kind": "typeParam", "name": "柱頭フープピッチ" },
+            { "kind": "instanceParam", "name": "柱脚フープピッチ" },
+            { "kind": "instanceParam", "name": "柱頭フープピッチ" },
+            { "kind": "constant", "value": 150 }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Common.Arrangement.ArrayLength": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "bbox.z_local" },
+            { "kind": "constant", "value": 2900 }
+          ],
+          "validation": { "min": 0, "max": 100000 }
+        },
+        "Common.Arrangement.NumberOfBarPositions": {
+          "type": "int",
+          "sources": [{ "kind": "constant", "value": 20 }],
+          "validation": { "min": 1, "max": 999 }
+        },
+        "Common.Arrangement.IncludeFirstBar": {
+          "type": "bool",
+          "sources": [{ "kind": "constant", "value": true }]
+        },
+        "Common.Arrangement.IncludeLastBar": {
+          "type": "bool",
+          "sources": [{ "kind": "constant", "value": true }]
+        },
+        "Common.Arrangement.BarsOnNormalSide": {
+          "type": "bool",
+          "sources": [{ "kind": "constant", "value": true }]
+        },
+        "Host.Cover.Top": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.top" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 40, "max": 500 }
+        },
+        "Host.Cover.Bottom": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.bottom" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Host.Cover.Other": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "derived", "name": "hostcover.other" },
+            { "kind": "constant", "value": 40 }
+          ],
+          "validation": { "min": 0, "max": 500 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceXHead": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱頭主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋X1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceXFoot": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋X1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceYHead": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱頭主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋Y1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceYFoot": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋Y1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceX": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋X1段筋太径本数" },
+            { "kind": "typeParam", "name": "柱頭主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋X1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceY": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋Y1段筋太径本数" },
+            { "kind": "typeParam", "name": "柱頭主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋Y1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFace": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚主筋X1段筋太径本数" },
+            { "kind": "typeParam", "name": "柱脚主筋Y1段筋太径本数" },
+            { "kind": "typeParam", "name": "柱頭主筋X1段筋太径本数" },
+            { "kind": "typeParam", "name": "柱頭主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱脚主筋Y1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋X1段筋太径本数" },
+            { "kind": "instanceParam", "name": "柱頭主筋Y1段筋太径本数" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.Tie.PitchBaseMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "柱脚フープピッチ" },
+            { "kind": "instanceParam", "name": "柱脚フープピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        },
+        "Column.Attr.Tie.PitchHeadMm": {
+          "type": "double",
+          "unit": "mm",
+          "sources": [
+            { "kind": "typeParam", "name": "柱頭フープピッチ" },
+            { "kind": "instanceParam", "name": "柱頭フープピッチ" }
+          ],
+          "validation": { "min": 0, "max": 2000 }
+        }
+      }
+    },
+    {
       "name": "rug_column_attr_v1",
       "priority": 110,
       "appliesTo": {
@@ -285,6 +614,22 @@
             { "kind": "instanceParam", "name": "pitch_hoop_panel_forList" }
           ],
           "validation": { "min": 0, "max": 2000 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceX": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_X_1st_bottom" },
+            { "kind": "instanceParam", "name": "N_main_X_1st_bottom" }
+          ],
+          "validation": { "min": 2, "max": 50 }
+        },
+        "Column.Attr.MainBar.BarsPerFaceY": {
+          "type": "int",
+          "sources": [
+            { "kind": "typeParam", "name": "N_main_Y_1st_bottom" },
+            { "kind": "instanceParam", "name": "N_main_Y_1st_bottom" }
+          ],
+          "validation": { "min": 2, "max": 50 }
         },
         "Column.Attr.MainBar.BarsPerFace": {
           "type": "int",
@@ -478,7 +823,7 @@
             { "kind": "derived", "name": "hostcover.top" },
             { "kind": "constant", "value": 40 }
           ],
-          "validation": { "min": 0, "max": 500 }
+          "validation": { "min": 40, "max": 500 }
         },
         "Host.Cover.Bottom": {
           "type": "double",

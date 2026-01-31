@@ -5,10 +5,14 @@
 
 ## Overview
 v1 plan rules:
-- Structural Columns: perimeter main bars (see `options.columnMainBarsPerFace`) + 1 ties set (or multiple sets when joint pattern is enabled).
+- Structural Columns: perimeter main bars (see `options.columnMainBarsPerFace`) + ties sets.
+  - Default ties: 2 sets split by mid-height (`base` + `head`) when `options.columnTieSplitByMidHeight=true` (default).
+  - Custom ties: multiple sets when a tie pattern is provided (mapping `Column.Attr.Tie.PatternJson` or `options.columnTiePattern`).
 - Structural Framing (beams): main bars (top/bottom) + 1 stirrups set.
   - Default main bars: top=2, bottom=2 (override via `options.beamMainTopCount/beamMainBottomCount` or mapping beam keys).
   - If mapping provides 2nd/3rd layer counts (e.g. `Beam.Attr.MainBar.TopCount2`), the tool stacks up to 3 layers per side (heuristic).
+    - Placement rule (layer 2/3): if `count==1`, align to the **leftmost** position of layer 1; if `count>=2`, always include **left & right**; bars from the 3rd onward snap to layer-1 bar positions (best-effort).
+    - For debugging, main-bar actions include `actions[].side` and `actions[].layerIndex`.
 - Multi-layer pitch uses `RebarBarClearanceTable.json` (center-to-center) when available; otherwise falls back to `barDiameter + options.beamMainBarLayerClearMm`.
 
 Related validation:
@@ -16,13 +20,38 @@ Related validation:
 
 Geometry is approximate; beams prefer physical extents derived from solid geometry (best-effort) so rebars align to actual concrete faces. Falls back to bbox when geometry is unavailable. LocationCurve axis range is captured as debug info when available. Use as automation scaffolding, not as structural design validation.
 
-For columns, the per-face perimeter bar count prefers mapping key `Column.Attr.MainBar.BarsPerFace` when available (parameter names are resolved via `RebarMapping.json` profiles).
+### Beam start/end definition (important)
+For beams (Structural Framing), “start/end” are defined by the beam `LocationCurve` endpoints:
+
+- start = `LocationCurve.EndPoint(0)`
+- end = `LocationCurve.EndPoint(1)`
+
+This definition applies consistently to **all start/end-related options**, not only stirrups (e.g. `beamMainBarStartExtensionMm/EndExtensionMm`, `beamMainBarStartBend*/EndBend*`, `beamStirrupStartOffsetMm/EndOffsetMm`).
+
+Internally, shape-driven layout requires “axisStart < axisEnd” (min→max on the chosen axis), so the tool maps min/max to start/end when `EndPoint(0)` happens to be on the max side. For debugging, check `hosts[].beamAxisStartEndByLocationCurve.startIsMinAxis`.
+
+For columns, the per-face perimeter bar count prefers mapping keys `Column.Attr.MainBar.BarsPerFaceX` / `Column.Attr.MainBar.BarsPerFaceY` when available; otherwise it falls back to `Column.Attr.MainBar.BarsPerFace` (parameter names are resolved via `RebarMapping.json` profiles).
+
+- `BarsPerFaceX` / `BarsPerFaceY` are treated as **per-face counts including corner bars**. For rectangular columns, corner bars are de-duplicated by position; the total count is roughly `2*X + 2*Y - 4` (best-effort).
+- Example convention (SIRBIM): `BarsPerFaceX` means “bars on faces parallel to Y (X-fixed faces)”; `BarsPerFaceY` means “bars on faces parallel to X (Y-fixed faces)”.
 
 Cover handling:
 - The tool reads the host instance’s Rebar Cover settings (e.g. `CLEAR_COVER_TOP/BOTTOM/OTHER` → `RebarCoverType.CoverDistance`) when available, and uses them for bar placement.
 - If mapping provides `Host.Cover.Top/Bottom/Other`, it overrides the instance values (best-effort). This is useful when a project/family stores cover as custom instance parameters (e.g. `かぶり厚-上`) instead of (or in addition to) Revit’s Rebar Cover Type.
 - The resolved values are returned under `hosts[].coversMm` with per-face `sources` (`hostInstance` / `mapping` / `default`).
 - If the host element has explicit per-face cover instance parameters (e.g. `かぶり厚-上/下/左/右`), the tool uses them for **cross-section placement** (best-effort), and returns them as `hosts[].coverFacesMm` (up/down/left/right). This is intentionally separate from the Revit cover type IDs, and does not change them.
+
+Axis-end cover (columns):
+- By default (`options.columnAxisEndCoverUsesConcreteNeighborCheck=true`), the command applies top/bottom cover **along the column axis** only when the column end is *exposed*.
+- When a *concrete* **Structural Column** or **Structural Foundation** is detected touching the column end, axis-end cover at that side is treated as **0** (joint interior), so main bars / ties can reach the joint.
+- Concrete detection is best-effort. When `MaterialClass` is available, it is preferred (classes that indicate steel/metal such as `steel` / `metal` / `metallic` / `鋼` / `鉄骨` are excluded). Otherwise it falls back to material name tokens (`コンクリート`, `Concrete`, `FC*`, `RC*` etc.) from:
+  - Structural Material parameter (instance/type), then
+  - geometry material IDs (fallback).
+- Some families may have an inverted local axis. The tool uses `hosts[].axisPositiveIsUp` / `hosts[].axisDotZ` to keep world top/bottom consistent (best-effort), so “top cover becomes 0 by mistake” is avoided.
+- Debug output:
+  - neighbor detection: `hosts[].columnAxisEndConcreteNeighbor`
+  - effective axis-end covers: `hosts[].columnAxisEndCoverEffectiveMm` / `hosts[].columnAxisEndCoverEffectiveMm_ties`
+  - main bar extension clamp (safety): `hosts[].columnMainBarAxisExtensionMm`
 
 Cover confirmation (safety):
 - Cover parameter naming differs by model/family. If the tool cannot confidently decide which cover parameters to read (or any raw cover is below `options.coverMinMm`), it returns `ok:false` with `code:"COVER_CONFIRMATION_REQUIRED"` and does not generate/apply rebar.
@@ -113,8 +142,14 @@ Beam geometry options (v1 scaffolding):
 | options.columnMainBarStartBendDir | string | no | `none` | `up`/`down`/`none` (relative to world Z). |
 | options.columnMainBarEndBendDir | string | no | `none` | `up`/`down`/`none` (relative to world Z). |
 | options.columnMainBarsPerFace | int | no | 2 | Column perimeter bars per face (>=2). `2` means corners only; `5` yields 16 bars for a rectangular column (example). |
+| options.columnAxisEndCoverUsesConcreteNeighborCheck | bool | no | true | If true, detects concrete neighbors (Structural Column / Structural Foundation) above/below and applies top/bottom cover along the axis **only when the end is exposed**. When a concrete neighbor is found, axis-end cover at that side is treated as 0. |
+| options.columnConcreteNeighborSearchRangeMm | number | no | 1500 | Search range for concrete neighbor detection around column top/bottom (mm). |
+| options.columnConcreteNeighborTouchTolMm | number | no | 50 | Tolerance for “touching the end plane” in axis direction (mm). |
 | options.columnTieBottomOffsetMm | number | no | 0 | Bottom offset from column bottom face for first tie (mm). |
 | options.columnTieTopOffsetMm | number | no | 0 | Top offset from column top face for last tie (mm). |
+| options.columnTieSplitByMidHeight | bool | no | true | If true, splits column ties into 2 sets (`base` + `head`) by mid-height. |
+| options.columnTiePitchBaseMm | number | no |  | Optional base-zone tie pitch (mm). If omitted/0, uses head pitch or falls back to `Common.Arrangement.Spacing`. |
+| options.columnTiePitchHeadMm | number | no |  | Optional head-zone tie pitch (mm). If omitted/0, uses base pitch or falls back to `Common.Arrangement.Spacing`. |
 | options.columnTieUseHooks | bool | no | true | If true, column ties keep a closed loop and hooks are applied via instance parameters (best-effort). |
 | options.columnTieHookAngleDeg | number | no | 0 | Hook angle in degrees (e.g. `135`). If omitted and hooks are enabled, defaults to `135` (best-effort). Used to find a matching `RebarHookType` when `columnTieHookTypeName` is not provided. |
 | options.columnTieHookTypeName | string | no |  | Optional exact `RebarHookType` name (preferred over angle). |
@@ -168,6 +203,8 @@ Beam geometry options (v1 scaffolding):
 - `rebar_layout_update_by_host`
 
 ## `Column.Attr.Tie.PatternJson` Example
+Supported reference kinds: `beam_top`, `beam_bottom`, `column_top`, `column_bottom`, `column_mid`.
+
 Example pattern: reference `beam_top`, then 3 ties @ 100mm above (including the reference tie), and 2 ties @ 150mm below (starting at -150mm).
 ```json
 {
@@ -175,6 +212,17 @@ Example pattern: reference `beam_top`, then 3 ties @ 100mm above (including the 
   "segments": [
     { "name": "above", "direction": "up", "startOffsetMm": 0, "count": 3, "pitchMm": 100 },
     { "name": "below", "direction": "down", "startOffsetMm": 150, "count": 2, "pitchMm": 150 }
+  ]
+}
+```
+
+Example pattern (mid-height): reference `column_mid`, then place ties upward/downward from the mid plane.
+```json
+{
+  "reference": { "kind": "column_mid", "offsetMm": 0 },
+  "segments": [
+    { "name": "head", "direction": "up", "startOffsetMm": 0, "count": 6, "pitchMm": 100 },
+    { "name": "base", "direction": "down", "startOffsetMm": 0, "count": 6, "pitchMm": 100 }
   ]
 }
 ```

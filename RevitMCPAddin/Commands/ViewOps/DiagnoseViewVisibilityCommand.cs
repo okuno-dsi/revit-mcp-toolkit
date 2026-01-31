@@ -20,7 +20,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 {
     [RpcCommand(
         "view.diagnose_visibility",
-        Aliases = new[] { "diagnose_visibility" },
+        Aliases = new[] { "diagnose_visibility", "view_diagnose_visibility" },
         Category = "Diagnostics",
         Tags = new[] { "view", "diag", "visibility", "template", "crop", "ui" },
         Risk = RiskLevel.Low,

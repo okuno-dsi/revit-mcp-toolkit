@@ -14,9 +14,14 @@ using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.Commands.Rebar
 {
+    [RpcCommand(
+        "element.rebar_layout_update",
+        Aliases = new[] { "rebar_arrangement_update" },
+        Summary = "Update layout rule for given rebar ids (shape-driven only)."
+    )]
     public sealed class RebarLayoutUpdateCommand : IRevitCommandHandler
     {
-        public string CommandName => "rebar_layout_update|rebar_arrangement_update";
+        public string CommandName => "rebar_layout_update";
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {

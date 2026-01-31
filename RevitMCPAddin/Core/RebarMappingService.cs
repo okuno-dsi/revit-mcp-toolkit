@@ -11,9 +11,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.Exceptions;
@@ -67,6 +69,23 @@ namespace RevitMCPAddin.Core
                     profiles = _status.profiles ?? Array.Empty<string>()
                 };
             }
+        }
+
+        public static RebarMappingLoadStatus Reload()
+        {
+            lock (_gate)
+            {
+                _loaded = false;
+                _index = null;
+                _status = new RebarMappingLoadStatus
+                {
+                    ok = false,
+                    code = "NOT_LOADED",
+                    msg = "Rebar mapping not loaded."
+                };
+            }
+            EnsureLoadedBestEffort();
+            return GetStatus();
         }
 
         public static bool TryGetIndex(out RebarMappingIndex index)
@@ -422,6 +441,35 @@ namespace RevitMCPAddin.Core
                     catch { return false; }
                 }
 
+                static bool TryParseFirstIntegerToken(string text, out double number)
+                {
+                    number = 0.0;
+                    if (string.IsNullOrWhiteSpace(text)) return false;
+
+                    try
+                    {
+                        var s = text.Trim();
+                        int i = 0;
+                        while (i < s.Length && !char.IsDigit(s[i])) i++;
+                        if (i >= s.Length) return false;
+
+                        int j = i;
+                        while (j < s.Length && char.IsDigit(s[j])) j++;
+                        if (j <= i) return false;
+
+                        var token = s.Substring(i, j - i);
+                        int iv = 0;
+                        if (!int.TryParse(token, out iv)) return false;
+                        number = iv;
+                        return true;
+                    }
+                    catch
+                    {
+                        number = 0.0;
+                        return false;
+                    }
+                }
+
                 switch (entry.Type)
                 {
                     case "string":
@@ -429,6 +477,20 @@ namespace RevitMCPAddin.Core
                             string? s = null;
                             try { s = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString(); } catch { s = null; }
                             if (string.IsNullOrWhiteSpace(s)) return false;
+
+                            // Optional numeric validation for string values (e.g., "D25", "25 mm").
+                            // If validation is present, require that a numeric token can be extracted.
+                            try
+                            {
+                                if (entry.Min.HasValue || entry.Max.HasValue)
+                                {
+                                    double n = 0.0;
+                                    if (!TryParseFirstIntegerToken(s, out n)) return false;
+                                    if (!TryValidateNumber(entry, n, out var _, out var _2)) return false;
+                                }
+                            }
+                            catch { return false; }
+
                             valueToken = new JValue(s);
                             return true;
                         }
@@ -438,6 +500,13 @@ namespace RevitMCPAddin.Core
                             {
                                 int iv;
                                 try { iv = p.AsInteger(); } catch { return false; }
+
+                                try
+                                {
+                                    if (!TryValidateNumber(entry, iv, out var _, out var _2)) return false;
+                                }
+                                catch { return false; }
+
                                 valueToken = new JValue(iv);
                                 return true;
                             }
@@ -455,6 +524,12 @@ namespace RevitMCPAddin.Core
                                         v = UnitHelper.FtToMm(raw);
                                 }
                                 catch { /* ignore */ }
+
+                                try
+                                {
+                                    if (!TryValidateNumber(entry, v, out var _, out var _2)) return false;
+                                }
+                                catch { return false; }
 
                                 valueToken = new JValue((int)Math.Round(v));
                                 return true;
@@ -791,6 +866,14 @@ namespace RevitMCPAddin.Core
             coverMm = 0.0;
             if (doc == null || host == null) return false;
 
+            // 0) Round-column cover parameter (explicit instance/type parameter)
+            try
+            {
+                if (TryGetNamedCoverParamMm(host, "かぶり厚-丸", out coverMm))
+                    return true;
+            }
+            catch { /* ignore */ }
+
             BuiltInParameter bip;
             if (derivedName.Equals("hostcover.top", StringComparison.OrdinalIgnoreCase)) bip = BuiltInParameter.CLEAR_COVER_TOP;
             else if (derivedName.Equals("hostcover.bottom", StringComparison.OrdinalIgnoreCase)) bip = BuiltInParameter.CLEAR_COVER_BOTTOM;
@@ -883,6 +966,60 @@ namespace RevitMCPAddin.Core
             }
             catch { /* ignore */ }
 
+            return false;
+        }
+
+        private static bool TryGetNamedCoverParamMm(Element host, string paramName, out double coverMm)
+        {
+            coverMm = 0.0;
+            if (host == null || string.IsNullOrWhiteSpace(paramName)) return false;
+
+            Parameter p = null;
+            try { p = host.LookupParameter(paramName); } catch { p = null; }
+            if (p == null)
+            {
+                try
+                {
+                    var t = host.Document?.GetElement(host.GetTypeId());
+                    if (t != null) p = t.LookupParameter(paramName);
+                }
+                catch { p = null; }
+            }
+
+            if (p == null) return false;
+            return TryReadParamAsMm(p, out coverMm);
+        }
+
+        private static bool TryReadParamAsMm(Parameter p, out double mm)
+        {
+            mm = 0.0;
+            if (p == null) return false;
+            try
+            {
+                if (p.StorageType == StorageType.Double)
+                {
+                    mm = UnitHelper.FtToMm(p.AsDouble());
+                    return mm > 0.0;
+                }
+                if (p.StorageType == StorageType.Integer)
+                {
+                    mm = p.AsInteger();
+                    return mm > 0.0;
+                }
+                if (p.StorageType == StorageType.String)
+                {
+                    var s = (p.AsString() ?? "").Trim();
+                    if (s.Length == 0) return false;
+                    var m = Regex.Match(s, @"[-+]?\d+(\.\d+)?");
+                    if (!m.Success) return false;
+                    if (double.TryParse(m.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+                    {
+                        mm = v;
+                        return mm > 0.0;
+                    }
+                }
+            }
+            catch { /* ignore */ }
             return false;
         }
 

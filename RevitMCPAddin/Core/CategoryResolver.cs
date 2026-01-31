@@ -51,6 +51,8 @@ namespace RevitMCPAddin.Core
                 { "柱", BuiltInCategory.OST_Columns },
                 { "構造柱", BuiltInCategory.OST_StructuralColumns },
                 { "構造フレーム", BuiltInCategory.OST_StructuralFraming },
+                { "構造鉄筋", BuiltInCategory.OST_Rebar },
+                { "鉄筋", BuiltInCategory.OST_Rebar },
                 { "建具", BuiltInCategory.OST_Doors },
                 { "窓", BuiltInCategory.OST_Windows },
                 { "部屋", BuiltInCategory.OST_Rooms },

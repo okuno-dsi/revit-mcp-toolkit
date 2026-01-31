@@ -330,7 +330,6 @@
 - [force_delete_type](force_delete_type.md)
 
 ## generate
-- [generate_dwg_merge_script_manual](generate_dwg_merge_script_manual.md)
 - [generate_fire_protection_schedule](generate_fire_protection_schedule.md)
 
 ## gesture
@@ -541,6 +540,8 @@
 - [get_worksets](get_worksets.md)
 - [get_zone_params](get_zone_params.md)
 - [get_zones](get_zones.md)
+
+- [get_rebar_hosts_and_params](get_rebar_hosts_and_params.md)
 
 ## hide
 - [hide_dockable_pane](hide_dockable_pane.md)
@@ -827,6 +828,9 @@
 
 ## toggle
 - [toggle_dockable_pane](toggle_dockable_pane.md)
+
+## transfer
+- [param.transfer_values](param.transfer_values.md)
 
 ## trim
 - [trim_area_boundary_line](trim_area_boundary_line.md)

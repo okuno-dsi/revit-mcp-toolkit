@@ -105,8 +105,10 @@ namespace RevitMCPAddin.Commands.Rebar
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2024\Templates\Default_M_ENG.rte");
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2023\Templates\Default_M_JPN.rte");
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2023\Templates\Default_M_ENU.rte");
-                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                candidates.Add(Path.Combine(userProfile, "Documents", "意匠テンプレートVER2024_rev1.15.rte"));
+                var userTemplate = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "意匠テンプレートVER2024_rev1.15.rte");
+                candidates.Add(userTemplate);
             }
 
             var tried = new JArray();

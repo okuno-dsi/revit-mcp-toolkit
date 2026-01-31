@@ -114,7 +114,7 @@ Result Lookup
 
 Manual Run Helper (optional)
 
-- Use `AutoCadMcpServer/tools/Run-AccoreLatestJob.ps1` to launch the newest staged job interactively.
+- Use `AutoCadMcpServer/Tools/Run-AccoreLatestJob.ps1` to launch the newest staged job interactively.
   - Keeps a separate PowerShell window open, writes the same logs, and waits for Enter.
 
 Configuration
@@ -156,7 +156,7 @@ Operational Notes
 
 - Layer name exact match
   - `rename.include` matches layer names exactly. Wildcards are not expanded by the server.
-  - Mitigation: use `tools/AutoCad/DumpLayersViaDXF.ps1` to list layers first, then enumerate needed names under `include`.
+  - Mitigation: use `Tools/AutoCad/DumpLayersViaDXF.ps1` to list layers first, then enumerate needed names under `include`.
 
 - Stem collisions (duplicate destination layers)
   - Destination layers derive from `format({old},{stem})`. If two inputs share the same `stem`, they can map into identical destination layers.
@@ -216,8 +216,8 @@ Mapping Preview
 
 Layer Verification Tools
 
-- `tools/AutoCad/DumpLayersViaDXF.ps1` ? exports DXF and parses LAYER names (ASCII), useful for automation.
-- `tools/AutoCad/ListDWGLayers.ps1` ? writes a `.layers.txt` by running a short LISP in Core Console.
+- `Tools/AutoCad/DumpLayersViaDXF.ps1` ? exports DXF and parses LAYER names (ASCII), useful for automation.
+- `Tools/AutoCad/ListDWGLayers.ps1` ? writes a `.layers.txt` by running a short LISP in Core Console.
 - Expect that post?merge the source layers like `<stem>$0$<old>` are removed and only the destination layers remain.
 
 Security Notes

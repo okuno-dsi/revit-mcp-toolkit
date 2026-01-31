@@ -7,6 +7,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -16,6 +17,7 @@
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,8">
             <Button x:Name="BtnOpen" Content="Open" Width="90" Margin="0,0,6,0"/>
+            <Button x:Name="BtnLoadCodex" Content="Load Codex" Width="110" Margin="0,0,6,0"/>
             <Button x:Name="BtnSave" Content="Save" Width="90" Margin="0,0,6,0"/>
             <Button x:Name="BtnSaveAs" Content="Save As" Width="90" Margin="0,0,12,0"/>
             <Button x:Name="BtnSelectAll" Content="Select All" Width="90" Margin="0,0,6,0"/>
@@ -25,29 +27,67 @@
             <Button x:Name="BtnStop" Content="Stop" Width="90" Margin="0,0,6,0" IsEnabled="False"/>
         </WrapPanel>
 
-        <GroupBox Header="Script" Grid.Row="2" Margin="0,0,0,8">
-            <RichTextBox x:Name="ScriptBox"
-                         AcceptsTab="True"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Feature" Margin="0,0,6,0"/>
+            <TextBox x:Name="TxtFeature" Grid.Column="1" MinWidth="220" Margin="0,0,12,0"/>
+            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Keywords" Margin="0,0,6,0"/>
+            <TextBox x:Name="TxtKeywords" Grid.Column="3" MinWidth="220" Margin="0,0,12,0"/>
+            <Button x:Name="BtnLibrary" Grid.Column="4" Content="Library" Width="90"/>
+        </Grid>
+
+        <GroupBox Header="Script" Grid.Row="3" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="42"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="LineNumbersBox"
+                         Grid.Column="0"
+                         IsReadOnly="True"
+                         IsTabStop="False"
+                         Focusable="False"
+                         VerticalScrollBarVisibility="Hidden"
+                         HorizontalScrollBarVisibility="Hidden"
+                         TextWrapping="NoWrap"
+                         TextAlignment="Right"
+                         Padding="4,4,4,4"
+                         Foreground="Gray"
+                         Background="#F5F5F5"
+                         BorderThickness="0,0,1,0"
+                         BorderBrush="#DDDDDD"
                          FontFamily="Consolas"
-                         FontSize="12"
-                         SpellCheck.IsEnabled="False">
-                <!-- Make it behave closer to a code editor (no forced wrap) -->
-                <RichTextBox.Document>
-                    <FlowDocument PageWidth="10000" FontFamily="Consolas" FontSize="12">
-                        <Paragraph Margin="0"/>
-                    </FlowDocument>
-                </RichTextBox.Document>
-            </RichTextBox>
+                         FontSize="12"/>
+                <RichTextBox x:Name="ScriptBox"
+                             Grid.Column="1"
+                             AcceptsTab="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             SpellCheck.IsEnabled="False">
+                    <!-- Make it behave closer to a code editor (no forced wrap) -->
+                    <RichTextBox.Document>
+                        <FlowDocument PageWidth="10000" FontFamily="Consolas" FontSize="12">
+                            <Paragraph Margin="0"/>
+                        </FlowDocument>
+                    </RichTextBox.Document>
+                </RichTextBox>
+            </Grid>
         </GroupBox>
 
-        <WrapPanel Grid.Row="3" Margin="0,0,0,8">
+        <WrapPanel Grid.Row="4" Margin="0,0,0,8">
             <Button x:Name="BtnCopyOut" Content="Copy Output" Width="110" Margin="0,0,6,0"/>
             <Button x:Name="BtnClearOut" Content="Clear Output" Width="110"/>
         </WrapPanel>
 
-        <GroupBox Header="Output" Grid.Row="4">
+        <GroupBox Header="Output" Grid.Row="5">
             <TextBox x:Name="OutputBox"
                      IsReadOnly="True"
                      AcceptsReturn="True"

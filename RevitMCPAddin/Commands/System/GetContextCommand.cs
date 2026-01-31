@@ -35,7 +35,28 @@ namespace RevitMCPAddin.Commands.MetaOps
             int maxSelectionIds = p.Value<int?>("maxSelectionIds") ?? 200;
             if (maxSelectionIds < 0) maxSelectionIds = 0;
 
-            var snap = ContextTokenService.Capture(uiapp, includeSelectionIds: includeSelectionIds, maxSelectionIds: maxSelectionIds);
+            // Selection robustness options (optional)
+            int selectionRetryMaxWaitMs = p.SelectToken("selection.retry.maxWaitMs")?.ToObject<int?>()
+                                          ?? p.SelectToken("retry.maxWaitMs")?.ToObject<int?>()
+                                          ?? 0;
+            int selectionRetryPollMs = p.SelectToken("selection.retry.pollMs")?.ToObject<int?>()
+                                       ?? p.SelectToken("retry.pollMs")?.ToObject<int?>()
+                                       ?? 150;
+            bool selectionFallbackToStash = p.SelectToken("selection.fallbackToStash")?.ToObject<bool?>()
+                                            ?? p.SelectToken("fallbackToStash")?.ToObject<bool?>()
+                                            ?? true;
+            int selectionStashMaxAgeMs = p.SelectToken("selection.maxAgeMs")?.ToObject<int?>()
+                                         ?? p.SelectToken("maxAgeMs")?.ToObject<int?>()
+                                         ?? 2000;
+
+            var snap = ContextTokenService.Capture(
+                uiapp,
+                includeSelectionIds: includeSelectionIds,
+                maxSelectionIds: maxSelectionIds,
+                selectionRetryMaxWaitMs: selectionRetryMaxWaitMs,
+                selectionRetryPollMs: selectionRetryPollMs,
+                selectionFallbackToStash: selectionFallbackToStash,
+                selectionStashMaxAgeMs: selectionStashMaxAgeMs);
 
             var data = JObject.FromObject(snap);
             data["terminology"] = TermMapService.BuildTerminologyContextBlock();

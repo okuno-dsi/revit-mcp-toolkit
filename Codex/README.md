@@ -8,7 +8,7 @@
 ## まず最初に
 
 - ? 最短導線（接続確認?基本操作）: `Codex/START_HERE.md`
-- ? サーバーの確認・停止などユーティリティ: `tools/README.md`
+- ? サーバーの確認・停止などユーティリティ: `Tools/README.md`
 - ? 英語版: `README.en.md`
 
 ---

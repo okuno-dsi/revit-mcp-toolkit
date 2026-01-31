@@ -60,8 +60,14 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,0,0,8">
             <TextBlock Text="セッション:" VerticalAlignment="Center" Margin="0,0,4,0"/>
             <ComboBox x:Name="SessionComboBox" Width="200" Margin="0,0,8,0"
-                      DisplayMemberPath="Name"
-                      SelectionChanged="SessionComboBox_OnSelectionChanged"/>
+                      SelectionChanged="SessionComboBox_OnSelectionChanged">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding DisplayName}" ToolTip="{Binding Name}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
             <Button x:Name="NewSessionButton" Content="新しいセッション" Width="110" Margin="0,0,8,0"
                     Click="NewSessionButton_OnClick"/>
             <Button x:Name="RenameSessionButton" Content="名前変更" Width="90" Margin="0,0,8,0"
@@ -159,20 +165,55 @@
                         <Button x:Name="DeletePromptButton" Content="削除" Width="60"
                                 Click="DeletePromptButton_OnClick"/>
                     </StackPanel>
-                    <ListBox x:Name="PromptHistoryListBox"
-                             DockPanel.Dock="Top"
-                             Margin="0,0,0,4"
-                             SelectionMode="Extended"
-                             Background="Transparent"
-                             MouseDoubleClick="PromptHistoryListBox_OnMouseDoubleClick">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding}"
-                                           TextWrapping="NoWrap"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <TabControl x:Name="PromptHistoryTab"
+                                DockPanel.Dock="Top"
+                                Margin="0,0,0,4"
+                                SelectionChanged="PromptHistoryTab_OnSelectionChanged">
+                        <TabItem Header="セッション">
+                            <ListBox x:Name="PromptHistoryListBox"
+                                     Margin="0,0,0,4"
+                                     SelectionMode="Extended"
+                                     Background="Transparent"
+                                     MouseDoubleClick="PromptHistoryListBox_OnMouseDoubleClick">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground"
+                                                Value="{Binding RelativeSource={RelativeSource AncestorType=ListBox}, Path=Foreground}"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+                        <TabItem Header="すべて">
+                            <ListBox x:Name="AllPromptHistoryListBox"
+                                     Margin="0,0,0,4"
+                                     SelectionMode="Extended"
+                                     Background="Transparent"
+                                     MouseDoubleClick="AllPromptHistoryListBox_OnMouseDoubleClick">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Foreground"
+                                                Value="{Binding RelativeSource={RelativeSource AncestorType=ListBox}, Path=Foreground}"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Display}"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </TabItem>
+                    </TabControl>
                 </DockPanel>
             </GroupBox>
 

@@ -70,8 +70,10 @@ using RevitMCPAddin.Commands.ScheduleOps;
 using RevitMCPAddin.Commands.Schedules;
 using RevitMCPAddin.Commands.SiteOps;
 using RevitMCPAddin.Commands.Space;
+using RevitMCPAddin.Commands.SpaceOps.Separation;
 using RevitMCPAddin.Commands.Spatial;
 using RevitMCPAddin.Commands.SurfaceOps;
+using RevitMCPAddin.Commands.SystemOps;
 using RevitMCPAddin.Commands.TypeOps;
 using RevitMCPAddin.Commands.ViewOps;
 using RevitMCPAddin.Commands.ViewFilterOps;
@@ -229,6 +231,7 @@ namespace RevitMCPAddin
                 // 記録開始/停止
                 new StartCommandLoggingCommand(),
                 new StopCommandLoggingCommand(),
+                new CleanupRevitMcpCacheCommand(),
 
                 // Rpc
                 new GetOpenDocumentsCommand(),
@@ -271,11 +274,13 @@ namespace RevitMCPAddin
                 // ビュー情報
                 new GetCurrentViewCommand(),
                 new GetViewInfoCommand(),
+                new GetViewParametersCommand(),
                 new SaveViewStateCommand(),
                 new RestoreViewStateCommand(),
                 new CreateViewPlanCommand(),
                 new CreateSectionViewCommand(),
                 new CreateElevationViewCommand(),
+                new GetElevationViewInfoCommand(),
                 new CompareViewStatesCommand(),
                 new GetViewsCommand(),
 
@@ -489,6 +494,7 @@ namespace RevitMCPAddin
                 new UpdatePropertySetElementParameterCommand(),
                 new ScanPaintAndSplitRegionsHandler(),
                 new GetDoorWindowTypesForScheduleCommand(),
+                new CreateDoorWindowLegendByMarkCommand(),
                 new PopulateDoorWindowLegendFromTemplateCommand(),
 
                 // Paint
@@ -572,6 +578,7 @@ namespace RevitMCPAddin
                 new GetCurvesByCategoryHandler(),
                 new GetGridsWithBubblesHandler(),
                 new ExportCurvesToDxfHandler(),
+                new ExportDxfCustomLayersCommand(),
 
                 // DWG Export
                 new ExportDwgCommand(),
@@ -633,6 +640,7 @@ namespace RevitMCPAddin
                 new SetRevisionCloudSpacingCommand(),
                 new ListSheetRevisionsCommand(),
                 new CreateRevisionCloudForElementProjectionCommand(),
+                new AutoRevisionCloudsCommand(),
                 new CreateObbCloudForSelectionCommand(),
                 new GetRevisionCloudGeometryCommand(),
 
@@ -688,6 +696,10 @@ namespace RevitMCPAddin
                 new GetSpaceCentroidCommand(),
                 new GetSpaceMetricsCommand(),
                 new GetSpaceGeometryCommand(),
+                new CreateSpaceSeparationLinesCommand(),
+                new GetSpaceSeparationLinesInViewCommand(),
+                new MoveSpaceSeparationLineCommand(),
+                new DeleteSpaceSeparationLinesCommand(),
 
                 // Zone
                 new GetZonesCommand(),
@@ -838,6 +850,7 @@ namespace RevitMCPAddin
                 new SetFloorTypeParameterCommand(),
                 new DuplicateFloorTypeCommand(),
                 new RenameFloorTypeCommand(),
+                new RenameFloorTypesByThicknessCommand(),
                 new GetFloorBoundaryCommand(),
                 new GetCandidateExteriorFloorsCommand(),
                 //// Floor Layer
@@ -854,6 +867,7 @@ namespace RevitMCPAddin
                 new GetWallParametersCommand(),
                 new GetWallTypesCommand(),
                 new CreateWallCommand(),
+                new CreateWallsCommand(),
                 new CreateFlushWallsCommand(),
                 new UpdateWallGeometryCommand(),
                 new ChangeWallTypeCommand(),
@@ -864,6 +878,7 @@ namespace RevitMCPAddin
                 new GetWallTypeParametersCommand(),
                 new ListWallParametersCommand(),
                 new DeleteWallCommand(),
+                new DeleteWallsCommand(),
                 new UpdateWallTypeParameterCommand(),
                 new GetWallFacesCommand(),
                 new ClassifyWallFacesBySideCommand(),
@@ -949,11 +964,13 @@ namespace RevitMCPAddin
                 new RebarLayoutUpdateCommand(),
                 new RebarLayoutUpdateByHostCommand(),
                 new RebarMappingResolveCommand(),
+                new RebarMappingReloadCommand(),
                 new ListRebarBarTypesCommand(),
                 new ListRebarHookTypesCommand(),
                 new ImportRebarTypesFromDocumentCommand(),
                 new RebarPlanAutoCommand(),
                 new RebarApplyPlanCommand(),
+                new GetRebarHostsAndParamsCommand(),
                 new RebarSyncStatusCommand(),
                 new RebarRegenerateDeleteRecreateCommand(),
                 new RebarSpacingCheckCommand(),
@@ -983,6 +1000,7 @@ namespace RevitMCPAddin
                 new DeleteSanitaryFixtureCommand(),
                 new GetSanitaryFixtureTypesCommand(),
                 new ChangeSanitaryFixtureTypeCommand(),
+                new DuplicateSanitaryFixtureTypeCommand(),
                 new DeleteSanitaryFixtureTypeCommand(),
 
                 // Railing Operations
@@ -1019,9 +1037,12 @@ namespace RevitMCPAddin
                 new CreateFireProtectionInstanceCommand(),
                 new MoveFireProtectionInstanceCommand(),
                 new DeleteFireProtectionInstanceCommand(),
+                new DuplicateFireProtectionInstanceCommand(),
                 new GetFireProtectionParametersCommand(),
                 new SetFireProtectionParameterCommand(),
                 new GetFireProtectionTypesCommand(),
+                new GetFireProtectionTypeParametersCommand(),
+                new SetFireProtectionTypeParameterCommand(),
                 new DuplicateFireProtectionTypeCommand(),
                 new DeleteFireProtectionTypeCommand(),
                 new ChangeFireProtectionTypeCommand(),
@@ -1057,6 +1078,7 @@ namespace RevitMCPAddin
 
                 // Roof
                 new CreateRoofCommand(),
+                new GetRoofsCommand(),
                 new DeleteRoofCommand(),
                 new MoveRoofCommand(),
                 new UpdateRoofBoundaryCommand(),
@@ -1126,6 +1148,7 @@ namespace RevitMCPAddin
                 // TextNoteCommands
                 new GetTextNotesInViewCommand(),
                 new CreateTextNoteCommand(),
+                new SetTextCommand(),
                 new MoveTextNoteCommand(),
                 new DeleteTextNoteCommand(),
                 new UpdateTextNoteParameterCommand(),
@@ -1149,6 +1172,7 @@ namespace RevitMCPAddin
                 new GetInstanceParametersBulkCommand(),
                 new UpdateParametersBatchCommand(),
                 new SetParameterForElementsCommand(),
+                new TransferParameterValuesCommand(),
                 new AddSharedProjectParameterCommand(),
                 new RemoveProjectParameterBindingCommand(),
 

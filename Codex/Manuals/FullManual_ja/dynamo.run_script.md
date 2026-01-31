@@ -3,8 +3,6 @@
 - カテゴリ: Dynamo
 - 目的: Dynamo グラフ (.dyn) を入力指定付きで実行します。
 
-> ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。十分に検証した上で利用してください。
-
 ## 概要
 `RevitMCPAddin/Dynamo/Scripts` 配下の `.dyn` を Revit 内で実行します。入力は `.dyn` の `Inputs` セクションの `Name` または `Id` で一致させます。実行用に `%LOCALAPPDATA%\\RevitMCP\\dynamo\\runs` へ一時コピーを作成します。
 

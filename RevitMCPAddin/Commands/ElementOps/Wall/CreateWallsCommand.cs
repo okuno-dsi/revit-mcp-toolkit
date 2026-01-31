@@ -62,7 +62,7 @@ namespace RevitMCPAddin.Commands.ElementOps.Wall
                         double heightFt = UnitHelper.MmToFt(it.Value<double?>("heightMm") ?? 3000.0);
 
                         var line = Line.CreateBound(sp, ep);
-                        var wall = Wall.Create(doc, line, wType.Id, baseLevel.Id, heightFt, baseOffsetFt, false, isStructural);
+                        var wall = Autodesk.Revit.DB.Wall.Create(doc, line, wType.Id, baseLevel.Id, heightFt, baseOffsetFt, false, isStructural);
 
                         var pBase = wall.get_Parameter(BuiltInParameter.WALL_BASE_CONSTRAINT); if (pBase != null && !pBase.IsReadOnly) pBase.Set(baseLevel.Id);
                         var pBaseOff = wall.get_Parameter(BuiltInParameter.WALL_BASE_OFFSET); if (pBaseOff != null && !pBaseOff.IsReadOnly) pBaseOff.Set(baseOffsetFt);

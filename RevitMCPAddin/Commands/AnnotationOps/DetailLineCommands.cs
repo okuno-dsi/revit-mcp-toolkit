@@ -390,6 +390,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
     }
 
     // 6) 削除（単体）
+    [RpcCommand(
+        "view.delete_detail_line",
+        Aliases = new[] { "delete_detail_lines" }
+    )]
     public class DeleteDetailLineCommand : IRevitCommandHandler
     {
         public string CommandName => "delete_detail_line";

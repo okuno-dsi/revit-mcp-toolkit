@@ -1,10 +1,80 @@
 # Update Log (Manual + Add-in)
 
-## Summary (Short)
-- 2026-01-23: Codex GUI の入力欄リサイズ／タスクバー通知、Python Runner の MCP コマンド強調。
-- 2026-01-22: Python Runner 初登場（専用Pythonスクリプトで実行を効率化）＋保存先統一/出力改善/アイコン刷新、Client Dev Guide 追加。
-- 2026-01-20: ダイアログ自動Dismiss＋キャプチャ/OCR、空間系 bulk 取得と提案コマンド追加。
-- 2026-01-21 Dynamo 実行は **不安定なため推奨しません**（必要時のみ・検証前提）。
+## 目玉アップデート（2026-01）
+- **Python Runner（初登場）**：Revit 内で専用Pythonスクリプトを実行でき、作業効率を大幅に向上。
+- **Codex GUI 強化**：入力欄リサイズ／タスクバー通知で操作性が改善。
+- **無人運用の安定化**：ダイアログ自動Dismiss＋キャプチャ/OCR（best effort）。
+- **空間系の一括取得**：Room/Space/Area の bulk 取得＋パラメータ提案。
+- **Dynamo 実行**：機能は追加済みだが **不安定なため原則推奨しません**。
+
+## まとめ（現行版の主要更新ポイント）
+> ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
+
+### 鉄筋（Rebar）
+- AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
+- 端部/中央の配筋区分、フック、被り厚さ、柱頭/柱脚区分などの**詳細挙動の強化**。
+- レイアウト検査/更新・再生成・削除/移動など、**既存鉄筋の扱い**も拡張。
+
+### Python Runner / スクリプト運用
+- **プロジェクト単位フォルダ**への保存、Dedent、自動ポート引き渡し、Library/検索、MCPコマンド強調など、運用性を改善。
+- CodexGUI → Python Runner への**安全なスクリプト受け渡し**を整備。
+
+### 要素探索・空間要素の補正
+- 要素検索/構造化クエリ、カテゴリ解決（曖昧語の候補提示）など**探索系を強化**。
+- Room/Space/Area の取り違えを**自動補正**する仕組みを追加。
+
+### ビュー・可視化・作図
+- 色分け・線分描画・フィルタ適用などの**ビュー可視化系**を拡張。
+- スケジュール/ビュー配置/タグなどの**実務支援コマンド**を整理。
+
+### 安定性・ログ
+- failureHandling / ダイアログ対応 / ロールバック時の**情報記録強化**。
+- 実行ログやデバッグ情報の整理・安定化。
+
+---
+
+## 2026-01-28 Add-in + CodexGUI: Python script handoff (CodexGUI → Python Runner)
+
+### 目的
+- CodexGUI が生成する Python を **確実にファイル化**し、Python Runner から安全に開けるようにする。
+
+### 変更概要
+- CodexGUI: ` ```python ``` ` ブロックのみ保存対象（説明文やログを混在させない）。
+- CodexGUI: 保存先を `Work/<RevitFileName>_<docKey>/python_script/` に統一。
+- CodexGUI: `# @feature:` / `# @keywords:` を自動付与（未指定は空欄）。
+- Python Runner: CodexGUI 生成スクリプトは **Load Codex** から読み込み。
+- Python Runner: 実行時に `REVIT_MCP_PORT` を自動設定（Python 側で参照可能）。
+- Manual: `Manuals/ConnectionGuide/07_基本操作_PythonRunner_UI.md` を更新。
+
+## 2026-01-26 Add-in: AutoRebar (Beam) start/end alignment + build fix
+
+### 目的
+- 梁（構造フレーム）の始端/終端の扱いを `LocationCurve.EndPoint(0/1)` に統一し、端部・中央の配筋区分やオプションが直感通りに動作するようにする。
+- Manuals に記載済みのコマンドがビルドに入っていない等で「存在するのに使えない」状態を解消する。
+
+### 変更概要
+- AutoRebar（梁）: start/end を `LocationCurve.EndPoint(0/1)` に統一（スターラップだけでなく主筋等の start/end 系オプションにも適用）。
+  - `Beam.Attr.Stirrup.PitchStart/Mid/End` がある場合、内法長さを `1/4 + 1/2 + 1/4` に分割し、`segment=start|mid|end` の3セットでスターラップを作成（best-effort）。
+  - `hosts[].beamAxisStartEndByLocationCurve` / `hosts[].beamStirrupPitchZones` 等のデバッグ情報を追加。
+- AutoRebar（柱）:
+  - 柱の上下端について、コンクリート系の「構造柱/構造基礎」が接している場合は **軸方向の被りを 0** とみなし、主筋/帯筋が端部（ジョイント）まで届くように改善（best-effort）。
+    - `MaterialClass` が取得できる場合はそれを優先し、`steel` / `metal` / `metallic` / `鋼` / `鉄骨` 系は除外。取得できない場合はマテリアル名の文字列（例: `コンクリート` / `Concrete` / `FC*` / `RC*`）から推定。
+    - デバッグ: `hosts[].columnAxisEndConcreteNeighbor` / `hosts[].columnAxisEndCoverEffectiveMm` / `hosts[].columnAxisEndCoverEffectiveMm_ties`
+    - 一部ファミリでローカル軸が反転している場合でも、`hosts[].axisPositiveIsUp` / `hosts[].axisDotZ` で world 上下を補正し、top/bottom の判定が逆転しないように修正。
+  - 柱帯筋を中間高さで `base`（柱脚）+`head`（柱頭）に 2分割して plan を作成（既定ON）。片側の値が未指定/0 の場合は反対側を流用（仕様）。
+    - オプション: `options.columnTieSplitByMidHeight` / `options.columnTiePitchBaseMm` / `options.columnTiePitchHeadMm`
+    - mapping（任意）: `Column.Attr.Tie.PitchBaseMm` / `Column.Attr.Tie.PitchHeadMm`
+  - `Column.Attr.Tie.PatternJson` の `reference.kind` に `column_mid` を追加（中間高さ基準のパターン指定が可能）。
+- AutoRebar（梁）:
+  - 2段目/3段目の主筋は、1段目の鉄筋位置にスナップして配置（best-effort）。本数=1 は左端、2本以上は左/右を必ず含み、3本目以降は 1段目位置に合わせます。
+  - plan の主筋 action に `side` / `layerIndex` を付与（デバッグ/検証用）。
+- Build: csproj に未登録でコンパイルされていなかったコマンドをビルド対象に追加し、関連するコンパイル不具合も修正。
+  - `rename_floor_types_by_thickness` / `create_walls` / `delete_walls`
+- Manual: `rebar_plan_auto`（EN/JA）に梁の start/end 定義を追記。
+- Add-in: リボン（`RevitMCPServer` タブ）の配置を調整。
+  - Python Runner を Codex GUI の左に配置（同じ `GUI` パネル内）。
+  - Codex GUI のアイコンを “HAL” 風に変更（フォルダ風アイコンを廃止）。
+  - Python Runner: Feature/Keywords を保存し、スクリプトの **Library**（一覧/検索/削除）を追加。
 
 ## 2026-01-23 Codex GUI: Prompt vertical resize + taskbar busy indicator
 
@@ -25,16 +95,14 @@
 ### 変更概要
 - Add-in: `rpc("element.copy_elements", ...)` や `{"method":"doc.get_project_info", ...}` の **メソッド名**を濃い茶色＋ボールドで強調表示。
 
-## 2026-01-22 Add-in: Python Runner (初登場) + Client Guide
+## 2026-01-22 Add-in: Python Runner UX + Client Guide
 
 ### 目的
-- Revit 内で **専用Pythonスクリプトを実行**できるようにし、作業効率を高める。
 - Python Runner の保存先をプロジェクト単位に統一し、ゴミ混入を防止する。
 - 出力の視認性を改善し、結果だけをコピーしやすくする。
 - MCP クライアント実装の注意点をまとめ、再発防止の指針を追加する。
 
 ### 変更概要
-- Add-in: Python Runner を追加（Revit 内で専用Pythonスクリプトを実行する入口）。
 - Add-in: Python Runner の既定フォルダを `Work/<RevitFileName>_<docKey>/python_script` に変更。
 - Add-in: Save/Save As 前に dedent（共通先頭空白の削除）を適用。
 - Add-in: 出力ウィンドウの時刻表示を「出力開始時のみ」に変更。
@@ -53,7 +121,6 @@
 - Add-in: `DynamoRunner` を追加（Dynamo 反射ロード、実行、出力取得）。
 - Add-in: `dynamo.run_script` に `hardKillRevit` / `hardKillDelayMs` を追加（無人実行向け）。強制終了前にスナップショット/同期/保存/再起動を試行し、保存がブロックされる場合は UI スレッドでリトライ。強制終了前にサーバー停止と停止確認もログ化。
 - Manual: Dynamo コマンドの EN/JA 手順書を追加し、README に追記。
-  - ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。十分に検証した上で利用してください。
 
 ## 2026-01-20 Add-in: Dialog auto-dismiss + dialog capture/OCR
 
@@ -853,14 +920,11 @@
 - `view.delete_detail_line`（alias: `delete_detail_line`）が `elementIds[]` を受け付けるようにし、**一括削除**に対応しました。
   - 単体は従来通り `elementId`。
   - 安全のため、対象は `OST_Lines` の view-specific な詳細線のみ（それ以外は `skipped`）。
-- 旧実装の `delete_detail_lines` は不要になったため、実装側は削除しました（同等のことは `view.delete_detail_line` で可能）。
 
 ### 実装変更（主なファイル）
 - `RevitMCPAddin/Commands/AnnotationOps/DetailLineCommands.cs`
 - `Manuals/FullManual/delete_detail_line.md`
-- `Manuals/FullManual/delete_detail_lines.md`
 - `Manuals/FullManual_ja/delete_detail_line.md`
-- `Manuals/FullManual_ja/delete_detail_lines.md`
 - `Manuals/FullManual/commands.manifest.json`
 - `Manuals/Commands/revitmcp_commands_full.jsonl`
 - `Manuals/Commands/revitmcp_commands_extended.jsonl`

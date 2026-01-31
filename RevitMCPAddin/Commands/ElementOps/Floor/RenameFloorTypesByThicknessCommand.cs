@@ -106,11 +106,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FloorOps
                 {
                     try { total += layer.Width; } catch { }
                 }
-#if REVIT2023_OR_NEWER
                 return UnitUtils.ConvertFromInternalUnits(total, UnitTypeId.Millimeters);
-#else
-                return UnitUtils.ConvertFromInternalUnits(total, DisplayUnitType.DUT_MILLIMETERS);
-#endif
             }
             catch { return 0.0; }
         }

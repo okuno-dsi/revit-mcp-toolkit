@@ -18,13 +18,10 @@ namespace RevitMCPAddin.Core.Rebar
 {
     internal static class RebarDeleteService
     {
-        public static IList<int> CollectTaggedRebarIdsInHost(Document doc, Element host, string tag)
+        private static IEnumerable<Autodesk.Revit.DB.Structure.Rebar> EnumerateRebarsInHost(Document doc, Element host)
         {
-            var list = new List<int>();
+            var list = new List<Autodesk.Revit.DB.Structure.Rebar>();
             if (doc == null || host == null) return list;
-
-            var needle = (tag ?? string.Empty).Trim();
-            if (needle.Length == 0) return list;
 
             bool validHost = false;
             try { validHost = RebarHostData.IsValidHost(host); } catch { validHost = false; }
@@ -56,6 +53,37 @@ namespace RevitMCPAddin.Core.Rebar
                 }
                 catch { rebar = null; }
 
+                if (rebar != null) list.Add(rebar);
+            }
+
+            return list;
+        }
+
+        public static IList<int> CollectAllRebarIdsInHost(Document doc, Element host)
+        {
+            var list = new List<int>();
+            foreach (var rebar in EnumerateRebarsInHost(doc, host))
+            {
+                try
+                {
+                    int v = rebar.Id.IntValue();
+                    if (v > 0) list.Add(v);
+                }
+                catch { /* ignore */ }
+            }
+            return list.Distinct().OrderBy(x => x).ToList();
+        }
+
+        public static IList<int> CollectTaggedRebarIdsInHost(Document doc, Element host, string tag)
+        {
+            var list = new List<int>();
+            if (doc == null || host == null) return list;
+
+            var needle = (tag ?? string.Empty).Trim();
+            if (needle.Length == 0) return list;
+
+            foreach (var rebar in EnumerateRebarsInHost(doc, host))
+            {
                 if (rebar == null) continue;
 
                 string comments = string.Empty;
@@ -69,6 +97,40 @@ namespace RevitMCPAddin.Core.Rebar
                 if (comments.Length == 0) continue;
 
                 if (comments.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    try
+                    {
+                        int v = rebar.Id.IntValue();
+                        if (v > 0) list.Add(v);
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+
+            return list.Distinct().OrderBy(x => x).ToList();
+        }
+
+        public static IList<int> CollectUntaggedRebarIdsInHost(Document doc, Element host, string tag)
+        {
+            var list = new List<int>();
+            if (doc == null || host == null) return list;
+
+            var needle = (tag ?? string.Empty).Trim();
+            if (needle.Length == 0) return list; // no tag => do not classify as untagged
+
+            foreach (var rebar in EnumerateRebarsInHost(doc, host))
+            {
+                if (rebar == null) continue;
+
+                string comments = string.Empty;
+                try
+                {
+                    var p = rebar.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS);
+                    comments = p != null ? (p.AsString() ?? string.Empty) : string.Empty;
+                }
+                catch { comments = string.Empty; }
+
+                if (comments.Length == 0 || comments.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     try
                     {

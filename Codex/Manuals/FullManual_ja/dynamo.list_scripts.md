@@ -3,8 +3,6 @@
 - カテゴリ: Dynamo
 - 目的: `Dynamo/Scripts` 配下の .dyn を一覧表示します。
 
-> ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。十分に検証した上で利用してください。
-
 ## 概要
 `RevitMCPAddin/Dynamo/Scripts` に置かれた `.dyn` を列挙し、入力/出力などのメタ情報を返します。`ScriptMetadata/<name>.json` がある場合は説明や入力定義を上書きします。
 

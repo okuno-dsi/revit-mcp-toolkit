@@ -36,7 +36,6 @@
 - [create_tag](create_tag.md)
 - [create_text_note](create_text_note.md)
 - [delete_detail_line](delete_detail_line.md)
-- [delete_detail_lines](delete_detail_lines.md)
 - [delete_dimension](delete_dimension.md)
 - [delete_model_line](delete_model_line.md)
 - [delete_model_lines](delete_model_lines.md)
@@ -146,7 +145,6 @@
 
 ## DxfOps
 - [export_curves_to_dxf](export_curves_to_dxf.md)
-- [generate_dwg_merge_script_manual](generate_dwg_merge_script_manual.md)
 - [generate_dwg_merge_script](generate_dwg_merge_script.md)
 - [gen_dwg_script](gen_dwg_script.md)
 - [get_curves_by_category](get_curves_by_category.md)
@@ -597,6 +595,7 @@
 - [get_parameter_identity](get_parameter_identity.md)
 - [get_type_parameters_bulk](get_type_parameters_bulk.md)
 - [update_parameters_batch](update_parameters_batch.md)
+- [param.transfer_values](param.transfer_values.md)
 - [add_shared_project_parameter](add_shared_project_parameter.md)
 - [remove_project_parameter_binding](remove_project_parameter_binding.md)
 
@@ -633,6 +632,7 @@
 - [list_rebar_hook_types](list_rebar_hook_types.md)
 - [import_rebar_types_from_document](import_rebar_types_from_document.md)
 - [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [get_rebar_hosts_and_params](get_rebar_hosts_and_params.md)
 - [rebar_plan_auto](rebar_plan_auto.md)
 - [rebar_apply_plan](rebar_apply_plan.md)
 - [rebar_sync_status](rebar_sync_status.md)

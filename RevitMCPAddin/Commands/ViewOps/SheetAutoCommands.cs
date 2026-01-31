@@ -21,7 +21,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 {
     [RpcCommand(
         "sheet.place_view_auto",
-        Aliases = new[] { "place_view_on_sheet_auto" },
+        Aliases = new[] { "place_view_on_sheet_auto", "sheet_place_view_auto" },
         Category = "ViewSheet Ops",
         Tags = new[] { "sheet", "place", "auto" },
         Risk = RiskLevel.Medium,
@@ -566,7 +566,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
     [RpcCommand(
         "sheet.remove_titleblocks_auto",
-        Aliases = new[] { "remove_titleblocks_auto" },
+        Aliases = new[] { "remove_titleblocks_auto", "sheet_remove_titleblocks_auto" },
         Category = "ViewSheet Ops",
         Tags = new[] { "sheet", "titleblock", "remove", "auto" },
         Risk = RiskLevel.Medium,

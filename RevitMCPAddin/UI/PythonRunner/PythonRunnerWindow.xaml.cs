@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -38,6 +39,16 @@ namespace RevitMCPAddin.UI.PythonRunner
         private bool _suppressTextChange;
         private bool _needsOutputHeader = true;
         private readonly DispatcherTimer _highlightTimer;
+        private bool _suppressMetaChange;
+        private ScriptLibraryWindow? _libraryWindow;
+        private string? _lastRunHash;
+        private ScrollViewer? _scriptScrollViewer;
+        private bool _suppressLineNumbers;
+        private string? _lastInboxPath;
+
+        private static readonly Regex FeatureLineRx = new Regex("^\\s*#\\s*@feature\\s*:\\s*(?<feature>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex KeywordLineRx = new Regex("^\\s*#\\s*@keywords\\s*:\\s*(?<keywords>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex FeatureInlineRx = new Regex("^\\s*#\\s*@feature\\s*:\\s*(?<feature>[^#|]*)(?:\\|\\s*keywords\\s*:\\s*(?<keywords>.*))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public PythonRunnerWindow(string? docTitle = null, string? docKey = null)
         {
@@ -52,6 +63,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             };
 
             BtnOpen.Click += (_, __) => OpenScript();
+            BtnLoadCodex.Click += (_, __) => LoadCodexScript();
             BtnSave.Click += (_, __) => SaveScript();
             BtnSaveAs.Click += (_, __) => SaveScriptAs();
             BtnSelectAll.Click += (_, __) => SelectAllScript();
@@ -61,6 +73,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             BtnStop.Click += (_, __) => StopProcess();
             BtnCopyOut.Click += (_, __) => CopyOutput();
             BtnClearOut.Click += (_, __) => ClearOutput();
+            BtnLibrary.Click += (_, __) => OpenLibrary();
 
             ScriptBox.TextChanged += (_, __) =>
             {
@@ -68,10 +81,41 @@ namespace RevitMCPAddin.UI.PythonRunner
                 _isDirty = true;
                 UpdateStatus();
                 ScheduleHighlight();
+                UpdateLineNumbers();
+            };
+
+            TxtFeature.TextChanged += (_, __) =>
+            {
+                if (_suppressMetaChange) return;
+                _isDirty = true;
+                UpdateStatus();
+            };
+            TxtKeywords.TextChanged += (_, __) =>
+            {
+                if (_suppressMetaChange) return;
+                _isDirty = true;
+                UpdateStatus();
             };
 
             UpdateStatus();
             ApplyMcpCommandHighlight();
+
+            ScriptBox.Loaded += (_, __) =>
+            {
+                AttachScriptScrollSync();
+                UpdateLineNumbers();
+            };
+
+            // Load last script on startup (if exists)
+            try
+            {
+                var last = PythonRunnerScriptLibrary.LoadLastScript();
+                if (!string.IsNullOrWhiteSpace(last) && File.Exists(last))
+                {
+                    LoadScriptFromPathInternal(last, addOutput: false);
+                }
+            }
+            catch { /* ignore */ }
         }
 
         protected override void OnClosed(EventArgs e)
@@ -90,18 +134,16 @@ namespace RevitMCPAddin.UI.PythonRunner
             };
 
             if (dlg.ShowDialog(this) != true) return;
-            var path = dlg.FileName;
-            if (!File.Exists(path))
-            {
-                AppendOutput("Open failed: file not found.");
-                return;
-            }
+            LoadScriptFromPath(dlg.FileName);
+        }
 
-            SetScriptText(File.ReadAllText(path, Encoding.UTF8));
-            _currentPath = path;
-            _isDirty = false;
-            UpdateStatus();
-            AppendOutput("Opened: " + path);
+        private void LoadCodexScript()
+        {
+            StartOutputGroup();
+            if (!TryLoadFromInbox(addOutput: true))
+            {
+                AppendOutput("Codex script not found. (inbox is empty or file missing)");
+            }
         }
 
         private void SaveScript()
@@ -137,7 +179,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             try
             {
                 var raw = GetScriptText();
-                var normalized = DedentCommonLeadingWhitespace(raw);
+                var normalized = NormalizeScriptForSave(raw);
                 if (!string.Equals(raw, normalized, StringComparison.Ordinal))
                 {
                     _suppressTextChange = true;
@@ -149,6 +191,7 @@ namespace RevitMCPAddin.UI.PythonRunner
                 _currentPath = path;
                 _isDirty = false;
                 UpdateStatus();
+                try { PythonRunnerScriptLibrary.SaveLastScript(path); } catch { /* ignore */ }
                 AppendOutput("Saved: " + path);
             }
             catch (Exception ex)
@@ -179,7 +222,9 @@ namespace RevitMCPAddin.UI.PythonRunner
                 return;
             }
 
-            SetScriptText(Clipboard.GetText() ?? "");
+            var txt = Clipboard.GetText() ?? "";
+            SetScriptText(txt);
+            ApplyMetadataFromText(txt);
             _isDirty = true;
             UpdateStatus();
         }
@@ -219,16 +264,17 @@ namespace RevitMCPAddin.UI.PythonRunner
             {
                 var port = PortSettings.GetPort();
                 var scriptText = GetScriptText();
-                var rewritten = RewritePorts(scriptText, port, out var urlCount, out var argCount);
+                var rewritten = NormalizeScriptForSave(scriptText);
+                var rewrittenPorts = RewritePorts(rewritten, port, out var urlCount, out var argCount);
                 var endpointCount = 0;
-                rewritten = RewriteLegacyEndpoint(rewritten, out endpointCount);
+                rewrittenPorts = RewriteLegacyEndpoint(rewrittenPorts, out endpointCount);
 
                 if (urlCount > 0 || argCount > 0 || endpointCount > 0)
                 {
                     AppendOutput($"Rewrite: url={urlCount}, args={argCount}, endpoint={endpointCount} -> {port}");
                 }
 
-                var runPath = SaveRunCopy(rewritten);
+                var runPath = SaveRunCopy(rewrittenPorts);
                 AppendOutput("Run file: " + runPath);
 
                 var pythonExe = ResolvePythonExe();
@@ -238,7 +284,7 @@ namespace RevitMCPAddin.UI.PythonRunner
                     return;
                 }
 
-                await StartProcessAsync(pythonExe, runPath);
+                await StartProcessAsync(pythonExe, runPath, port);
             }
             catch (Exception ex)
             {
@@ -251,7 +297,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             }
         }
 
-        private async Task StartProcessAsync(string pythonExe, string scriptPath)
+        private async Task StartProcessAsync(string pythonExe, string scriptPath, int port)
         {
             var scriptDir = Path.GetDirectoryName(scriptPath) ?? GetDefaultFolder();
             var psi = new ProcessStartInfo
@@ -272,6 +318,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             {
                 psi.EnvironmentVariables["PYTHONHOME"] = pythonHome;
             }
+            psi.EnvironmentVariables["REVIT_MCP_PORT"] = port.ToString(CultureInfo.InvariantCulture);
             psi.EnvironmentVariables["PYTHONUTF8"] = "1";
             psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
             var baseDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Environment.CurrentDirectory;
@@ -364,11 +411,45 @@ namespace RevitMCPAddin.UI.PythonRunner
         {
             var folder = GetDefaultFolder();
             Directory.CreateDirectory(folder);
-            var fileName = $"run_{DateTime.Now:yyyyMMdd_HHmmss}.py";
-            var path = Path.Combine(folder, fileName);
-            var normalized = DedentCommonLeadingWhitespace(scriptText);
+            var path = Path.Combine(folder, "run_latest.py");
+            var normalized = NormalizeScriptForSave(scriptText);
+            var hash = ComputeSha256(normalized);
+
+            if (string.IsNullOrWhiteSpace(_lastRunHash) && File.Exists(path))
+            {
+                try
+                {
+                    var existing = File.ReadAllText(path, Encoding.UTF8);
+                    _lastRunHash = ComputeSha256(existing);
+                }
+                catch { /* ignore */ }
+            }
+
+            if (string.Equals(_lastRunHash, hash, StringComparison.OrdinalIgnoreCase) && File.Exists(path))
+            {
+                return path; // no duplicate save
+            }
+
             File.WriteAllText(path, normalized, new UTF8Encoding(false));
+            _lastRunHash = hash;
             return path;
+        }
+
+        private static string ComputeSha256(string text)
+        {
+            try
+            {
+                using (var sha = SHA256.Create())
+                {
+                    var bytes = Encoding.UTF8.GetBytes(text ?? "");
+                    var hash = sha.ComputeHash(bytes);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private string GetScriptText()
@@ -397,11 +478,206 @@ namespace RevitMCPAddin.UI.PythonRunner
                 ScriptBox.Document.Blocks.Add(p);
                 ScriptBox.Document.PageWidth = 10000;
                 ScheduleHighlight();
+                UpdateLineNumbers();
             }
             catch
             {
                 // ignore
             }
+        }
+
+        private void LoadScriptFromPath(string path)
+        {
+            LoadScriptFromPathInternal(path, addOutput: true);
+        }
+
+        private void LoadScriptFromPathInternal(string path, bool addOutput)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+            if (!File.Exists(path))
+            {
+                AppendOutput("Open failed: file not found.");
+                return;
+            }
+
+            var text = File.ReadAllText(path, Encoding.UTF8);
+            SetScriptText(text);
+            ApplyMetadataFromText(text);
+            _currentPath = path;
+            _isDirty = false;
+            UpdateStatus();
+            try { PythonRunnerScriptLibrary.SaveLastScript(path); } catch { /* ignore */ }
+            if (addOutput) AppendOutput("Opened: " + path);
+        }
+
+        private bool TryLoadFromInbox(bool addOutput)
+        {
+            try
+            {
+                var path = PythonRunnerScriptLibrary.ReadInboxScriptPath(out _);
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+                if (string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase)) return false;
+                if (string.Equals(path, _lastInboxPath, StringComparison.OrdinalIgnoreCase)) return false;
+                _lastInboxPath = path;
+                LoadScriptFromPathInternal(path, addOutput);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private void OpenLibrary()
+        {
+            if (_libraryWindow != null)
+            {
+                _libraryWindow.Activate();
+                return;
+            }
+
+            _libraryWindow = new ScriptLibraryWindow(GetDefaultFolder(), LoadScriptFromPath);
+            _libraryWindow.Owner = this;
+            _libraryWindow.Closed += (_, __) => _libraryWindow = null;
+            _libraryWindow.Show();
+        }
+
+        private void AttachScriptScrollSync()
+        {
+            try
+            {
+                _scriptScrollViewer = FindDescendant<ScrollViewer>(ScriptBox);
+                if (_scriptScrollViewer != null)
+                {
+                    _scriptScrollViewer.ScrollChanged += (_, e) =>
+                    {
+                        if (LineNumbersBox == null) return;
+                        LineNumbersBox.ScrollToVerticalOffset(e.VerticalOffset);
+                    };
+                }
+            }
+            catch { /* ignore */ }
+        }
+
+        private void UpdateLineNumbers()
+        {
+            if (_suppressLineNumbers) return;
+            if (LineNumbersBox == null) return;
+            try
+            {
+                var text = GetScriptText();
+                var lines = 1;
+                if (!string.IsNullOrEmpty(text))
+                {
+                    lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Length;
+                }
+
+                var sb = new StringBuilder();
+                for (int i = 1; i <= lines; i++) sb.Append(i).AppendLine();
+
+                _suppressLineNumbers = true;
+                LineNumbersBox.Text = sb.ToString();
+                _suppressLineNumbers = false;
+            }
+            catch
+            {
+                _suppressLineNumbers = false;
+            }
+        }
+
+        private static T FindDescendant<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var found = FindDescendant<T>(child);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        private void ApplyMetadataFromText(string text)
+        {
+            var (feature, keywords) = ExtractMetadata(text);
+            _suppressMetaChange = true;
+            TxtFeature.Text = feature;
+            TxtKeywords.Text = keywords;
+            _suppressMetaChange = false;
+        }
+
+        private (string feature, string keywords) ExtractMetadata(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return ("", "");
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            string feature = "";
+            string keywords = "";
+            int limit = Math.Min(5, lines.Length);
+            for (int i = 0; i < limit; i++)
+            {
+                var line = lines[i] ?? "";
+                if (FeatureInlineRx.IsMatch(line))
+                {
+                    var m = FeatureInlineRx.Match(line);
+                    feature = (m.Groups["feature"].Value ?? "").Trim();
+                    var kw = (m.Groups["keywords"].Value ?? "").Trim();
+                    if (!string.IsNullOrWhiteSpace(kw)) keywords = kw;
+                    continue;
+                }
+                if (FeatureLineRx.IsMatch(line))
+                {
+                    var m = FeatureLineRx.Match(line);
+                    feature = (m.Groups["feature"].Value ?? "").Trim();
+                    continue;
+                }
+                if (KeywordLineRx.IsMatch(line))
+                {
+                    var m = KeywordLineRx.Match(line);
+                    keywords = (m.Groups["keywords"].Value ?? "").Trim();
+                    continue;
+                }
+            }
+            return (feature ?? "", keywords ?? "");
+        }
+
+        private string NormalizeScriptForSave(string raw)
+        {
+            var normalized = DedentCommonLeadingWhitespace(raw ?? string.Empty);
+
+            var feature = (TxtFeature.Text ?? "").Trim();
+            var keywords = (TxtKeywords.Text ?? "").Trim();
+            var metaLine = BuildMetadataLine(feature, keywords);
+            if (string.IsNullOrWhiteSpace(metaLine))
+                return normalized;
+
+            var lines = normalized.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
+
+            // Remove existing metadata lines near the top
+            int limit = Math.Min(5, lines.Count);
+            var kept = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var line = lines[i] ?? "";
+                if (i < limit)
+                {
+                    if (FeatureLineRx.IsMatch(line) || KeywordLineRx.IsMatch(line) || FeatureInlineRx.IsMatch(line))
+                        continue;
+                }
+                kept.Add(line);
+            }
+
+            kept.Insert(0, metaLine);
+            return string.Join(Environment.NewLine, kept);
+        }
+
+        private static string BuildMetadataLine(string feature, string keywords)
+        {
+            feature = (feature ?? "").Trim();
+            keywords = (keywords ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(feature) && string.IsNullOrWhiteSpace(keywords)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(keywords)) return "# @feature: " + feature;
+            if (string.IsNullOrWhiteSpace(feature)) return "# @feature: " + "" + " | keywords: " + keywords;
+            return "# @feature: " + feature + " | keywords: " + keywords;
         }
 
         private void ScheduleHighlight()
@@ -790,7 +1066,7 @@ namespace RevitMCPAddin.UI.PythonRunner
                         if (!string.IsNullOrWhiteSpace(resultJson))
                         {
                             AppendOutput("AutoPoll result:");
-                            AppendOutput(resultJson);
+                            AppendOutput(PrettyUnwrapRpcJson(resultJson));
                         }
                         else
                         {
@@ -826,6 +1102,36 @@ namespace RevitMCPAddin.UI.PythonRunner
             EnsureOutputHeader();
             OutputBox.AppendText($"{text}{Environment.NewLine}");
             OutputBox.ScrollToEnd();
+        }
+
+        private static string PrettyUnwrapRpcJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return string.Empty;
+            try
+            {
+                var token = JToken.Parse(json);
+                var unwrapped = UnwrapRpcToken(token);
+                return unwrapped.ToString(Newtonsoft.Json.Formatting.Indented);
+            }
+            catch
+            {
+                return json;
+            }
+        }
+
+        private static JToken UnwrapRpcToken(JToken token)
+        {
+            if (token == null) return JValue.CreateNull();
+            var obj = token as JObject;
+            if (obj == null) return token;
+            var result = obj["result"] as JObject;
+            if (result != null)
+            {
+                var inner = result["result"] as JObject;
+                if (inner != null) return inner;
+                return result;
+            }
+            return token;
         }
 
         private void StartOutputGroup()

@@ -15715,30 +15715,6 @@
       }
     },
     {
-      "feature": "Export/Interop",
-      "paramsSchema": {
-        "type": "object",
-        "properties": {
-          "outPath": {
-            "type": "string"
-          },
-          "fileName": {
-            "type": "string"
-          },
-          "returnContent": {
-            "type": "boolean"
-          }
-        }
-      },
-      "category": "DxfOps",
-      "name": "generate_dwg_merge_script_manual",
-      "resultSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": true
-      }
-    },
-    {
       "feature": "Elements",
       "paramsSchema": {
         "type": "object",

@@ -5,19 +5,47 @@
 
 ## 概要
 v1 の計画ルール:
-- 構造柱: 主筋（周辺配筋: `options.columnMainBarsPerFace`）+ 帯筋（1セット、または Joint パターン時は複数セット）
+- 構造柱: 主筋（周辺配筋: `options.columnMainBarsPerFace`）+ 帯筋
+  - 既定: 中間高さで 2分割（柱脚=`base` / 柱頭=`head`）して 2 セット（`options.columnTieSplitByMidHeight=true` が既定）
+  - 任意: 帯筋パターンを指定した場合は複数セット（mapping `Column.Attr.Tie.PatternJson` または `options.columnTiePattern`）
 - 梁（構造フレーム）: 主筋（上下）+ スターラップ（1セット）
   - 既定の主筋本数: 上=2、下=2（`options.beamMainTopCount/beamMainBottomCount` または mapping の梁属性キーで上書き）
+  - 多段筋（最大3段）: mapping が `Beam.Attr.MainBar.TopCount2/TopCount3/BottomCount2/BottomCount3` を返す場合、2段目/3段目も作成します。
+    - 配置ルール（2段目/3段目）: 本数=1 は **1段目の左端位置**に揃え、本数>=2 は左端/右端を必ず含め、3本目以降は **1段目の鉄筋位置にスナップ**します（best-effort）。
+    - plan の `actions[].side` / `actions[].layerIndex` を付与します（デバッグ/検証用）。
 
 形状は近似です。梁の長手方向の範囲は Solid ジオメトリから得た物理形状の範囲を優先します（柱芯まで伸びる LocationCurve 端点だと端部のスターラップ等がずれるため）。Solid が取れない場合は BoundingBox にフォールバックします。LocationCurve 範囲は参考（デバッグ）として返します（自動化の足場用途）。
 
-柱主筋の本数（各面本数）は、mapping `Column.Attr.MainBar.BarsPerFace` が存在する場合はそれを優先します（パラメータ名は `RebarMapping.json` のプロファイルで吸収）。
+### 梁の start / end 定義（重要）
+梁（構造フレーム）の「始端/終端」は **梁の `LocationCurve` の端点**で定義します。
+
+- start（始端） = `LocationCurve.EndPoint(0)`
+- end（終端） = `LocationCurve.EndPoint(1)`
+
+この定義は **スターラップだけでなく主筋等の start/end 系オプション**（例: `beamMainBarStartExtensionMm/EndExtensionMm`、`beamMainBarStartBend*/EndBend*`、`beamStirrupStartOffsetMm/EndOffsetMm`）に共通で適用されます。
+
+内部実装では、Revit の shape-driven レイアウトの都合上「軸方向は min→max（axisStart < axisEnd）」の順を維持します。そのため、`EndPoint(0)` が軸の max 側にある場合は **min/max と start/end をマッピング**します。デバッグ用途で `hosts[].beamAxisStartEndByLocationCurve.startIsMinAxis` を返します。
+
+柱主筋の本数（各面本数）は、mapping が `Column.Attr.MainBar.BarsPerFaceX` / `Column.Attr.MainBar.BarsPerFaceY` を返す場合はそれを優先し、無い場合は `Column.Attr.MainBar.BarsPerFace` を使用します（パラメータ名は `RebarMapping.json` のプロファイルで吸収）。
+
+- `BarsPerFaceX` / `BarsPerFaceY` は「各面の本数（4隅込み）」として扱います。矩形柱では 4隅が重複しないように座標で de-dup し、概ね合計本数は `2*X + 2*Y - 4` になります（best-effort）。
+- 代表例（SIRBIM）: `BarsPerFaceX` は **Y軸方向に平行な面**（= X固定の面）に並ぶ鉄筋本数、`BarsPerFaceY` は **X軸方向に平行な面**（= Y固定の面）に並ぶ鉄筋本数、という命名規約です。
 
 #### 被り厚さ（Cover）の扱い
 - 可能な限り、ホスト要素インスタンスの「鉄筋被り」設定（例: `CLEAR_COVER_TOP/BOTTOM/OTHER` → `RebarCoverType.CoverDistance`）を読み取り、配筋位置に反映します。
 - mapping が `Host.Cover.Top/Bottom/Other` を返す場合は、それを優先して上書きします（best-effort）。これは、プロジェクト/ファミリが被りをカスタムのインスタンスパラメータ（例: `かぶり厚-上`）で持っていて、Revit標準のかぶりタイプが実質 `0` になっている場合の救済にも使えます。
 - 反映された値は `hosts[].coversMm` に入り、`sources` で由来（`hostInstance` / `mapping` / `default`）も返します。
 - さらに、ホスト要素が「面ごとの被り」をインスタンスパラメータ（例: `かぶり厚-上/下/左/右`）として持っている場合は、**断面方向の配置**にはそれらを優先して使います（best-effort）。この値は `hosts[].coverFacesMm`（up/down/left/right）として返します。Revit標準の「かぶりタイプ（ElementId）」を書き換えるものではありません。
+
+#### 柱の上下端（軸方向）の被り厚さ（上/下）の扱い
+- 既定（`options.columnAxisEndCoverUsesConcreteNeighborCheck=true`）では、柱の上下端について **軸方向の被り**（上端=top / 下端=bottom）は「端部が外部に露出している場合のみ」適用します。
+- 柱の上/下に **コンクリート系**の「構造柱」「構造基礎」が接していると推定できる場合は、その側の軸方向被りを **0** とみなし、主筋/帯筋が端部（ジョイント）まで届くようにします（best-effort）。
+- コンクリート判定は best-effort で、`MaterialClass` が取得できる場合はそれを優先し（`steel` / `metal` / `metallic` / `鋼` / `鉄骨` 系は除外）、取得できない場合はマテリアル名の文字列（例: `コンクリート` / `Concrete` / `FC*` / `RC*` など）で判定します。
+- 一部のファミリではローカル軸が反転していることがあります。その場合でも `hosts[].axisPositiveIsUp`（+軸が world 上方向か）/`hosts[].axisDotZ` を使って world の上/下を補正し、top/bottom の判定（被り/隣接判定）が逆転しないようにしています（best-effort）。
+- デバッグ出力:
+  - 検出結果: `hosts[].columnAxisEndConcreteNeighbor`
+  - 適用した軸方向被り: `hosts[].columnAxisEndCoverEffectiveMm` / `hosts[].columnAxisEndCoverEffectiveMm_ties`
+  - 主筋の端部延長のクランプ: `hosts[].columnMainBarAxisExtensionMm`
 
 #### 被り厚さ（Cover）の確認（安全運用）
 - 被り厚さのパラメータ名は、プロジェクト/ファミリ作成者/言語によって変わります。ツール側で「どのパラメータを読むべきか」が確定できない場合（または被りが `options.coverMinMm` 未満の場合）は、`ok:false` / `code:"COVER_CONFIRMATION_REQUIRED"` を返して停止します（この状態では作図しません）。
@@ -108,8 +136,14 @@ v1 の計画ルール:
 | options.columnMainBarStartBendDir | string | no | `none` | `up`/`down`/`none`（world Z基準）。 |
 | options.columnMainBarEndBendDir | string | no | `none` | `up`/`down`/`none`（world Z基準）。 |
 | options.columnMainBarsPerFace | int | no | 2 | 柱主筋の「各面の本数」（>=2）。2 は四隅のみ、5 は 16本（矩形柱の例）。 |
+| options.columnAxisEndCoverUsesConcreteNeighborCheck | bool | no | true | true の場合、柱上下端の「コンクリート系の構造柱/構造基礎」の隣接を推定し、端部が外部露出でない側は **軸方向被りを0** とみなします（best-effort）。 |
+| options.columnConcreteNeighborSearchRangeMm | number | no | 1500 | コンクリート隣接推定の探索範囲（柱上下端周り、mm）。 |
+| options.columnConcreteNeighborTouchTolMm | number | no | 50 | 軸方向の「端部面に接している」判定の許容（mm）。 |
 | options.columnTieBottomOffsetMm | number | no | 0 | 柱下端面から最初の帯筋までのオフセット(mm)。 |
 | options.columnTieTopOffsetMm | number | no | 0 | 柱上端面から最後の帯筋までのオフセット(mm)。 |
+| options.columnTieSplitByMidHeight | bool | no | true | true の場合、柱帯筋を中間高さで 2分割し、`base`（柱脚）+`head`（柱頭）の 2セットにします。 |
+| options.columnTiePitchBaseMm | number | no |  | 柱脚（base）側の帯筋ピッチ(mm)。未指定/0 の場合は柱頭側の値を流用、なければ `Common.Arrangement.Spacing` を使用します。 |
+| options.columnTiePitchHeadMm | number | no |  | 柱頭（head）側の帯筋ピッチ(mm)。未指定/0 の場合は柱脚側の値を流用、なければ `Common.Arrangement.Spacing` を使用します。 |
 | options.columnTieUseHooks | bool | no | true | true の場合でも柱帯筋は閉ループのまま作成し、作成後にインスタンスパラメータでフック種別/回転を設定します（best-effort）。 |
 | options.columnTieHookAngleDeg | number | no | 0 | フック角度（deg、例: `135`）。未指定でフック有効の場合は `135` を既定とします（best-effort）。`columnTieHookTypeName` が未指定の場合に一致する `RebarHookType` を探索します。 |
 | options.columnTieHookTypeName | string | no |  | `RebarHookType` の正確な名前（角度より優先）。 |
@@ -139,6 +173,8 @@ v1 の計画ルール:
 - `planVersion` / `mappingStatus` / `hosts[]`（`actions[]` に曲線と layout を含む）
 
 ## Column.Attr.Tie.PatternJson（例）
+reference.kind の対応: `beam_top` / `beam_bottom` / `column_top` / `column_bottom` / `column_mid`。
+
 `Column.Attr.Tie.PatternJson`（または `options.columnTiePattern`）は次のような JSON です（例: 梁上面を基準に、上3本@100、下2本@150）。
 ```json
 {
@@ -146,6 +182,17 @@ v1 の計画ルール:
   "segments": [
     { "name": "above", "direction": "up", "startOffsetMm": 0, "count": 3, "pitchMm": 100 },
     { "name": "below", "direction": "down", "startOffsetMm": 150, "count": 2, "pitchMm": 150 }
+  ]
+}
+```
+
+中間高さ（`column_mid`）を基準にする例:
+```json
+{
+  "reference": { "kind": "column_mid", "offsetMm": 0 },
+  "segments": [
+    { "name": "head", "direction": "up", "startOffsetMm": 0, "count": 6, "pitchMm": 100 },
+    { "name": "base", "direction": "down", "startOffsetMm": 0, "count": 6, "pitchMm": 100 }
   ]
 }
 ```

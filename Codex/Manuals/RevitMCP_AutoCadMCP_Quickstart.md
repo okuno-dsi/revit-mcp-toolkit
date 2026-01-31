@@ -125,21 +125,21 @@ python Manuals/Scripts/merge_dwgs_perfile_safe.py ^
 - 既知の罠: Core Console が LAYMRG 確認で待機しタイムアウトする環境あり（E_ACCORE_TIMEOUT）。
 
 B) DXF経由（より安定・推奨、要 TrustedPaths）
-- スクリプト（管理者推奨）: `tools/AutoCad/Run_MergeByDXF.ps1`
+- スクリプト（管理者推奨）: `Tools/AutoCad/Run_MergeByDXF.ps1`
   - 変換: -SAVEAS/-DXFOUT で DWG→DXF（2018）
   - 置換: DXFテキスト内のレイヤ名 `A-WALL-____-MCUT` を `A-WALL-____-MCUT_<stem>` に一括置換
   - 統合: DXFIN で順次取り込み → PURGE/AUDIT → SAVEAS (2018)
 - 実行例
 
 ```
-pwsh -File tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe" -Locale ja-JP
+pwsh -File Tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe" -Locale ja-JP
 ```
 
 - 事前に TrustedPaths を AutoCAD に設定（GUI: オプション→ファイル→信頼できる位置）
   - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut`
 
 C) COM経由（AutoCAD起動中、最も直感的）
-- スクリプト: `tools/AutoCad/merge_dwgs_by_map_com.py`
+- スクリプト: `Tools/AutoCad/merge_dwgs_by_map_com.py`
 - 依存ライブラリ: `pywin32`（AutoCAD COM 用）
   - AI エージェントが必要に応じてインストール支援します:  
     `python -m pip install pywin32`
@@ -147,7 +147,7 @@ C) COM経由（AutoCAD起動中、最も直感的）
 - 例（DWG統合＋レイヤマップ適用）:
 
 ```
-python tools/AutoCad/merge_dwgs_by_map_com.py ^
+python Tools/AutoCad/merge_dwgs_by_map_com.py ^
   --source-dir C:/.../Work/dwg ^
   --out-dwg C:/.../Work/dwg/MERGED_DWG_COM.dwg ^
   --map-csv C:/.../Work/dwg/layermap.csv
@@ -182,7 +182,7 @@ python tools/AutoCad/merge_dwgs_by_map_com.py ^
    - `Invoke-RestMethod http://127.0.0.1:5251/health`
 6. 統合
    - 直接: `merge_dwgs_perfile_rename`（include=`A-WALL-____-MCUT`）
-   - 安定: `tools/AutoCad/Run_MergeByDXF.ps1`（TrustedPaths 追加済で）
+   - 安定: `Tools/AutoCad/Run_MergeByDXF.ps1`（TrustedPaths 追加済で）
 
 ---
 
@@ -191,8 +191,8 @@ python tools/AutoCad/merge_dwgs_by_map_com.py ^
 - スクリプト一覧: `Manuals/Scripts/README.md`
 - 送信: `Manuals/Scripts/send_revit_command_durable.py`
 - 便利スクリプト（本件向け）
-  - `tools/AutoCad/Run_MergeByDXF.ps1`
-  - `tools/AutoCad/ConvertToDxfOutDir.ps1`
+  - `Tools/AutoCad/Run_MergeByDXF.ps1`
+  - `Tools/AutoCad/ConvertToDxfOutDir.ps1`
 
 以上。これに沿って順に実行すれば、次回起動時も最短で統合まで到達できます。
 

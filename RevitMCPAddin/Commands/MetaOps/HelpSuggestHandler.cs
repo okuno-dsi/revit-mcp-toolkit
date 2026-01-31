@@ -30,6 +30,7 @@ namespace RevitMCPAddin.Commands.MetaOps
     }
 
     [RpcCommand("help.suggest",
+        Aliases = new[] { "help_suggest" },
         Category = "MetaOps",
         Tags = new[] { "help", "discovery" },
         Risk = RiskLevel.Low,

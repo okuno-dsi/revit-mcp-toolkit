@@ -3,8 +3,6 @@
 - Category: Dynamo
 - Purpose: List available Dynamo .dyn scripts from the controlled Scripts folder.
 
-> ⚠ Warning: Dynamo execution is environment-dependent and often unstable. **Not recommended** unless you have verified it in your Revit/Dynamo setup.
-
 ## Overview
 This command enumerates `.dyn` files under `RevitMCPAddin/Dynamo/Scripts` and returns basic metadata (inputs/outputs). If a matching `ScriptMetadata/<name>.json` exists, its description/inputs override the defaults.
 

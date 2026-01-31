@@ -48,6 +48,12 @@ namespace RevitMCPAddin.Core
             public string[] coverDownParamNames = null;
             public string[] coverLeftParamNames = null;
             public string[] coverRightParamNames = null;
+            public string[] coverRoundParamNames = null;
+
+            // Concrete detection tokens (optional overrides)
+            public string[] concreteTokens = null;
+            public string[] concreteExcludeTokens = null;
+            public string[] concreteExcludeMaterialClasses = null;
 
             // Beam main bars: user-specified counts (overrides mapping/default when provided)
             public int? beamMainTopCount;
@@ -89,6 +95,24 @@ namespace RevitMCPAddin.Core
             // Example: 5 => 16 bars total for a rectangular column (5*2 + 5*2 - 4).
             public int columnMainBarsPerFace = 2;
 
+            // Column: axis-end cover handling.
+            // If true (default), top/bottom cover along the column axis is applied only when the end is "exposed".
+            // When the column end is in contact with another *concrete* structural column / structural foundation,
+            // the axis-direction cover is treated as 0 (joint interior), so bars/ties can reach the joint.
+            public bool columnAxisEndCoverUsesConcreteNeighborCheck = true;
+            public double columnConcreteNeighborSearchRangeMm = 1500.0;
+            public double columnConcreteNeighborTouchTolMm = 50.0;
+
+            // Column ties: split into base/head by mid-height (default true).
+            // - lower half => "base"
+            // - upper half => "head"
+            public bool columnTieSplitByMidHeight = true;
+            // Column main bars: split into foot/head by mid-height (default true).
+            public bool columnMainBarSplitByMidHeight = true;
+            // Optional per-zone spacing overrides (mm). If one side is missing/<=0, it is copied from the other side.
+            public double? columnTiePitchBaseMm = null;
+            public double? columnTiePitchHeadMm = null;
+
             // Beam stirrups: which corner is the first segment start.
             public string beamStirrupStartCorner = "top_left"; // bottom_left|bottom_right|top_right|top_left
 
@@ -118,6 +142,9 @@ namespace RevitMCPAddin.Core
             // Column ties: start/end offsets from the physical end faces (mm) along the column axis.
             public double columnTieBottomOffsetMm;
             public double columnTieTopOffsetMm;
+            // Column ties: preferred RebarShape (use selected sample when available).
+            public bool columnTieShapeFromSelection = true;
+            public int columnTieShapeId = 0;
 
             // Column ties: joint-focused non-uniform pattern around "beam top" (best-effort).
             // When enabled, the default column tie layout is replaced by 2 shape-driven sets:
@@ -190,6 +217,16 @@ namespace RevitMCPAddin.Core
                     o.columnMainBarEndBendDir = (obj.Value<string>("columnMainBarEndBendDir") ?? "none").Trim().ToLowerInvariant();
                     if (string.IsNullOrWhiteSpace(o.columnMainBarEndBendDir)) o.columnMainBarEndBendDir = "none";
                     o.columnMainBarsPerFace = Math.Max(2, obj.Value<int?>("columnMainBarsPerFace") ?? o.columnMainBarsPerFace);
+                    o.columnAxisEndCoverUsesConcreteNeighborCheck = obj.Value<bool?>("columnAxisEndCoverUsesConcreteNeighborCheck") ?? true;
+                    o.columnConcreteNeighborSearchRangeMm = obj.Value<double?>("columnConcreteNeighborSearchRangeMm") ?? o.columnConcreteNeighborSearchRangeMm;
+                    o.columnConcreteNeighborTouchTolMm = obj.Value<double?>("columnConcreteNeighborTouchTolMm") ?? o.columnConcreteNeighborTouchTolMm;
+                    if (!(o.columnConcreteNeighborSearchRangeMm > 1.0)) o.columnConcreteNeighborSearchRangeMm = 1500.0;
+                    if (!(o.columnConcreteNeighborTouchTolMm > 0.0)) o.columnConcreteNeighborTouchTolMm = 50.0;
+
+                    o.columnTieSplitByMidHeight = obj.Value<bool?>("columnTieSplitByMidHeight") ?? true;
+                    o.columnMainBarSplitByMidHeight = obj.Value<bool?>("columnMainBarSplitByMidHeight") ?? true;
+                    o.columnTiePitchBaseMm = obj.Value<double?>("columnTiePitchBaseMm");
+                    o.columnTiePitchHeadMm = obj.Value<double?>("columnTiePitchHeadMm");
 
                     o.beamStirrupStartCorner = (obj.Value<string>("beamStirrupStartCorner") ?? "top_left").Trim().ToLowerInvariant();
                     if (string.IsNullOrWhiteSpace(o.beamStirrupStartCorner)) o.beamStirrupStartCorner = "top_left";
@@ -220,6 +257,8 @@ namespace RevitMCPAddin.Core
                     o.columnTieHookEndRotationDeg = obj.Value<double?>("columnTieHookEndRotationDeg") ?? 179.9;
                     o.columnTieBottomOffsetMm = obj.Value<double?>("columnTieBottomOffsetMm") ?? 0.0;
                     o.columnTieTopOffsetMm = obj.Value<double?>("columnTieTopOffsetMm") ?? 0.0;
+                    o.columnTieShapeFromSelection = obj.Value<bool?>("columnTieShapeFromSelection") ?? true;
+                    o.columnTieShapeId = obj.Value<int?>("columnTieShapeId") ?? 0;
 
                     o.columnTieJointPatternEnabled = obj.Value<bool?>("columnTieJointPatternEnabled") ?? false;
                     o.columnTieJointAboveCount = Math.Max(0, obj.Value<int?>("columnTieJointAboveCount") ?? o.columnTieJointAboveCount);
@@ -250,7 +289,16 @@ namespace RevitMCPAddin.Core
                             o.coverDownParamNames = ReadStringArray(coverNames["down"]);
                             o.coverLeftParamNames = ReadStringArray(coverNames["left"]);
                             o.coverRightParamNames = ReadStringArray(coverNames["right"]);
+                            o.coverRoundParamNames = ReadStringArray(coverNames["round"]);
                         }
+                    }
+                    catch { /* ignore */ }
+
+                    try
+                    {
+                        o.concreteTokens = ReadStringArray(obj["concreteTokens"]);
+                        o.concreteExcludeTokens = ReadStringArray(obj["concreteExcludeTokens"]);
+                        o.concreteExcludeMaterialClasses = ReadStringArray(obj["concreteExcludeMaterialClasses"]);
                     }
                     catch { /* ignore */ }
 
@@ -302,12 +350,23 @@ namespace RevitMCPAddin.Core
         private sealed class ColumnMappedRebarSpec
         {
             public int? mainBarsPerFace;
+            public int? mainBarsPerFaceX;
+            public int? mainBarsPerFaceY;
+            public int? mainBarsPerFaceXHead;
+            public int? mainBarsPerFaceXFoot;
+            public int? mainBarsPerFaceYHead;
+            public int? mainBarsPerFaceYFoot;
+            public int? mainBarTotalCount;
+            public int? mainBarTotalCountHead;
+            public int? mainBarTotalCountFoot;
             public string tiePatternJson = string.Empty;
+            public double? tiePitchBaseMm;
+            public double? tiePitchHeadMm;
         }
 
         private sealed class ColumnTiePatternSpec
         {
-            public string referenceKind = "beam_top"; // beam_top|beam_bottom|column_top|column_bottom
+            public string referenceKind = "beam_top"; // beam_top|beam_bottom|column_top|column_bottom|column_mid
             public double referenceOffsetMm;
             public double beamSearchRangeMm = 1500.0;
             public double beamXYToleranceMm = 250.0;
@@ -369,6 +428,15 @@ namespace RevitMCPAddin.Core
                 if (!TryFindBarTypeByName(doc, barTypeName, out var barType))
                     throw new System.InvalidOperationException("Bar type not found: " + barTypeName);
 
+                Autodesk.Revit.DB.Structure.RebarShape desiredShape = null;
+                try
+                {
+                    int shapeIdVal = aTok.Value<int?>("shapeId") ?? 0;
+                    if (shapeIdVal > 0)
+                        desiredShape = doc.GetElement(ElementIdCompat.From(shapeIdVal)) as Autodesk.Revit.DB.Structure.RebarShape;
+                }
+                catch { /* ignore */ }
+
                 var curvesArr = aTok["curves"] as JArray;
                 if (curvesArr == null || curvesArr.Count == 0)
                     continue;
@@ -391,8 +459,69 @@ namespace RevitMCPAddin.Core
                         var p1 = TryParsePointMm(e);
                         curves.Add(Line.CreateBound(p0, p1));
                     }
+                    else if (kind == "arc")
+                    {
+                        var s = cTok["start"] as JObject;
+                        var e = cTok["end"] as JObject;
+                        var c = cTok["center"] as JObject;
+                        if (s == null || e == null || c == null) continue;
+                        var p0 = TryParsePointMm(s);
+                        var p1 = TryParsePointMm(e);
+                        var pc = TryParsePointMm(c);
+                        try
+                        {
+                            var v0 = p0 - pc;
+                            var v1 = p1 - pc;
+                            if (v0.GetLength() < 1e-9 || v1.GetLength() < 1e-9) continue;
+                            var xAxis = v0.Normalize();
+                            XYZ nrm = XYZ.BasisZ;
+                            var nTok = cTok["normal"] as JObject;
+                            if (nTok != null)
+                            {
+                                nrm = TryParseVectorMm(nTok);
+                            }
+                            if (nrm.GetLength() < 1e-9)
+                            {
+                                // Fallback to cross product
+                                nrm = v0.CrossProduct(v1);
+                            }
+                            if (nrm.GetLength() < 1e-9) nrm = XYZ.BasisZ;
+                            nrm = nrm.Normalize();
+                            var yAxis = nrm.CrossProduct(xAxis);
+                            if (yAxis.GetLength() < 1e-9) continue;
+                            yAxis = yAxis.Normalize();
+                            double ang = Math.Atan2(v1.DotProduct(yAxis), v1.DotProduct(xAxis));
+                            if (ang <= 1e-9) ang += Math.PI * 2.0;
+                            double radius = v0.GetLength();
+                            var arc = Arc.Create(pc, radius, 0.0, ang, xAxis, yAxis);
+                            curves.Add(arc);
+                        }
+                        catch { /* ignore */ }
+                    }
+                    else if (kind == "polyline")
+                    {
+                        var ptsArr = cTok["points"] as JArray;
+                        if (ptsArr == null || ptsArr.Count < 2) continue;
+                        XYZ prev = null;
+                        foreach (var pTok in ptsArr.OfType<JObject>())
+                        {
+                            var p = TryParsePointMm(pTok);
+                            if (prev != null)
+                            {
+                                curves.Add(Line.CreateBound(prev, p));
+                            }
+                            prev = p;
+                        }
+                    }
                 }
                 if (curves.Count == 0) continue;
+
+                List<Curve> curvesAlt = null;
+                try
+                {
+                    curvesAlt = BuildPolylineFromCurves(curves);
+                }
+                catch { /* ignore */ }
 
                     var style = styleStr.Equals("StirrupTie", StringComparison.OrdinalIgnoreCase) ? RebarStyle.StirrupTie : RebarStyle.Standard;
 
@@ -437,15 +566,53 @@ namespace RevitMCPAddin.Core
 
                     if (hookRequested && isClosed)
                     {
-                        rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
-                            doc, style, barType, null, null, host, normal, curves,
-                            RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
+                        // If a preferred RebarShape is provided (e.g., from a manual sample), try it first.
+                        if (desiredShape != null)
+                        {
+                            rebar = TryCreateFromCurvesAndShape(doc, desiredShape, barType, null, null, host, normal, curves,
+                                RebarHookOrientation.Left, RebarHookOrientation.Right);
+                        }
+                        if (rebar == null)
+                        {
+                            // Try using existing shapes only (avoid creating new shape from arcs).
+                            try
+                            {
+                                rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                    doc, style, barType, null, null, host, normal, curves,
+                                    RebarHookOrientation.Left, RebarHookOrientation.Right, true, false);
+                            }
+                            catch { /* ignore */ }
+                        }
+                        if (rebar == null)
+                        {
+                            rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                doc, style, barType, null, null, host, normal, curves,
+                                RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
+                        }
                     }
                     else
                     {
-                        rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
-                            doc, style, barType, startHook, endHook, host, normal, curves,
-                            startOrient, endOrient, true, true);
+                        if (desiredShape != null)
+                        {
+                            rebar = TryCreateFromCurvesAndShape(doc, desiredShape, barType, startHook, endHook, host, normal, curves,
+                                startOrient, endOrient);
+                        }
+                        if (rebar == null)
+                        {
+                            try
+                            {
+                                rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                    doc, style, barType, startHook, endHook, host, normal, curves,
+                                    startOrient, endOrient, true, false);
+                            }
+                            catch { /* ignore */ }
+                        }
+                        if (rebar == null)
+                        {
+                            rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                doc, style, barType, startHook, endHook, host, normal, curves,
+                                startOrient, endOrient, true, true);
+                        }
                     }
                 }
                 catch
@@ -454,25 +621,50 @@ namespace RevitMCPAddin.Core
                     // 1) Try without hooks.
                     try
                     {
-                        rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
-                            doc, style, barType, null, null, host, normal, curves,
-                            RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
+                        try
+                        {
+                            rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                doc, style, barType, null, null, host, normal, curves,
+                                RebarHookOrientation.Left, RebarHookOrientation.Right, true, false);
+                        }
+                        catch { /* ignore */ }
+                        if (rebar == null)
+                        {
+                            rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                doc, style, barType, null, null, host, normal, curves,
+                                RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
+                        }
                     }
                     catch
                     {
-                        // 2) Try any hook type (some rebar styles reject some hook styles).
-                        if (style == RebarStyle.StirrupTie)
+                        // 1.5) Try polyline approximation (when arc loops cause internal errors).
+                        try
                         {
-                            var hook = TryGetAnyHookType(doc, style);
-                            if (hook != null)
+                            if (curvesAlt != null && curvesAlt.Count > 1)
                             {
                                 rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
-                                    doc, style, barType, hook, hook, host, normal, curves,
+                                    doc, style, barType, null, null, host, normal, curvesAlt,
                                     RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
                             }
-                            else throw;
                         }
-                        else throw;
+                        catch { /* ignore */ }
+
+                        // 2) Try any hook type (some rebar styles reject some hook styles).
+                        // Only try if we still have no rebar, and never propagate the exception.
+                        if (rebar == null && style == RebarStyle.StirrupTie)
+                        {
+                            try
+                            {
+                                var hook = TryGetAnyHookType(doc, style);
+                                if (hook != null)
+                                {
+                                    rebar = Autodesk.Revit.DB.Structure.Rebar.CreateFromCurves(
+                                        doc, style, barType, hook, hook, host, normal, curves,
+                                        RebarHookOrientation.Left, RebarHookOrientation.Right, true, true);
+                                }
+                            }
+                            catch { /* ignore */ }
+                        }
                     }
                 }
 
@@ -591,6 +783,26 @@ namespace RevitMCPAddin.Core
             public int? bottomCount2;
             public int? bottomCount3;
             public bool hasLayerCounts;
+            public bool hasZoneCounts;
+            // Zone counts (Start/Mid/End) for layers (Top/Bottom + 2nd/3rd).
+            public int? topCountStart;
+            public int? topCountMid;
+            public int? topCountEnd;
+            public int? topCount2Start;
+            public int? topCount2Mid;
+            public int? topCount2End;
+            public int? topCount3Start;
+            public int? topCount3Mid;
+            public int? topCount3End;
+            public int? bottomCountStart;
+            public int? bottomCountMid;
+            public int? bottomCountEnd;
+            public int? bottomCount2Start;
+            public int? bottomCount2Mid;
+            public int? bottomCount2End;
+            public int? bottomCount3Start;
+            public int? bottomCount3Mid;
+            public int? bottomCount3End;
 
             public int? stirrupDiaMm; // optional
             public string stirrupSymbol = "D"; // optional for deriving bar type name like {symbol}{dia}
@@ -627,6 +839,53 @@ namespace RevitMCPAddin.Core
                 if (bottom2.HasValue) spec.bottomCount2 = Math.Max(0, bottom2.Value);
                 if (bottom3.HasValue) spec.bottomCount3 = Math.Max(0, bottom3.Value);
 
+                // Zone counts (start/mid/end) for main bars (layer 1..3)
+                var topStart = values.Value<int?>("Beam.Attr.MainBar.TopCountStart");
+                var topMid = values.Value<int?>("Beam.Attr.MainBar.TopCountMid");
+                var topEnd = values.Value<int?>("Beam.Attr.MainBar.TopCountEnd");
+                var top2Start = values.Value<int?>("Beam.Attr.MainBar.TopCount2Start");
+                var top2Mid = values.Value<int?>("Beam.Attr.MainBar.TopCount2Mid");
+                var top2End = values.Value<int?>("Beam.Attr.MainBar.TopCount2End");
+                var top3Start = values.Value<int?>("Beam.Attr.MainBar.TopCount3Start");
+                var top3Mid = values.Value<int?>("Beam.Attr.MainBar.TopCount3Mid");
+                var top3End = values.Value<int?>("Beam.Attr.MainBar.TopCount3End");
+
+                var bottomStart = values.Value<int?>("Beam.Attr.MainBar.BottomCountStart");
+                var bottomMid = values.Value<int?>("Beam.Attr.MainBar.BottomCountMid");
+                var bottomEnd = values.Value<int?>("Beam.Attr.MainBar.BottomCountEnd");
+                var bottom2Start = values.Value<int?>("Beam.Attr.MainBar.BottomCount2Start");
+                var bottom2Mid = values.Value<int?>("Beam.Attr.MainBar.BottomCount2Mid");
+                var bottom2End = values.Value<int?>("Beam.Attr.MainBar.BottomCount2End");
+                var bottom3Start = values.Value<int?>("Beam.Attr.MainBar.BottomCount3Start");
+                var bottom3Mid = values.Value<int?>("Beam.Attr.MainBar.BottomCount3Mid");
+                var bottom3End = values.Value<int?>("Beam.Attr.MainBar.BottomCount3End");
+
+                spec.hasZoneCounts = topStart.HasValue || topMid.HasValue || topEnd.HasValue
+                    || top2Start.HasValue || top2Mid.HasValue || top2End.HasValue
+                    || top3Start.HasValue || top3Mid.HasValue || top3End.HasValue
+                    || bottomStart.HasValue || bottomMid.HasValue || bottomEnd.HasValue
+                    || bottom2Start.HasValue || bottom2Mid.HasValue || bottom2End.HasValue
+                    || bottom3Start.HasValue || bottom3Mid.HasValue || bottom3End.HasValue;
+
+                if (topStart.HasValue) spec.topCountStart = Math.Max(0, topStart.Value);
+                if (topMid.HasValue) spec.topCountMid = Math.Max(0, topMid.Value);
+                if (topEnd.HasValue) spec.topCountEnd = Math.Max(0, topEnd.Value);
+                if (top2Start.HasValue) spec.topCount2Start = Math.Max(0, top2Start.Value);
+                if (top2Mid.HasValue) spec.topCount2Mid = Math.Max(0, top2Mid.Value);
+                if (top2End.HasValue) spec.topCount2End = Math.Max(0, top2End.Value);
+                if (top3Start.HasValue) spec.topCount3Start = Math.Max(0, top3Start.Value);
+                if (top3Mid.HasValue) spec.topCount3Mid = Math.Max(0, top3Mid.Value);
+                if (top3End.HasValue) spec.topCount3End = Math.Max(0, top3End.Value);
+                if (bottomStart.HasValue) spec.bottomCountStart = Math.Max(0, bottomStart.Value);
+                if (bottomMid.HasValue) spec.bottomCountMid = Math.Max(0, bottomMid.Value);
+                if (bottomEnd.HasValue) spec.bottomCountEnd = Math.Max(0, bottomEnd.Value);
+                if (bottom2Start.HasValue) spec.bottomCount2Start = Math.Max(0, bottom2Start.Value);
+                if (bottom2Mid.HasValue) spec.bottomCount2Mid = Math.Max(0, bottom2Mid.Value);
+                if (bottom2End.HasValue) spec.bottomCount2End = Math.Max(0, bottom2End.Value);
+                if (bottom3Start.HasValue) spec.bottomCount3Start = Math.Max(0, bottom3Start.Value);
+                if (bottom3Mid.HasValue) spec.bottomCount3Mid = Math.Max(0, bottom3Mid.Value);
+                if (bottom3End.HasValue) spec.bottomCount3End = Math.Max(0, bottom3End.Value);
+
                 spec.stirrupDiaMm = values.Value<int?>("Beam.Attr.Stirrup.DiameterMm");
 
                 var sym = (values.Value<string>("Beam.Attr.Stirrup.Symbol") ?? string.Empty).Trim();
@@ -657,7 +916,26 @@ namespace RevitMCPAddin.Core
                         ["topCount3"] = spec.topCount3,
                         ["bottomCount2"] = spec.bottomCount2,
                         ["bottomCount3"] = spec.bottomCount3,
-                        ["countsFound"] = spec.hasMainCounts
+                        ["countsFound"] = spec.hasMainCounts,
+                        ["zoneCountsFound"] = spec.hasZoneCounts,
+                        ["topCountStart"] = spec.topCountStart,
+                        ["topCountMid"] = spec.topCountMid,
+                        ["topCountEnd"] = spec.topCountEnd,
+                        ["topCount2Start"] = spec.topCount2Start,
+                        ["topCount2Mid"] = spec.topCount2Mid,
+                        ["topCount2End"] = spec.topCount2End,
+                        ["topCount3Start"] = spec.topCount3Start,
+                        ["topCount3Mid"] = spec.topCount3Mid,
+                        ["topCount3End"] = spec.topCount3End,
+                        ["bottomCountStart"] = spec.bottomCountStart,
+                        ["bottomCountMid"] = spec.bottomCountMid,
+                        ["bottomCountEnd"] = spec.bottomCountEnd,
+                        ["bottomCount2Start"] = spec.bottomCount2Start,
+                        ["bottomCount2Mid"] = spec.bottomCount2Mid,
+                        ["bottomCount2End"] = spec.bottomCount2End,
+                        ["bottomCount3Start"] = spec.bottomCount3Start,
+                        ["bottomCount3Mid"] = spec.bottomCount3Mid,
+                        ["bottomCount3End"] = spec.bottomCount3End
                     },
                     ["stirrups"] = new JObject
                     {
@@ -695,19 +973,68 @@ namespace RevitMCPAddin.Core
 
             try
             {
+                var pfx = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceX");
+                if (pfx.HasValue) spec.mainBarsPerFaceX = Math.Max(2, pfx.Value);
+                var pfy = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceY");
+                if (pfy.HasValue) spec.mainBarsPerFaceY = Math.Max(2, pfy.Value);
+
                 var pf = values.Value<int?>("Column.Attr.MainBar.BarsPerFace");
                 if (pf.HasValue) spec.mainBarsPerFace = Math.Max(2, pf.Value);
+
+                var pfxH = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceXHead");
+                if (pfxH.HasValue) spec.mainBarsPerFaceXHead = Math.Max(2, pfxH.Value);
+                var pfxF = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceXFoot");
+                if (pfxF.HasValue) spec.mainBarsPerFaceXFoot = Math.Max(2, pfxF.Value);
+                var pfyH = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceYHead");
+                if (pfyH.HasValue) spec.mainBarsPerFaceYHead = Math.Max(2, pfyH.Value);
+                var pfyF = values.Value<int?>("Column.Attr.MainBar.BarsPerFaceYFoot");
+                if (pfyF.HasValue) spec.mainBarsPerFaceYFoot = Math.Max(2, pfyF.Value);
+
+                var pt = values.Value<int?>("Column.Attr.MainBar.TotalCount");
+                if (pt.HasValue) spec.mainBarTotalCount = Math.Max(0, pt.Value);
+                var ptH = values.Value<int?>("Column.Attr.MainBar.TotalCountHead");
+                if (ptH.HasValue) spec.mainBarTotalCountHead = Math.Max(0, ptH.Value);
+                var ptF = values.Value<int?>("Column.Attr.MainBar.TotalCountFoot");
+                if (ptF.HasValue) spec.mainBarTotalCountFoot = Math.Max(0, ptF.Value);
 
                 var pat = (values.Value<string>("Column.Attr.Tie.PatternJson") ?? string.Empty).Trim();
                 if (!string.IsNullOrWhiteSpace(pat)) spec.tiePatternJson = pat;
 
+                var pb = values.Value<double?>("Column.Attr.Tie.PitchBaseMm");
+                if (pb.HasValue) spec.tiePitchBaseMm = pb;
+                var ph = values.Value<double?>("Column.Attr.Tie.PitchHeadMm");
+                if (ph.HasValue) spec.tiePitchHeadMm = ph;
+
                 debug = new JObject
                 {
                     ["mainBarsPerFace"] = spec.mainBarsPerFace,
-                    ["tiePatternJson"] = string.IsNullOrWhiteSpace(spec.tiePatternJson) ? null : "(present)"
+                    ["mainBarsPerFaceX"] = spec.mainBarsPerFaceX,
+                    ["mainBarsPerFaceY"] = spec.mainBarsPerFaceY,
+                    ["mainBarsPerFaceXHead"] = spec.mainBarsPerFaceXHead,
+                    ["mainBarsPerFaceXFoot"] = spec.mainBarsPerFaceXFoot,
+                    ["mainBarsPerFaceYHead"] = spec.mainBarsPerFaceYHead,
+                    ["mainBarsPerFaceYFoot"] = spec.mainBarsPerFaceYFoot,
+                    ["mainBarTotalCount"] = spec.mainBarTotalCount,
+                    ["mainBarTotalCountHead"] = spec.mainBarTotalCountHead,
+                    ["mainBarTotalCountFoot"] = spec.mainBarTotalCountFoot,
+                    ["tiePatternJson"] = string.IsNullOrWhiteSpace(spec.tiePatternJson) ? null : "(present)",
+                    ["tiePitchBaseMm"] = spec.tiePitchBaseMm,
+                    ["tiePitchHeadMm"] = spec.tiePitchHeadMm
                 };
 
-                return spec.mainBarsPerFace.HasValue || !string.IsNullOrWhiteSpace(spec.tiePatternJson);
+                return spec.mainBarsPerFace.HasValue
+                       || spec.mainBarsPerFaceX.HasValue
+                       || spec.mainBarsPerFaceY.HasValue
+                       || spec.mainBarsPerFaceXHead.HasValue
+                       || spec.mainBarsPerFaceXFoot.HasValue
+                       || spec.mainBarsPerFaceYHead.HasValue
+                       || spec.mainBarsPerFaceYFoot.HasValue
+                       || spec.mainBarTotalCount.HasValue
+                       || spec.mainBarTotalCountHead.HasValue
+                       || spec.mainBarTotalCountFoot.HasValue
+                       || !string.IsNullOrWhiteSpace(spec.tiePatternJson)
+                       || (spec.tiePitchBaseMm.HasValue && spec.tiePitchBaseMm.Value > 0.0)
+                       || (spec.tiePitchHeadMm.HasValue && spec.tiePitchHeadMm.Value > 0.0);
             }
             catch
             {
@@ -782,7 +1109,7 @@ namespace RevitMCPAddin.Core
                 }
 
                 var rk = (spec.referenceKind ?? string.Empty).Trim().ToLowerInvariant();
-                if (rk != "beam_top" && rk != "beam_bottom" && rk != "column_top" && rk != "column_bottom")
+                if (rk != "beam_top" && rk != "beam_bottom" && rk != "column_top" && rk != "column_bottom" && rk != "column_mid")
                 {
                     errorMsg = "Unknown referenceKind: '" + spec.referenceKind + "'.";
                     return false;
@@ -1434,6 +1761,12 @@ namespace RevitMCPAddin.Core
                 ok = true;
                 dbg = new JObject { ["source"] = "column_top" };
             }
+            else if (rk == "column_mid")
+            {
+                refFt = (axisStartFt + axisEndFt) / 2.0;
+                ok = true;
+                dbg = new JObject { ["source"] = "column_mid" };
+            }
             else if (rk == "beam_top" || rk == "beam_bottom")
             {
                 bool useTop = rk == "beam_top";
@@ -1501,6 +1834,13 @@ namespace RevitMCPAddin.Core
                     {
                         try
                         {
+                            var el = uidoc.Document.GetElement(id);
+                            if (el == null) continue;
+                            int catId = 0;
+                            try { catId = el.Category != null && el.Category.Id != null ? el.Category.Id.IntValue() : 0; } catch { catId = 0; }
+                            if (catId != (int)BuiltInCategory.OST_StructuralColumns
+                                && catId != (int)BuiltInCategory.OST_StructuralFraming)
+                                continue;
                             int v = id.IntValue();
                             if (v > 0) hostIds.Add(v);
                         }
@@ -1521,6 +1861,51 @@ namespace RevitMCPAddin.Core
             return true;
         }
 
+        private static bool TryGetSelectedTieShapeId(UIApplication uiapp, Document doc, out ElementId shapeId, out string shapeName)
+        {
+            shapeId = ElementId.InvalidElementId;
+            shapeName = string.Empty;
+
+            var uidoc = uiapp != null ? uiapp.ActiveUIDocument : null;
+            if (uidoc == null || doc == null) return false;
+
+            try
+            {
+                foreach (var id in uidoc.Selection.GetElementIds())
+                {
+                    Element el = null;
+                    try { el = doc.GetElement(id); } catch { el = null; }
+                    if (el == null) continue;
+
+                    var rebar = el as Autodesk.Revit.DB.Structure.Rebar;
+                    if (rebar == null) continue;
+
+                    ElementId sid = ElementId.InvalidElementId;
+                    try
+                    {
+                        var pShape = rebar.get_Parameter(BuiltInParameter.REBAR_SHAPE);
+                        if (pShape != null) sid = pShape.AsElementId();
+                    }
+                    catch { /* ignore */ }
+
+                    if (sid == null || sid == ElementId.InvalidElementId) continue;
+
+                    shapeId = sid;
+                    try
+                    {
+                        var shape = doc.GetElement(sid) as Autodesk.Revit.DB.Structure.RebarShape;
+                        if (shape != null) shapeName = shape.Name ?? string.Empty;
+                    }
+                    catch { /* ignore */ }
+
+                    return true;
+                }
+            }
+            catch { /* ignore */ }
+
+            return false;
+        }
+
         public static JObject BuildPlan(UIApplication uiapp, Document doc, JObject p)
         {
             if (doc == null) return ResultUtil.Err("アクティブドキュメントがありません。", "NO_DOC");
@@ -1532,18 +1917,65 @@ namespace RevitMCPAddin.Core
             var profile = (p.Value<string>("profile") ?? string.Empty).Trim();
             if (profile.Length == 0) profile = null;
 
-            bool deleteExistingTaggedInHosts = p.Value<bool?>("deleteExistingTaggedInHosts") ?? false;
-            if (!deleteExistingTaggedInHosts)
+            // Concrete detection tokens (include/exclude) and material-class filters
+            var concreteTokens = (opts.concreteTokens != null && opts.concreteTokens.Length > 0) ? opts.concreteTokens : DefaultConcreteTokens;
+            var concreteExcludeTokens = (opts.concreteExcludeTokens != null && opts.concreteExcludeTokens.Length > 0) ? opts.concreteExcludeTokens : DefaultConcreteExcludeTokens;
+            var concreteExcludeMaterialClasses = (opts.concreteExcludeMaterialClasses != null && opts.concreteExcludeMaterialClasses.Length > 0)
+                ? opts.concreteExcludeMaterialClasses
+                : DefaultConcreteExcludeMaterialClasses;
+
+            // Optional: use a selected stirrup/hoop sample to choose RebarShape for column ties.
+            ElementId selectedTieShapeId = ElementId.InvalidElementId;
+            string selectedTieShapeName = string.Empty;
+            try
             {
-                try
+                if (opts.columnTieShapeId > 0)
                 {
-                    var o = p["options"] as JObject;
-                    if (o != null) deleteExistingTaggedInHosts = o.Value<bool?>("deleteExistingTaggedInHosts") ?? false;
+                    selectedTieShapeId = ElementIdCompat.From(opts.columnTieShapeId);
+                    var shape = doc.GetElement(selectedTieShapeId) as Autodesk.Revit.DB.Structure.RebarShape;
+                    if (shape != null) selectedTieShapeName = shape.Name ?? string.Empty;
                 }
-                catch { /* ignore */ }
+                if (selectedTieShapeId == null || selectedTieShapeId == ElementId.InvalidElementId)
+                {
+                    if (opts.columnTieShapeFromSelection)
+                    {
+                        TryGetSelectedTieShapeId(uiapp, doc, out selectedTieShapeId, out selectedTieShapeName);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            bool hasDeleteTagged = p["deleteExistingTaggedInHosts"] != null;
+            bool hasDeleteUntagged = p["deleteExistingUntaggedInHosts"] != null;
+            bool hasDeleteAll = p["deleteExistingAllInHosts"] != null;
+
+            // Default behavior: delete tool-tagged rebars before creation.
+            bool deleteExistingTaggedInHosts = hasDeleteTagged ? (p.Value<bool?>("deleteExistingTaggedInHosts") ?? false) : true;
+            bool deleteExistingUntaggedInHosts = hasDeleteUntagged ? (p.Value<bool?>("deleteExistingUntaggedInHosts") ?? false) : false;
+            bool deleteExistingAllInHosts = hasDeleteAll ? (p.Value<bool?>("deleteExistingAllInHosts") ?? false) : false;
+
+            try
+            {
+                var o = p["options"] as JObject;
+                if (o != null)
+                {
+                    if (!hasDeleteTagged && o["deleteExistingTaggedInHosts"] != null)
+                        deleteExistingTaggedInHosts = o.Value<bool?>("deleteExistingTaggedInHosts") ?? deleteExistingTaggedInHosts;
+                    if (!hasDeleteUntagged && o["deleteExistingUntaggedInHosts"] != null)
+                        deleteExistingUntaggedInHosts = o.Value<bool?>("deleteExistingUntaggedInHosts") ?? deleteExistingUntaggedInHosts;
+                    if (!hasDeleteAll && o["deleteExistingAllInHosts"] != null)
+                        deleteExistingAllInHosts = o.Value<bool?>("deleteExistingAllInHosts") ?? deleteExistingAllInHosts;
+                }
+            }
+            catch { /* ignore */ }
+
+            if (deleteExistingAllInHosts)
+            {
+                deleteExistingTaggedInHosts = true;
+                deleteExistingUntaggedInHosts = true;
             }
 
-             var mappingKeysBase = new[]
+             var mappingKeysCommon = new[]
              {
                  "Common.MainBar.BarType",
                  "Common.TieBar.BarType",
@@ -1556,10 +1988,26 @@ namespace RevitMCPAddin.Core
                  "Common.Arrangement.BarsOnNormalSide",
                  "Host.Cover.Top",
                  "Host.Cover.Bottom",
-                 "Host.Cover.Other",
+                 "Host.Cover.Other"
+             };
+
+             var mappingKeysColumnAttr = new[]
+             {
                  // Column attribute keys (optional; prefer attributes over hardcoded options)
                  "Column.Attr.MainBar.BarsPerFace",
-                 "Column.Attr.Tie.PatternJson"
+                 "Column.Attr.MainBar.BarsPerFaceX",
+                 "Column.Attr.MainBar.BarsPerFaceY",
+                 "Column.Attr.MainBar.BarsPerFaceXHead",
+                 "Column.Attr.MainBar.BarsPerFaceXFoot",
+                 "Column.Attr.MainBar.BarsPerFaceYHead",
+                 "Column.Attr.MainBar.BarsPerFaceYFoot",
+                 "Column.Attr.MainBar.TotalCount",
+                 "Column.Attr.MainBar.TotalCountHead",
+                 "Column.Attr.MainBar.TotalCountFoot",
+                 "Column.Attr.Tie.PatternJson",
+                 // Column tie zoning (optional)
+                 "Column.Attr.Tie.PitchBaseMm",
+                 "Column.Attr.Tie.PitchHeadMm"
              };
 
             var mappingKeysBeamAttr = new[]
@@ -1571,6 +2019,25 @@ namespace RevitMCPAddin.Core
                 "Beam.Attr.MainBar.BottomCount",
                 "Beam.Attr.MainBar.BottomCount2",
                 "Beam.Attr.MainBar.BottomCount3",
+                // Beam main bars (zoned counts: start/mid/end)
+                "Beam.Attr.MainBar.TopCountStart",
+                "Beam.Attr.MainBar.TopCountMid",
+                "Beam.Attr.MainBar.TopCountEnd",
+                "Beam.Attr.MainBar.TopCount2Start",
+                "Beam.Attr.MainBar.TopCount2Mid",
+                "Beam.Attr.MainBar.TopCount2End",
+                "Beam.Attr.MainBar.TopCount3Start",
+                "Beam.Attr.MainBar.TopCount3Mid",
+                "Beam.Attr.MainBar.TopCount3End",
+                "Beam.Attr.MainBar.BottomCountStart",
+                "Beam.Attr.MainBar.BottomCountMid",
+                "Beam.Attr.MainBar.BottomCountEnd",
+                "Beam.Attr.MainBar.BottomCount2Start",
+                "Beam.Attr.MainBar.BottomCount2Mid",
+                "Beam.Attr.MainBar.BottomCount2End",
+                "Beam.Attr.MainBar.BottomCount3Start",
+                "Beam.Attr.MainBar.BottomCount3Mid",
+                "Beam.Attr.MainBar.BottomCount3End",
                 "Beam.Attr.Stirrup.Symbol",
                 "Beam.Attr.Stirrup.DiameterMm",
                 "Beam.Attr.Stirrup.PitchMidMm",
@@ -1630,11 +2097,22 @@ namespace RevitMCPAddin.Core
                 bool validHost = false;
                 try { validHost = RebarHostData.IsValidHost(host); } catch { validHost = false; }
                 hostObj["isValidRebarHost"] = validHost;
+                if (selectedTieShapeId != null && selectedTieShapeId != ElementId.InvalidElementId)
+                {
+                    hostObj["columnTieShape"] = new JObject
+                    {
+                        ["id"] = selectedTieShapeId.IntValue(),
+                        ["name"] = selectedTieShapeName
+                    };
+                }
 
                 JObject resolved;
-                IEnumerable<string> keyList = mappingKeysBase;
+                IEnumerable<string> keyList = mappingKeysCommon;
                 try
                 {
+                    if (isColumn)
+                        keyList = keyList.Concat(mappingKeysColumnAttr);
+
                     if (isFraming && opts.beamUseTypeParams)
                     {
                         bool includeBeamKeys = false;
@@ -1650,13 +2128,38 @@ namespace RevitMCPAddin.Core
 
                                 if (prof != null)
                                 {
-                                    // Include only if the matched profile defines at least one beam-attribute key.
-                                    if (prof.TryGetEntry("Beam.Attr.MainBar.DiameterMm", out var _)
-                                        || prof.TryGetEntry("Beam.Attr.MainBar.TopCount", out var _2)
-                                        || prof.TryGetEntry("Beam.Attr.Stirrup.DiameterMm", out var _3)
-                                        || prof.TryGetEntry("Beam.Attr.Stirrup.PitchMidMm", out var _4))
+                                    // Include beam attribute keys whenever the profile defines ANY Beam.Attr.* key,
+                                    // not only mid-pitch. This ensures start/end/center settings are all honored.
+                                    try
                                     {
-                                        includeBeamKeys = true;
+                                        if (prof.Keys.Any(k => k.StartsWith("Beam.Attr.", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            includeBeamKeys = true;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        // Fallback: previous minimal checks (still allow start/end/mid)
+                            if (prof.TryGetEntry("Beam.Attr.MainBar.DiameterMm", out var _)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCount", out var _2)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCount2", out var _2b)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCount3", out var _2c)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCount", out var _3a)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCount2", out var _3b)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCount3", out var _3c)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCountStart", out var _zs1)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCountMid", out var _zm1)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.TopCountEnd", out var _ze1)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCountStart", out var _zs2)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCountMid", out var _zm2)
+                                || prof.TryGetEntry("Beam.Attr.MainBar.BottomCountEnd", out var _ze2)
+                                || prof.TryGetEntry("Beam.Attr.Stirrup.DiameterMm", out var _4)
+                                || prof.TryGetEntry("Beam.Attr.Stirrup.PitchMidMm", out var _5)
+                                || prof.TryGetEntry("Beam.Attr.Stirrup.PitchStartMm", out var _6)
+                                || prof.TryGetEntry("Beam.Attr.Stirrup.PitchEndMm", out var _7))
+                                        {
+                                            includeBeamKeys = true;
+                                        }
                                     }
                                 }
                             }
@@ -1664,7 +2167,7 @@ namespace RevitMCPAddin.Core
                         catch { includeBeamKeys = false; }
 
                         if (includeBeamKeys)
-                            keyList = mappingKeysBase.Concat(mappingKeysBeamAttr);
+                            keyList = keyList.Concat(mappingKeysBeamAttr);
                     }
                 }
                 catch { /* ignore */ }
@@ -1723,6 +2226,27 @@ namespace RevitMCPAddin.Core
                         if (v.HasValue) { coverBottomMm = v.Value; coverBottomSource = "mapping"; }
                         v = values.Value<double?>("Host.Cover.Other");
                         if (v.HasValue) { coverOtherMm = v.Value; coverOtherSource = "mapping"; }
+                    }
+                }
+                catch { /* ignore */ }
+
+                // Circular columns may expose a single cover parameter (e.g., "かぶり厚-丸").
+                // If present, apply it to all faces and axis ends.
+                try
+                {
+                    double mm;
+                    string hit;
+                    var roundNames = (opts.coverRoundParamNames != null && opts.coverRoundParamNames.Length > 0)
+                        ? opts.coverRoundParamNames
+                        : new[] { "かぶり厚-丸", "Rebar Cover - Round", "CoverRound", "Cover_Round" };
+                    if (TryGetHostCoverParamMm(host, roundNames, out mm, out hit) && mm >= 0.0)
+                    {
+                        coverTopMm = mm;
+                        coverBottomMm = mm;
+                        coverOtherMm = mm;
+                        coverTopSource = "instanceParam:" + hit;
+                        coverBottomSource = "instanceParam:" + hit;
+                        coverOtherSource = "instanceParam:" + hit;
                     }
                 }
                 catch { /* ignore */ }
@@ -1944,14 +2468,93 @@ namespace RevitMCPAddin.Core
                 }
                 catch { /* ignore */ }
 
-                int columnMainBarsPerFaceEffective = Math.Max(2, opts.columnMainBarsPerFace);
-                string columnMainBarsPerFaceSource = "options";
+                int columnMainBarsPerFaceXEffective = Math.Max(2, opts.columnMainBarsPerFace);
+                int columnMainBarsPerFaceYEffective = Math.Max(2, opts.columnMainBarsPerFace);
+                string columnMainBarsPerFaceXSource = "options";
+                string columnMainBarsPerFaceYSource = "options";
+                int columnMainBarTotalCountEffective = 0;
+                string columnMainBarTotalCountSource = "none";
+                int columnMainBarsPerFaceXHead = 0, columnMainBarsPerFaceXFoot = 0;
+                int columnMainBarsPerFaceYHead = 0, columnMainBarsPerFaceYFoot = 0;
+                int columnMainBarTotalCountHead = 0, columnMainBarTotalCountFoot = 0;
+                bool hasHeadFootCounts = false;
                 try
                 {
-                    if (isColumn && colSpec != null && colSpec.mainBarsPerFace.HasValue && colSpec.mainBarsPerFace.Value >= 2)
+                    if (isColumn && colSpec != null)
                     {
-                        columnMainBarsPerFaceEffective = colSpec.mainBarsPerFace.Value;
-                        columnMainBarsPerFaceSource = "mapping";
+                        bool hasXY = (colSpec.mainBarsPerFaceX.HasValue && colSpec.mainBarsPerFaceX.Value >= 2)
+                                     || (colSpec.mainBarsPerFaceY.HasValue && colSpec.mainBarsPerFaceY.Value >= 2);
+
+                        if (hasXY)
+                        {
+                            if (colSpec.mainBarsPerFaceX.HasValue && colSpec.mainBarsPerFaceX.Value >= 2)
+                            {
+                                columnMainBarsPerFaceXEffective = colSpec.mainBarsPerFaceX.Value;
+                                columnMainBarsPerFaceXSource = "mapping";
+                            }
+                            if (colSpec.mainBarsPerFaceY.HasValue && colSpec.mainBarsPerFaceY.Value >= 2)
+                            {
+                                columnMainBarsPerFaceYEffective = colSpec.mainBarsPerFaceY.Value;
+                                columnMainBarsPerFaceYSource = "mapping";
+                            }
+
+                            // If only one side is specified, apply it to both (common BIM convention).
+                            if (columnMainBarsPerFaceXSource != "mapping" && columnMainBarsPerFaceYSource == "mapping")
+                            {
+                                columnMainBarsPerFaceXEffective = columnMainBarsPerFaceYEffective;
+                                columnMainBarsPerFaceXSource = "mapping";
+                            }
+                            if (columnMainBarsPerFaceYSource != "mapping" && columnMainBarsPerFaceXSource == "mapping")
+                            {
+                                columnMainBarsPerFaceYEffective = columnMainBarsPerFaceXEffective;
+                                columnMainBarsPerFaceYSource = "mapping";
+                            }
+                        }
+                        else if (colSpec.mainBarsPerFace.HasValue && colSpec.mainBarsPerFace.Value >= 2)
+                        {
+                            columnMainBarsPerFaceXEffective = colSpec.mainBarsPerFace.Value;
+                            columnMainBarsPerFaceYEffective = colSpec.mainBarsPerFace.Value;
+                            columnMainBarsPerFaceXSource = "mapping";
+                            columnMainBarsPerFaceYSource = "mapping";
+                        }
+
+                        if (colSpec.mainBarTotalCount.HasValue && colSpec.mainBarTotalCount.Value > 0)
+                        {
+                            columnMainBarTotalCountEffective = Math.Max(0, colSpec.mainBarTotalCount.Value);
+                            columnMainBarTotalCountSource = "mapping";
+                        }
+
+                        // Head/Foot overrides (if present)
+                        if (colSpec.mainBarsPerFaceXHead.HasValue && colSpec.mainBarsPerFaceXHead.Value >= 2)
+                        {
+                            columnMainBarsPerFaceXHead = colSpec.mainBarsPerFaceXHead.Value;
+                            hasHeadFootCounts = true;
+                        }
+                        if (colSpec.mainBarsPerFaceXFoot.HasValue && colSpec.mainBarsPerFaceXFoot.Value >= 2)
+                        {
+                            columnMainBarsPerFaceXFoot = colSpec.mainBarsPerFaceXFoot.Value;
+                            hasHeadFootCounts = true;
+                        }
+                        if (colSpec.mainBarsPerFaceYHead.HasValue && colSpec.mainBarsPerFaceYHead.Value >= 2)
+                        {
+                            columnMainBarsPerFaceYHead = colSpec.mainBarsPerFaceYHead.Value;
+                            hasHeadFootCounts = true;
+                        }
+                        if (colSpec.mainBarsPerFaceYFoot.HasValue && colSpec.mainBarsPerFaceYFoot.Value >= 2)
+                        {
+                            columnMainBarsPerFaceYFoot = colSpec.mainBarsPerFaceYFoot.Value;
+                            hasHeadFootCounts = true;
+                        }
+                        if (colSpec.mainBarTotalCountHead.HasValue && colSpec.mainBarTotalCountHead.Value > 0)
+                        {
+                            columnMainBarTotalCountHead = colSpec.mainBarTotalCountHead.Value;
+                            hasHeadFootCounts = true;
+                        }
+                        if (colSpec.mainBarTotalCountFoot.HasValue && colSpec.mainBarTotalCountFoot.Value > 0)
+                        {
+                            columnMainBarTotalCountFoot = colSpec.mainBarTotalCountFoot.Value;
+                            hasHeadFootCounts = true;
+                        }
                     }
                 }
                 catch { /* ignore */ }
@@ -1959,9 +2562,33 @@ namespace RevitMCPAddin.Core
                 {
                     hostObj["columnMainBarsPerFace"] = new JObject
                     {
-                        ["value"] = columnMainBarsPerFaceEffective,
-                        ["source"] = columnMainBarsPerFaceSource
+                        ["value"] = (columnMainBarsPerFaceXEffective == columnMainBarsPerFaceYEffective) ? (JToken)columnMainBarsPerFaceXEffective : JValue.CreateNull(),
+                        ["source"] = (columnMainBarsPerFaceXSource == columnMainBarsPerFaceYSource) ? (JToken)columnMainBarsPerFaceXSource : "mixed",
+                        ["x"] = columnMainBarsPerFaceXEffective,
+                        ["y"] = columnMainBarsPerFaceYEffective,
+                        ["sourceX"] = columnMainBarsPerFaceXSource,
+                        ["sourceY"] = columnMainBarsPerFaceYSource
                     };
+                    if (columnMainBarTotalCountEffective > 0)
+                    {
+                        hostObj["columnMainBarTotalCount"] = new JObject
+                        {
+                            ["value"] = columnMainBarTotalCountEffective,
+                            ["source"] = columnMainBarTotalCountSource
+                        };
+                    }
+                    if (hasHeadFootCounts)
+                    {
+                        hostObj["columnMainBarHeadFootCounts"] = new JObject
+                        {
+                            ["xHead"] = columnMainBarsPerFaceXHead > 0 ? (JToken)columnMainBarsPerFaceXHead : JValue.CreateNull(),
+                            ["xFoot"] = columnMainBarsPerFaceXFoot > 0 ? (JToken)columnMainBarsPerFaceXFoot : JValue.CreateNull(),
+                            ["yHead"] = columnMainBarsPerFaceYHead > 0 ? (JToken)columnMainBarsPerFaceYHead : JValue.CreateNull(),
+                            ["yFoot"] = columnMainBarsPerFaceYFoot > 0 ? (JToken)columnMainBarsPerFaceYFoot : JValue.CreateNull(),
+                            ["totalHead"] = columnMainBarTotalCountHead > 0 ? (JToken)columnMainBarTotalCountHead : JValue.CreateNull(),
+                            ["totalFoot"] = columnMainBarTotalCountFoot > 0 ? (JToken)columnMainBarTotalCountFoot : JValue.CreateNull()
+                        };
+                    }
                 }
 
                 // If beamSpec provides bar types and user did not override, prefer it.
@@ -2086,6 +2713,14 @@ namespace RevitMCPAddin.Core
                     };
                 }
 
+                double tieBarDiaFt = 0.0;
+                try
+                {
+                    if (tieBarType != null && (opts.includeTies || opts.includeStirrups))
+                        tieBarDiaFt = tieBarType.BarModelDiameter;
+                }
+                catch { /* ignore */ }
+
                 if (!TryGetHostTransform(host, out var tr) || tr == null) tr = Transform.Identity;
                 if (!TryGetLocalBox(host, tr, out var localBox, out var bboxMsg))
                 {
@@ -2123,11 +2758,82 @@ namespace RevitMCPAddin.Core
                 hostObj["upIndex"] = upIndex;
                 hostObj["sideIndex"] = sideIndex;
 
+                // Detect circular column section (best-effort) and diameter
+                bool isCircularColumn = false;
+                double columnDiameterFt = 0.0;
+                string columnCircularSource = null;
+                try
+                {
+                    if (isColumn)
+                    {
+                        ElementType typeElem = null;
+                        try
+                        {
+                            var tid = host?.GetTypeId();
+                            if (tid != null && tid != ElementId.InvalidElementId)
+                                typeElem = doc.GetElement(tid) as ElementType;
+                        }
+                        catch { typeElem = null; }
+
+                        if (TryDetectCircularColumn(doc, host, typeElem, localBox, crossA, crossB, out var diaFt, out var src))
+                        {
+                            isCircularColumn = true;
+                            columnDiameterFt = diaFt;
+                            columnCircularSource = src;
+                        }
+
+                        hostObj["columnSection"] = new JObject
+                        {
+                            ["shape"] = isCircularColumn ? "circular" : "rectangular",
+                            ["diameterMm"] = isCircularColumn ? (JToken)UnitHelper.FtToMm(columnDiameterFt) : JValue.CreateNull(),
+                            ["source"] = string.IsNullOrWhiteSpace(columnCircularSource) ? null : columnCircularSource
+                        };
+                    }
+                }
+                catch { /* ignore */ }
+
                 var actions = new JArray();
                 hostObj["actions"] = actions;
 
-                double coverTopFt = UnitHelper.MmToFt(coverTopMm);
-                double coverBottomFt = UnitHelper.MmToFt(coverBottomMm);
+                // Axis-end cover uses coverTop/Bottom unless they are zero/unset; then fall back to per-face values.
+                double axisCoverTopMm = coverTopMm;
+                double axisCoverBottomMm = coverBottomMm;
+                string axisCoverTopSource = coverTopSource;
+                string axisCoverBottomSource = coverBottomSource;
+                if (axisCoverTopMm <= 0.0 && faceUpMm > 0.0)
+                {
+                    axisCoverTopMm = faceUpMm;
+                    axisCoverTopSource = "faceUp";
+                }
+                if (axisCoverBottomMm <= 0.0 && faceDownMm > 0.0)
+                {
+                    axisCoverBottomMm = faceDownMm;
+                    axisCoverBottomSource = "faceDown";
+                }
+                // If min-cover clamped face values are larger, honor them for axis ends too (unless later zeroed by concrete-neighbor check).
+                if (faceUpMm > axisCoverTopMm)
+                {
+                    axisCoverTopMm = faceUpMm;
+                    axisCoverTopSource = "faceUp";
+                }
+                if (faceDownMm > axisCoverBottomMm)
+                {
+                    axisCoverBottomMm = faceDownMm;
+                    axisCoverBottomSource = "faceDown";
+                }
+                if (isColumn)
+                {
+                    hostObj["columnAxisEndCoverBaseMm"] = new JObject
+                    {
+                        ["top"] = axisCoverTopMm,
+                        ["bottom"] = axisCoverBottomMm,
+                        ["sourceTop"] = axisCoverTopSource,
+                        ["sourceBottom"] = axisCoverBottomSource
+                    };
+                }
+
+                double coverTopFt = UnitHelper.MmToFt(axisCoverTopMm);
+                double coverBottomFt = UnitHelper.MmToFt(axisCoverBottomMm);
                 double coverOtherFt = UnitHelper.MmToFt(coverOtherMm);
                 double faceUpFt = UnitHelper.MmToFt(faceUpMm);
                 double faceDownFt = UnitHelper.MmToFt(faceDownMm);
@@ -2137,13 +2843,309 @@ namespace RevitMCPAddin.Core
                 var axisBasis = GetBasisVectorByIndex(tr, axisIndex);
                 if (axisBasis.GetLength() < 1e-9) axisBasis = XYZ.BasisZ;
 
+                // Column axis direction vs world Z (some families may have inverted local Z).
+                bool axisPositiveIsUp = true;
+                double axisDotZ = 0.0;
+                try
+                {
+                    var n = axisBasis;
+                    if (n != null && n.GetLength() > 1e-9)
+                    {
+                        n = n.Normalize();
+                        axisDotZ = n.DotProduct(XYZ.BasisZ);
+                        axisPositiveIsUp = axisDotZ >= 0.0;
+                    }
+                }
+                catch { axisPositiveIsUp = true; axisDotZ = 0.0; }
+                if (isColumn)
+                {
+                    hostObj["axisPositiveIsUp"] = axisPositiveIsUp;
+                    hostObj["axisDotZ"] = Math.Round(axisDotZ, 6);
+                }
+  
+                // Beam "start/end" definition:
+                //  - start = LocationCurve.EndPoint(0)
+                //  - end   = LocationCurve.EndPoint(1)
+                // The axis range computations typically use min/max along axisIndex, so we keep a mapping flag here.
+                bool beamStartIsMinAxis = true; // default (safe)
+                try
+                {
+                    if (isFraming && TryGetBeamAxisCoordsFromLocationCurve(host, tr, axisIndex, out var end0Axis, out var end1Axis))
+                    {
+                        beamStartIsMinAxis = end0Axis <= end1Axis;
+                        hostObj["beamAxisStartEndByLocationCurve"] = new JObject
+                        {
+                            ["end0AxisMm"] = UnitHelper.FtToMm(end0Axis),
+                            ["end1AxisMm"] = UnitHelper.FtToMm(end1Axis),
+                            ["startIsMinAxis"] = beamStartIsMinAxis,
+                            ["startDefinition"] = "LocationCurve.EndPoint(0)",
+                            ["endDefinition"] = "LocationCurve.EndPoint(1)"
+                        };
+                    }
+                }
+                catch { /* ignore */ }
+
+                // Column: detect concrete neighbors (structural column / structural foundation) above/below,
+                // and use it to decide whether axis-end cover should be applied.
+                bool columnHasConcreteAbove = false;
+                bool columnHasConcreteBelow = false;
+                if (isColumn)
+                {
+                    if (opts.columnAxisEndCoverUsesConcreteNeighborCheck)
+                    {
+                        try
+                        {
+                            double searchRangeFt = UnitHelper.MmToFt(Math.Max(0.0, opts.columnConcreteNeighborSearchRangeMm));
+                            double touchTolFt = UnitHelper.MmToFt(Math.Max(0.0, opts.columnConcreteNeighborTouchTolMm));
+
+                            double baseMinCol = GetMinByIndex(localBox, axisIndex);
+                            double baseMaxCol = GetMaxByIndex(localBox, axisIndex);
+                            double topPlaneCol = axisPositiveIsUp ? baseMaxCol : baseMinCol;
+                            double bottomPlaneCol = axisPositiveIsUp ? baseMinCol : baseMaxCol;
+                            double aMid = (GetMinByIndex(localBox, crossA) + GetMaxByIndex(localBox, crossA)) / 2.0;
+                            double bMid = (GetMinByIndex(localBox, crossB) + GetMaxByIndex(localBox, crossB)) / 2.0;
+
+                            XYZ bottomWorld = null;
+                            XYZ topWorld = null;
+                            try
+                            {
+                                var wMin = tr.OfPoint(MakeLocalPoint(axisIndex, baseMinCol, crossA, aMid, crossB, bMid));
+                                var wMax = tr.OfPoint(MakeLocalPoint(axisIndex, baseMaxCol, crossA, aMid, crossB, bMid));
+                                bottomWorld = axisPositiveIsUp ? wMin : wMax;
+                                topWorld = axisPositiveIsUp ? wMax : wMin;
+                            }
+                            catch { bottomWorld = null; topWorld = null; }
+
+                            var aboveMatches = new JArray();
+                            var belowMatches = new JArray();
+
+                            Transform invTr = null;
+                            try { invTr = tr.Inverse; } catch { invTr = Transform.Identity; }
+
+                            IEnumerable<int> GetJoinedCandidateIdsSafe()
+                            {
+                                var ids = new List<int>();
+                                try
+                                {
+                                    var joined = JoinGeometryUtils.GetJoinedElements(doc, host);
+                                    if (joined != null)
+                                    {
+                                        foreach (var jid in joined)
+                                        {
+                                            try
+                                            {
+                                                int v = jid.IntValue();
+                                                if (v != 0) ids.Add(v);
+                                            }
+                                            catch { /* ignore */ }
+                                        }
+                                    }
+                                }
+                                catch { /* ignore */ }
+                                return ids;
+                            }
+
+                            void EvalCandidate(int id, bool forTop)
+                            {
+                                if (id == 0) return;
+                                if (id == host.Id.IntValue()) return;
+
+                                Element e = null;
+                                try { e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)); } catch { e = null; }
+                                if (e == null) return;
+
+                                int catId = 0;
+                                try { catId = e.Category != null ? e.Category.Id.IntValue() : 0; } catch { catId = 0; }
+
+                                bool isCandidateColumn = catId == (int)BuiltInCategory.OST_StructuralColumns || catId == (int)BuiltInCategory.OST_Columns;
+                                bool isCandidateFoundation = catId == (int)BuiltInCategory.OST_StructuralFoundation;
+                                if (!isCandidateColumn && !isCandidateFoundation) return;
+
+                                if (!TryGetElementAxisRangeInHostLocal(e, invTr, axisIndex, out var cMin, out var cMax)) return;
+
+                                // Require cross-section overlap in host local coordinates to avoid false positives
+                                // from nearby (but not connected) concrete elements.
+                                XYZ cMinPt;
+                                XYZ cMaxPt;
+                                if (!TryGetElementLocalBounds(e, invTr, out cMinPt, out cMaxPt)) return;
+                                double cAmin = GetByIndex(cMinPt, crossA);
+                                double cAmax = GetByIndex(cMaxPt, crossA);
+                                double cBmin = GetByIndex(cMinPt, crossB);
+                                double cBmax = GetByIndex(cMaxPt, crossB);
+
+                                double hAmin = GetMinByIndex(localBox, crossA);
+                                double hAmax = GetMaxByIndex(localBox, crossA);
+                                double hBmin = GetMinByIndex(localBox, crossB);
+                                double hBmax = GetMaxByIndex(localBox, crossB);
+
+                                double overlapTol = touchTolFt;
+                                bool overlapA = cAmax >= (hAmin - overlapTol) && cAmin <= (hAmax + overlapTol);
+                                bool overlapB = cBmax >= (hBmin - overlapTol) && cBmin <= (hBmax + overlapTol);
+                                if (!overlapA || !overlapB) return;
+
+                                double plane = forTop ? topPlaneCol : bottomPlaneCol;
+                                bool touches = cMin <= plane + touchTolFt && cMax >= plane - touchTolFt;
+                                if (!touches) return;
+
+                                // Determine whether the candidate extends outward beyond the plane on the world-top/world-bottom side.
+                                bool extendsOutward = false;
+                                if (axisPositiveIsUp)
+                                    extendsOutward = forTop ? (cMax > plane + touchTolFt) : (cMin < plane - touchTolFt);
+                                else
+                                    extendsOutward = forTop ? (cMin < plane - touchTolFt) : (cMax > plane + touchTolFt);
+                                if (!extendsOutward) return;
+
+                                if (!TryElementLooksConcrete(doc, e, concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                                    out var matName, out var matSource, out var token)) return;
+
+                                var item = new JObject
+                                {
+                                    ["elementId"] = id,
+                                    ["category"] = e.Category != null ? e.Category.Name : null,
+                                    ["catId"] = catId,
+                                    ["materialName"] = matName,
+                                    ["materialSource"] = matSource,
+                                    ["matchedToken"] = token,
+                                    ["axisMinMm"] = UnitHelper.FtToMm(cMin),
+                                    ["axisMaxMm"] = UnitHelper.FtToMm(cMax)
+                                };
+
+                                if (forTop)
+                                {
+                                    columnHasConcreteAbove = true;
+                                    aboveMatches.Add(item);
+                                }
+                                else
+                                {
+                                    columnHasConcreteBelow = true;
+                                    belowMatches.Add(item);
+                                }
+                            }
+
+                            var topCand = new HashSet<int>();
+                            var bottomCand = new HashSet<int>();
+                            foreach (var id in GetJoinedCandidateIdsSafe()) { topCand.Add(id); bottomCand.Add(id); }
+                            if (topWorld != null)
+                            {
+                                foreach (var id in CollectColumnLikeIdsNearPoint(doc, topWorld, searchRangeFt)) topCand.Add(id);
+                                foreach (var id in CollectFoundationLikeIdsNearPoint(doc, topWorld, searchRangeFt)) topCand.Add(id);
+                            }
+                            if (bottomWorld != null)
+                            {
+                                foreach (var id in CollectColumnLikeIdsNearPoint(doc, bottomWorld, searchRangeFt)) bottomCand.Add(id);
+                                foreach (var id in CollectFoundationLikeIdsNearPoint(doc, bottomWorld, searchRangeFt)) bottomCand.Add(id);
+                            }
+
+                            foreach (var id in topCand) EvalCandidate(id, true);
+                            foreach (var id in bottomCand) EvalCandidate(id, false);
+
+                            hostObj["columnAxisEndConcreteNeighbor"] = new JObject
+                            {
+                                ["enabled"] = true,
+                                ["searchRangeMm"] = opts.columnConcreteNeighborSearchRangeMm,
+                                ["touchTolMm"] = opts.columnConcreteNeighborTouchTolMm,
+                                ["hasConcreteAbove"] = columnHasConcreteAbove,
+                                ["hasConcreteBelow"] = columnHasConcreteBelow,
+                                ["matchesAbove"] = aboveMatches.Count > 0 ? (JToken)aboveMatches : JValue.CreateNull(),
+                                ["matchesBelow"] = belowMatches.Count > 0 ? (JToken)belowMatches : JValue.CreateNull()
+                            };
+                        }
+                        catch (Exception ex)
+                        {
+                            columnHasConcreteAbove = false;
+                            columnHasConcreteBelow = false;
+                            hostObj["columnAxisEndConcreteNeighbor"] = new JObject
+                            {
+                                ["enabled"] = true,
+                                ["hasConcreteAbove"] = false,
+                                ["hasConcreteBelow"] = false,
+                                ["error"] = ex.Message
+                            };
+                        }
+                    }
+                    else
+                    {
+                        hostObj["columnAxisEndConcreteNeighbor"] = new JObject { ["enabled"] = false };
+                    }
+                }
+
+                // Clear span for beam zoning (used by main bars + stirrups).
+                double clearStartFt = double.NaN;
+                double clearEndFt = double.NaN;
+                bool hasClearRange = false;
+                double beamAxisMinFt = double.NaN;
+                double beamAxisMaxFt = double.NaN;
+                bool beamAxisRangeValid = false;
+                JObject beamSupportFaceDbg = null;
+
+                if (isFraming)
+                {
+                    try
+                    {
+                        beamAxisMinFt = GetMinByIndex(localBox, axisIndex);
+                        beamAxisMaxFt = GetMaxByIndex(localBox, axisIndex);
+                        // Prefer solid-geometry-derived extents when available (captures cutbacks at supports).
+                        try
+                        {
+                            if (TryGetHostAxisRangeFromSolidGeometry(host, tr, axisIndex, out var gMin, out var gMax, out var gMsg) && (gMax > gMin))
+                            {
+                                beamAxisMinFt = gMin;
+                                beamAxisMaxFt = gMax;
+                                hostObj["beamAxisRangeFrom_shared"] = "solidGeometry";
+                                hostObj["beamAxisRangeSolidMm_shared"] = new JObject
+                                {
+                                    ["min"] = UnitHelper.FtToMm(gMin),
+                                    ["max"] = UnitHelper.FtToMm(gMax),
+                                    ["length"] = UnitHelper.FtToMm(gMax - gMin)
+                                };
+                            }
+                            else
+                            {
+                                hostObj["beamAxisRangeFrom_shared"] = "bbox";
+                                if (!string.IsNullOrWhiteSpace(gMsg)) hostObj["beamAxisRangeSolidError_shared"] = gMsg;
+                            }
+                        }
+                        catch { /* ignore */ }
+
+                        beamAxisRangeValid = (beamAxisMaxFt > beamAxisMinFt);
+
+                        // Best-effort: move clear span to connected column faces (support faces).
+                        if (TryAdjustBeamAxisRangeToJoinedColumnFaces(doc, host, tr, axisIndex, beamAxisMinFt, beamAxisMaxFt, out var adjMin, out var adjMax, out var dbg) && (adjMax > adjMin))
+                        {
+                            clearStartFt = adjMin;
+                            clearEndFt = adjMax;
+                            hasClearRange = true;
+                            beamSupportFaceDbg = dbg;
+                        }
+                        else
+                        {
+                            clearStartFt = beamAxisMinFt;
+                            clearEndFt = beamAxisMaxFt;
+                            hasClearRange = beamAxisRangeValid;
+                        }
+
+                        if (hasClearRange)
+                        {
+                            hostObj["beamClearAxisRangeMm"] = new JObject
+                            {
+                                ["min"] = UnitHelper.FtToMm(clearStartFt),
+                                ["max"] = UnitHelper.FtToMm(clearEndFt),
+                                ["length"] = UnitHelper.FtToMm(clearEndFt - clearStartFt)
+                            };
+                        }
+                    }
+                    catch { /* ignore */ }
+                }
+
                 // Main bars (4 corners)
                  if (opts.includeMainBars)
-                 {
+                  {
                      double r = mainBarType.BarModelDiameter / 2.0;
  
-                     double baseMin = GetMinByIndex(localBox, axisIndex);
-                     double baseMax = GetMaxByIndex(localBox, axisIndex);
+                     double bboxMin = GetMinByIndex(localBox, axisIndex);
+                     double bboxMax = GetMaxByIndex(localBox, axisIndex);
+                     double baseMin = (isFraming && beamAxisRangeValid) ? beamAxisMinFt : bboxMin;
+                     double baseMax = (isFraming && beamAxisRangeValid) ? beamAxisMaxFt : bboxMax;
                      if (isFraming)
                      {
                         // Keep the raw bbox range for debugging.
@@ -2151,17 +3153,17 @@ namespace RevitMCPAddin.Core
                         {
                             hostObj["beamAxisRangeBboxMm_raw"] = new JObject
                             {
-                                ["min"] = UnitHelper.FtToMm(baseMin),
-                                ["max"] = UnitHelper.FtToMm(baseMax),
-                                ["length"] = UnitHelper.FtToMm(baseMax - baseMin)
+                                ["min"] = UnitHelper.FtToMm(bboxMin),
+                                ["max"] = UnitHelper.FtToMm(bboxMax),
+                                ["length"] = UnitHelper.FtToMm(bboxMax - bboxMin)
                             };
                         }
                         catch { /* ignore */ }
 
                         // IMPORTANT: For beams, LocationCurve endpoints may be at the support centerline,
-                        // while the physical geometry is cut back to the support face. Using bbox extents
+                        // while the physical geometry is cut back to the support face. Using solid/bbox extents
                         // keeps rebar start/end aligned to the actual concrete faces (typical RC detailing).
-                        hostObj["beamAxisSource"] = "bbox";
+                        hostObj["beamAxisSource"] = beamAxisRangeValid ? "shared" : "bbox";
 
                         try
                         {
@@ -2178,27 +3180,39 @@ namespace RevitMCPAddin.Core
                         catch { /* ignore */ }
 
                         // Prefer solid-geometry-derived extents when available (captures cutbacks at supports).
-                        try
+                        // If a shared range was already computed, reuse it to keep main bars/stirrups consistent.
+                        if (beamAxisRangeValid)
                         {
-                            if (TryGetHostAxisRangeFromSolidGeometry(host, tr, axisIndex, out var gMin, out var gMax, out var gMsg) && (gMax > gMin))
-                            {
-                                baseMin = gMin;
-                                baseMax = gMax;
-                                hostObj["beamAxisRangeFrom"] = "solidGeometry";
-                                hostObj["beamAxisRangeSolidMm"] = new JObject
-                                {
-                                    ["min"] = UnitHelper.FtToMm(gMin),
-                                    ["max"] = UnitHelper.FtToMm(gMax),
-                                    ["length"] = UnitHelper.FtToMm(gMax - gMin)
-                                };
-                            }
-                            else
-                            {
-                                hostObj["beamAxisRangeFrom"] = "bbox";
-                                if (!string.IsNullOrWhiteSpace(gMsg)) hostObj["beamAxisRangeSolidError"] = gMsg;
-                            }
+                            hostObj["beamAxisRangeFrom"] = "shared";
+                            if (hostObj["beamAxisRangeSolidMm_shared"] != null)
+                                hostObj["beamAxisRangeSolidMm"] = hostObj["beamAxisRangeSolidMm_shared"];
+                            if (hostObj["beamAxisRangeSolidError_shared"] != null)
+                                hostObj["beamAxisRangeSolidError"] = hostObj["beamAxisRangeSolidError_shared"];
                         }
-                        catch { /* ignore */ }
+                        else
+                        {
+                            try
+                            {
+                                if (TryGetHostAxisRangeFromSolidGeometry(host, tr, axisIndex, out var gMin, out var gMax, out var gMsg) && (gMax > gMin))
+                                {
+                                    baseMin = gMin;
+                                    baseMax = gMax;
+                                    hostObj["beamAxisRangeFrom"] = "solidGeometry";
+                                    hostObj["beamAxisRangeSolidMm"] = new JObject
+                                    {
+                                        ["min"] = UnitHelper.FtToMm(gMin),
+                                        ["max"] = UnitHelper.FtToMm(gMax),
+                                        ["length"] = UnitHelper.FtToMm(gMax - gMin)
+                                    };
+                                }
+                                else
+                                {
+                                    hostObj["beamAxisRangeFrom"] = "bbox";
+                                    if (!string.IsNullOrWhiteSpace(gMsg)) hostObj["beamAxisRangeSolidError"] = gMsg;
+                                }
+                            }
+                            catch { /* ignore */ }
+                        }
 
                         // Final (used) axis range
                         try
@@ -2213,15 +3227,89 @@ namespace RevitMCPAddin.Core
                         catch { /* ignore */ }
                      }
  
-                    double axisStart = baseMin + (isColumn ? (coverBottomFt + r) : (coverOtherFt + r));
-                    double axisEnd = baseMax - (isColumn ? (coverTopFt + r) : (coverOtherFt + r));
+                    double colAxisCoverBottomFt = coverBottomFt;
+                    double colAxisCoverTopFt = coverTopFt;
+                    if (isColumn && opts.columnAxisEndCoverUsesConcreteNeighborCheck)
+                    {
+                        // When the end is not exposed (concrete neighbor exists), axis-direction cover is not needed.
+                        if (columnHasConcreteBelow) colAxisCoverBottomFt = 0.0;
+                        if (columnHasConcreteAbove) colAxisCoverTopFt = 0.0;
+                        hostObj["columnAxisEndCoverEffectiveMm"] = new JObject
+                        {
+                            ["bottom"] = UnitHelper.FtToMm(colAxisCoverBottomFt),
+                            ["top"] = UnitHelper.FtToMm(colAxisCoverTopFt),
+                            ["source"] = "concreteNeighborCheck"
+                        };
+                    }
+
+                    double colAxisCoverMinFt = colAxisCoverBottomFt;
+                    double colAxisCoverMaxFt = colAxisCoverTopFt;
+                    if (isColumn)
+                    {
+                        // baseMin/baseMax are local min/max on axisIndex. Map world-top/world-bottom cover to local ends
+                        // based on whether positive axis points upward.
+                        colAxisCoverMinFt = axisPositiveIsUp ? colAxisCoverBottomFt : colAxisCoverTopFt;
+                        colAxisCoverMaxFt = axisPositiveIsUp ? colAxisCoverTopFt : colAxisCoverBottomFt;
+                    }
+
+                    double axisStart = baseMin + (isColumn ? (colAxisCoverMinFt + r) : (coverOtherFt + r));
+                    double axisEnd = baseMax - (isColumn ? (colAxisCoverMaxFt + r) : (coverOtherFt + r));
 
                     // Beam: embed main bars into support columns by ratio of column width (along beam axis).
                     if (isFraming)
                     {
-                        // Along-beam cover does not make sense for typical RC detailing; align to physical end faces.
-                        axisStart = baseMin;
-                        axisEnd = baseMax;
+                        // Beam axis-end cover:
+                        // - If an end is connected to *concrete* structural column or structural framing, treat it as continuous (no cover at that end).
+                        // - Otherwise (cantilever/free end), apply the same cover as the beam side faces.
+                        bool beamHasConcreteAtMinEnd = false;
+                        bool beamHasConcreteAtMaxEnd = false;
+                        try
+                        {
+                            if (TryDetectConcreteSupportsAtBeamAxisEnds(
+                                doc, host, tr, localBox, axisIndex, sideIndex, upIndex, baseMin, baseMax,
+                                UnitHelper.MmToFt(opts.beamSupportSearchRangeMm),
+                                UnitHelper.MmToFt(opts.beamSupportFaceToleranceMm),
+                                concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                                out beamHasConcreteAtMinEnd, out beamHasConcreteAtMaxEnd, out var beamEndDbg) && beamEndDbg != null)
+                            {
+                                // Map min/max end results to "start/end" (LocationCurve.EndPoint(0/1)) for clarity.
+                                beamEndDbg["startDefinition"] = "LocationCurve.EndPoint(0)";
+                                beamEndDbg["endDefinition"] = "LocationCurve.EndPoint(1)";
+                                beamEndDbg["startIsMinAxis"] = beamStartIsMinAxis;
+                                beamEndDbg["hasConcreteAtStart"] = beamStartIsMinAxis ? beamHasConcreteAtMinEnd : beamHasConcreteAtMaxEnd;
+                                beamEndDbg["hasConcreteAtEnd"] = beamStartIsMinAxis ? beamHasConcreteAtMaxEnd : beamHasConcreteAtMinEnd;
+                                hostObj["beamAxisEndConcreteNeighbor"] = beamEndDbg;
+                            }
+                        }
+                        catch { /* ignore */ }
+
+                        // Use the larger of (Host.Cover.Other) and explicit per-face left/right covers (after clamp).
+                        double beamEndCoverFt = Math.Max(coverOtherFt, Math.Max(faceLeftFt, faceRightFt));
+                        double gapMinFt = beamHasConcreteAtMinEnd ? 0.0 : (beamEndCoverFt + r);
+                        double gapMaxFt = beamHasConcreteAtMaxEnd ? 0.0 : (beamEndCoverFt + r);
+                        axisStart = baseMin + gapMinFt;
+                        axisEnd = baseMax - gapMaxFt;
+                        try
+                        {
+                            hostObj["beamAxisEndCoverEffectiveMm"] = new JObject
+                            {
+                                ["source"] = "concreteSupport+sideCover",
+                                ["sideCoverMm"] = UnitHelper.FtToMm(beamEndCoverFt),
+                                ["minEnd"] = beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt),
+                                ["maxEnd"] = beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt),
+                                ["start"] = beamStartIsMinAxis
+                                    ? (beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt))
+                                    : (beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt)),
+                                ["end"] = beamStartIsMinAxis
+                                    ? (beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt))
+                                    : (beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt)),
+                                ["gapMinEndMm"] = UnitHelper.FtToMm(gapMinFt),
+                                ["gapMaxEndMm"] = UnitHelper.FtToMm(gapMaxFt),
+                                ["startIsMinAxis"] = beamStartIsMinAxis
+                            };
+                        }
+                        catch { /* ignore */ }
+
                         try
                         {
                             double ratio = opts.beamMainBarEmbedIntoSupportColumnRatio;
@@ -2230,20 +3318,43 @@ namespace RevitMCPAddin.Core
                                 if (TryGetBeamSupportColumnWidthsAlongAxis(doc, host, tr, localBox, axisIndex, sideIndex, upIndex, baseMin, baseMax,
                                         UnitHelper.MmToFt(opts.beamSupportSearchRangeMm),
                                         UnitHelper.MmToFt(opts.beamSupportFaceToleranceMm),
+                                        concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                                        requireConcrete: false,
                                         out var startColWidthFt, out var endColWidthFt, out var dbg))
                                 {
-                                    double embedStartFt = startColWidthFt > 0.0 ? (startColWidthFt * ratio) : 0.0;
-                                    double embedEndFt = endColWidthFt > 0.0 ? (endColWidthFt * ratio) : 0.0;
-                                    axisStart -= embedStartFt;
-                                    axisEnd += embedEndFt;
+                                    // NOTE:
+                                    // TryGetBeamSupportColumnWidthsAlongAxis returns widths at min/max ends on axisIndex.
+                                    // Map to beam start/end by LocationCurve.EndPoint(0/1) for reporting clarity.
+                                    double embedMinFt = startColWidthFt > 0.0 ? (startColWidthFt * ratio) : 0.0;
+                                    double embedMaxFt = endColWidthFt > 0.0 ? (endColWidthFt * ratio) : 0.0;
+                                    axisStart -= embedMinFt;
+                                    axisEnd += embedMaxFt;
+
+                                    double? colMinMm = startColWidthFt > 0.0 ? (double?)UnitHelper.FtToMm(startColWidthFt) : null;
+                                    double? colMaxMm = endColWidthFt > 0.0 ? (double?)UnitHelper.FtToMm(endColWidthFt) : null;
+                                    double? embedMinMm = embedMinFt > 0.0 ? (double?)UnitHelper.FtToMm(embedMinFt) : null;
+                                    double? embedMaxMm = embedMaxFt > 0.0 ? (double?)UnitHelper.FtToMm(embedMaxFt) : null;
+
+                                    double? colStartMm = beamStartIsMinAxis ? colMinMm : colMaxMm;
+                                    double? colEndMm = beamStartIsMinAxis ? colMaxMm : colMinMm;
+                                    double? embedStartMm = beamStartIsMinAxis ? embedMinMm : embedMaxMm;
+                                    double? embedEndMm = beamStartIsMinAxis ? embedMaxMm : embedMinMm;
+
                                     hostObj["beamMainBarEmbed"] = new JObject
                                     {
                                         ["enabled"] = true,
                                         ["ratio"] = ratio,
-                                        ["startColumnWidthMm"] = startColWidthFt > 0.0 ? UnitHelper.FtToMm(startColWidthFt) : (double?)null,
-                                        ["endColumnWidthMm"] = endColWidthFt > 0.0 ? UnitHelper.FtToMm(endColWidthFt) : (double?)null,
-                                        ["startEmbedMm"] = embedStartFt > 0.0 ? UnitHelper.FtToMm(embedStartFt) : (double?)null,
-                                        ["endEmbedMm"] = embedEndFt > 0.0 ? UnitHelper.FtToMm(embedEndFt) : (double?)null,
+                                        ["startDefinition"] = "LocationCurve.EndPoint(0)",
+                                        ["endDefinition"] = "LocationCurve.EndPoint(1)",
+                                        ["startIsMinAxis"] = beamStartIsMinAxis,
+                                        ["startColumnWidthMm"] = colStartMm,
+                                        ["endColumnWidthMm"] = colEndMm,
+                                        ["startEmbedMm"] = embedStartMm,
+                                        ["endEmbedMm"] = embedEndMm,
+                                        ["minEndColumnWidthMm"] = colMinMm,
+                                        ["maxEndColumnWidthMm"] = colMaxMm,
+                                        ["minEndEmbedMm"] = embedMinMm,
+                                        ["maxEndEmbedMm"] = embedMaxMm,
                                         ["debug"] = dbg
                                     };
                                 }
@@ -2273,14 +3384,66 @@ namespace RevitMCPAddin.Core
                         // Column main bars: allow end extensions (mm).
                         try
                         {
-                            double extBot = UnitHelper.MmToFt(opts.columnMainBarBottomExtensionMm);
-                            double extTop = UnitHelper.MmToFt(opts.columnMainBarTopExtensionMm);
-                            axisStart -= extBot;
-                            axisEnd += extTop;
+                            double extBotFt = UnitHelper.MmToFt(opts.columnMainBarBottomExtensionMm);
+                            double extTopFt = UnitHelper.MmToFt(opts.columnMainBarTopExtensionMm);
+                            double axisStartBefore = axisStart;
+                            double axisEndBefore = axisEnd;
+
+                            // axisStart/axisEnd are in local min->max order, while the user-facing "top/bottom" are world-based.
+                            // If axisPositiveIsUp==false, world-top corresponds to local min and world-bottom to local max.
+                            if (axisPositiveIsUp)
+                            {
+                                axisStart -= extBotFt; // bottom extension
+                                axisEnd += extTopFt;   // top extension
+                            }
+                            else
+                            {
+                                axisStart -= extTopFt; // top extension (world-top is local min)
+                                axisEnd += extBotFt;   // bottom extension (world-bottom is local max)
+                            }
+
+                            // Safety: if the column end is exposed (no concrete neighbor),
+                            // do not allow *positive* extensions to violate cover at that end.
+                            bool clampBot = false;
+                            bool clampTop = false;
+                            if (axisPositiveIsUp)
+                            {
+                                if (!columnHasConcreteBelow && extBotFt > 1e-9 && axisStart < axisStartBefore)
+                                {
+                                    axisStart = axisStartBefore;
+                                    clampBot = true;
+                                }
+                                if (!columnHasConcreteAbove && extTopFt > 1e-9 && axisEnd > axisEndBefore)
+                                {
+                                    axisEnd = axisEndBefore;
+                                    clampTop = true;
+                                }
+                            }
+                            else
+                            {
+                                if (!columnHasConcreteAbove && extTopFt > 1e-9 && axisStart < axisStartBefore)
+                                {
+                                    axisStart = axisStartBefore;
+                                    clampTop = true;
+                                }
+                                if (!columnHasConcreteBelow && extBotFt > 1e-9 && axisEnd > axisEndBefore)
+                                {
+                                    axisEnd = axisEndBefore;
+                                    clampBot = true;
+                                }
+                            }
+
                             hostObj["columnMainBarAxisExtensionMm"] = new JObject
                             {
-                                ["bottom"] = opts.columnMainBarBottomExtensionMm,
-                                ["top"] = opts.columnMainBarTopExtensionMm
+                                ["bottomRequested"] = opts.columnMainBarBottomExtensionMm,
+                                ["topRequested"] = opts.columnMainBarTopExtensionMm,
+                                ["bottomApplied"] = axisPositiveIsUp ? UnitHelper.FtToMm(axisStartBefore - axisStart) : UnitHelper.FtToMm(axisEnd - axisEndBefore),
+                                ["topApplied"] = axisPositiveIsUp ? UnitHelper.FtToMm(axisEnd - axisEndBefore) : UnitHelper.FtToMm(axisStartBefore - axisStart),
+                                ["allowBottomExtension"] = columnHasConcreteBelow,
+                                ["allowTopExtension"] = columnHasConcreteAbove,
+                                ["clampedBottom"] = clampBot,
+                                ["clampedTop"] = clampTop,
+                                ["axisPositiveIsUp"] = axisPositiveIsUp
                             };
                         }
                         catch { /* ignore */ }
@@ -2293,12 +3456,17 @@ namespace RevitMCPAddin.Core
                         {
                             double extStartFt = UnitHelper.MmToFt(opts.beamMainBarStartExtensionMm);
                             double extEndFt = UnitHelper.MmToFt(opts.beamMainBarEndExtensionMm);
-                            axisStart -= extStartFt;
-                            axisEnd += extEndFt;
+                            double extMinFt = beamStartIsMinAxis ? extStartFt : extEndFt;
+                            double extMaxFt = beamStartIsMinAxis ? extEndFt : extStartFt;
+                            axisStart -= extMinFt;
+                            axisEnd += extMaxFt;
                             hostObj["beamMainBarAxisExtensionMm"] = new JObject
                             {
                                 ["start"] = opts.beamMainBarStartExtensionMm,
-                                ["end"] = opts.beamMainBarEndExtensionMm
+                                ["end"] = opts.beamMainBarEndExtensionMm,
+                                ["appliedToMinEndMm"] = UnitHelper.FtToMm(extMinFt),
+                                ["appliedToMaxEndMm"] = UnitHelper.FtToMm(extMaxFt),
+                                ["startIsMinAxis"] = beamStartIsMinAxis
                             };
                         }
                         catch { /* ignore */ }
@@ -2321,10 +3489,15 @@ namespace RevitMCPAddin.Core
                         double sMax = GetMaxByIndex(localBox, sIdx);
                         double uMin = GetMinByIndex(localBox, uIdx);
                         double uMax = GetMaxByIndex(localBox, uIdx);
-                        double left = sMin + faceLeftFt + r;
-                        double right = sMax - faceRightFt - r;
-                        double bottom = uMin + faceDownFt + r;
-                        double top = uMax - faceUpFt - r;
+                        double tieOffsetFt = (opts.includeStirrups && tieBarDiaFt > 1e-9) ? tieBarDiaFt : 0.0;
+                        double left = sMin + faceLeftFt + tieOffsetFt + r;
+                        double right = sMax - faceRightFt - tieOffsetFt - r;
+                        double bottom = uMin + faceDownFt + tieOffsetFt + r;
+                        double top = uMax - faceUpFt - tieOffsetFt - r;
+                        if (tieOffsetFt > 1e-9)
+                        {
+                            hostObj["beamMainBarInsideTieOffsetMm"] = UnitHelper.FtToMm(tieOffsetFt);
+                        }
 
                         var upVec = GetBasisVectorByIndex(tr, uIdx);
                         if (upVec.GetLength() < 1e-9) upVec = XYZ.BasisZ;
@@ -2367,7 +3540,7 @@ namespace RevitMCPAddin.Core
                             bottomCount3 = 0;
                             countSource = "options";
                         }
-                        else if (beamSpec != null && (beamSpec.hasMainCounts || beamSpec.hasLayerCounts))
+                        else if (beamSpec != null && (beamSpec.hasMainCounts || beamSpec.hasLayerCounts || beamSpec.hasZoneCounts))
                         {
                             if (beamSpec.topCount.HasValue) topCount = Math.Max(0, beamSpec.topCount.Value);
                             if (beamSpec.bottomCount.HasValue) bottomCount = Math.Max(0, beamSpec.bottomCount.Value);
@@ -2375,7 +3548,8 @@ namespace RevitMCPAddin.Core
                             if (beamSpec.topCount3.HasValue) topCount3 = Math.Max(0, beamSpec.topCount3.Value);
                             if (beamSpec.bottomCount2.HasValue) bottomCount2 = Math.Max(0, beamSpec.bottomCount2.Value);
                             if (beamSpec.bottomCount3.HasValue) bottomCount3 = Math.Max(0, beamSpec.bottomCount3.Value);
-                            countSource = (topCount2 > 0 || topCount3 > 0 || bottomCount2 > 0 || bottomCount3 > 0) ? "mapping_layers" : "mapping";
+                            if (beamSpec.hasZoneCounts) countSource = "mapping_zones";
+                            else countSource = (topCount2 > 0 || topCount3 > 0 || bottomCount2 > 0 || bottomCount3 > 0) ? "mapping_layers" : "mapping";
                         }
 
                         hostObj["beamMainCounts"] = new JObject
@@ -2390,8 +3564,120 @@ namespace RevitMCPAddin.Core
                             ["total"] = topCount + topCount2 + topCount3 + bottomCount + bottomCount2 + bottomCount3
                         };
 
+                        // Resolve zone counts (start/mid/end) for main bars when provided by mapping.
+                        // If a zone value is missing/zero, it falls back to a non-zero peer (mid->start/end, start/end->mid).
+                        // If all three are missing, fall back to base count for that layer.
+                        int topStart = topCount, topMid = topCount, topEnd = topCount;
+                        int top2Start = topCount2, top2Mid = topCount2, top2End = topCount2;
+                        int top3Start = topCount3, top3Mid = topCount3, top3End = topCount3;
+                        int bottomStart = bottomCount, bottomMid = bottomCount, bottomEnd = bottomCount;
+                        int bottom2Start = bottomCount2, bottom2Mid = bottomCount2, bottom2End = bottomCount2;
+                        int bottom3Start = bottomCount3, bottom3Mid = bottomCount3, bottom3End = bottomCount3;
+
+                        bool useZoneCounts = false;
+                        if (beamSpec != null && beamSpec.hasZoneCounts)
+                        {
+                            useZoneCounts = true;
+
+                            void ResolveZoneCounts(int baseCount, int? zs, int? zm, int? ze, out int rs, out int rm, out int re)
+                            {
+                                int s = zs.HasValue ? Math.Max(0, zs.Value) : 0;
+                                int m = zm.HasValue ? Math.Max(0, zm.Value) : 0;
+                                int e = ze.HasValue ? Math.Max(0, ze.Value) : 0;
+                                bool any = (s > 0 || m > 0 || e > 0);
+                                if (!any)
+                                {
+                                    rs = rm = re = baseCount;
+                                    return;
+                                }
+                                if (m <= 0) m = (s > 0 ? s : e);
+                                if (s <= 0) s = (m > 0 ? m : e);
+                                if (e <= 0) e = (m > 0 ? m : s);
+                                if (s <= 0 && m <= 0 && e <= 0)
+                                {
+                                    rs = rm = re = baseCount;
+                                    return;
+                                }
+                                rs = s; rm = m; re = e;
+                            }
+
+                            ResolveZoneCounts(topCount, beamSpec.topCountStart, beamSpec.topCountMid, beamSpec.topCountEnd, out topStart, out topMid, out topEnd);
+                            ResolveZoneCounts(topCount2, beamSpec.topCount2Start, beamSpec.topCount2Mid, beamSpec.topCount2End, out top2Start, out top2Mid, out top2End);
+                            ResolveZoneCounts(topCount3, beamSpec.topCount3Start, beamSpec.topCount3Mid, beamSpec.topCount3End, out top3Start, out top3Mid, out top3End);
+                            ResolveZoneCounts(bottomCount, beamSpec.bottomCountStart, beamSpec.bottomCountMid, beamSpec.bottomCountEnd, out bottomStart, out bottomMid, out bottomEnd);
+                            ResolveZoneCounts(bottomCount2, beamSpec.bottomCount2Start, beamSpec.bottomCount2Mid, beamSpec.bottomCount2End, out bottom2Start, out bottom2Mid, out bottom2End);
+                            ResolveZoneCounts(bottomCount3, beamSpec.bottomCount3Start, beamSpec.bottomCount3Mid, beamSpec.bottomCount3End, out bottom3Start, out bottom3Mid, out bottom3End);
+                        }
+
+                        if (useZoneCounts)
+                        {
+                            hostObj["beamMainCountsZones"] = new JObject
+                            {
+                                ["top"] = new JObject { ["start"] = topStart, ["mid"] = topMid, ["end"] = topEnd },
+                                ["top2"] = new JObject { ["start"] = top2Start, ["mid"] = top2Mid, ["end"] = top2End },
+                                ["top3"] = new JObject { ["start"] = top3Start, ["mid"] = top3Mid, ["end"] = top3End },
+                                ["bottom"] = new JObject { ["start"] = bottomStart, ["mid"] = bottomMid, ["end"] = bottomEnd },
+                                ["bottom2"] = new JObject { ["start"] = bottom2Start, ["mid"] = bottom2Mid, ["end"] = bottom2End },
+                                ["bottom3"] = new JObject { ["start"] = bottom3Start, ["mid"] = bottom3Mid, ["end"] = bottom3End }
+                            };
+                        }
+
                         int idx = 0;
-                        void AddBarsAtU(double u, int count)
+
+                        List<double> BuildMainBarTPositions(string side, int layerIndex, int count, int refCount)
+                        {
+                            var ts = new List<double>();
+                            if (count <= 0) return ts;
+
+                            // Layer 1: keep current behavior (count==1 => center).
+                            if (layerIndex <= 1)
+                            {
+                                if (count == 1) { ts.Add(0.5); return ts; }
+                                for (int i = 0; i < count; i++) ts.Add((double)i / (count - 1));
+                                return ts;
+                            }
+
+                            // Layer 2/3: align to layer-1 positions as much as possible.
+                            // - count==1 => align to the leftmost bar of layer 1
+                            // - count>=2 => always include left & right; intermediate bars snap to layer-1 positions.
+                            if (count == 1)
+                            {
+                                if (refCount == 1) ts.Add(0.5);
+                                else ts.Add(0.0);
+                                return ts;
+                            }
+
+                            // If no usable reference exists, fall back to even distribution.
+                            if (refCount <= 1 || count > refCount)
+                            {
+                                for (int i = 0; i < count; i++) ts.Add((double)i / (count - 1));
+                                return ts;
+                            }
+
+                            int prev = -1;
+                            for (int i = 0; i < count; i++)
+                            {
+                                double t = (double)i / (count - 1);
+                                int j = (int)Math.Round(t * (refCount - 1));
+                                if (j < 0) j = 0;
+                                if (j > refCount - 1) j = refCount - 1;
+                                if (j <= prev) j = prev + 1;
+                                if (j > refCount - 1) { ts.Clear(); break; }
+                                ts.Add((double)j / (refCount - 1));
+                                prev = j;
+                            }
+
+                            // If we couldn't build a valid snapped set, fall back to even.
+                            if (ts.Count != count)
+                            {
+                                ts.Clear();
+                                for (int i = 0; i < count; i++) ts.Add((double)i / (count - 1));
+                            }
+
+                            return ts;
+                        }
+
+                        void AddBarsAtU(string side, int layerIndex, double u, int count, int refCount, double rangeStart, double rangeEnd, string zone)
                         {
                             if (count <= 0) return;
 
@@ -2413,13 +3699,29 @@ namespace RevitMCPAddin.Core
                             }
                             catch { /* ignore */ }
 
-                            for (int i = 0; i < count; i++)
+                            double span = right - left;
+                            var ts = BuildMainBarTPositions(side, layerIndex, count, refCount);
+                            for (int i = 0; i < ts.Count; i++)
                             {
-                                double t = (count == 1) ? 0.5 : ((double)i / (count - 1));
-                                double s = left + (right - left) * t;
+                                double t = ts[i];
+                                if (t < 0.0) t = 0.0;
+                                if (t > 1.0) t = 1.0;
+                                double s = left + span * t;
 
-                                var p0 = MakeLocalPoint(axisIndex, axisStart, sIdx, s, uIdx, u);
-                                var p1 = MakeLocalPoint(axisIndex, axisEnd, sIdx, s, uIdx, u);
+                            // Beam start/end definition:
+                            // - start = LocationCurve.EndPoint(0)
+                            // - end   = LocationCurve.EndPoint(1)
+                            // rangeStart/rangeEnd are min/max on axisIndex, so map them to start/end when needed.
+                            double a0 = rangeStart;
+                            double a1 = rangeEnd;
+                            if (isFraming && !beamStartIsMinAxis)
+                            {
+                                a0 = rangeEnd;   // start at max end
+                                a1 = rangeStart; // end at min end
+                            }
+
+                                var p0 = MakeLocalPoint(axisIndex, a0, sIdx, s, uIdx, u);
+                                var p1 = MakeLocalPoint(axisIndex, a1, sIdx, s, uIdx, u);
                                 var w0 = tr.OfPoint(p0);
                                 var w1 = tr.OfPoint(p1);
 
@@ -2440,17 +3742,20 @@ namespace RevitMCPAddin.Core
                                 foreach (var c in segs)
                                     jCurves.Add(GeometryJsonHelper.CurveToJson(c));
 
-                                actions.Add(new JObject
-                                {
-                                    ["role"] = "beam_main_bar",
-                                    ["index"] = idx++,
-                                    ["style"] = "Standard",
-                                    ["barTypeName"] = mainBarTypeName,
-                                    ["curves"] = jCurves,
-                                    ["normal"] = GeometryJsonHelper.VectorToJson(planeNrm),
-                                    ["tagComments"] = opts.tagComments
-                                });
-                            }
+                            actions.Add(new JObject
+                            {
+                                ["role"] = "beam_main_bar",
+                                ["index"] = idx++,
+                                ["style"] = "Standard",
+                                ["side"] = side,
+                                ["layerIndex"] = layerIndex,
+                                ["zone"] = string.IsNullOrWhiteSpace(zone) ? "full" : zone,
+                                ["barTypeName"] = mainBarTypeName,
+                                ["curves"] = jCurves,
+                                ["normal"] = GeometryJsonHelper.VectorToJson(planeNrm),
+                                ["tagComments"] = opts.tagComments
+                            });
+                        }
                         }
 
                         // Layer pitch (center-to-center). Prefer clearance table; fallback: barDia + clear.
@@ -2488,7 +3793,7 @@ namespace RevitMCPAddin.Core
                             ["pitchMm"] = layerPitchMm
                         };
 
-                        void AddLayerSafe(string side, int layerIndex, double uCoord, int count)
+                        void AddLayerSafe(string side, int layerIndex, double uCoord, int count, int refCount)
                         {
                             if (count <= 0) return;
                             if (uCoord < bottom || uCoord > top)
@@ -2504,7 +3809,57 @@ namespace RevitMCPAddin.Core
                                 });
                                 return;
                             }
-                            AddBarsAtU(uCoord, count);
+                            AddBarsAtU(side, layerIndex, uCoord, count, refCount, axisStart, axisEnd, "full");
+                        }
+
+                        void AddLayerSafeZoned(string side, int layerIndex, double uCoord, int countStart, int countMid, int countEnd, int refCount, double clearStart, double clearEnd)
+                        {
+                            if (uCoord < bottom || uCoord > top) return;
+                            double totalLen = clearEnd - clearStart;
+                            if (!(totalLen > 1e-9))
+                            {
+                                // fallback to full if clear range is invalid
+                                if (countStart > 0 || countMid > 0 || countEnd > 0)
+                                {
+                                    int c = Math.Max(countStart, Math.Max(countMid, countEnd));
+                                    if (c > 0) AddBarsAtU(side, layerIndex, uCoord, c, refCount, axisStart, axisEnd, "full");
+                                }
+                                return;
+                            }
+
+                            double seg1Start = clearStart;
+                            double seg1End = clearStart + totalLen * 0.25;
+                            double seg2Start = seg1End;
+                            double seg2End = clearStart + totalLen * 0.75;
+                            double seg3Start = seg2End;
+                            double seg3End = clearEnd;
+
+                            // For beams, allow start/end zones to extend into supports (embed),
+                            // while keeping zone boundaries based on clear span.
+                            if (isFraming)
+                            {
+                                if (axisStart < seg1Start) seg1Start = axisStart;
+                                if (axisEnd > seg3End) seg3End = axisEnd;
+                            }
+
+                            double a0, a1;
+                            // start zone
+                            a0 = Math.Max(axisStart, seg1Start);
+                            a1 = Math.Min(axisEnd, seg1End);
+                            if (countStart > 0 && a1 > a0 + 1e-9)
+                                AddBarsAtU(side, layerIndex, uCoord, countStart, refCount, a0, a1, "start");
+
+                            // mid zone
+                            a0 = Math.Max(axisStart, seg2Start);
+                            a1 = Math.Min(axisEnd, seg2End);
+                            if (countMid > 0 && a1 > a0 + 1e-9)
+                                AddBarsAtU(side, layerIndex, uCoord, countMid, refCount, a0, a1, "mid");
+
+                            // end zone
+                            a0 = Math.Max(axisStart, seg3Start);
+                            a1 = Math.Min(axisEnd, seg3End);
+                            if (countEnd > 0 && a1 > a0 + 1e-9)
+                                AddBarsAtU(side, layerIndex, uCoord, countEnd, refCount, a0, a1, "end");
                         }
 
                         // Spacing checks (plan-time, based on the same local box / covers used for placement).
@@ -2516,12 +3871,23 @@ namespace RevitMCPAddin.Core
                                 return Math.Max(0.0, barDiaMm) + Math.Max(0.0, opts.beamMainBarLayerClearMm);
                             }
 
-                            double WithinLayerSpacingMm(int count)
+                            double MinWithinLayerSpacingMm(string side, int layerIndex, int count, int refCount)
                             {
                                 if (count <= 1) return 0.0;
                                 double spanFt = right - left;
                                 if (spanFt <= 1e-9) return 0.0;
-                                return UnitHelper.FtToMm(spanFt / (count - 1));
+
+                                var ts = BuildMainBarTPositions(side, layerIndex, count, refCount);
+                                if (ts == null || ts.Count <= 1) return 0.0;
+
+                                double minDt = double.PositiveInfinity;
+                                for (int i = 0; i + 1 < ts.Count; i++)
+                                {
+                                    double dt = ts[i + 1] - ts[i];
+                                    if (dt < minDt) minDt = dt;
+                                }
+                                if (double.IsInfinity(minDt) || minDt <= 1e-9) return 0.0;
+                                return UnitHelper.FtToMm(spanFt * minDt);
                             }
 
                             var req = RequiredCcMmForMain();
@@ -2532,10 +3898,10 @@ namespace RevitMCPAddin.Core
                             };
 
                             var layers = new JArray();
-                            void AddLayerCheck(string side, int layerIndex, int count)
+                            void AddLayerCheck(string side, int layerIndex, int count, int refCount)
                             {
                                 if (count <= 0) return;
-                                var sp = WithinLayerSpacingMm(count);
+                                var sp = MinWithinLayerSpacingMm(side, layerIndex, count, refCount);
                                 layers.Add(new JObject
                                 {
                                     ["side"] = side,
@@ -2546,12 +3912,19 @@ namespace RevitMCPAddin.Core
                                 });
                             }
 
-                            AddLayerCheck("top", 1, topCount);
-                            AddLayerCheck("top", 2, topCount2);
-                            AddLayerCheck("top", 3, topCount3);
-                            AddLayerCheck("bottom", 1, bottomCount);
-                            AddLayerCheck("bottom", 2, bottomCount2);
-                            AddLayerCheck("bottom", 3, bottomCount3);
+                            int topCountEff = useZoneCounts ? Math.Max(topStart, Math.Max(topMid, topEnd)) : topCount;
+                            int top2CountEff = useZoneCounts ? Math.Max(top2Start, Math.Max(top2Mid, top2End)) : topCount2;
+                            int top3CountEff = useZoneCounts ? Math.Max(top3Start, Math.Max(top3Mid, top3End)) : topCount3;
+                            int bottomCountEff = useZoneCounts ? Math.Max(bottomStart, Math.Max(bottomMid, bottomEnd)) : bottomCount;
+                            int bottom2CountEff = useZoneCounts ? Math.Max(bottom2Start, Math.Max(bottom2Mid, bottom2End)) : bottomCount2;
+                            int bottom3CountEff = useZoneCounts ? Math.Max(bottom3Start, Math.Max(bottom3Mid, bottom3End)) : bottomCount3;
+
+                            AddLayerCheck("top", 1, topCountEff, topCountEff);
+                            AddLayerCheck("top", 2, top2CountEff, topCountEff);
+                            AddLayerCheck("top", 3, top3CountEff, topCountEff);
+                            AddLayerCheck("bottom", 1, bottomCountEff, bottomCountEff);
+                            AddLayerCheck("bottom", 2, bottom2CountEff, bottomCountEff);
+                            AddLayerCheck("bottom", 3, bottom3CountEff, bottomCountEff);
 
                             checks["layers"] = layers;
 
@@ -2570,39 +3943,69 @@ namespace RevitMCPAddin.Core
                         }
                         catch { /* ignore */ }
 
+                        double clearStart = (hasClearRange && clearEndFt > clearStartFt) ? clearStartFt : axisStart;
+                        double clearEnd = (hasClearRange && clearEndFt > clearStartFt) ? clearEndFt : axisEnd;
+                        bool useZonedMainBars = useZoneCounts && (clearEnd > clearStart + 1e-9);
+
                         // Top layers (downwards)
-                        AddLayerSafe("top", 1, top, topCount);
+                        if (useZonedMainBars)
+                            AddLayerSafeZoned("top", 1, top, topStart, topMid, topEnd, topCount, clearStart, clearEnd);
+                        else
+                            AddLayerSafe("top", 1, top, topCount, topCount);
                         if (layerPitchFt > 1e-9)
                         {
-                            AddLayerSafe("top", 2, top - layerPitchFt, topCount2);
-                            AddLayerSafe("top", 3, top - (layerPitchFt * 2.0), topCount3);
+                            if (useZonedMainBars)
+                            {
+                                AddLayerSafeZoned("top", 2, top - layerPitchFt, top2Start, top2Mid, top2End, topCount, clearStart, clearEnd);
+                                AddLayerSafeZoned("top", 3, top - (layerPitchFt * 2.0), top3Start, top3Mid, top3End, topCount, clearStart, clearEnd);
+                            }
+                            else
+                            {
+                                AddLayerSafe("top", 2, top - layerPitchFt, topCount2, topCount);
+                                AddLayerSafe("top", 3, top - (layerPitchFt * 2.0), topCount3, topCount);
+                            }
                         }
                         else
                         {
-                            if (topCount2 > 0 || topCount3 > 0)
+                            bool hasTop2 = useZoneCounts ? (top2Start > 0 || top2Mid > 0 || top2End > 0) : (topCount2 > 0);
+                            bool hasTop3 = useZoneCounts ? (top3Start > 0 || top3Mid > 0 || top3End > 0) : (topCount3 > 0);
+                            if (hasTop2 || hasTop3)
                             {
                                 var skips = hostObj["beamMainLayerSkips"] as JArray;
                                 if (skips == null) { skips = new JArray(); hostObj["beamMainLayerSkips"] = skips; }
-                                if (topCount2 > 0) skips.Add(new JObject { ["side"] = "top", ["layerIndex"] = 2, ["count"] = topCount2, ["reason"] = "layerPitchMm<=0" });
-                                if (topCount3 > 0) skips.Add(new JObject { ["side"] = "top", ["layerIndex"] = 3, ["count"] = topCount3, ["reason"] = "layerPitchMm<=0" });
+                                if (hasTop2) skips.Add(new JObject { ["side"] = "top", ["layerIndex"] = 2, ["count"] = topCount2, ["reason"] = "layerPitchMm<=0" });
+                                if (hasTop3) skips.Add(new JObject { ["side"] = "top", ["layerIndex"] = 3, ["count"] = topCount3, ["reason"] = "layerPitchMm<=0" });
                             }
                         }
 
                         // Bottom layers (upwards)
-                        AddLayerSafe("bottom", 1, bottom, bottomCount);
+                        if (useZonedMainBars)
+                            AddLayerSafeZoned("bottom", 1, bottom, bottomStart, bottomMid, bottomEnd, bottomCount, clearStart, clearEnd);
+                        else
+                            AddLayerSafe("bottom", 1, bottom, bottomCount, bottomCount);
                         if (layerPitchFt > 1e-9)
                         {
-                            AddLayerSafe("bottom", 2, bottom + layerPitchFt, bottomCount2);
-                            AddLayerSafe("bottom", 3, bottom + (layerPitchFt * 2.0), bottomCount3);
+                            if (useZonedMainBars)
+                            {
+                                AddLayerSafeZoned("bottom", 2, bottom + layerPitchFt, bottom2Start, bottom2Mid, bottom2End, bottomCount, clearStart, clearEnd);
+                                AddLayerSafeZoned("bottom", 3, bottom + (layerPitchFt * 2.0), bottom3Start, bottom3Mid, bottom3End, bottomCount, clearStart, clearEnd);
+                            }
+                            else
+                            {
+                                AddLayerSafe("bottom", 2, bottom + layerPitchFt, bottomCount2, bottomCount);
+                                AddLayerSafe("bottom", 3, bottom + (layerPitchFt * 2.0), bottomCount3, bottomCount);
+                            }
                         }
                         else
                         {
-                            if (bottomCount2 > 0 || bottomCount3 > 0)
+                            bool hasBot2 = useZoneCounts ? (bottom2Start > 0 || bottom2Mid > 0 || bottom2End > 0) : (bottomCount2 > 0);
+                            bool hasBot3 = useZoneCounts ? (bottom3Start > 0 || bottom3Mid > 0 || bottom3End > 0) : (bottomCount3 > 0);
+                            if (hasBot2 || hasBot3)
                             {
                                 var skips = hostObj["beamMainLayerSkips"] as JArray;
                                 if (skips == null) { skips = new JArray(); hostObj["beamMainLayerSkips"] = skips; }
-                                if (bottomCount2 > 0) skips.Add(new JObject { ["side"] = "bottom", ["layerIndex"] = 2, ["count"] = bottomCount2, ["reason"] = "layerPitchMm<=0" });
-                                if (bottomCount3 > 0) skips.Add(new JObject { ["side"] = "bottom", ["layerIndex"] = 3, ["count"] = bottomCount3, ["reason"] = "layerPitchMm<=0" });
+                                if (hasBot2) skips.Add(new JObject { ["side"] = "bottom", ["layerIndex"] = 2, ["count"] = bottomCount2, ["reason"] = "layerPitchMm<=0" });
+                                if (hasBot3) skips.Add(new JObject { ["side"] = "bottom", ["layerIndex"] = 3, ["count"] = bottomCount3, ["reason"] = "layerPitchMm<=0" });
                             }
                         }
                     }
@@ -2612,72 +4015,253 @@ namespace RevitMCPAddin.Core
                         double aMax = GetMaxByIndex(localBox, crossA);
                         double bMin = GetMinByIndex(localBox, crossB);
                         double bMax = GetMaxByIndex(localBox, crossB);
-                        double ax1 = aMin + faceLeftFt + r;
-                        double ax2 = aMax - faceRightFt - r;
-                        double bx1 = bMin + faceDownFt + r;
-                        double bx2 = bMax - faceUpFt - r;
-
                         var nrm = GetBasisVectorByIndex(tr, crossA);
                         if (nrm.GetLength() < 1e-9) nrm = XYZ.BasisX;
 
-                        int perFace = 2;
-                        try { perFace = Math.Max(2, columnMainBarsPerFaceEffective); } catch { perFace = 2; }
+                        double centerA = (aMin + aMax) * 0.5;
+                        double centerB = (bMin + bMax) * 0.5;
+                        double halfA = (aMax - aMin) * 0.5;
+                        double halfB = (bMax - bMin) * 0.5;
 
-                        double[] Linspace(double start, double end, int count)
+                        double sideCoverFt = Math.Max(coverOtherFt, Math.Max(faceLeftFt, Math.Max(faceRightFt, Math.Max(faceUpFt, faceDownFt))));
+                        if (opts.includeTies && tieBarDiaFt > 1e-9)
                         {
-                            if (count <= 1) return new[] { start };
-                            var arr = new double[count];
-                            double step = (end - start) / (count - 1);
-                            for (int i = 0; i < count; i++) arr[i] = start + step * i;
-                            return arr;
+                            sideCoverFt += tieBarDiaFt;
+                            hostObj["columnMainBarInsideTieOffsetMm"] = UnitHelper.FtToMm(tieBarDiaFt);
+                        }
+                        bool useCircular = isColumn && isCircularColumn;
+
+                        // Determine head/foot counts with fallback
+                        int perFaceXHeadEff = columnMainBarsPerFaceXHead > 0 ? columnMainBarsPerFaceXHead
+                            : (columnMainBarsPerFaceXFoot > 0 ? columnMainBarsPerFaceXFoot : columnMainBarsPerFaceXEffective);
+                        int perFaceXFootEff = columnMainBarsPerFaceXFoot > 0 ? columnMainBarsPerFaceXFoot
+                            : (columnMainBarsPerFaceXHead > 0 ? columnMainBarsPerFaceXHead : columnMainBarsPerFaceXEffective);
+                        int perFaceYHeadEff = columnMainBarsPerFaceYHead > 0 ? columnMainBarsPerFaceYHead
+                            : (columnMainBarsPerFaceYFoot > 0 ? columnMainBarsPerFaceYFoot : columnMainBarsPerFaceYEffective);
+                        int perFaceYFootEff = columnMainBarsPerFaceYFoot > 0 ? columnMainBarsPerFaceYFoot
+                            : (columnMainBarsPerFaceYHead > 0 ? columnMainBarsPerFaceYHead : columnMainBarsPerFaceYEffective);
+
+                        int totalHeadEff = columnMainBarTotalCountHead > 0 ? columnMainBarTotalCountHead
+                            : (columnMainBarTotalCountFoot > 0 ? columnMainBarTotalCountFoot : columnMainBarTotalCountEffective);
+                        int totalFootEff = columnMainBarTotalCountFoot > 0 ? columnMainBarTotalCountFoot
+                            : (columnMainBarTotalCountHead > 0 ? columnMainBarTotalCountHead : columnMainBarTotalCountEffective);
+                        if (totalHeadEff <= 0 && totalFootEff > 0) totalHeadEff = totalFootEff;
+                        if (totalFootEff <= 0 && totalHeadEff > 0) totalFootEff = totalHeadEff;
+                        if (useCircular && totalHeadEff <= 0 && totalFootEff <= 0 && colSpec != null
+                            && colSpec.mainBarsPerFace.HasValue
+                            && !colSpec.mainBarsPerFaceX.HasValue && !colSpec.mainBarsPerFaceY.HasValue)
+                        {
+                            totalHeadEff = totalFootEff = Math.Max(0, colSpec.mainBarsPerFace.Value);
                         }
 
-                        var aPositions = Linspace(ax1, ax2, perFace);
-                        var bPositions = Linspace(bx1, bx2, perFace);
-
-                        // Perimeter points per face; dedupe corners (rectangular columns).
-                        var pts = new List<Tuple<double, double>>();
-                        var seen = new HashSet<string>(StringComparer.Ordinal);
-                        string Key(double a, double b)
+                        bool splitHeadFoot = isColumn && opts.columnMainBarSplitByMidHeight;
+                        double axisMid = (axisStart + axisEnd) * 0.5;
+                        if (axisMid < axisStart) axisMid = axisStart;
+                        if (axisMid > axisEnd) axisMid = axisEnd;
+                        double footStart = axisPositiveIsUp ? axisStart : axisMid;
+                        double footEnd = axisPositiveIsUp ? axisMid : axisEnd;
+                        double headStart = axisPositiveIsUp ? axisMid : axisStart;
+                        double headEnd = axisPositiveIsUp ? axisEnd : axisMid;
+                        try
                         {
-                            // Local ft coords are small; this tolerance is purely for corner de-duplication.
-                            long ka = (long)Math.Round(a * 1_000_000.0);
-                            long kb = (long)Math.Round(b * 1_000_000.0);
-                            return ka.ToString() + "_" + kb.ToString();
-                        }
-
-                        foreach (var b in bPositions)
-                        {
-                            var k1 = Key(ax1, b);
-                            if (seen.Add(k1)) pts.Add(Tuple.Create(ax1, b));
-                            var k2 = Key(ax2, b);
-                            if (seen.Add(k2)) pts.Add(Tuple.Create(ax2, b));
-                        }
-                        foreach (var a in aPositions)
-                        {
-                            var k1 = Key(a, bx1);
-                            if (seen.Add(k1)) pts.Add(Tuple.Create(a, bx1));
-                            var k2 = Key(a, bx2);
-                            if (seen.Add(k2)) pts.Add(Tuple.Create(a, bx2));
-                        }
-
-                        int idx = 0;
-                        foreach (var pt in pts)
-                        {
-                            var p0 = MakeLocalPoint(axisIndex, axisStart, crossA, pt.Item1, crossB, pt.Item2);
-                            var p1 = MakeLocalPoint(axisIndex, axisEnd, crossA, pt.Item1, crossB, pt.Item2);
-                            var w0 = tr.OfPoint(p0);
-                            var w1 = tr.OfPoint(p1);
-                            actions.Add(new JObject
+                            hostObj["columnMainBarSplit"] = new JObject
                             {
-                                ["role"] = "column_main_bar",
-                                ["index"] = idx++,
-                                ["style"] = "Standard",
-                                ["barTypeName"] = mainBarTypeName,
-                                ["curves"] = new JArray { GeometryJsonHelper.CurveToJson(Line.CreateBound(w0, w1)) },
-                                ["normal"] = GeometryJsonHelper.VectorToJson(nrm.Normalize()),
-                                ["tagComments"] = opts.tagComments
-                            });
+                                ["enabled"] = splitHeadFoot,
+                                ["axisMidMm"] = UnitHelper.FtToMm(axisMid),
+                                ["axisPositiveIsUp"] = axisPositiveIsUp
+                            };
+                        }
+                        catch { /* ignore */ }
+
+                        bool AddCircularBars(double startFt, double endFt, int count)
+                        {
+                            if (count < 3) return false;
+                            double baseRadiusFt = (columnDiameterFt > 1e-9) ? (columnDiameterFt * 0.5) : Math.Min(halfA, halfB);
+                            double tieOffsetFt = (opts.includeTies && tieBarDiaFt > 1e-9) ? tieBarDiaFt : 0.0;
+                            double radiusFt = baseRadiusFt - sideCoverFt - tieOffsetFt - r;
+                            if (radiusFt <= 1e-6)
+                            {
+                                hostObj["columnCircularMainBars"] = new JObject
+                                {
+                                    ["used"] = false,
+                                    ["reason"] = "radius<=0",
+                                    ["baseRadiusMm"] = UnitHelper.FtToMm(baseRadiusFt),
+                                    ["sideCoverMm"] = UnitHelper.FtToMm(sideCoverFt),
+                                    ["tieOffsetMm"] = UnitHelper.FtToMm(tieOffsetFt)
+                                };
+                                return false;
+                            }
+
+                            hostObj["columnCircularMainBars"] = new JObject
+                            {
+                                ["used"] = true,
+                                ["totalCount"] = count,
+                                ["radiusMm"] = UnitHelper.FtToMm(radiusFt),
+                                ["baseRadiusMm"] = UnitHelper.FtToMm(baseRadiusFt),
+                                ["sideCoverMm"] = UnitHelper.FtToMm(sideCoverFt),
+                                ["tieOffsetMm"] = UnitHelper.FtToMm(tieOffsetFt)
+                            };
+
+                            int idx = 0;
+                            for (int i = 0; i < count; i++)
+                            {
+                                double ang = (2.0 * Math.PI * i) / count;
+                                double a = centerA + radiusFt * Math.Cos(ang);
+                                double b = centerB + radiusFt * Math.Sin(ang);
+                                var p0 = MakeLocalPoint(axisIndex, startFt, crossA, a, crossB, b);
+                                var p1 = MakeLocalPoint(axisIndex, endFt, crossA, a, crossB, b);
+                                var w0 = tr.OfPoint(p0);
+                                var w1 = tr.OfPoint(p1);
+                                actions.Add(new JObject
+                                {
+                                    ["role"] = "column_main_bar",
+                                    ["index"] = idx++,
+                                    ["style"] = "Standard",
+                                    ["barTypeName"] = mainBarTypeName,
+                                    ["curves"] = new JArray { GeometryJsonHelper.CurveToJson(Line.CreateBound(w0, w1)) },
+                                    ["normal"] = GeometryJsonHelper.VectorToJson(nrm.Normalize()),
+                                    ["tagComments"] = opts.tagComments
+                                });
+                            }
+                            return idx > 0;
+                        }
+
+                        void AddRectBars(double startFt, double endFt, int perFaceX, int perFaceY)
+                        {
+                            double tieOffsetFt = (opts.includeTies && tieBarDiaFt > 1e-9) ? tieBarDiaFt : 0.0;
+                            double ax1 = aMin + faceLeftFt + tieOffsetFt + r;
+                            double ax2 = aMax - faceRightFt - tieOffsetFt - r;
+                            double bx1 = bMin + faceDownFt + tieOffsetFt + r;
+                            double bx2 = bMax - faceUpFt - tieOffsetFt - r;
+
+                            // NOTE (important): per-face bar-count definitions
+                            // In common RC-family conventions (incl. SIRBIM), "X/Y" counts describe the number of bars on
+                            // the faces parallel to the opposite axis:
+                            // - BarsPerFaceX => faces parallel to Y (i.e., faces at a=ax1/ax2, varying b => bPositions)
+                            // - BarsPerFaceY => faces parallel to X (i.e., faces at b=bx1/bx2, varying a => aPositions)
+                            // Therefore, aPositions should use BarsPerFaceY, and bPositions should use BarsPerFaceX.
+                            int perFaceA = Math.Max(2, perFaceY);
+                            int perFaceB = Math.Max(2, perFaceX);
+
+                            double[] Linspace(double start, double end, int count)
+                            {
+                                if (count <= 1) return new[] { start };
+                                var arr = new double[count];
+                                double step = (end - start) / (count - 1);
+                                for (int i = 0; i < count; i++) arr[i] = start + step * i;
+                                return arr;
+                            }
+
+                            var aPositions = Linspace(ax1, ax2, perFaceA);
+                            var bPositions = Linspace(bx1, bx2, perFaceB);
+
+                            // Perimeter points per face; dedupe corners (rectangular columns).
+                            var pts = new List<Tuple<double, double>>();
+                            var seen = new HashSet<string>(StringComparer.Ordinal);
+                            string Key(double a, double b)
+                            {
+                                // Local ft coords are small; this tolerance is purely for corner de-duplication.
+                                long ka = (long)Math.Round(a * 1_000_000.0);
+                                long kb = (long)Math.Round(b * 1_000_000.0);
+                                return ka.ToString() + "_" + kb.ToString();
+                            }
+
+                            foreach (var b in bPositions)
+                            {
+                                var k1 = Key(ax1, b);
+                                if (seen.Add(k1)) pts.Add(Tuple.Create(ax1, b));
+                                var k2 = Key(ax2, b);
+                                if (seen.Add(k2)) pts.Add(Tuple.Create(ax2, b));
+                            }
+                            foreach (var a in aPositions)
+                            {
+                                var k1 = Key(a, bx1);
+                                if (seen.Add(k1)) pts.Add(Tuple.Create(a, bx1));
+                                var k2 = Key(a, bx2);
+                                if (seen.Add(k2)) pts.Add(Tuple.Create(a, bx2));
+                            }
+
+                            int idx = 0;
+                            foreach (var pt in pts)
+                            {
+                                var p0 = MakeLocalPoint(axisIndex, startFt, crossA, pt.Item1, crossB, pt.Item2);
+                                var p1 = MakeLocalPoint(axisIndex, endFt, crossA, pt.Item1, crossB, pt.Item2);
+                                var w0 = tr.OfPoint(p0);
+                                var w1 = tr.OfPoint(p1);
+                                actions.Add(new JObject
+                                {
+                                    ["role"] = "column_main_bar",
+                                    ["index"] = idx++,
+                                    ["style"] = "Standard",
+                                    ["barTypeName"] = mainBarTypeName,
+                                    ["curves"] = new JArray { GeometryJsonHelper.CurveToJson(Line.CreateBound(w0, w1)) },
+                                    ["normal"] = GeometryJsonHelper.VectorToJson(nrm.Normalize()),
+                                    ["tagComments"] = opts.tagComments
+                                });
+                            }
+                        }
+
+                        // For circular columns, fall back to per-face counts when total counts are missing.
+                        // This avoids rectangular placement on circular sections and reduces "outside host" warnings.
+                        int circHeadEff = totalHeadEff;
+                        int circFootEff = totalFootEff;
+                        if (circHeadEff <= 0 && circFootEff > 0) circHeadEff = circFootEff;
+                        if (circFootEff <= 0 && circHeadEff > 0) circFootEff = circHeadEff;
+                        string circSource = "explicit";
+                        if (useCircular && circHeadEff <= 0 && circFootEff <= 0)
+                        {
+                            int fallback = 0;
+                            if (columnMainBarTotalCountEffective >= 3)
+                            {
+                                fallback = columnMainBarTotalCountEffective;
+                                circSource = "totalCount";
+                            }
+                            else
+                            {
+                                // Prefer head/foot counts when provided, otherwise use per-face effective counts.
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceXHead);
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceXFoot);
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceYHead);
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceYFoot);
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceXEffective);
+                                fallback = Math.Max(fallback, columnMainBarsPerFaceYEffective);
+                                circSource = "perFaceFallback";
+                            }
+                            if (fallback >= 3)
+                            {
+                                circHeadEff = fallback;
+                                circFootEff = fallback;
+                            }
+                        }
+
+                        bool usedCircularBars = false;
+                        if (useCircular && (circHeadEff > 0 || circFootEff > 0))
+                        {
+                            if (!splitHeadFoot)
+                            {
+                                usedCircularBars = AddCircularBars(axisStart, axisEnd, Math.Max(circHeadEff, circFootEff));
+                            }
+                            else
+                            {
+                                if (circFootEff > 0) usedCircularBars |= AddCircularBars(footStart, footEnd, circFootEff);
+                                if (circHeadEff > 0) usedCircularBars |= AddCircularBars(headStart, headEnd, circHeadEff);
+                            }
+                        }
+                        else if (useCircular && columnMainBarTotalCountEffective >= 3)
+                        {
+                            usedCircularBars = AddCircularBars(axisStart, axisEnd, columnMainBarTotalCountEffective);
+                        }
+                        if (!usedCircularBars)
+                        {
+                            if (!splitHeadFoot)
+                            {
+                                AddRectBars(axisStart, axisEnd, perFaceXHeadEff, perFaceYHeadEff);
+                            }
+                            else
+                            {
+                                AddRectBars(footStart, footEnd, perFaceXFootEff, perFaceYFootEff);
+                                AddRectBars(headStart, headEnd, perFaceXHeadEff, perFaceYHeadEff);
+                            }
                         }
                     }
                 }
@@ -2699,22 +4283,24 @@ namespace RevitMCPAddin.Core
                 {
                     double r = tieBarType.BarModelDiameter / 2.0;
  
-                     double baseMin = GetMinByIndex(localBox, axisIndex);
-                     double baseMax = GetMaxByIndex(localBox, axisIndex);
+                     double bboxMin = GetMinByIndex(localBox, axisIndex);
+                     double bboxMax = GetMaxByIndex(localBox, axisIndex);
+                     double baseMin = (isFraming && beamAxisRangeValid) ? beamAxisMinFt : bboxMin;
+                     double baseMax = (isFraming && beamAxisRangeValid) ? beamAxisMaxFt : bboxMax;
                      if (isFraming)
                      {
                         try
                         {
                             hostObj["beamAxisRangeBboxMm_raw_stirrups"] = new JObject
                             {
-                                ["min"] = UnitHelper.FtToMm(baseMin),
-                                ["max"] = UnitHelper.FtToMm(baseMax),
-                                ["length"] = UnitHelper.FtToMm(baseMax - baseMin)
+                                ["min"] = UnitHelper.FtToMm(bboxMin),
+                                ["max"] = UnitHelper.FtToMm(bboxMax),
+                                ["length"] = UnitHelper.FtToMm(bboxMax - bboxMin)
                             };
                         }
                         catch { /* ignore */ }
 
-                        hostObj["beamAxisSourceStirrups"] = "bbox";
+                        hostObj["beamAxisSourceStirrups"] = beamAxisRangeValid ? "shared" : "bbox";
 
                         try
                         {
@@ -2730,27 +4316,38 @@ namespace RevitMCPAddin.Core
                         }
                         catch { /* ignore */ }
 
-                        try
+                        if (beamAxisRangeValid)
                         {
-                            if (TryGetHostAxisRangeFromSolidGeometry(host, tr, axisIndex, out var gMin, out var gMax, out var gMsg) && (gMax > gMin))
-                            {
-                                baseMin = gMin;
-                                baseMax = gMax;
-                                hostObj["beamAxisRangeFrom_stirrups"] = "solidGeometry";
-                                hostObj["beamAxisRangeSolidMm_stirrups"] = new JObject
-                                {
-                                    ["min"] = UnitHelper.FtToMm(gMin),
-                                    ["max"] = UnitHelper.FtToMm(gMax),
-                                    ["length"] = UnitHelper.FtToMm(gMax - gMin)
-                                };
-                            }
-                            else
-                            {
-                                hostObj["beamAxisRangeFrom_stirrups"] = "bbox";
-                                if (!string.IsNullOrWhiteSpace(gMsg)) hostObj["beamAxisRangeSolidError_stirrups"] = gMsg;
-                            }
+                            hostObj["beamAxisRangeFrom_stirrups"] = "shared";
+                            if (hostObj["beamAxisRangeSolidMm_shared"] != null)
+                                hostObj["beamAxisRangeSolidMm_stirrups"] = hostObj["beamAxisRangeSolidMm_shared"];
+                            if (hostObj["beamAxisRangeSolidError_shared"] != null)
+                                hostObj["beamAxisRangeSolidError_stirrups"] = hostObj["beamAxisRangeSolidError_shared"];
                         }
-                        catch { /* ignore */ }
+                        else
+                        {
+                            try
+                            {
+                                if (TryGetHostAxisRangeFromSolidGeometry(host, tr, axisIndex, out var gMin, out var gMax, out var gMsg) && (gMax > gMin))
+                                {
+                                    baseMin = gMin;
+                                    baseMax = gMax;
+                                    hostObj["beamAxisRangeFrom_stirrups"] = "solidGeometry";
+                                    hostObj["beamAxisRangeSolidMm_stirrups"] = new JObject
+                                    {
+                                        ["min"] = UnitHelper.FtToMm(gMin),
+                                        ["max"] = UnitHelper.FtToMm(gMax),
+                                        ["length"] = UnitHelper.FtToMm(gMax - gMin)
+                                    };
+                                }
+                                else
+                                {
+                                    hostObj["beamAxisRangeFrom_stirrups"] = "bbox";
+                                    if (!string.IsNullOrWhiteSpace(gMsg)) hostObj["beamAxisRangeSolidError_stirrups"] = gMsg;
+                                }
+                            }
+                            catch { /* ignore */ }
+                        }
 
                         try
                         {
@@ -2763,49 +4360,155 @@ namespace RevitMCPAddin.Core
                         }
                         catch { /* ignore */ }
  
-                         // Best-effort: move start/end closer to connected column faces (support faces),
-                         // so the first stirrup is placed at the joint face (typical RC detailing).
-                         try
-                         {
-                            if (TryAdjustBeamAxisRangeToJoinedColumnFaces(doc, host, tr, axisIndex, baseMin, baseMax, out var adjMin, out var adjMax, out var dbg) && (adjMax > adjMin))
+                        // Use shared clear span if available (keeps main bars/stirrups consistent).
+                        if (beamSupportFaceDbg != null) hostObj["beamStirrupSupportFaces"] = beamSupportFaceDbg;
+                        if (hasClearRange)
+                        {
+                            baseMin = clearStartFt;
+                            baseMax = clearEndFt;
+                            try
                             {
-                                baseMin = adjMin;
-                                baseMax = adjMax;
-                                hostObj["beamStirrupSupportFaces"] = dbg;
+                                hostObj["beamClearAxisRangeMm_stirrups"] = new JObject
+                                {
+                                    ["min"] = UnitHelper.FtToMm(clearStartFt),
+                                    ["max"] = UnitHelper.FtToMm(clearEndFt),
+                                    ["length"] = UnitHelper.FtToMm(clearEndFt - clearStartFt)
+                                };
+                            }
+                            catch { /* ignore */ }
+                        }
+                    }
+
+                    double colAxisCoverBottomFt = coverBottomFt;
+                    double colAxisCoverTopFt = coverTopFt;
+                    if (isColumn && opts.columnAxisEndCoverUsesConcreteNeighborCheck)
+                    {
+                        if (columnHasConcreteBelow) colAxisCoverBottomFt = 0.0;
+                        if (columnHasConcreteAbove) colAxisCoverTopFt = 0.0;
+                        if (hostObj["columnAxisEndCoverEffectiveMm_ties"] == null)
+                        {
+                            hostObj["columnAxisEndCoverEffectiveMm_ties"] = new JObject
+                            {
+                                ["bottom"] = UnitHelper.FtToMm(colAxisCoverBottomFt),
+                                ["top"] = UnitHelper.FtToMm(colAxisCoverTopFt),
+                                ["source"] = "concreteNeighborCheck"
+                            };
+                        }
+                    }
+
+                    double colAxisCoverMinFt = colAxisCoverBottomFt;
+                    double colAxisCoverMaxFt = colAxisCoverTopFt;
+                    if (isColumn)
+                    {
+                        colAxisCoverMinFt = axisPositiveIsUp ? colAxisCoverBottomFt : colAxisCoverTopFt;
+                        colAxisCoverMaxFt = axisPositiveIsUp ? colAxisCoverTopFt : colAxisCoverBottomFt;
+                    }
+
+                    double axisStart = baseMin + (isColumn ? (colAxisCoverMinFt + r) : (coverOtherFt + r));
+                    double axisEnd = baseMax - (isColumn ? (colAxisCoverMaxFt + r) : (coverOtherFt + r));
+                    if (isFraming)
+                    {
+                        // Beam axis-end cover for stirrups:
+                        // - If an end is connected to *concrete* structural column or structural framing => no cover at that end.
+                        // - Otherwise => apply the same cover as the beam side faces.
+                        bool beamHasConcreteAtMinEnd = false;
+                        bool beamHasConcreteAtMaxEnd = false;
+                        try
+                        {
+                            if (TryDetectConcreteSupportsAtBeamAxisEnds(
+                                doc, host, tr, localBox, axisIndex, sideIndex, upIndex, baseMin, baseMax,
+                                UnitHelper.MmToFt(opts.beamSupportSearchRangeMm),
+                                UnitHelper.MmToFt(opts.beamSupportFaceToleranceMm),
+                                concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                                out beamHasConcreteAtMinEnd, out beamHasConcreteAtMaxEnd, out var beamEndDbg) && beamEndDbg != null)
+                            {
+                                beamEndDbg["startDefinition"] = "LocationCurve.EndPoint(0)";
+                                beamEndDbg["endDefinition"] = "LocationCurve.EndPoint(1)";
+                                beamEndDbg["startIsMinAxis"] = beamStartIsMinAxis;
+                                beamEndDbg["hasConcreteAtStart"] = beamStartIsMinAxis ? beamHasConcreteAtMinEnd : beamHasConcreteAtMaxEnd;
+                                beamEndDbg["hasConcreteAtEnd"] = beamStartIsMinAxis ? beamHasConcreteAtMaxEnd : beamHasConcreteAtMinEnd;
+                                hostObj["beamAxisEndConcreteNeighbor_ties"] = beamEndDbg;
                             }
                         }
                         catch { /* ignore */ }
-                    }
 
-                    double axisStart = baseMin + (isColumn ? (coverBottomFt + r) : (coverOtherFt + r));
-                    double axisEnd = baseMax - (isColumn ? (coverTopFt + r) : (coverOtherFt + r));
-                    if (isFraming)
-                    {
-                        // Along-beam cover does not apply; stirrups should start at the joint face (physical end).
-                        axisStart = baseMin;
-                        axisEnd = baseMax;
+                        double beamEndCoverFt = Math.Max(coverOtherFt, Math.Max(faceLeftFt, faceRightFt));
+                        double gapMinFt = beamHasConcreteAtMinEnd ? 0.0 : (beamEndCoverFt + r);
+                        double gapMaxFt = beamHasConcreteAtMaxEnd ? 0.0 : (beamEndCoverFt + r);
+                        axisStart = baseMin + gapMinFt;
+                        axisEnd = baseMax - gapMaxFt;
+                        try
+                        {
+                            hostObj["beamAxisEndCoverEffectiveMm_ties"] = new JObject
+                            {
+                                ["source"] = "concreteSupport+sideCover",
+                                ["sideCoverMm"] = UnitHelper.FtToMm(beamEndCoverFt),
+                                ["minEnd"] = beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt),
+                                ["maxEnd"] = beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt),
+                                ["start"] = beamStartIsMinAxis
+                                    ? (beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt))
+                                    : (beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt)),
+                                ["end"] = beamStartIsMinAxis
+                                    ? (beamHasConcreteAtMaxEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt))
+                                    : (beamHasConcreteAtMinEnd ? 0.0 : UnitHelper.FtToMm(beamEndCoverFt)),
+                                ["gapMinEndMm"] = UnitHelper.FtToMm(gapMinFt),
+                                ["gapMaxEndMm"] = UnitHelper.FtToMm(gapMaxFt),
+                                ["startIsMinAxis"] = beamStartIsMinAxis
+                            };
+                        }
+                        catch { /* ignore */ }
                     }
                     // Start/end offsets for ties/stirrups (mm)
                     try
                     {
                         if (isFraming)
                         {
-                            axisStart += UnitHelper.MmToFt(opts.beamStirrupStartOffsetMm);
-                            axisEnd -= UnitHelper.MmToFt(opts.beamStirrupEndOffsetMm);
+                            // IMPORTANT:
+                            // Beam "start/end" are defined by the LocationCurve endpoints:
+                            //  - start = EndPoint(0)
+                            //  - end   = EndPoint(1)
+                            //
+                            // Our axis range is min/max on the chosen axisIndex, so to keep axisStart<axisEnd
+                            // (required by shape-driven layout), apply the start/end offsets to the min/max ends
+                            // depending on whether EndPoint(0) lies on the min side or max side.
+                            bool startIsMin = beamStartIsMinAxis;
+
+                            double startOffFt = UnitHelper.MmToFt(opts.beamStirrupStartOffsetMm);
+                            double endOffFt = UnitHelper.MmToFt(opts.beamStirrupEndOffsetMm);
+                            double offMinFt = startIsMin ? startOffFt : endOffFt;
+                            double offMaxFt = startIsMin ? endOffFt : startOffFt;
+
+                            axisStart += offMinFt;
+                            axisEnd -= offMaxFt;
+
                             hostObj["beamStirrupAxisOffsetsMm"] = new JObject
                             {
                                 ["start"] = opts.beamStirrupStartOffsetMm,
-                                ["end"] = opts.beamStirrupEndOffsetMm
+                                ["end"] = opts.beamStirrupEndOffsetMm,
+                                ["appliedToMinEndMm"] = UnitHelper.FtToMm(offMinFt),
+                                ["appliedToMaxEndMm"] = UnitHelper.FtToMm(offMaxFt)
                             };
                         }
                         else if (isColumn)
                         {
-                            axisStart += UnitHelper.MmToFt(opts.columnTieBottomOffsetMm);
-                            axisEnd -= UnitHelper.MmToFt(opts.columnTieTopOffsetMm);
+                            double offBotFt = UnitHelper.MmToFt(opts.columnTieBottomOffsetMm);
+                            double offTopFt = UnitHelper.MmToFt(opts.columnTieTopOffsetMm);
+                            if (axisPositiveIsUp)
+                            {
+                                axisStart += offBotFt;
+                                axisEnd -= offTopFt;
+                            }
+                            else
+                            {
+                                // world-top is local min, world-bottom is local max
+                                axisStart += offTopFt;
+                                axisEnd -= offBotFt;
+                            }
                             hostObj["columnTieAxisOffsetsMm"] = new JObject
                             {
                                 ["bottom"] = opts.columnTieBottomOffsetMm,
-                                ["top"] = opts.columnTieTopOffsetMm
+                                ["top"] = opts.columnTieTopOffsetMm,
+                                ["axisPositiveIsUp"] = axisPositiveIsUp
                             };
                         }
                     }
@@ -3007,8 +4710,104 @@ namespace RevitMCPAddin.Core
                     }
                     catch { /* ignore */ }
 
+                    // Circular column ties (best-effort)
+                    bool useCircularTie = false;
+                    double circleCenterS = 0.0;
+                    double circleCenterU = 0.0;
+                    double circleRadiusTieFt = 0.0;
+                    if (isColumn && isCircularColumn)
+                    {
+                        try
+                        {
+                            double sLen = sMax - sMin;
+                            double uLen = uMax - uMin;
+                            circleCenterS = (sMin + sMax) * 0.5;
+                            circleCenterU = (uMin + uMax) * 0.5;
+                            double sideCoverFt = Math.Max(coverOtherFt, Math.Max(faceLeftFt, Math.Max(faceRightFt, Math.Max(faceUpFt, faceDownFt))));
+                            double baseRadiusFt = (columnDiameterFt > 1e-9) ? (columnDiameterFt * 0.5) : (Math.Min(sLen, uLen) * 0.5);
+                            circleRadiusTieFt = baseRadiusFt - sideCoverFt - r;
+                            if (circleRadiusTieFt > 1e-6)
+                            {
+                                useCircularTie = true;
+                                hostObj["columnCircularTies"] = new JObject
+                                {
+                                    ["used"] = true,
+                                    ["radiusMm"] = UnitHelper.FtToMm(circleRadiusTieFt),
+                                    ["baseRadiusMm"] = UnitHelper.FtToMm(baseRadiusFt),
+                                    ["sideCoverMm"] = UnitHelper.FtToMm(sideCoverFt)
+                                };
+                            }
+                            else
+                            {
+                                hostObj["columnCircularTies"] = new JObject
+                                {
+                                    ["used"] = false,
+                                    ["reason"] = "radius<=0",
+                                    ["baseRadiusMm"] = UnitHelper.FtToMm(baseRadiusFt),
+                                    ["sideCoverMm"] = UnitHelper.FtToMm(sideCoverFt)
+                                };
+                            }
+                        }
+                        catch { /* ignore */ }
+                    }
+
+                    ElementId tieShapeId = selectedTieShapeId;
+                    string tieShapeName = selectedTieShapeName;
+                    string tieShapeSource = (tieShapeId != null && tieShapeId != ElementId.InvalidElementId) ? "selection" : string.Empty;
+                    if (useCircularTie && (tieShapeId == null || tieShapeId == ElementId.InvalidElementId))
+                    {
+                        try
+                        {
+                            if (TryFindCircularTieShape(doc, out var autoShape, out var src))
+                            {
+                                tieShapeId = autoShape.Id;
+                                tieShapeName = autoShape.Name ?? string.Empty;
+                                tieShapeSource = src;
+                            }
+                        }
+                        catch { /* ignore */ }
+                    }
+                    if (tieShapeId != null && tieShapeId != ElementId.InvalidElementId)
+                    {
+                        try
+                        {
+                            hostObj["columnTieShape"] = new JObject
+                            {
+                                ["id"] = tieShapeId.IntValue(),
+                                ["name"] = tieShapeName,
+                                ["source"] = tieShapeSource
+                            };
+                        }
+                        catch { /* ignore */ }
+                    }
+
                     JArray BuildTieCurvesAtAxisCoord(double axisCoordFt)
                     {
+                        if (useCircularTie)
+                        {
+                            var centerLocal = MakeLocalPoint(axisIndex, axisCoordFt, sIdx, circleCenterS, uIdx, circleCenterU);
+                            var centerWorld = tr.OfPoint(centerLocal);
+
+                            var xAxis = GetBasisVectorByIndex(tr, sIdx);
+                            var yAxis = GetBasisVectorByIndex(tr, uIdx);
+                            if (xAxis.GetLength() < 1e-9) xAxis = XYZ.BasisX;
+                            if (yAxis.GetLength() < 1e-9) yAxis = XYZ.BasisY;
+                            xAxis = xAxis.Normalize();
+                            yAxis = yAxis.Normalize();
+
+                            var curvesCircular = new JArray();
+                            double q = Math.PI * 0.5;
+                            var a1 = Arc.Create(centerWorld, circleRadiusTieFt, 0, q, xAxis, yAxis);
+                            var a2 = Arc.Create(centerWorld, circleRadiusTieFt, q, q * 2.0, xAxis, yAxis);
+                            var a3 = Arc.Create(centerWorld, circleRadiusTieFt, q * 2.0, q * 3.0, xAxis, yAxis);
+                            var a4 = Arc.Create(centerWorld, circleRadiusTieFt, q * 3.0, q * 4.0, xAxis, yAxis);
+                            curvesCircular.Add(GeometryJsonHelper.CurveToJson(a1));
+                            curvesCircular.Add(GeometryJsonHelper.CurveToJson(a2));
+                            curvesCircular.Add(GeometryJsonHelper.CurveToJson(a3));
+                            curvesCircular.Add(GeometryJsonHelper.CurveToJson(a4));
+                            return curvesCircular;
+                        }
+
                         var p1 = MakeLocalPoint(axisIndex, axisCoordFt, sIdx, left, uIdx, bottom);
                         var p2 = MakeLocalPoint(axisIndex, axisCoordFt, sIdx, right, uIdx, bottom);
                         var p3 = MakeLocalPoint(axisIndex, axisCoordFt, sIdx, right, uIdx, top);
@@ -3277,64 +5076,348 @@ namespace RevitMCPAddin.Core
 
                     if (!skipDefaultTiesAction)
                     {
-                        var curves = BuildTieCurvesAtAxisCoord(axisStart);
+                                bool addedZonedBeamStirrups = false;
+                                bool addedZonedColumnTies = false;
 
-                        var layoutObj = opts.layoutOverride != null ? (JObject)opts.layoutOverride.DeepClone() : BuildLayoutFromMapping(values, opts.preferMappingArrayLength, UnitHelper.FtToMm(arrayLenFt));
-                        try
-                        {
-                            if (layoutObj["arrayLengthMm"] == null || layoutObj.Value<double?>("arrayLengthMm") == null)
-                                layoutObj["arrayLengthMm"] = UnitHelper.FtToMm(arrayLenFt);
-                            if (isFraming)
-                            {
-                                // Start at the host joint face (first stirrup at start) by default.
-                                if (layoutObj["includeFirstBar"] == null) layoutObj["includeFirstBar"] = true;
-                                if (layoutObj["includeLastBar"] == null) layoutObj["includeLastBar"] = true;
-                            }
-                        }
-                        catch { /* ignore */ }
-
-                        // Beam: if pitch is provided by mapping keys, prefer it unless layout override is provided.
-                        if (isFraming && beamSpec != null && beamSpec.hasPitchParams && beamSpec.pitchEffectiveMm > 0.0 && opts.layoutOverride == null)
-                        {
-                            try
-                            {
-                                layoutObj["rule"] = "maximum_spacing";
-                                layoutObj["spacingMm"] = beamSpec.pitchEffectiveMm;
-                                if (layoutObj["includeFirstBar"] == null) layoutObj["includeFirstBar"] = true;
-                                if (layoutObj["includeLastBar"] == null) layoutObj["includeLastBar"] = true;
-                                if (layoutObj["barsOnNormalSide"] == null) layoutObj["barsOnNormalSide"] = true;
-
-                                hostObj["beamStirrups"] = new JObject
+                                // Beam: if pitch is provided by mapping keys, apply it.
+                                // If start/end pitches are specified and differ from mid, split into 3 zones by clear length:
+                                // - start end (near LocationCurve.EndPoint(0)): 1/4
+                                // - middle: 1/2
+                                // - end end (near LocationCurve.EndPoint(1)): 1/4
+                                if (isFraming && beamSpec != null && beamSpec.hasPitchParams && opts.layoutOverride == null)
                                 {
-                                    ["source"] = "mapping",
-                                    ["spacingMm"] = beamSpec.pitchEffectiveMm
+                                    try
+                                    {
+                                        bool startIsMin = beamStartIsMinAxis;
+
+                                        double pitchMid = beamSpec.pitchMidMm > 0.0 ? beamSpec.pitchMidMm : beamSpec.pitchEffectiveMm;
+                                        if (!(pitchMid > 0.0)) pitchMid = beamSpec.pitchStartMm > 0.0 ? beamSpec.pitchStartMm : beamSpec.pitchEndMm;
+                                        double pitchStart = beamSpec.pitchStartMm > 0.0 ? beamSpec.pitchStartMm : pitchMid;
+                                        double pitchEnd = beamSpec.pitchEndMm > 0.0 ? beamSpec.pitchEndMm : pitchMid;
+
+                                // Map to min/max ends (axisStart=MinEnd, axisEnd=MaxEnd)
+                                double pitchMin = startIsMin ? pitchStart : pitchEnd;
+                                double pitchMax = startIsMin ? pitchEnd : pitchStart;
+
+                                bool hasStartOrEnd = (beamSpec.pitchStartMm > 0.0) || (beamSpec.pitchEndMm > 0.0);
+                                // If start/end pitch params are provided, always split into 3 zones (start/mid/end),
+                                // even when the values happen to be equal. This preserves the user's intent and
+                                // matches the "start/end = 25% each of clear length" rule.
+                                bool needsZoned = hasStartOrEnd;
+
+                                hostObj["beamStirrupPitchZones"] = new JObject
+                                {
+                                    ["mode"] = "quarter-mid-half-quarter",
+                                    ["startDefinition"] = "LocationCurve.EndPoint(0)",
+                                    ["endDefinition"] = "LocationCurve.EndPoint(1)",
+                                    ["startIsMinAxis"] = startIsMin,
+                                    ["clearStartMm"] = UnitHelper.FtToMm((hasClearRange && clearEndFt > clearStartFt) ? clearStartFt : axisStart),
+                                    ["clearEndMm"] = UnitHelper.FtToMm((hasClearRange && clearEndFt > clearStartFt) ? clearEndFt : axisEnd),
+                                    ["pitchStartMm"] = pitchStart,
+                                    ["pitchMidMm"] = pitchMid,
+                                    ["pitchEndMm"] = pitchEnd,
+                                    ["pitchAtMinEndMm"] = pitchMin,
+                                    ["pitchAtMaxEndMm"] = pitchMax
                                 };
+
+                                if (needsZoned)
+                                {
+                                    // Use clear span (support faces) for zoning lengths when available.
+                                    double clearStart = (hasClearRange && clearEndFt > clearStartFt) ? clearStartFt : axisStart;
+                                    double clearEnd = (hasClearRange && clearEndFt > clearStartFt) ? clearEndFt : axisEnd;
+                                    double totalLenFt = clearEnd - clearStart;
+                                    if (totalLenFt > UnitHelper.MmToFt(1.0))
+                                    {
+                                        double qFt = totalLenFt * 0.25;
+                                        double seg1Start = clearStart;
+                                        double seg1Len = qFt;
+                                        double seg2Start = clearStart + qFt;
+                                        double seg2Len = totalLenFt * 0.5;
+                                        double seg3Start = clearStart + totalLenFt * 0.75;
+                                        double seg3Len = totalLenFt - (seg1Len + seg2Len);
+
+                                        bool AddSeg(string segName, double segStartFt, double segLenFt, double pitchMm, bool includeFirst, bool includeLast)
+                                        {
+                                            if (!(segLenFt > UnitHelper.MmToFt(1.0))) return false;
+                                            if (!(pitchMm > 0.0)) return false;
+
+                                            // Clamp to actual placement range (axisStart/axisEnd) after cover adjustments.
+                                            double segEndFt = segStartFt + segLenFt;
+                                            double segStartClamped = Math.Max(segStartFt, axisStart);
+                                            double segEndClamped = Math.Min(segEndFt, axisEnd);
+                                            double segLenClamped = segEndClamped - segStartClamped;
+                                            if (!(segLenClamped > UnitHelper.MmToFt(1.0))) return false;
+
+                                            var segCurves = BuildTieCurvesAtAxisCoord(segStartClamped);
+                                            var segLayout = new JObject
+                                            {
+                                                ["rule"] = "maximum_spacing",
+                                                ["spacingMm"] = pitchMm,
+                                                ["arrayLengthMm"] = UnitHelper.FtToMm(segLenClamped),
+                                                ["includeFirstBar"] = includeFirst,
+                                                ["includeLastBar"] = includeLast,
+                                                ["barsOnNormalSide"] = true
+                                            };
+
+                                            actions.Add(new JObject
+                                            {
+                                                ["role"] = "beam_stirrups",
+                                                ["segment"] = segName,
+                                                ["style"] = actionStyle,
+                                                ["barTypeName"] = tieBarTypeName,
+                                                ["curves"] = segCurves,
+                                                ["normal"] = GeometryJsonHelper.VectorToJson(axisBasis.Normalize()),
+                                                ["layout"] = segLayout,
+                                                ["tagComments"] = opts.tagComments,
+                                                ["hook"] = wantHooks ? new JObject
+                                                {
+                                                    ["enabled"] = true,
+                                                    ["angleDeg"] = hookAngleDeg,
+                                                    ["typeName"] = (!string.IsNullOrWhiteSpace(hookStartTypeName) && hookStartTypeName.Equals(hookEndTypeName, StringComparison.OrdinalIgnoreCase)) ? hookStartTypeName : null,
+                                                    ["startTypeName"] = string.IsNullOrWhiteSpace(hookStartTypeName) ? null : hookStartTypeName,
+                                                    ["endTypeName"] = string.IsNullOrWhiteSpace(hookEndTypeName) ? null : hookEndTypeName,
+                                                    ["startOrientation"] = hookStartOrient,
+                                                    ["endOrientation"] = hookEndOrient,
+                                                    ["startRotationRad"] = hookStartRotationRad,
+                                                    ["endRotationRad"] = hookEndRotationRad
+                                                } : null
+                                            });
+                                            return true;
+                                        }
+
+                                        // Avoid duplicates at zone junctions:
+                                        // - segment1 includeLast=false, segment2 includeFirst=true
+                                        // - segment2 includeLast=false, segment3 includeFirst=true
+                                        // Label zones by beam start/end (LocationCurve.EndPoint(0/1)), while the coordinates
+                                        // are still expressed in min->max axis order.
+                                        string minEndZoneName = startIsMin ? "start" : "end";
+                                        string maxEndZoneName = startIsMin ? "end" : "start";
+
+                                        bool ok1 = AddSeg(minEndZoneName, seg1Start, seg1Len, pitchMin, includeFirst: true, includeLast: false);
+                                        bool ok2 = AddSeg("mid", seg2Start, seg2Len, pitchMid, includeFirst: true, includeLast: false);
+                                        bool ok3 = AddSeg(maxEndZoneName, seg3Start, seg3Len, pitchMax, includeFirst: true, includeLast: true);
+
+                                        addedZonedBeamStirrups = ok1 || ok2 || ok3;
+                                        if (addedZonedBeamStirrups)
+                                        {
+                                            hostObj["beamStirrups"] = new JObject
+                                            {
+                                                ["source"] = "mapping_zoned",
+                                                ["zones"] = new JArray
+                                                {
+                                                    new JObject { ["name"] = minEndZoneName, ["lengthMm"] = UnitHelper.FtToMm(seg1Len), ["spacingMm"] = pitchMin },
+                                                    new JObject { ["name"] = "mid", ["lengthMm"] = UnitHelper.FtToMm(seg2Len), ["spacingMm"] = pitchMid },
+                                                    new JObject { ["name"] = maxEndZoneName, ["lengthMm"] = UnitHelper.FtToMm(seg3Len), ["spacingMm"] = pitchMax }
+                                                }
+                                            };
+                                        }
+                                    }
+                                }
+
+                                if (!addedZonedBeamStirrups && pitchMid > 0.0)
+                                {
+                                    hostObj["beamStirrups"] = new JObject
+                                    {
+                                        ["source"] = "mapping",
+                                        ["spacingMm"] = pitchMid
+                                    };
+                                }
                             }
                             catch { /* ignore */ }
                         }
 
-                        actions.Add(new JObject
+                        // Column: split ties into base/head by mid-height (default ON).
+                        // If one side pitch is missing or 0, use the other side pitch for both halves.
+                        if (isColumn && opts.columnTieSplitByMidHeight && opts.layoutOverride == null)
                         {
-                            ["role"] = isColumn ? "column_ties" : "beam_stirrups",
-                            ["style"] = actionStyle,
-                            ["barTypeName"] = tieBarTypeName,
-                            ["curves"] = curves,
-                            ["normal"] = GeometryJsonHelper.VectorToJson(axisBasis.Normalize()),
-                            ["layout"] = layoutObj,
-                            ["tagComments"] = opts.tagComments,
-                            ["hook"] = wantHooks ? new JObject
+                            try
                             {
-                                ["enabled"] = true,
-                                ["angleDeg"] = hookAngleDeg,
-                                ["typeName"] = (!string.IsNullOrWhiteSpace(hookStartTypeName) && hookStartTypeName.Equals(hookEndTypeName, StringComparison.OrdinalIgnoreCase)) ? hookStartTypeName : null,
-                                ["startTypeName"] = string.IsNullOrWhiteSpace(hookStartTypeName) ? null : hookStartTypeName,
-                                ["endTypeName"] = string.IsNullOrWhiteSpace(hookEndTypeName) ? null : hookEndTypeName,
-                                ["startOrientation"] = hookStartOrient,
-                                ["endOrientation"] = hookEndOrient,
-                                ["startRotationRad"] = hookStartRotationRad,
-                                ["endRotationRad"] = hookEndRotationRad
-                            } : null
-                        });
+                                double pitchBase = 0.0;
+                                double pitchHead = 0.0;
+                                string pitchSource = "layout";
+
+                                // 1) options overrides
+                                if (opts.columnTiePitchBaseMm.HasValue) { pitchBase = opts.columnTiePitchBaseMm.Value; pitchSource = "options"; }
+                                if (opts.columnTiePitchHeadMm.HasValue) { pitchHead = opts.columnTiePitchHeadMm.Value; pitchSource = "options"; }
+
+                                // 2) mapping (optional)
+                                if (pitchSource != "options" && colSpec != null)
+                                {
+                                    if (colSpec.tiePitchBaseMm.HasValue && colSpec.tiePitchBaseMm.Value > 0.0) { pitchBase = colSpec.tiePitchBaseMm.Value; pitchSource = "mapping"; }
+                                    if (colSpec.tiePitchHeadMm.HasValue && colSpec.tiePitchHeadMm.Value > 0.0) { pitchHead = colSpec.tiePitchHeadMm.Value; pitchSource = "mapping"; }
+                                }
+
+                                // 3) default from mapping layout
+                                double pitchDefault = 0.0;
+                                try
+                                {
+                                    if (values != null) pitchDefault = values.Value<double?>("Common.Arrangement.Spacing") ?? 0.0;
+                                }
+                                catch { /* ignore */ }
+                                if (!(pitchDefault > 0.0)) pitchDefault = 150.0;
+
+                                // Fallback rule: if base/head is missing or 0, use the other side (or default).
+                                if (!(pitchBase > 0.0) && pitchHead > 0.0) pitchBase = pitchHead;
+                                if (!(pitchHead > 0.0) && pitchBase > 0.0) pitchHead = pitchBase;
+                                if (!(pitchBase > 0.0)) pitchBase = pitchDefault;
+                                if (!(pitchHead > 0.0)) pitchHead = pitchDefault;
+
+                                double mid = (baseMin + baseMax) / 2.0;
+                                if (mid < axisStart) mid = axisStart;
+                                if (mid > axisEnd) mid = axisEnd;
+
+                                double baseLenFt = mid - axisStart;
+                                double headLenFt = axisEnd - mid;
+
+                                bool AddColumnSeg(string segName, double segStartFt, double segLenFt, double pitchMm, bool includeFirst, bool includeLast)
+                                {
+                                    if (!(segLenFt > UnitHelper.MmToFt(1.0))) return false;
+                                    if (!(pitchMm > 0.0)) return false;
+
+                                    var segCurves = BuildTieCurvesAtAxisCoord(segStartFt);
+                                    var segLayout = new JObject
+                                    {
+                                        ["rule"] = "maximum_spacing",
+                                        ["spacingMm"] = pitchMm,
+                                        ["arrayLengthMm"] = UnitHelper.FtToMm(segLenFt),
+                                        ["includeFirstBar"] = includeFirst,
+                                        ["includeLastBar"] = includeLast,
+                                        ["barsOnNormalSide"] = true
+                                    };
+
+                                    var actionObj = new JObject
+                                    {
+                                        ["role"] = "column_ties",
+                                        ["segment"] = segName,
+                                        ["style"] = actionStyle,
+                                        ["barTypeName"] = tieBarTypeName,
+                                        ["curves"] = segCurves,
+                                        ["normal"] = GeometryJsonHelper.VectorToJson(axisBasis.Normalize()),
+                                        ["layout"] = segLayout,
+                                        ["tagComments"] = opts.tagComments,
+                                        ["hook"] = wantHooks ? new JObject
+                                        {
+                                            ["enabled"] = true,
+                                            ["angleDeg"] = hookAngleDeg,
+                                            ["typeName"] = (!string.IsNullOrWhiteSpace(hookStartTypeName) && hookStartTypeName.Equals(hookEndTypeName, StringComparison.OrdinalIgnoreCase)) ? hookStartTypeName : null,
+                                            ["startTypeName"] = string.IsNullOrWhiteSpace(hookStartTypeName) ? null : hookStartTypeName,
+                                            ["endTypeName"] = string.IsNullOrWhiteSpace(hookEndTypeName) ? null : hookEndTypeName,
+                                            ["startOrientation"] = hookStartOrient,
+                                            ["endOrientation"] = hookEndOrient,
+                                            ["startRotationRad"] = hookStartRotationRad,
+                                            ["endRotationRad"] = hookEndRotationRad
+                                        } : null
+                                    };
+                                    if (tieShapeId != null && tieShapeId != ElementId.InvalidElementId)
+                                    {
+                                        actionObj["shapeId"] = tieShapeId.IntValue();
+                                        if (!string.IsNullOrWhiteSpace(tieShapeName))
+                                            actionObj["shapeName"] = tieShapeName;
+                                    }
+                                    actions.Add(actionObj);
+                                    return true;
+                                }
+
+                                string seg1Name = axisPositiveIsUp ? "base" : "head";
+                                string seg2Name = axisPositiveIsUp ? "head" : "base";
+                                double seg1Pitch = axisPositiveIsUp ? pitchBase : pitchHead;
+                                double seg2Pitch = axisPositiveIsUp ? pitchHead : pitchBase;
+
+                                bool okSeg1 = AddColumnSeg(seg1Name, axisStart, baseLenFt, seg1Pitch, includeFirst: true, includeLast: false);
+                                bool okSeg2 = AddColumnSeg(seg2Name, mid, headLenFt, seg2Pitch, includeFirst: true, includeLast: true);
+                                addedZonedColumnTies = okSeg1 || okSeg2;
+                                if (addedZonedColumnTies)
+                                {
+                                    hostObj["columnTies"] = new JObject
+                                    {
+                                        ["source"] = "mid_split",
+                                        ["pitchSource"] = pitchSource,
+                                        ["midAxisMm"] = UnitHelper.FtToMm(mid),
+                                        ["axisPositiveIsUp"] = axisPositiveIsUp,
+                                        ["zones"] = new JArray
+                                        {
+                                            new JObject { ["name"] = seg1Name, ["lengthMm"] = UnitHelper.FtToMm(baseLenFt), ["spacingMm"] = seg1Pitch },
+                                            new JObject { ["name"] = seg2Name, ["lengthMm"] = UnitHelper.FtToMm(headLenFt), ["spacingMm"] = seg2Pitch }
+                                        }
+                                    };
+                                }
+                            }
+                            catch { /* ignore */ }
+                        }
+
+                        if (!addedZonedBeamStirrups && !addedZonedColumnTies)
+                        {
+                            var curves = BuildTieCurvesAtAxisCoord(axisStart);
+
+                            var layoutObj = opts.layoutOverride != null ? (JObject)opts.layoutOverride.DeepClone() : BuildLayoutFromMapping(values, opts.preferMappingArrayLength, UnitHelper.FtToMm(arrayLenFt));
+                            try
+                            {
+                                if (layoutObj["arrayLengthMm"] == null || layoutObj.Value<double?>("arrayLengthMm") == null)
+                                    layoutObj["arrayLengthMm"] = UnitHelper.FtToMm(arrayLenFt);
+                                if (isFraming)
+                                {
+                                    // Start at the host joint face (first stirrup at start) by default.
+                                    if (layoutObj["includeFirstBar"] == null) layoutObj["includeFirstBar"] = true;
+                                    if (layoutObj["includeLastBar"] == null) layoutObj["includeLastBar"] = true;
+                                }
+                            }
+                            catch { /* ignore */ }
+
+                            // Beam: if pitch is provided by mapping keys, prefer it unless layout override is provided.
+                            if (isFraming && beamSpec != null && beamSpec.hasPitchParams && beamSpec.pitchEffectiveMm > 0.0 && opts.layoutOverride == null)
+                            {
+                                try
+                                {
+                                    layoutObj["rule"] = "maximum_spacing";
+                                    // Prefer mid pitch when available; fall back to pitchEffective (legacy).
+                                    var pitchMid = beamSpec.pitchMidMm > 0.0 ? beamSpec.pitchMidMm : beamSpec.pitchEffectiveMm;
+                                    layoutObj["spacingMm"] = pitchMid;
+                                    if (layoutObj["includeFirstBar"] == null) layoutObj["includeFirstBar"] = true;
+                                    if (layoutObj["includeLastBar"] == null) layoutObj["includeLastBar"] = true;
+                                    if (layoutObj["barsOnNormalSide"] == null) layoutObj["barsOnNormalSide"] = true;
+
+                                    if (hostObj["beamStirrups"] == null)
+                                    {
+                                        hostObj["beamStirrups"] = new JObject
+                                        {
+                                            ["source"] = "mapping",
+                                            ["spacingMm"] = pitchMid
+                                        };
+                                    }
+                                }
+                                catch { /* ignore */ }
+                            }
+
+                            var actionObj = new JObject
+                            {
+                                ["role"] = isColumn ? "column_ties" : "beam_stirrups",
+                                ["style"] = actionStyle,
+                                ["barTypeName"] = tieBarTypeName,
+                                ["curves"] = curves,
+                                ["normal"] = GeometryJsonHelper.VectorToJson(axisBasis.Normalize()),
+                                ["layout"] = layoutObj,
+                                ["tagComments"] = opts.tagComments,
+                                ["hook"] = wantHooks ? new JObject
+                                {
+                                    ["enabled"] = true,
+                                    ["angleDeg"] = hookAngleDeg,
+                                    ["typeName"] = (!string.IsNullOrWhiteSpace(hookStartTypeName) && hookStartTypeName.Equals(hookEndTypeName, StringComparison.OrdinalIgnoreCase)) ? hookStartTypeName : null,
+                                    ["startTypeName"] = string.IsNullOrWhiteSpace(hookStartTypeName) ? null : hookStartTypeName,
+                                    ["endTypeName"] = string.IsNullOrWhiteSpace(hookEndTypeName) ? null : hookEndTypeName,
+                                    ["startOrientation"] = hookStartOrient,
+                                    ["endOrientation"] = hookEndOrient,
+                                    ["startRotationRad"] = hookStartRotationRad,
+                                    ["endRotationRad"] = hookEndRotationRad
+                                } : null
+                            };
+                            if (isColumn && tieShapeId != null && tieShapeId != ElementId.InvalidElementId)
+                            {
+                                actionObj["shapeId"] = tieShapeId.IntValue();
+                                if (!string.IsNullOrWhiteSpace(tieShapeName))
+                                    actionObj["shapeName"] = tieShapeName;
+                            }
+                            actions.Add(actionObj);
+                        }
                     }
                 }
 
@@ -3349,6 +5432,8 @@ namespace RevitMCPAddin.Core
                 ["mappingStatus"] = mappingStatus,
                 ["tagComments"] = opts.tagComments,
                 ["deleteExistingTaggedInHosts"] = deleteExistingTaggedInHosts,
+                ["deleteExistingUntaggedInHosts"] = deleteExistingUntaggedInHosts,
+                ["deleteExistingAllInHosts"] = deleteExistingAllInHosts,
                 ["hosts"] = hostsArr
             };
 
@@ -3403,9 +5488,16 @@ namespace RevitMCPAddin.Core
             var createdAll = new List<int>();
             var hostResults = new JArray();
 
-            bool deleteExistingTaggedInHosts = plan.Value<bool?>("deleteExistingTaggedInHosts") ?? false;
+            bool deleteExistingTaggedInHosts = plan.Value<bool?>("deleteExistingTaggedInHosts") ?? true;
+            bool deleteExistingUntaggedInHosts = plan.Value<bool?>("deleteExistingUntaggedInHosts") ?? false;
+            bool deleteExistingAllInHosts = plan.Value<bool?>("deleteExistingAllInHosts") ?? false;
             string tagComments = (plan.Value<string>("tagComments") ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(tagComments)) tagComments = DefaultTagComments;
+            if (deleteExistingAllInHosts)
+            {
+                deleteExistingTaggedInHosts = true;
+                deleteExistingUntaggedInHosts = true;
+            }
 
             using (var tg = new TransactionGroup(doc, "RevitMcp - Auto Rebar Apply Plan"))
             {
@@ -3466,9 +5558,33 @@ namespace RevitMCPAddin.Core
 
                         try
                         {
-                            if (deleteExistingTaggedInHosts)
+                            if (deleteExistingTaggedInHosts || deleteExistingUntaggedInHosts)
                             {
-                                var toDelete = RebarDeleteService.CollectTaggedRebarIdsInHost(doc, host, tagComments);
+                                var toDelete = new HashSet<int>();
+                                if (deleteExistingAllInHosts)
+                                {
+                                    var allIds = RebarDeleteService.CollectAllRebarIdsInHost(doc, host);
+                                    if (allIds != null)
+                                    {
+                                        foreach (var v in allIds) toDelete.Add(v);
+                                    }
+                                }
+                                if (deleteExistingTaggedInHosts)
+                                {
+                                    var tagged = RebarDeleteService.CollectTaggedRebarIdsInHost(doc, host, tagComments);
+                                    if (tagged != null)
+                                    {
+                                        foreach (var v in tagged) toDelete.Add(v);
+                                    }
+                                }
+                                if (deleteExistingUntaggedInHosts)
+                                {
+                                    var untagged = RebarDeleteService.CollectUntaggedRebarIdsInHost(doc, host, tagComments);
+                                    if (untagged != null)
+                                    {
+                                        foreach (var v in untagged) toDelete.Add(v);
+                                    }
+                                }
                                 var deleted = RebarDeleteService.DeleteElementsByIds(doc, toDelete);
                                 if (deleted != null && deleted.Count > 0)
                                     r["deletedRebarIds"] = new JArray(deleted.Distinct().OrderBy(x => x));
@@ -3597,12 +5713,12 @@ namespace RevitMCPAddin.Core
             return true;
         }
 
-         private static bool TryGetBeamAxisRangeFromLocationCurve(Element host, Transform tr, int axisIndex, out double axisMin, out double axisMax)
-         {
-            axisMin = 0.0;
-            axisMax = 0.0;
-            if (host == null) return false;
-            if (tr == null) tr = Transform.Identity;
+          private static bool TryGetBeamAxisRangeFromLocationCurve(Element host, Transform tr, int axisIndex, out double axisMin, out double axisMax)
+          {
+             axisMin = 0.0;
+             axisMax = 0.0;
+             if (host == null) return false;
+             if (tr == null) tr = Transform.Identity;
 
             try
             {
@@ -3638,8 +5754,49 @@ namespace RevitMCPAddin.Core
                 axisMin = 0.0;
                 axisMax = 0.0;
                 return false;
+             }
+          }
+
+        private static bool TryGetBeamAxisCoordsFromLocationCurve(Element host, Transform tr, int axisIndex, out double end0Axis, out double end1Axis)
+        {
+            end0Axis = 0.0;
+            end1Axis = 0.0;
+            if (host == null) return false;
+            if (tr == null) tr = Transform.Identity;
+
+            try
+            {
+                var lc = host.Location as LocationCurve;
+                if (lc == null) return false;
+                var c = lc.Curve;
+                if (c == null) return false;
+
+                XYZ p0 = null;
+                XYZ p1 = null;
+                try
+                {
+                    p0 = c.GetEndPoint(0);
+                    p1 = c.GetEndPoint(1);
+                }
+                catch { return false; }
+
+                if (p0 == null || p1 == null) return false;
+
+                var inv = tr.Inverse;
+                var lp0 = inv.OfPoint(p0);
+                var lp1 = inv.OfPoint(p1);
+
+                end0Axis = axisIndex == 0 ? lp0.X : (axisIndex == 1 ? lp0.Y : lp0.Z);
+                end1Axis = axisIndex == 0 ? lp1.X : (axisIndex == 1 ? lp1.Y : lp1.Z);
+                return true;
             }
-         }
+            catch
+            {
+                end0Axis = 0.0;
+                end1Axis = 0.0;
+                return false;
+            }
+        }
 
         private static bool TryGetHostAxisRangeFromSolidGeometry(
             Element host,
@@ -4063,6 +6220,10 @@ namespace RevitMCPAddin.Core
             double beamMaxAxis,
             double searchRangeFt,
             double faceTolFt,
+            string[] concreteTokens,
+            string[] concreteExcludeTokens,
+            string[] concreteExcludeMaterialClasses,
+            bool requireConcrete,
             out double startColumnWidthFt,
             out double endColumnWidthFt,
             out JObject debug)
@@ -4104,13 +6265,19 @@ namespace RevitMCPAddin.Core
                 try { e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idInt)); } catch { e = null; }
                 if (e == null) return false;
 
-                int catId = 0;
-                try { catId = e.Category != null ? e.Category.Id.IntValue() : 0; } catch { catId = 0; }
-                if (catId != (int)BuiltInCategory.OST_StructuralColumns && catId != (int)BuiltInCategory.OST_Columns) return false;
-
-                BoundingBoxXYZ bb = null;
-                try { bb = e.get_BoundingBox(null); } catch { bb = null; }
-                if (bb == null || bb.Min == null || bb.Max == null) return false;
+                 int catId = 0;
+                 try { catId = e.Category != null ? e.Category.Id.IntValue() : 0; } catch { catId = 0; }
+                 if (catId != (int)BuiltInCategory.OST_StructuralColumns && catId != (int)BuiltInCategory.OST_Columns) return false;
+                 // Optionally restrict to *concrete* supports.
+                 if (requireConcrete)
+                 {
+                     if (!TryElementLooksConcrete(doc, e, concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                         out var _, out var _, out var _)) return false;
+                 }
+ 
+                 BoundingBoxXYZ bb = null;
+                 try { bb = e.get_BoundingBox(null); } catch { bb = null; }
+                 if (bb == null || bb.Min == null || bb.Max == null) return false;
 
                 var min = bb.Min;
                 var max = bb.Max;
@@ -4177,6 +6344,187 @@ namespace RevitMCPAddin.Core
             };
 
             return (startColumnWidthFt > 0.0) || (endColumnWidthFt > 0.0);
+        }
+
+        private static bool TryDetectConcreteSupportsAtBeamAxisEnds(
+            Document doc,
+            Element beam,
+            Transform beamTr,
+            LocalBox beamLocalBox,
+            int axisIndex,
+            int sideIndex,
+            int upIndex,
+            double beamMinAxis,
+            double beamMaxAxis,
+            double searchRangeFt,
+            double touchTolFt,
+            string[] concreteTokens,
+            string[] concreteExcludeTokens,
+            string[] concreteExcludeMaterialClasses,
+            out bool hasConcreteAtMinEnd,
+            out bool hasConcreteAtMaxEnd,
+            out JObject debug)
+        {
+            hasConcreteAtMinEnd = false;
+            hasConcreteAtMaxEnd = false;
+            debug = null;
+            if (doc == null || beam == null) return false;
+            if (beamTr == null) beamTr = Transform.Identity;
+            if (beamLocalBox == null) return false;
+            if (!(beamMaxAxis > beamMinAxis)) return false;
+
+            double sMid = (GetMinByIndex(beamLocalBox, sideIndex) + GetMaxByIndex(beamLocalBox, sideIndex)) / 2.0;
+            double uMid = (GetMinByIndex(beamLocalBox, upIndex) + GetMaxByIndex(beamLocalBox, upIndex)) / 2.0;
+
+            XYZ minWorld = null;
+            XYZ maxWorld = null;
+            try
+            {
+                minWorld = beamTr.OfPoint(MakeLocalPoint(axisIndex, beamMinAxis, sideIndex, sMid, upIndex, uMid));
+                maxWorld = beamTr.OfPoint(MakeLocalPoint(axisIndex, beamMaxAxis, sideIndex, sMid, upIndex, uMid));
+            }
+            catch { /* ignore */ }
+            if (minWorld == null || maxWorld == null) return false;
+
+            var minCandidates = new HashSet<int>();
+            var maxCandidates = new HashSet<int>();
+
+            try
+            {
+                foreach (var id in CollectColumnLikeIdsNearPoint(doc, minWorld, searchRangeFt)) minCandidates.Add(id);
+                foreach (var id in CollectFramingLikeIdsNearPoint(doc, minWorld, searchRangeFt)) minCandidates.Add(id);
+                foreach (var id in CollectColumnLikeIdsNearPoint(doc, maxWorld, searchRangeFt)) maxCandidates.Add(id);
+                foreach (var id in CollectFramingLikeIdsNearPoint(doc, maxWorld, searchRangeFt)) maxCandidates.Add(id);
+            }
+            catch { /* ignore */ }
+
+            // Joined elements often include the true supports (best-effort).
+            try
+            {
+                var joined = JoinGeometryUtils.GetJoinedElements(doc, beam);
+                if (joined != null)
+                {
+                    foreach (var jid in joined)
+                    {
+                        int v = 0;
+                        try { v = jid.IntValue(); } catch { v = 0; }
+                        if (v <= 0) continue;
+                        minCandidates.Add(v);
+                        maxCandidates.Add(v);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            var all = new HashSet<int>();
+            foreach (var id in minCandidates) all.Add(id);
+            foreach (var id in maxCandidates) all.Add(id);
+
+            var minMatches = new JArray();
+            var maxMatches = new JArray();
+
+            var inv = beamTr.Inverse;
+
+            foreach (var id in all)
+            {
+                if (id <= 0) continue;
+                try
+                {
+                    if (beam.Id != null && id == beam.Id.IntValue()) continue;
+                }
+                catch { /* ignore */ }
+
+                Element e = null;
+                try { e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id)); } catch { e = null; }
+                if (e == null) continue;
+
+                int catId = 0;
+                try { catId = e.Category != null ? e.Category.Id.IntValue() : 0; } catch { catId = 0; }
+                bool isColumnCat = (catId == (int)BuiltInCategory.OST_StructuralColumns) || (catId == (int)BuiltInCategory.OST_Columns);
+                bool isFramingCat = (catId == (int)BuiltInCategory.OST_StructuralFraming);
+                if (!isColumnCat && !isFramingCat) continue;
+
+                if (!TryElementLooksConcrete(doc, e, concreteTokens, concreteExcludeTokens, concreteExcludeMaterialClasses,
+                    out var matName, out var matSource, out var tok)) continue;
+
+                BoundingBoxXYZ bb = null;
+                try { bb = e.get_BoundingBox(null); } catch { bb = null; }
+                if (bb == null || bb.Min == null || bb.Max == null) continue;
+
+                var min = bb.Min;
+                var max = bb.Max;
+                var corners = new[]
+                {
+                    new XYZ(min.X, min.Y, min.Z),
+                    new XYZ(max.X, min.Y, min.Z),
+                    new XYZ(min.X, max.Y, min.Z),
+                    new XYZ(max.X, max.Y, min.Z),
+                    new XYZ(min.X, min.Y, max.Z),
+                    new XYZ(max.X, min.Y, max.Z),
+                    new XYZ(min.X, max.Y, max.Z),
+                    new XYZ(max.X, max.Y, max.Z)
+                };
+
+                double minA = double.PositiveInfinity, maxA = double.NegativeInfinity;
+                foreach (var p in corners)
+                {
+                    XYZ q;
+                    try { q = inv.OfPoint(p); } catch { q = p; }
+                    double a = axisIndex == 0 ? q.X : (axisIndex == 1 ? q.Y : q.Z);
+                    if (double.IsNaN(a) || double.IsInfinity(a)) continue;
+                    if (a < minA) minA = a;
+                    if (a > maxA) maxA = a;
+                }
+                if (double.IsInfinity(minA) || double.IsInfinity(maxA) || !(maxA > minA)) continue;
+
+                double distToMinFt = Math.Abs(maxA - beamMinAxis); // face toward beam interior at min end
+                double distToMaxFt = Math.Abs(minA - beamMaxAxis); // face toward beam interior at max end
+
+                bool touchesMin = distToMinFt <= touchTolFt && minCandidates.Contains(id);
+                bool touchesMax = distToMaxFt <= touchTolFt && maxCandidates.Contains(id);
+
+                if (!touchesMin && !touchesMax) continue;
+
+                var item = new JObject
+                {
+                    ["elementId"] = id,
+                    ["category"] = e.Category != null ? (e.Category.Name ?? string.Empty) : string.Empty,
+                    ["catId"] = catId,
+                    ["materialName"] = matName,
+                    ["materialSource"] = matSource,
+                    ["matchedToken"] = tok,
+                    ["axisMinMm"] = UnitHelper.FtToMm(minA),
+                    ["axisMaxMm"] = UnitHelper.FtToMm(maxA),
+                    ["distToMinEndMm"] = UnitHelper.FtToMm(distToMinFt),
+                    ["distToMaxEndMm"] = UnitHelper.FtToMm(distToMaxFt)
+                };
+
+                if (touchesMin)
+                {
+                    hasConcreteAtMinEnd = true;
+                    minMatches.Add(item);
+                }
+                if (touchesMax)
+                {
+                    hasConcreteAtMaxEnd = true;
+                    maxMatches.Add(item);
+                }
+            }
+
+            debug = new JObject
+            {
+                ["enabled"] = true,
+                ["searchRangeMm"] = UnitHelper.FtToMm(searchRangeFt),
+                ["touchTolMm"] = UnitHelper.FtToMm(touchTolFt),
+                ["hasConcreteAtMinEnd"] = hasConcreteAtMinEnd,
+                ["hasConcreteAtMaxEnd"] = hasConcreteAtMaxEnd,
+                ["minCandidates"] = minCandidates.Count,
+                ["maxCandidates"] = maxCandidates.Count,
+                ["matchesMinEnd"] = minMatches.Count > 0 ? (JToken)minMatches : JValue.CreateNull(),
+                ["matchesMaxEnd"] = maxMatches.Count > 0 ? (JToken)maxMatches : JValue.CreateNull()
+            };
+
+            return true;
         }
 
         private static bool TryGetBeamLocalEndpointsFromLocationCurve(Element host, Transform tr, out XYZ localP0, out XYZ localP1)
@@ -4436,6 +6784,394 @@ namespace RevitMCPAddin.Core
             }
         }
 
+        private static IEnumerable<int> CollectFramingLikeIdsNearPoint(Document doc, XYZ worldPoint, double rangeFt)
+        {
+            if (doc == null || worldPoint == null) yield break;
+            if (!(rangeFt > 1e-9)) yield break;
+
+            Outline outline = null;
+            try
+            {
+                var min = new XYZ(worldPoint.X - rangeFt, worldPoint.Y - rangeFt, worldPoint.Z - rangeFt);
+                var max = new XYZ(worldPoint.X + rangeFt, worldPoint.Y + rangeFt, worldPoint.Z + rangeFt);
+                outline = new Outline(min, max);
+            }
+            catch { outline = null; }
+            if (outline == null) yield break;
+
+            FilteredElementCollector col = null;
+            try
+            {
+                col = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                    .WhereElementIsNotElementType();
+            }
+            catch { col = null; }
+            if (col == null) yield break;
+
+            try
+            {
+                var bbFilter = new BoundingBoxIntersectsFilter(outline);
+                col = col.WherePasses(bbFilter);
+            }
+            catch { /* ignore */ }
+
+            IList<Element> elems = null;
+            try { elems = col.ToElements(); } catch { elems = null; }
+            if (elems == null) yield break;
+
+            foreach (var e in elems)
+            {
+                if (e == null) continue;
+                int id = 0;
+                try { id = e.Id.IntValue(); } catch { id = 0; }
+                if (id != 0) yield return id;
+            }
+        }
+
+        private static IEnumerable<int> CollectFoundationLikeIdsNearPoint(Document doc, XYZ worldPoint, double rangeFt)
+        {
+            if (doc == null || worldPoint == null) yield break;
+            if (!(rangeFt > 1e-9)) yield break;
+
+            Outline outline = null;
+            try
+            {
+                var min = new XYZ(worldPoint.X - rangeFt, worldPoint.Y - rangeFt, worldPoint.Z - rangeFt);
+                var max = new XYZ(worldPoint.X + rangeFt, worldPoint.Y + rangeFt, worldPoint.Z + rangeFt);
+                outline = new Outline(min, max);
+            }
+            catch { outline = null; }
+            if (outline == null) yield break;
+
+            FilteredElementCollector col = null;
+            try
+            {
+                var cats = new List<BuiltInCategory> { BuiltInCategory.OST_StructuralFoundation };
+                var catFilter = new ElementMulticategoryFilter(cats);
+                col = new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .WherePasses(catFilter);
+            }
+            catch { col = null; }
+            if (col == null) yield break;
+
+            try
+            {
+                var bbFilter = new BoundingBoxIntersectsFilter(outline);
+                col = col.WherePasses(bbFilter);
+            }
+            catch { /* ignore */ }
+
+            IList<Element> elems = null;
+            try { elems = col.ToElements(); } catch { elems = null; }
+            if (elems == null) yield break;
+
+            foreach (var e in elems)
+            {
+                if (e == null) continue;
+                int id = 0;
+                try { id = e.Id.IntValue(); } catch { id = 0; }
+                if (id != 0) yield return id;
+            }
+        }
+
+        private static bool TryGetElementAxisRangeInHostLocal(Element e, Transform hostInvTr, int axisIndex, out double minAxis, out double maxAxis)
+        {
+            minAxis = double.PositiveInfinity;
+            maxAxis = double.NegativeInfinity;
+            if (e == null) return false;
+            if (hostInvTr == null) hostInvTr = Transform.Identity;
+
+            BoundingBoxXYZ bb = null;
+            try { bb = e.get_BoundingBox(null); } catch { bb = null; }
+            if (bb == null || bb.Min == null || bb.Max == null) return false;
+
+            var min = bb.Min;
+            var max = bb.Max;
+            var corners = new[]
+            {
+                new XYZ(min.X, min.Y, min.Z),
+                new XYZ(max.X, min.Y, min.Z),
+                new XYZ(min.X, max.Y, min.Z),
+                new XYZ(max.X, max.Y, min.Z),
+                new XYZ(min.X, min.Y, max.Z),
+                new XYZ(max.X, min.Y, max.Z),
+                new XYZ(min.X, max.Y, max.Z),
+                new XYZ(max.X, max.Y, max.Z)
+            };
+
+            foreach (var p in corners)
+            {
+                XYZ q;
+                try { q = hostInvTr.OfPoint(p); } catch { q = p; }
+                double a = axisIndex == 0 ? q.X : (axisIndex == 1 ? q.Y : q.Z);
+                if (double.IsNaN(a) || double.IsInfinity(a)) continue;
+                if (a < minAxis) minAxis = a;
+                if (a > maxAxis) maxAxis = a;
+            }
+
+            return !double.IsInfinity(minAxis) && !double.IsInfinity(maxAxis) && (maxAxis > minAxis);
+        }
+
+        private static readonly string[] DefaultConcreteTokens = new[]
+        {
+            "コンクリ",
+            "コンクリート",
+            "concrete",
+            "RC",
+            "FC",
+            "ＲＣ",
+            "ＦＣ"
+        };
+        private static readonly string[] DefaultConcreteExcludeTokens = new[]
+        {
+            "Steel",
+            "鋼",
+            "鉄骨",
+            "SS",
+            "SN",
+            "SM"
+        };
+        private static readonly string[] DefaultConcreteExcludeMaterialClasses = new[]
+        {
+            "Metal",
+            "Steel",
+            "鋼",
+            "金属",
+            "鉄"
+        };
+
+        private static bool IsExcludedMaterialClass(string materialClass, string[] excludeClasses)
+        {
+            if (string.IsNullOrWhiteSpace(materialClass)) return false;
+            var s = materialClass.Trim();
+            var list = (excludeClasses != null && excludeClasses.Length > 0) ? excludeClasses : DefaultConcreteExcludeMaterialClasses;
+            foreach (var t in list)
+            {
+                if (string.IsNullOrWhiteSpace(t)) continue;
+                if (s.IndexOf(t.Trim(), StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsAbbrevToken(string s, string tokenUpper)
+        {
+            if (string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(tokenUpper)) return false;
+            var u = s.ToUpperInvariant();
+            var t = tokenUpper.ToUpperInvariant();
+            int idx = 0;
+            while (true)
+            {
+                idx = u.IndexOf(t, idx, StringComparison.Ordinal);
+                if (idx < 0) break;
+                char prev = idx > 0 ? u[idx - 1] : '\0';
+                char next = (idx + t.Length) < u.Length ? u[idx + t.Length] : '\0';
+                bool prevOk = idx == 0 || !char.IsLetterOrDigit(prev);
+                bool nextOk = (idx + t.Length) >= u.Length || !char.IsLetterOrDigit(next) || char.IsDigit(next);
+                if (prevOk && nextOk) return true;
+                idx += t.Length;
+            }
+            return false;
+        }
+
+        private static bool ContainsToken(string s, string token)
+        {
+            if (string.IsNullOrWhiteSpace(s) || string.IsNullOrWhiteSpace(token)) return false;
+            var t = token.Trim();
+            if (t.Length == 0) return false;
+            bool hasNonAscii = t.Any(ch => ch > 0x7F);
+            if (hasNonAscii) return s.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0;
+            bool isAlnum = t.All(char.IsLetterOrDigit);
+            if (isAlnum && t.Length <= 3)
+                return ContainsAbbrevToken(s, t);
+            return s.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsConcreteMaterialName(string name, out string matchedToken, string[] includeTokens = null, string[] excludeTokens = null)
+        {
+            matchedToken = string.Empty;
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            var s = name.Trim();
+
+            var exList = (excludeTokens != null && excludeTokens.Length > 0) ? excludeTokens : DefaultConcreteExcludeTokens;
+            foreach (var ex in exList)
+            {
+                if (string.IsNullOrWhiteSpace(ex)) continue;
+                if (ContainsToken(s, ex)) return false;
+            }
+
+            var inList = (includeTokens != null && includeTokens.Length > 0) ? includeTokens : null;
+            if (inList != null)
+            {
+                foreach (var tok in inList)
+                {
+                    if (string.IsNullOrWhiteSpace(tok)) continue;
+                    if (ContainsToken(s, tok))
+                    {
+                        matchedToken = tok.Trim();
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            if (ContainsToken(s, "コンクリート") || ContainsToken(s, "コンクリ"))
+            {
+                matchedToken = "コンクリ";
+                return true;
+            }
+            if (ContainsToken(s, "concrete"))
+            {
+                matchedToken = "concrete";
+                return true;
+            }
+            if (ContainsAbbrevToken(s, "RC"))
+            {
+                matchedToken = "RC";
+                return true;
+            }
+            if (ContainsAbbrevToken(s, "FC"))
+            {
+                matchedToken = "FC";
+                return true;
+            }
+            if (ContainsToken(s, "ＲＣ"))
+            {
+                matchedToken = "ＲＣ";
+                return true;
+            }
+            if (ContainsToken(s, "ＦＣ"))
+            {
+                matchedToken = "ＦＣ";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryElementLooksConcrete(
+            Document doc,
+            Element e,
+            string[] includeTokens,
+            string[] excludeTokens,
+            string[] excludeMaterialClasses,
+            out string materialName,
+            out string source,
+            out string matchedToken)
+        {
+            materialName = string.Empty;
+            source = string.Empty;
+            matchedToken = string.Empty;
+            if (doc == null || e == null) return false;
+
+            bool TryCheckMaterialId(ElementId mid, out string name, out string matClass, out string tok)
+            {
+                name = string.Empty;
+                matClass = string.Empty;
+                tok = string.Empty;
+                if (mid == null) return false;
+                try
+                {
+                    if (mid == ElementId.InvalidElementId) return false;
+                }
+                catch { /* ignore */ }
+
+                Material mat = null;
+                try { mat = doc.GetElement(mid) as Material; } catch { mat = null; }
+                if (mat == null) return false;
+
+                // Prefer MaterialClass when available (less ambiguity than name tokens).
+                try
+                {
+                    matClass = (mat.MaterialClass ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(matClass))
+                    {
+                        if (IsExcludedMaterialClass(matClass, excludeMaterialClasses)) return false;
+                        if (IsConcreteMaterialName(matClass, out var tc, includeTokens, excludeTokens))
+                        {
+                            name = (mat.Name ?? string.Empty).Trim();
+                            tok = "MaterialClass:" + tc;
+                            return true;
+                        }
+                    }
+                }
+                catch { /* ignore */ }
+
+                var n = (mat.Name ?? string.Empty).Trim();
+                if (!IsConcreteMaterialName(n, out var t, includeTokens, excludeTokens)) return false;
+                name = n;
+                tok = t;
+                return true;
+            }
+
+            // 1) Instance structural material
+            try
+            {
+                var p = e.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                if (p != null && p.StorageType == StorageType.ElementId)
+                {
+                    var mid = p.AsElementId();
+                    if (TryCheckMaterialId(mid, out var n, out var mc, out var tok))
+                    {
+                        materialName = n;
+                        source = !string.IsNullOrWhiteSpace(mc) ? ("structuralMaterial(instance):" + mc) : "structuralMaterial(instance)";
+                        matchedToken = tok;
+                        return true;
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            // 2) Type structural material
+            try
+            {
+                var tid = e.GetTypeId();
+                if (tid != null && tid != ElementId.InvalidElementId)
+                {
+                    var t = doc.GetElement(tid);
+                    if (t != null)
+                    {
+                        var p = t.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                        if (p != null && p.StorageType == StorageType.ElementId)
+                        {
+                            var mid = p.AsElementId();
+                            if (TryCheckMaterialId(mid, out var n, out var mc, out var tok))
+                            {
+                                materialName = n;
+                                source = !string.IsNullOrWhiteSpace(mc) ? ("structuralMaterial(type):" + mc) : "structuralMaterial(type)";
+                                matchedToken = tok;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            // 3) Geometry/material ids (best-effort; can be expensive)
+            try
+            {
+                var mids = e.GetMaterialIds(false);
+                if (mids != null)
+                {
+                    foreach (var mid in mids)
+                    {
+                        if (TryCheckMaterialId(mid, out var n, out var mc, out var tok))
+                        {
+                            materialName = n;
+                            source = !string.IsNullOrWhiteSpace(mc) ? ("geometryMaterials:" + mc) : "geometryMaterials";
+                            matchedToken = tok;
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            return false;
+        }
+
         private static XYZ GuessHostAxisDirection(Element host, Transform tr)
         {
             try
@@ -4482,6 +7218,444 @@ namespace RevitMCPAddin.Core
             return tr.BasisZ;
         }
 
+        private static bool TryGetDiameterMmFromParams(Element inst, ElementType typeElem, out double diaMm, out string source)
+        {
+            diaMm = 0.0;
+            source = null;
+            if (inst == null && typeElem == null) return false;
+
+            // Prefer explicit diameter-like parameter names and avoid bar/rebar-related params.
+            bool IsDiameterName(string name)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return false;
+                if (NameContainsAny(name, "鉄筋", "rebar", "bar")) return false;
+                return NameContainsAny(name, "直径", "径", "Diameter", "diameter", "Φ", "φ");
+            }
+
+            bool TryRead(Element e, out double vMm, out string nameUsed)
+            {
+                vMm = 0.0;
+                nameUsed = null;
+                if (e == null) return false;
+                try
+                {
+                    foreach (Parameter p in e.Parameters)
+                    {
+                        var n = p?.Definition?.Name ?? string.Empty;
+                        if (!IsDiameterName(n)) continue;
+                        try
+                        {
+                            var si = UnitHelper.ParamToSiInfo(p);
+                            var obj = JObject.FromObject(si);
+                            var vTok = obj["value"];
+                            double v = 0.0;
+                            if (vTok != null)
+                            {
+                                if (vTok.Type == JTokenType.Integer) v = vTok.Value<double>();
+                                else if (vTok.Type == JTokenType.Float) v = vTok.Value<double>();
+                                else if (vTok.Type == JTokenType.String)
+                                {
+                                    double tmp;
+                                    if (UnitHelper.TryParseDouble(vTok.Value<string>(), out tmp)) v = tmp;
+                                }
+                            }
+                            if (v > 0.0)
+                            {
+                                vMm = v;
+                                nameUsed = n;
+                                return true;
+                            }
+                        }
+                        catch { /* ignore */ }
+                    }
+                }
+                catch { /* ignore */ }
+                return false;
+            }
+
+            double vmm;
+            string nameUsed;
+            if (TryRead(inst, out vmm, out nameUsed))
+            {
+                diaMm = vmm;
+                source = "instance:" + nameUsed;
+                return true;
+            }
+            if (TryRead(typeElem, out vmm, out nameUsed))
+            {
+                diaMm = vmm;
+                source = "type:" + nameUsed;
+                return true;
+            }
+            return false;
+        }
+
+        private static bool TryDetectCircularColumn(Document doc, Element host, ElementType typeElem, LocalBox localBox, int crossA, int crossB, out double diameterFt, out string source)
+        {
+            diameterFt = 0.0;
+            source = null;
+            if (host == null) return false;
+            bool hasLocalBox = localBox != null;
+
+            bool HasParamName(Element e, string name)
+            {
+                if (e == null || string.IsNullOrWhiteSpace(name)) return false;
+                try
+                {
+                    var p = e.LookupParameter(name);
+                    return p != null;
+                }
+                catch { return false; }
+            }
+
+            // 0) Prefer geometry-based detection (family-agnostic)
+            double geoDiaFt;
+            string geoSrc;
+            if (TryDetectCircularColumnByGeometry(host, out geoDiaFt, out geoSrc))
+            {
+                if (geoDiaFt > 1e-6)
+                {
+                    diameterFt = geoDiaFt;
+                    source = geoSrc;
+                    return true;
+                }
+                // geometry says circular but diameter not resolved -> fallback to bbox
+                if (hasLocalBox)
+                {
+                    double aLen = GetMaxByIndex(localBox, crossA) - GetMinByIndex(localBox, crossA);
+                    double bLen = GetMaxByIndex(localBox, crossB) - GetMinByIndex(localBox, crossB);
+                    if (aLen > 1e-6 && bLen > 1e-6)
+                    {
+                        diameterFt = Math.Min(aLen, bLen);
+                        source = string.IsNullOrWhiteSpace(geoSrc) ? "geom:bbox" : (geoSrc + "+bbox");
+                        return true;
+                    }
+                }
+            }
+
+            // 1) Prefer explicit diameter parameter
+            double diaMm;
+            if (TryGetDiameterMmFromParams(host, typeElem, out diaMm, out var src))
+            {
+                if (diaMm > 0.0)
+                {
+                    diameterFt = UnitHelper.MmToFt(diaMm);
+                    source = src;
+                    return true;
+                }
+            }
+
+            // 2) Round-cover param + bbox similarity (best-effort)
+            // NOTE: do NOT treat "square bbox" alone as circular (square columns exist).
+            // Only allow this fallback when an explicit round-cover parameter is present.
+            bool hasRoundCoverParam = HasParamName(host, "かぶり厚-丸") || HasParamName(typeElem, "かぶり厚-丸");
+            if (hasRoundCoverParam && hasLocalBox)
+            {
+                double aLen = GetMaxByIndex(localBox, crossA) - GetMinByIndex(localBox, crossA);
+                double bLen = GetMaxByIndex(localBox, crossB) - GetMinByIndex(localBox, crossB);
+                double tolFt = UnitHelper.MmToFt(10.0);
+                if (aLen > 1e-6 && bLen > 1e-6 && Math.Abs(aLen - bLen) <= tolFt)
+                {
+                    diameterFt = Math.Min(aLen, bLen);
+                    source = "bbox+roundParam";
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryDetectCircularColumnByGeometry(Element host, out double diameterFt, out string source)
+        {
+            diameterFt = 0.0;
+            source = null;
+            if (host == null) return false;
+
+            bool TryDetectFromSolid(Solid solid, out double diaFt, out string src)
+            {
+                diaFt = 0.0;
+                src = null;
+                if (solid == null || solid.Faces == null || solid.Faces.Size == 0) return false;
+
+                double bestDia = 0.0;
+                string bestSrc = null;
+
+                foreach (Face face in solid.Faces)
+                {
+                    // 1) Cylindrical face (most reliable)
+                    var cyl = face as CylindricalFace;
+                    if (cyl != null)
+                    {
+                        var axis = cyl.Axis;
+                        double cylRadius = TryGetCylindricalFaceRadiusFt(cyl);
+                        if (IsAxisVertical(axis) && cylRadius > 1e-6)
+                        {
+                            double d = cylRadius * 2.0;
+                            if (d > bestDia)
+                            {
+                                bestDia = d;
+                                bestSrc = "geom:cylindrical_face";
+                            }
+                        }
+                        continue;
+                    }
+
+                    // 2) Horizontal planar face with circular edge loop
+                    var pf = face as PlanarFace;
+                    if (pf == null) continue;
+                    if (!IsAxisVertical(pf.FaceNormal)) continue;
+
+                    try
+                    {
+                        var loops = pf.GetEdgesAsCurveLoops();
+                        foreach (var loop in loops)
+                        {
+                            double loopDia;
+                            if (TryGetCircularLoopDiameter(loop, out loopDia))
+                            {
+                                if (loopDia > bestDia)
+                                {
+                                    bestDia = loopDia;
+                                    bestSrc = "geom:planar_loop_arcs";
+                                }
+                            }
+                            else if (TryGetCircularLoopDiameterFromTessellation(loop, out loopDia))
+                            {
+                                if (loopDia > bestDia)
+                                {
+                                    bestDia = loopDia;
+                                    bestSrc = "geom:planar_loop_tess";
+                                }
+                            }
+                        }
+                    }
+                    catch { /* ignore */ }
+                }
+
+                if (bestDia > 1e-6)
+                {
+                    diaFt = bestDia;
+                    src = bestSrc;
+                    return true;
+                }
+                return false;
+            }
+
+            bool TryDetectFromGeomElem(GeometryElement ge, out double diaFt, out string src)
+            {
+                diaFt = 0.0;
+                src = null;
+                if (ge == null) return false;
+                foreach (GeometryObject obj in ge)
+                {
+                    if (obj is Solid solid)
+                    {
+                        if (TryDetectFromSolid(solid, out diaFt, out src)) return true;
+                    }
+                    else if (obj is GeometryInstance gi)
+                    {
+                        try
+                        {
+                            var instGeom = gi.GetInstanceGeometry();
+                            if (TryDetectFromGeomElem(instGeom, out diaFt, out src)) return true;
+                        }
+                        catch { /* ignore */ }
+                        try
+                        {
+                            var symGeom = gi.GetSymbolGeometry();
+                            if (TryDetectFromGeomElem(symGeom, out diaFt, out src)) return true;
+                        }
+                        catch { /* ignore */ }
+                    }
+                }
+                return false;
+            }
+
+            try
+            {
+                var opt = new Options
+                {
+                    ComputeReferences = false,
+                    IncludeNonVisibleObjects = false,
+                    DetailLevel = ViewDetailLevel.Fine
+                };
+                var ge = host.get_Geometry(opt);
+                double dia;
+                string src;
+                if (TryDetectFromGeomElem(ge, out dia, out src))
+                {
+                    diameterFt = dia;
+                    source = src;
+                    return true;
+                }
+            }
+            catch { /* ignore */ }
+
+            return false;
+        }
+
+        private static bool TryGetCircularLoopDiameter(CurveLoop loop, out double diameterFt)
+        {
+            diameterFt = 0.0;
+            if (loop == null) return false;
+            XYZ center = null;
+            double radius = 0.0;
+            double angleSum = 0.0;
+            int arcCount = 0;
+            double tolFt = UnitHelper.MmToFt(2.0);
+
+            foreach (Curve c in loop)
+            {
+                var arc = c as Arc;
+                if (arc == null) return false;
+                if (arc.Radius <= 1e-6) return false;
+                if (center == null)
+                {
+                    center = arc.Center;
+                    radius = arc.Radius;
+                }
+                else
+                {
+                    if (center.DistanceTo(arc.Center) > tolFt) return false;
+                    if (Math.Abs(arc.Radius - radius) > tolFt) return false;
+                }
+                angleSum += arc.Length / arc.Radius;
+                arcCount++;
+            }
+
+            if (arcCount == 0) return false;
+            double twoPi = Math.PI * 2.0;
+            if (Math.Abs(angleSum - twoPi) > 0.6)
+            {
+                // allow small tolerance; if far off, not a full circle loop
+                return false;
+            }
+            diameterFt = radius * 2.0;
+            return true;
+        }
+
+        private static bool TryGetCircularLoopDiameterFromTessellation(CurveLoop loop, out double diameterFt)
+        {
+            diameterFt = 0.0;
+            if (loop == null) return false;
+
+            var pts = new List<XYZ>();
+            double mergeTol = UnitHelper.MmToFt(1.0);
+
+            try
+            {
+                foreach (Curve c in loop)
+                {
+                    if (c == null) continue;
+                    IList<XYZ> seg = null;
+                    try { seg = c.Tessellate(); } catch { seg = null; }
+                    if (seg == null || seg.Count == 0) continue;
+                    foreach (var p in seg)
+                    {
+                        if (p == null) continue;
+                        if (pts.Count == 0)
+                        {
+                            pts.Add(p);
+                            continue;
+                        }
+                        var last = pts[pts.Count - 1];
+                        if (last.DistanceTo(p) > mergeTol)
+                            pts.Add(p);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            if (pts.Count < 8) return false;
+
+            // Use centroid as circle center approximation
+            double cx = 0, cy = 0, cz = 0;
+            foreach (var p in pts) { cx += p.X; cy += p.Y; cz += p.Z; }
+            cx /= pts.Count; cy /= pts.Count; cz /= pts.Count;
+            var center = new XYZ(cx, cy, cz);
+
+            double sumR = 0.0;
+            double maxDev = 0.0;
+            var angles = new List<double>();
+            foreach (var p in pts)
+            {
+                var v = p - center;
+                double r = v.GetLength();
+                if (r <= 1e-9) return false;
+                sumR += r;
+                double ang = Math.Atan2(v.Y, v.X);
+                if (ang < 0) ang += Math.PI * 2.0;
+                angles.Add(ang);
+            }
+            double avgR = sumR / pts.Count;
+            if (avgR <= 1e-9) return false;
+
+            foreach (var p in pts)
+            {
+                var v = p - center;
+                double r = v.GetLength();
+                double dev = Math.Abs(r - avgR);
+                if (dev > maxDev) maxDev = dev;
+            }
+
+            double tolAbs = UnitHelper.MmToFt(5.0);
+            double tolRel = avgR * 0.02; // 2%
+            if (maxDev > Math.Max(tolAbs, tolRel)) return false;
+
+            // Ensure coverage around the circle (not just an arc)
+            angles.Sort();
+            double maxGap = 0.0;
+            for (int i = 0; i < angles.Count; i++)
+            {
+                double a0 = angles[i];
+                double a1 = (i == angles.Count - 1) ? (angles[0] + Math.PI * 2.0) : angles[i + 1];
+                double gap = a1 - a0;
+                if (gap > maxGap) maxGap = gap;
+            }
+            if (maxGap > Math.PI) return false; // more than half circle missing
+
+            diameterFt = avgR * 2.0;
+            return true;
+        }
+
+        private static bool IsAxisVertical(XYZ axis)
+        {
+            if (axis == null) return false;
+            XYZ a;
+            try { a = axis.Normalize(); }
+            catch { return false; }
+            return Math.Abs(Math.Abs(a.Z) - 1.0) <= 0.1;
+        }
+
+        private static double TryGetCylindricalFaceRadiusFt(CylindricalFace cyl)
+        {
+            if (cyl == null) return 0.0;
+            try
+            {
+                var prop = cyl.GetType().GetProperty("Radius");
+                if (prop != null && prop.PropertyType == typeof(double))
+                {
+                    var v = prop.GetValue(cyl, null);
+                    if (v is double d) return d;
+                }
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                var m = cyl.GetType().GetMethod("get_Radius", new[] { typeof(int) });
+                if (m != null)
+                {
+                    var rv = m.Invoke(cyl, new object[] { 0 });
+                    if (rv is double d) return d;
+                    if (rv is XYZ v) return v.GetLength();
+                }
+            }
+            catch { /* ignore */ }
+
+            return 0.0;
+        }
+
         private static double GetMinByIndex(LocalBox b, int idx)
         {
             if (idx == 0) return b.minX;
@@ -4494,6 +7668,62 @@ namespace RevitMCPAddin.Core
             if (idx == 0) return b.maxX;
             if (idx == 1) return b.maxY;
             return b.maxZ;
+        }
+
+        private static double GetByIndex(XYZ p, int idx)
+        {
+            if (idx == 0) return p.X;
+            if (idx == 1) return p.Y;
+            return p.Z;
+        }
+
+        private static bool TryGetElementLocalBounds(Element e, Transform hostInvTr, out XYZ min, out XYZ max)
+        {
+            min = new XYZ(0, 0, 0);
+            max = new XYZ(0, 0, 0);
+            if (e == null) return false;
+            if (hostInvTr == null) hostInvTr = Transform.Identity;
+
+            BoundingBoxXYZ bb = null;
+            try { bb = e.get_BoundingBox(null); } catch { bb = null; }
+            if (bb == null || bb.Min == null || bb.Max == null) return false;
+
+            var bmin = bb.Min;
+            var bmax = bb.Max;
+            var corners = new[]
+            {
+                new XYZ(bmin.X, bmin.Y, bmin.Z),
+                new XYZ(bmax.X, bmin.Y, bmin.Z),
+                new XYZ(bmin.X, bmax.Y, bmin.Z),
+                new XYZ(bmax.X, bmax.Y, bmin.Z),
+                new XYZ(bmin.X, bmin.Y, bmax.Z),
+                new XYZ(bmax.X, bmin.Y, bmax.Z),
+                new XYZ(bmin.X, bmax.Y, bmax.Z),
+                new XYZ(bmax.X, bmax.Y, bmax.Z)
+            };
+
+            double minX = double.PositiveInfinity, minY = double.PositiveInfinity, minZ = double.PositiveInfinity;
+            double maxX = double.NegativeInfinity, maxY = double.NegativeInfinity, maxZ = double.NegativeInfinity;
+
+            foreach (var p in corners)
+            {
+                XYZ q;
+                try { q = hostInvTr.OfPoint(p); } catch { q = p; }
+                if (double.IsNaN(q.X) || double.IsInfinity(q.X)) continue;
+                if (double.IsNaN(q.Y) || double.IsInfinity(q.Y)) continue;
+                if (double.IsNaN(q.Z) || double.IsInfinity(q.Z)) continue;
+                if (q.X < minX) minX = q.X;
+                if (q.Y < minY) minY = q.Y;
+                if (q.Z < minZ) minZ = q.Z;
+                if (q.X > maxX) maxX = q.X;
+                if (q.Y > maxY) maxY = q.Y;
+                if (q.Z > maxZ) maxZ = q.Z;
+            }
+
+            if (double.IsInfinity(minX) || double.IsInfinity(maxX)) return false;
+            min = new XYZ(minX, minY, minZ);
+            max = new XYZ(maxX, maxY, maxZ);
+            return (max.X > min.X || max.Y > min.Y || max.Z > min.Z);
         }
 
         private static XYZ MakeLocalPoint(int idx1, double v1, int idx2, double v2, int idx3, double v3)
@@ -4623,6 +7853,170 @@ namespace RevitMCPAddin.Core
             {
                 return null;
             }
+        }
+
+        private static Autodesk.Revit.DB.Structure.Rebar TryCreateFromCurvesAndShape(
+            Document doc,
+            Autodesk.Revit.DB.Structure.RebarShape shape,
+            Autodesk.Revit.DB.Structure.RebarBarType barType,
+            Autodesk.Revit.DB.Structure.RebarHookType startHook,
+            Autodesk.Revit.DB.Structure.RebarHookType endHook,
+            Element host,
+            XYZ normal,
+            IList<Curve> curves,
+            RebarHookOrientation startOrient,
+            RebarHookOrientation endOrient)
+        {
+            if (doc == null || shape == null || barType == null || host == null || curves == null) return null;
+
+            try
+            {
+                var methods = typeof(Autodesk.Revit.DB.Structure.Rebar)
+                    .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .Where(m => m.Name == "CreateFromCurvesAndShape")
+                    .ToList();
+                if (methods.Count == 0) return null;
+
+                foreach (var m in methods)
+                {
+                    var ps = m.GetParameters();
+                    if (ps == null || ps.Length == 0) continue;
+
+                    var args = new object[ps.Length];
+                    int hookIdx = 0;
+                    int orientIdx = 0;
+                    bool ok = true;
+
+                    for (int i = 0; i < ps.Length; i++)
+                    {
+                        var t = ps[i].ParameterType;
+                        if (t == typeof(Document)) args[i] = doc;
+                        else if (t == typeof(Autodesk.Revit.DB.Structure.RebarShape)) args[i] = shape;
+                        else if (t == typeof(Autodesk.Revit.DB.Structure.RebarBarType)) args[i] = barType;
+                        else if (t == typeof(Autodesk.Revit.DB.Structure.RebarHookType))
+                        {
+                            args[i] = hookIdx == 0 ? (object)startHook : (object)endHook;
+                            hookIdx++;
+                        }
+                        else if (t == typeof(Element)) args[i] = host;
+                        else if (t == typeof(XYZ)) args[i] = normal;
+                        else if (typeof(IList<Curve>).IsAssignableFrom(t)) args[i] = curves;
+                        else if (t == typeof(RebarHookOrientation))
+                        {
+                            args[i] = orientIdx == 0 ? (object)startOrient : (object)endOrient;
+                            orientIdx++;
+                        }
+                        else if (t == typeof(bool)) args[i] = true;
+                        else { ok = false; break; }
+                    }
+
+                    if (!ok) continue;
+
+                    try
+                    {
+                        var obj = m.Invoke(null, args);
+                        var rb = obj as Autodesk.Revit.DB.Structure.Rebar;
+                        if (rb != null) return rb;
+                    }
+                    catch { /* try next overload */ }
+                }
+            }
+            catch { /* ignore */ }
+
+            return null;
+        }
+
+        private static List<Curve> BuildPolylineFromCurves(IList<Curve> curves)
+        {
+            if (curves == null || curves.Count == 0) return null;
+            var pts = new List<XYZ>();
+            foreach (var c in curves)
+            {
+                if (c == null) continue;
+                IList<XYZ> tess = null;
+                try { tess = c.Tessellate(); } catch { tess = null; }
+                if (tess == null || tess.Count < 2) continue;
+                if (pts.Count == 0)
+                {
+                    pts.AddRange(tess);
+                }
+                else
+                {
+                    try
+                    {
+                        var last = pts[pts.Count - 1];
+                        if (last.DistanceTo(tess[0]) < 1e-6)
+                            pts.AddRange(tess.Skip(1));
+                        else
+                            pts.AddRange(tess);
+                    }
+                    catch { pts.AddRange(tess); }
+                }
+            }
+            if (pts.Count < 2) return null;
+
+            // Close loop if endpoints coincide or very close.
+            try
+            {
+                if (pts[0].DistanceTo(pts[pts.Count - 1]) < 1e-6)
+                {
+                    pts[pts.Count - 1] = pts[0];
+                }
+            }
+            catch { /* ignore */ }
+
+            var res = new List<Curve>();
+            for (int i = 1; i < pts.Count; i++)
+            {
+                res.Add(Line.CreateBound(pts[i - 1], pts[i]));
+            }
+            return res;
+        }
+
+        private static bool TryFindCircularTieShape(Document doc, out Autodesk.Revit.DB.Structure.RebarShape shape, out string source)
+        {
+            shape = null;
+            source = string.Empty;
+            if (doc == null) return false;
+
+            try
+            {
+                var list = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Autodesk.Revit.DB.Structure.RebarShape))
+                    .Cast<Autodesk.Revit.DB.Structure.RebarShape>()
+                    .ToList();
+                if (list.Count == 0) return false;
+
+                int bestScore = -1;
+                Autodesk.Revit.DB.Structure.RebarShape best = null;
+                foreach (var s in list)
+                {
+                    if (s == null) continue;
+                    var n = (s.Name ?? string.Empty).Trim();
+                    if (n.Length == 0) continue;
+
+                    int score = 0;
+                    if (n.IndexOf("31", StringComparison.OrdinalIgnoreCase) >= 0) score += 100;
+                    if (NameContainsAny(n, "丸", "円", "circle", "circular", "round")) score += 60;
+                    if (NameContainsAny(n, "フープ", "スターラップ", "stirrup", "tie", "hoop")) score += 30;
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = s;
+                    }
+                }
+
+                if (best != null)
+                {
+                    shape = best;
+                    source = "auto:" + (best.Name ?? string.Empty);
+                    return true;
+                }
+            }
+            catch { /* ignore */ }
+
+            return false;
         }
 
         private static JObject BuildLayoutFromMapping(JObject values, bool preferMappingArrayLength, double arrayLengthMmComputed)

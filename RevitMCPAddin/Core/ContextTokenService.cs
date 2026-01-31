@@ -38,6 +38,9 @@ namespace RevitMCPAddin.Core
         public int selectionCount { get; set; }
         public bool selectionIdsTruncated { get; set; }
         public int[] selectionIds { get; set; } = Array.Empty<int>();
+        public string selectionSource { get; set; } = "live"; // live|live-retry|stash
+        public DateTime selectionObservedUtc { get; set; } = DateTime.MinValue;
+        public int selectionStashAgeMs { get; set; }
     }
 
     internal static class ContextTokenService
@@ -70,7 +73,14 @@ namespace RevitMCPAddin.Core
             return snap.contextToken ?? string.Empty;
         }
 
-        public static ContextSnapshot Capture(UIApplication uiapp, bool includeSelectionIds, int maxSelectionIds)
+        public static ContextSnapshot Capture(
+            UIApplication uiapp,
+            bool includeSelectionIds,
+            int maxSelectionIds,
+            int selectionRetryMaxWaitMs = 0,
+            int selectionRetryPollMs = 150,
+            bool selectionFallbackToStash = true,
+            int selectionStashMaxAgeMs = 2000)
         {
             var snap = new ContextSnapshot();
 
@@ -96,8 +106,54 @@ namespace RevitMCPAddin.Core
                 snap.rawActiveViewType = av.GetType().Name;
             }
 
+            string selSource = "live";
+            DateTime selObservedUtc = DateTime.UtcNow;
+            int selStashAgeMs = 0;
+
             var selIds = GetSelectionIdsSorted(uidoc);
+            if (selIds.Length == 0 && selectionRetryMaxWaitMs > 0)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                int pollMs = Math.Min(1000, Math.Max(50, selectionRetryPollMs));
+                while (sw.ElapsedMilliseconds < selectionRetryMaxWaitMs)
+                {
+                    try { System.Threading.Thread.Sleep(pollMs); } catch { break; }
+                    selIds = GetSelectionIdsSorted(uidoc);
+                    if (selIds.Length > 0)
+                    {
+                        selSource = "live-retry";
+                        selObservedUtc = DateTime.UtcNow;
+                        break;
+                    }
+                }
+            }
+
+            if (selIds.Length == 0 && selectionFallbackToStash)
+            {
+                try
+                {
+                    var stash = SelectionStash.GetLastNonEmptySnapshot();
+                    var ageMs = (int)Math.Max(0, (DateTime.UtcNow - stash.ObservedUtc).TotalMilliseconds);
+                    bool docMatch = string.IsNullOrWhiteSpace(stash.DocPath)
+                                    || string.Equals(stash.DocPath, snap.docPath ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(stash.DocTitle, snap.docTitle ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+                    bool viewMatch = (stash.ActiveViewId == 0) || (stash.ActiveViewId == snap.activeViewId);
+                    if (stash.Ids != null && stash.Ids.Length > 0
+                        && (selectionStashMaxAgeMs <= 0 || ageMs <= selectionStashMaxAgeMs)
+                        && docMatch && viewMatch)
+                    {
+                        selIds = stash.Ids;
+                        selSource = "stash";
+                        selObservedUtc = stash.ObservedUtc;
+                        selStashAgeMs = ageMs;
+                    }
+                }
+                catch { /* ignore */ }
+            }
             snap.selectionCount = selIds.Length;
+            snap.selectionSource = selSource;
+            snap.selectionObservedUtc = selObservedUtc;
+            snap.selectionStashAgeMs = selStashAgeMs;
 
             snap.revision = GetRevision(doc);
 
@@ -233,4 +289,3 @@ namespace RevitMCPAddin.Core
         }
     }
 }
-

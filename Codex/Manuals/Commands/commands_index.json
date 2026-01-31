@@ -3353,6 +3353,11 @@
     "importance": "high",
     "kind": "write"
   },
+  "param_transfer_values": {
+    "category": "ParamOps",
+    "importance": "normal",
+    "kind": "write"
+  },
   "update_property_line|delete_property_line": {
     "category": "Other",
     "importance": "normal",
@@ -3487,11 +3492,6 @@
     "category": "Views/Graphics",
     "importance": "normal",
     "kind": "read"
-  },
-  "delete_detail_lines": {
-    "category": "Detail/Model Lines",
-    "importance": "normal",
-    "kind": "write"
   },
   "delete_space_separation_lines": {
     "category": "Rooms/Spaces",
@@ -3779,6 +3779,11 @@
     "kind": "write"
   },
   "rebar_mapping_resolve": {
+    "category": "Rebar",
+    "importance": "normal",
+    "kind": "read"
+  },
+  "get_rebar_hosts_and_params": {
     "category": "Rebar",
     "importance": "normal",
     "kind": "read"

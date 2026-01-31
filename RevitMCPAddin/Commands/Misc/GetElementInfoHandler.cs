@@ -52,6 +52,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 if (doc == null) return new { ok = false, msg = "No active document." };
 
                 bool rich = p.Value<bool?>("rich") ?? false;
+                bool includeGeometry = p.Value<bool?>("includeGeometry") ?? false;
 
                 // (NEW) 追加パラメータ
                 bool includeVisual = p.Value<bool?>("includeVisual") ?? false;
@@ -187,6 +188,14 @@ namespace RevitMCPAddin.Commands.ElementOps
                             ["z"] = Math.Round(UnitHelper.FtToMm(z), 3)
                         }
                     };
+
+                    if (includeGeometry)
+                    {
+                        var geomSummary = BuildGeometrySummaryJson(doc, elem);
+                        if (geomSummary != null) info["geometrySummary"] = geomSummary;
+                        var geomShape = BuildGeometryShapeJson(elem);
+                        if (geomShape != null) info["geometryShape"] = geomShape;
+                    }
 
                     // (NEW) ビュー基準の visualOverride フラグ（任意）
                     if (includeVisual)
@@ -489,6 +498,270 @@ namespace RevitMCPAddin.Commands.ElementOps
             }
 
             return new JArray(hints.Distinct());
+        }
+
+        private static JObject? BuildGeometrySummaryJson(Document doc, Element element)
+        {
+            try
+            {
+                Options opt = new Options
+                {
+                    ComputeReferences = false,
+                    IncludeNonVisibleObjects = false,
+                    DetailLevel = ViewDetailLevel.Coarse
+                };
+
+                GeometryElement? geo = element.get_Geometry(opt);
+                if (geo == null)
+                    return null;
+
+                int solidCount = 0;
+                double vol = 0.0;
+                double area = 0.0;
+
+                foreach (var obj in geo)
+                {
+                    if (obj is Solid solid && solid.Volume > 0)
+                    {
+                        solidCount++;
+                        vol += solid.Volume;
+                        area += solid.SurfaceArea;
+                    }
+                }
+
+                if (solidCount == 0)
+                    return new JObject { ["hasSolid"] = false };
+
+                double volM3 = UnitUtils.ConvertFromInternalUnits(vol, UnitTypeId.CubicMeters);
+                double areaM2 = UnitUtils.ConvertFromInternalUnits(area, UnitTypeId.SquareMeters);
+
+                return new JObject
+                {
+                    ["hasSolid"] = true,
+                    ["solidCount"] = solidCount,
+                    ["approxVolume"] = Math.Round(volM3, 3),
+                    ["approxSurfaceArea"] = Math.Round(areaM2, 3)
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static JObject? BuildGeometryShapeJson(Element element)
+        {
+            try
+            {
+                if (element == null) return null;
+                var catId = element.Category?.Id?.IntValue() ?? 0;
+                bool isColumn = catId == (int)BuiltInCategory.OST_StructuralColumns
+                                || catId == (int)BuiltInCategory.OST_Columns;
+                if (!isColumn) return null;
+
+                double diaFt;
+                string src;
+                if (TryDetectCircularByGeometry(element, out diaFt, out src))
+                {
+                    return new JObject
+                    {
+                        ["shape"] = "circular",
+                        ["diameterMm"] = Math.Round(UnitHelper.FtToMm(diaFt), 3),
+                        ["source"] = src ?? "geom"
+                    };
+                }
+
+                // fallback: bbox-based rectangular
+                var bb = element.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    var w = Math.Abs(bb.Max.X - bb.Min.X);
+                    var d = Math.Abs(bb.Max.Y - bb.Min.Y);
+                    if (w > 1e-6 && d > 1e-6)
+                    {
+                        return new JObject
+                        {
+                            ["shape"] = "rectangular",
+                            ["widthMm"] = Math.Round(UnitHelper.FtToMm(w), 3),
+                            ["depthMm"] = Math.Round(UnitHelper.FtToMm(d), 3),
+                            ["source"] = "bbox"
+                        };
+                    }
+                }
+
+                return new JObject
+                {
+                    ["shape"] = "unknown",
+                    ["source"] = "geom"
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool TryDetectCircularByGeometry(Element element, out double diameterFt, out string source)
+        {
+            diameterFt = 0.0;
+            source = null;
+            try
+            {
+                var opt = new Options
+                {
+                    ComputeReferences = false,
+                    IncludeNonVisibleObjects = false,
+                    DetailLevel = ViewDetailLevel.Fine
+                };
+
+                var ge = element.get_Geometry(opt);
+                if (ge == null) return false;
+
+                double bestDia = 0.0;
+                string bestSrc = null;
+
+                bool Traverse(GeometryElement geo, Transform t)
+                {
+                    foreach (var obj in geo)
+                    {
+                        if (obj is GeometryInstance gi)
+                        {
+                            var instGe = gi.GetInstanceGeometry();
+                            if (instGe != null && Traverse(instGe, t.Multiply(gi.Transform))) return true;
+                        }
+                        else if (obj is Solid solid && solid.Faces != null && solid.Faces.Size > 0)
+                        {
+                            foreach (Autodesk.Revit.DB.Face face in solid.Faces)
+                            {
+                                var cyl = face as Autodesk.Revit.DB.CylindricalFace;
+                                if (cyl != null)
+                                {
+                                    var axis = cyl.Axis;
+                                    double r = TryGetCylindricalFaceRadiusFt(cyl);
+                                    if (IsAxisVertical(axis) && r > 1e-6)
+                                    {
+                                        double d = r * 2.0;
+                                        if (d > bestDia)
+                                        {
+                                            bestDia = d;
+                                            bestSrc = "geom:cylindrical_face";
+                                        }
+                                        continue;
+                                    }
+                                }
+
+                                var pf = face as Autodesk.Revit.DB.PlanarFace;
+                                if (pf == null) continue;
+                                if (!IsAxisVertical(pf.FaceNormal)) continue;
+
+                                try
+                                {
+                                    var loops = pf.GetEdgesAsCurveLoops();
+                                    foreach (var loop in loops)
+                                    {
+                                        double loopDia;
+                                        if (TryGetCircularLoopDiameter(loop, out loopDia))
+                                        {
+                                            if (loopDia > bestDia)
+                                            {
+                                                bestDia = loopDia;
+                                                bestSrc = "geom:planar_loop_arcs";
+                                            }
+                                        }
+                                    }
+                                }
+                                catch { /* ignore */ }
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                Traverse(ge, Transform.Identity);
+                if (bestDia > 1e-6)
+                {
+                    diameterFt = bestDia;
+                    source = bestSrc;
+                    return true;
+                }
+            }
+            catch { /* ignore */ }
+            return false;
+        }
+
+        private static bool TryGetCircularLoopDiameter(CurveLoop loop, out double diameterFt)
+        {
+            diameterFt = 0.0;
+            if (loop == null) return false;
+            XYZ center = null;
+            double radius = 0.0;
+            double angleSum = 0.0;
+            int arcCount = 0;
+            double tolFt = UnitHelper.MmToFt(2.0);
+
+            foreach (Curve c in loop)
+            {
+                var arc = c as Arc;
+                if (arc == null) return false;
+                if (arc.Radius <= 1e-6) return false;
+                if (center == null)
+                {
+                    center = arc.Center;
+                    radius = arc.Radius;
+                }
+                else
+                {
+                    if (center.DistanceTo(arc.Center) > tolFt) return false;
+                    if (Math.Abs(arc.Radius - radius) > tolFt) return false;
+                }
+                angleSum += arc.Length / arc.Radius;
+                arcCount++;
+            }
+
+            if (arcCount == 0) return false;
+            double twoPi = Math.PI * 2.0;
+            if (Math.Abs(angleSum - twoPi) > 0.6) return false;
+
+            diameterFt = radius * 2.0;
+            return true;
+        }
+
+        private static bool IsAxisVertical(XYZ axis)
+        {
+            if (axis == null) return false;
+            XYZ a;
+            try { a = axis.Normalize(); }
+            catch { return false; }
+            return Math.Abs(Math.Abs(a.Z) - 1.0) <= 0.1;
+        }
+
+        private static double TryGetCylindricalFaceRadiusFt(CylindricalFace cyl)
+        {
+            if (cyl == null) return 0.0;
+            try
+            {
+                var prop = cyl.GetType().GetProperty("Radius");
+                if (prop != null && prop.PropertyType == typeof(double))
+                {
+                    var v = prop.GetValue(cyl, null);
+                    if (v is double d) return d;
+                }
+            }
+            catch { /* ignore */ }
+
+            try
+            {
+                var m = cyl.GetType().GetMethod("get_Radius", new[] { typeof(int) });
+                if (m != null)
+                {
+                    var rv = m.Invoke(cyl, new object[] { 0 });
+                    if (rv is double d) return d;
+                    if (rv is XYZ v) return v.GetLength();
+                }
+            }
+            catch { /* ignore */ }
+
+            return 0.0;
         }
 
         // ============================================================

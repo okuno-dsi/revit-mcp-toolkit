@@ -3,8 +3,6 @@
 - Category: Dynamo
 - Purpose: Execute a Dynamo graph (.dyn) with input overrides from MCP.
 
-> ⚠ Warning: Dynamo execution is environment-dependent and often unstable. **Not recommended** unless you have verified it in your Revit/Dynamo setup.
-
 ## Overview
 This command runs a Dynamo graph inside the Revit process. The script must exist under `RevitMCPAddin/Dynamo/Scripts`. Inputs are matched by `Name` or `Id` from the `.dyn` `Inputs` section. The add-in writes a temporary run copy under `%LOCALAPPDATA%\\RevitMCP\\dynamo\\runs`.
 

@@ -83,12 +83,36 @@
     <MakeDir Directories="$(OutputPath)server" Condition=" '$(ServerExeSource)'!='' " />
     <Copy SourceFiles="$(ServerExeSource)" DestinationFiles="$(OutputPath)server\RevitMCPServer.exe" SkipUnchangedFiles="true" Condition=" '$(ServerExeSource)'!='' " />
 
+    <!-- Copy full server publish output (DLLs, runtimes, wwwroot, tessdata, etc.). Exclude nested publish folders. -->
+    <ItemGroup>
+      <ServerFiles Include="$(ServerRootSource)\**\*.*" Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)') "
+                   Exclude="$(ServerRootSource)\publish\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ServerFiles)"
+          DestinationFiles="@(ServerFiles->'$(OutputPath)server\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition=" '@(ServerFiles)'!='' " />
+
     <!-- CaptureAgent (optional, server-local) -->
     <ItemGroup>
-      <CaptureAgentFiles Include="$(ServerRootSource)\capture-agent\*.*" Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)\capture-agent') " />
+      <!-- Copy capture-agent recursively (tessdata, runtimes, etc.) -->
+      <CaptureAgentFiles Include="$(ServerRootSource)\capture-agent\**\*.*" Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)\capture-agent') " />
     </ItemGroup>
     <MakeDir Directories="$(OutputPath)server\capture-agent" Condition=" '@(CaptureAgentFiles)'!='' " />
-    <Copy SourceFiles="@(CaptureAgentFiles)" DestinationFolder="$(OutputPath)server\capture-agent" SkipUnchangedFiles="true" Condition=" '@(CaptureAgentFiles)'!='' " />
+    <Copy SourceFiles="@(CaptureAgentFiles)"
+          DestinationFiles="@(CaptureAgentFiles->'$(OutputPath)server\capture-agent\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition=" '@(CaptureAgentFiles)'!='' " />
+  </Target>
+  <!-- Build info (date + commit) for ribbon display -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="Build">
+    <PropertyGroup>
+      <BuildInfoFile>$(ProjectDir)build_info.txt</BuildInfoFile>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;&amp; { $root='$(ProjectDir)'; $date=Get-Date -Format 'yyyy.MM.dd'; $hash=$env:REVIT_MCP_COMMIT; if ([string]::IsNullOrWhiteSpace($hash)) { $git=Get-Command git -ErrorAction SilentlyContinue; if ($git) { try { $hash=(git -C $root rev-parse --short HEAD 2>$null).Trim() } catch {} } }; $count=$env:REVIT_MCP_BUILDCOUNT; if ([string]::IsNullOrWhiteSpace($count)) { $countFile=Join-Path $root 'build_count.txt'; $n=0; $storedDate=$null; if (Test-Path $countFile) { try { $raw=(Get-Content $countFile -ErrorAction SilentlyContinue | Select-Object -First 1); if ($raw) { $parts=$raw.Split(',',2); if ($parts.Length -ge 2) { $storedDate=$parts[0].Trim(); $n=[int]$parts[1].Trim(); } else { $n=[int]$raw.Trim(); } } } catch { $n=0 } }; if ($storedDate -ne $date) { $n=0 }; $n=$n+1; try { Set-Content -Path $countFile -Value ($date + ',' + $n) -Encoding UTF8 } catch {}; $count=$n.ToString('00'); }; if ([string]::IsNullOrWhiteSpace($count)) { $count='00' }; if ([string]::IsNullOrWhiteSpace($hash)) { $ver = $date + '+' + $count } else { $ver = $date + '+' + $count + '.g' + $hash }; Set-Content -Path '$(ProjectDir)build_info.txt' -Value $ver -Encoding UTF8; }&quot;" />
+  </Target>
+  <Target Name="CopyBuildInfo" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDir)build_info.txt" DestinationFiles="$(OutputPath)build_info.txt" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)build_info.txt')" />
   </Target>
   <!-- 参照 -->
   <ItemGroup>
@@ -177,6 +201,7 @@
     <Compile Include="Commands\AnalysisOps\SummarizeFamilyTypesByCategoryCommand.cs" />
     <Compile Include="Commands\AnnotationOps\AddDoorSizeDimensionsCommand.cs" />
     <Compile Include="Commands\AnnotationOps\CreateTextNoteCommand.cs" />
+    <Compile Include="Commands\AnnotationOps\SetTextCommand.cs" />
     <Compile Include="Commands\AnnotationOps\DeleteTextNoteCommand.cs" />
     <Compile Include="Commands\AnnotationOps\DetailLineCommands.cs" />
     <Compile Include="Commands\AnnotationOps\DrawColoredLineSegmentsCommand.cs" />
@@ -231,6 +256,7 @@
     <Compile Include="Commands\ParamOps\GetParameterIdentityCommand.cs" />
     <Compile Include="Commands\ParamOps\UpdateParametersBatchCommand.cs" />
     <Compile Include="Commands\ParamOps\SetParameterForElementsCommand.cs" />
+    <Compile Include="Commands\ParamOps\TransferParameterValuesCommand.cs" />
     <Compile Include="Commands\RevisionCloud\CreateRevisionCircleCommand.cs" />
     <Compile Include="Commands\RevisionCloud\CreateRevisionCloudFromCurvesCommand.cs" />
     <Compile Include="Commands\Room\FindRoomPlaceableRegionsCommand.cs" />
@@ -333,6 +359,7 @@
     <Compile Include="Commands\Spatial\GetSpatialContextForElementCommand.cs" />
     <Compile Include="Commands\SystemOps\SetPriorityHighCommand.cs" />
     <Compile Include="Commands\SystemOps\SetPriorityNormalCommand.cs" />
+    <Compile Include="Commands\SystemOps\ShowBuildInfoCommand.cs" />
     <Compile Include="Commands\RevisionCloud\RevisionCloudParamCommands.cs" />
     <Compile Include="Commands\RevisionCloud\RevisionCloudTypeCommands.cs" />
     <Compile Include="Commands\RevisionCloud\RevisionQueriesAndSettingsCommands.cs" />
@@ -423,6 +450,7 @@
     <Compile Include="Commands\ZoneOps\ZoneCommands.cs" />
     <Compile Include="Core\AdaptiveWaitController.cs" />
     <Compile Include="Core\AuditCapture.cs" />
+    <Compile Include="Core\BuildInfo.cs" />
     <Compile Include="Core\CategoryResolver.cs" />
     <Compile Include="Core\CategoryAliasService.cs" />
     <Compile Include="Core\ElementQueryService.cs" />
@@ -588,6 +616,7 @@
     <Compile Include="Commands\ElementOps\Floor\GetFloorTypesCommand.cs" />
     <Compile Include="Commands\ElementOps\Floor\MoveFloorCommand.cs" />
     <Compile Include="Commands\ElementOps\Floor\RenameFloorTypeCommand.cs" />
+    <Compile Include="Commands\ElementOps\Floor\RenameFloorTypesByThicknessCommand.cs" />
     <Compile Include="Commands\ElementOps\Floor\SetFloorParameterCommand.cs" />
     <Compile Include="Commands\ElementOps\Floor\SetFloorTypeParameterCommand.cs" />
     <Compile Include="Commands\ElementOps\Floor\UpdateFloorBoundaryCommand.cs" />
@@ -643,8 +672,10 @@
     <Compile Include="Commands\ElementOps\StructuralFrame\StructuralFrameCommands.cs" />
     <Compile Include="Commands\ElementOps\Wall\ChangeWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\CreateWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\CreateWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DuplicateWallTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\DeleteWallCommand.cs" />
+    <Compile Include="Commands\ElementOps\Wall\DeleteWallsCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallTypeParametersCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallParameterCommand.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallParametersCommand.cs" />
@@ -745,8 +776,10 @@
     <Compile Include="Commands\Rebar\RebarLayoutUpdateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarLayoutUpdateByHostCommand.cs" />
     <Compile Include="Commands\Rebar\RebarMappingResolveCommand.cs" />
+    <Compile Include="Commands\Rebar\RebarMappingReloadCommand.cs" />
     <Compile Include="Commands\Rebar\RebarPlanAutoCommand.cs" />
     <Compile Include="Commands\Rebar\RebarApplyPlanCommand.cs" />
+    <Compile Include="Commands\Rebar\GetRebarHostsAndParamsCommand.cs" />
     <Compile Include="Commands\Rebar\RebarSyncStatusCommand.cs" />
     <Compile Include="Commands\Rebar\RebarRegenerateDeleteRecreateCommand.cs" />
     <Compile Include="Commands\Rebar\RebarSpacingCheckCommand.cs" />
@@ -840,9 +873,31 @@
     <Compile Include="UI\PythonRunner\PythonRunnerWindow.xaml.cs">
       <DependentUpon>PythonRunnerWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UI\PythonRunner\ScriptLibraryWindow.xaml.cs">
+      <DependentUpon>ScriptLibraryWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\PythonRunner\ScriptRootsWindow.xaml.cs">
+      <DependentUpon>ScriptRootsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\PythonRunner\ScriptMetadataWindow.xaml.cs">
+      <DependentUpon>ScriptMetadataWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\PythonRunner\PythonRunnerScriptLibrary.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\PythonRunner\PythonRunnerWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\PythonRunner\ScriptLibraryWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\PythonRunner\ScriptRootsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\PythonRunner\ScriptMetadataWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

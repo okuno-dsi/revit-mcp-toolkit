@@ -32,11 +32,11 @@ Outputs
 
 Optional (COM merge, AutoCAD running)
 - If AutoCadMCP is not available, you can merge DWGs with AutoCAD COM:
-  - Script: `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - Script: `Tools/AutoCad/merge_dwgs_by_map_com.py`
   - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`). No other external libraries.
   - Example:
 ```
-python tools/AutoCad/merge_dwgs_by_map_com.py \
+python Tools/AutoCad/merge_dwgs_by_map_com.py \
   --source-dir "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg" \
   --out-dwg "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\MERGED_DWG_COM.dwg" \
   --map-csv "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\layermap.csv"

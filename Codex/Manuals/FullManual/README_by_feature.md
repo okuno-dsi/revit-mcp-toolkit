@@ -465,7 +465,6 @@ Commands grouped into broader feature areas.
 - [export_view_3dm](export_view_3dm.md)
 - [export_view_3dm_brep](export_view_3dm_brep.md)
 - [export_view_mesh](export_view_mesh.md)
-- [generate_dwg_merge_script_manual](generate_dwg_merge_script_manual.md)
 - [get_curves_by_category](get_curves_by_category.md)
 - [get_grids_with_bubbles](get_grids_with_bubbles.md)
 
@@ -527,6 +526,7 @@ Commands grouped into broader feature areas.
 - [get_parameter_identity](get_parameter_identity.md)
 - [get_type_parameters_bulk](get_type_parameters_bulk.md)
 - [update_parameters_batch](update_parameters_batch.md)
+- [param.transfer_values](param.transfer_values.md)
 
 ## Schedules
 - [create_schedule_view](create_schedule_view.md)
@@ -607,6 +607,7 @@ Commands grouped into broader feature areas.
 - [list_rebar_hook_types](list_rebar_hook_types.md)
 - [import_rebar_types_from_document](import_rebar_types_from_document.md)
 - [rebar_mapping_resolve](rebar_mapping_resolve.md)
+- [get_rebar_hosts_and_params](get_rebar_hosts_and_params.md)
 - [rebar_plan_auto](rebar_plan_auto.md)
 - [rebar_apply_plan](rebar_apply_plan.md)
 - [rebar_sync_status](rebar_sync_status.md)

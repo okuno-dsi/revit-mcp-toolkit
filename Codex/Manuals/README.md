@@ -3,7 +3,7 @@
 This folder is the curated entry point for Revit MCP work: guides, commands, helper scripts, and logs.
 
 ## Ready-to-Start (Start Here)
-- Read: `Codex/START_HERE.md` for the shortest path to begin.
+- Read: `START_HERE.md` at repo root for the shortest path to begin.
 - Quickstart: `Manuals/ConnectionGuide/QUICKSTART.md` (port check, ping, bootstrap).
 - Work rules: `WORK_RULES.md` (use `Work/<ProjectName>_<ProjectID>/` for per‑project work).
 - Helper scripts (PowerShell):
@@ -15,6 +15,19 @@ This folder is the curated entry point for Revit MCP work: guides, commands, hel
   - Resilient view ops:
     - `Manuals/Scripts/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
+
+## New (2026-01-26)
+- AutoRebar（梁）: start/end = `LocationCurve.EndPoint(0/1)` を明確化（`Manuals/FullManual/rebar_plan_auto.md`, `Manuals/FullManual_ja/rebar_plan_auto.md`）
+- AutoRebar（柱）: コンクリート隣接（構造柱/構造基礎）を考慮した上下端の軸方向被り + 柱帯筋の `base/head`（中間高さ 2分割）対応（同ドキュメント参照）
+- Build fix: `rename_floor_types_by_thickness` / `create_walls` / `delete_walls` がビルドに含まれるよう復旧
+
+## New (2026-01-28)
+- CodexGUI → Python Runner 連携を整理：
+  - Python 出力は **` ```python ``` ブロックのみ**保存対象。
+  - 保存先は `Work/<RevitFileName>_<docKey>/python_script/` に統一。
+  - `# @feature:` / `# @keywords:` を自動付与（未指定は空欄）。
+  - Python Runner は **Load Codex** で取り込み。
+- 更新: `Manuals/ConnectionGuide/07_基本操作_PythonRunner_UI.md`
 
 ## New (2026-01-22)
 - Python Runner UI (Revit 内で Python 実行): `Manuals/ConnectionGuide/07_基本操作_PythonRunner_UI.md`
@@ -118,7 +131,7 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
   - Usage example:
     - `pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 -DwgPath ".../Merged_B_G.dwg" -Locale ja-JP`
 - Merge via AutoCAD COM (GUI AutoCAD running):
-  - `tools/AutoCad/merge_dwgs_by_map_com.py`
+  - `Tools/AutoCad/merge_dwgs_by_map_com.py`
   - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`)
 
 ## Snapshots
@@ -126,7 +139,6 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
   - `pwsh -ExecutionPolicy Bypass -File Manuals/Scripts/save_project_snapshot.ps1 -Port 5210 -OutRoot Work/Snapshots -MaxViews 5`
 
 ## Dynamo (graph execution)
-- ⚠ 注意: Dynamo 実行は環境依存・不安定なケースが多いため **原則推奨しません**。必要時のみ限定利用してください。
 - Place .dyn files under `RevitMCPAddin/Dynamo/Scripts`.
 - Commands:
   - `dynamo.list_scripts` (discover available graphs)
