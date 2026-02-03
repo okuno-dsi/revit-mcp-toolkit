@@ -81,6 +81,30 @@ UpgradeReport*.xml
 # Documents (often 3rd-party)
 *.pdf
 
+# Office files (do not publish)
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.xlt
+*.xltx
+*.xltm
+*.doc
+*.docx
+*.docm
+*.dot
+*.dotx
+*.dotm
+*.ppt
+*.pptx
+*.pptm
+*.pps
+*.ppsx
+*.ppsm
+*.vsd
+*.vsdx
+*.one
+
 # Local / generated work dirs
 Codex/Design/
 Codex/Work/
