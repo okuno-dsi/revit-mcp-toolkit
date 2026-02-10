@@ -14,9 +14,9 @@ Diff + Tag-first Revision Cloud script (client-side orchestrator).
 - Optional: write the diff summary into cloud's Comments parameter.
 
 Usage:
-  python Manuals/Scripts/diff_cloud_tagfirst.py --port 5210 \
-      --baseline Work/Project_5210_B/20251027_123122 \
-      --tag-mode prefer --write-comments --csv Work/DiffCloud/out.csv
+  python Scripts/Reference/diff_cloud_tagfirst.py --port 5210 \
+      --baseline Projects/Project_5210_B/20251027_123122 \
+      --tag-mode prefer --write-comments --csv Projects/DiffCloud/out.csv
 """
 
 import argparse
@@ -256,4 +256,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
 

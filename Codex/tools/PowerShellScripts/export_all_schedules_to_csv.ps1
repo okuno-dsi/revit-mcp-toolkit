@@ -18,7 +18,7 @@ function Invoke-RevitCommandJson {
   $tmp = New-TemporaryFile
   try {
     $argsList = @(
-      "Manuals/Scripts/send_revit_command_durable.py",
+      "..\..\..\Docs\..\\..\\Manuals/send_revit_command_durable.py",
       "--port", $Port,
       "--command", $Method,
       "--params", $paramsJson,
@@ -33,7 +33,7 @@ function Invoke-RevitCommandJson {
 }
 
 function Resolve-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+  $work = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -49,8 +49,8 @@ function Get-ProjectNameSafe {
   $cands = @(
     (Join-Path $logs ("project_info_{0}.json" -f $Port)),
     (Join-Path $logs 'project_info.json'),
-    (Join-Path 'Manuals/Logs' ("project_info_{0}.json" -f $Port)),
-    (Join-Path 'Manuals/Logs' 'project_info.json')
+    (Join-Path '..\..\..\Docs\..\..\..\Docs\Manuals\Logs' ("project_info_{0}.json" -f $Port)),
+    (Join-Path '..\..\..\Docs\..\..\..\Docs\Manuals\Logs' 'project_info.json')
   )
   foreach($path in $cands){
     if(Test-Path $path){
@@ -94,3 +94,5 @@ foreach ($s in $items) {
 }
 
 Write-Host "Done. CSVs at: $OutDir" -ForegroundColor Green
+
+

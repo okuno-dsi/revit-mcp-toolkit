@@ -23,7 +23,7 @@ $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
 function Ensure-ProjectDir([string]$baseName, [int]$p){
-  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $projName = ("{0}_{1}" -f $baseName, $p)
   $projDir = Join-Path $workRoot $projName
   if(!(Test-Path $projDir)){ [void](New-Item -ItemType Directory -Path $projDir) }
@@ -71,4 +71,6 @@ foreach($eid in $ids){
 
 Write-Host ("[Done] Colored {0} elements (R={1},G={2},B={3},T={4}%)." -f $ids.Count, $R, $G, $B, $Transparency) -ForegroundColor Green
 Write-Host ("Logs: {0}" -f $dirs.Logs) -ForegroundColor DarkGreen
+
+
 

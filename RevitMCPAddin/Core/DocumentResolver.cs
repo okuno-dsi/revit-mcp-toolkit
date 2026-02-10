@@ -3,7 +3,7 @@
 // Purpose: Resolve target Document for read commands, including
 //          non-active documents, based on docGuid / title / path.
 // Notes  : Uses the same surrogate GUID convention as
-//          Commands/Rpc/GetOpenDocumentsCommand.cs
+//          Commands/Rpc/GetOpenDocumentsCommand.cs (prefer MCP Ledger docKey)
 // Target : .NET Framework 4.8 / Revit 2023+ / C# 8.0
 // ================================================================
 #nullable enable
@@ -13,6 +13,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
+using RevitMCPAddin.Core.Ledger;
 
 namespace RevitMCPAddin.Core
 {
@@ -200,15 +201,25 @@ namespace RevitMCPAddin.Core
             string? guid = null;
             try
             {
-                var pi = d.ProjectInformation;
-                if (pi != null)
-                {
-                    guid = pi.UniqueId;
-                }
+                if (!LedgerDocKeyProvider.TryGetDocKey(d, out guid, out _, out _))
+                    LedgerDocKeyProvider.TryGetOrCreateDocKey(d, createIfMissing: true, out guid, out _, out _);
             }
-            catch
+            catch { /* ignore */ }
+
+            if (string.IsNullOrWhiteSpace(guid))
             {
-                // ignore
+                try
+                {
+                    var pi = d.ProjectInformation;
+                    if (pi != null)
+                    {
+                        guid = pi.UniqueId;
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
             }
 
             if (string.IsNullOrWhiteSpace(guid))
@@ -240,4 +251,3 @@ namespace RevitMCPAddin.Core
         }
     }
 }
-

@@ -6,7 +6,7 @@
 - Revit のリボン（RevitMCP タブ）にある **Py** ボタン（Python Runner）をクリック。
 
 ## 既定の保存先
-- `Work/<RevitFileName>_<docKey>/python_script/`
+- `Projects/<RevitFileName>_<docKey>/python_script/`
 - Save / Save As はこのフォルダを初期値にします。
 
 ## 動作のポイント
@@ -29,7 +29,7 @@
 
 ## CodexGUI 連携（Python スクリプトの受け渡し）
 - CodexGUI で生成した Python は **必ず ` ```python ``` ` ブロックのみ**が保存対象です。
-- 保存先は **`Work/<RevitFileName>_<docKey>/python_script/`** に統一されます。
+- 保存先は **`Projects/<RevitFileName>_<docKey>/python_script/`** に統一されます。
 - 先頭に `# @feature:` / `# @keywords:` が自動挿入されます（未指定の場合は空欄）。
 - Python Runner 側は **自動読み込みしません**。必要に応じて **Load Codex** ボタンで最新スクリプトを読み込みます。
 
@@ -45,7 +45,7 @@
 
 ## Script Roots（検索フォルダの管理）
 - Library の **Roots...** から、検索対象フォルダを追加・削除できます。
-- 既定の `Work/<RevitFileName>_<docKey>/python_script/` は常に対象です（削除不可）。
+- 既定の `Projects/<RevitFileName>_<docKey>/python_script/` は常に対象です（削除不可）。
 
 ## Python 実行環境の探索順
 1. 環境変数 `REVIT_MCP_PYTHON_EXE`
@@ -55,3 +55,4 @@
 ## 注意
 - 実行中の Python プロセスは **Stop** で強制終了できます。
 - 出力ウィンドウは **Copy** で全文コピーできます。
+

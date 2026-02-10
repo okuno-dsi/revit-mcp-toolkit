@@ -178,7 +178,7 @@ def get_view_overrides_map(
 
 
 def get_repo_root() -> str:
-    # This script is at Codex/Manuals/Scripts/*.py
+    # This script is at Codex/Scripts/Reference/*.py
     # → repo root is three levels up.
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -197,7 +197,7 @@ def main(argv: List[str]) -> int:
         default="",
         help=(
             "Path to create_room_masses_*.json mapping file. "
-            "If omitted, the latest file under Work/Project_<port>/Logs is used."
+            "If omitted, the latest file under Projects/Project_<port>/Logs is used."
         ),
     )
     ap.add_argument(
@@ -206,7 +206,7 @@ def main(argv: List[str]) -> int:
         default="",
         help=(
             "Output JSON path. If omitted, writes to "
-            "Work/Project_<port>/Logs/room_masses_snapshot_<viewId>.json"
+            "Projects/Project_<port>/Logs/room_masses_snapshot_<viewId>.json"
         ),
     )
     args = ap.parse_args(argv)
@@ -330,4 +330,8 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+
 

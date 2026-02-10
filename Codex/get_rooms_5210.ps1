@@ -6,7 +6,7 @@
   Calls the Revit MCP JSON-RPC endpoint `get_rooms` on the specified port,
   then saves the full JSON result under the repository Work folder:
 
-    Work\RevitMcp\<Port>\rooms.json
+    Projects\\RevitMcp\<Port>\rooms.json
 
   The script writes the output file path (relative to the repo root)
   to stdout on success.
@@ -31,7 +31,7 @@ $env:PYTHONUTF8 = '1'
 $repoRoot = $PSScriptRoot
 
 # Rooms export helper (get_rooms + get_room_params)
-$roomsExporter = Join-Path $repoRoot "Manuals\Scripts\export_rooms_with_params.py"
+$roomsExporter = Join-Path $repoRoot "Scripts\\Manuals\export_rooms_with_params.py"
 if (-not (Test-Path -LiteralPath $roomsExporter -PathType Leaf)) {
   throw "Rooms export helper not found: $roomsExporter"
 }
@@ -54,3 +54,5 @@ if (-not (Test-Path -LiteralPath $outPath -PathType Leaf)) {
 
 $relative = Join-Path "Work" (Join-Path "RevitMcp" (Join-Path $Port "rooms.json"))
 Write-Output $relative
+
+

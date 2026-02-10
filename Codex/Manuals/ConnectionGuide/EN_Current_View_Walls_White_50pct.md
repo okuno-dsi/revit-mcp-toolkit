@@ -6,18 +6,18 @@ This runbook sets every wall visible in the current view to White (RGB 255,255,2
 ## Prerequisites
 - Revit is running with the MCP add-in active.
 - MCP port is known (example: `5210`).
-- You can run Python (`python`) from this repository, using `Manuals/Scripts/send_revit_command_durable.py`.
+- You can run Python (`python`) from this repository, using `Scripts/Reference/send_revit_command_durable.py`.
 
 ## Quick Path (Recommended): Category-Level Override
 1) Get the active view ID
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_current_view
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_current_view
 ```
 Expected: JSON where `result.viewId` (or `viewId`) is present, e.g. `{"ok":true, "viewId": 401}`.
 
 2) Apply category override for Walls in the current view
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_category_override \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command set_category_override \
   --params '{
     "viewId": 401,
     "categoryIds": [-2000011],
@@ -43,7 +43,7 @@ You have two options:
 ```powershell
 $port = 5210
 $python = "python"
-$script = ".\Manuals/Scripts/send_revit_command_durable.py"
+$script = ".\Scripts/Reference/send_revit_command_durable.py"
 
 function Call-Py($commandName, $paramsJson){
   if ($paramsJson){ return & $python $script --port $port --command $commandName --params $paramsJson }
@@ -102,5 +102,8 @@ foreach ($eid in $wallIds) {
 ## Troubleshooting
 - If `get_elements_in_view` returns `rows` with `totalCount`, use paging (`skip`/`count`). Some models return `elementIds` for small sets.
 - If the output shows encoding issues when redirecting to files in PowerShell, prefer not to redirect, or set `chcp 65001` before running Python.
+
+
+
 
 

@@ -118,7 +118,7 @@ try{
 
   # CSV report with ports
   $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-  $csv = Join-Path $ROOT ("Work/selected_pair_marked_"+$ts+".csv")
+  $csv = Join-Path $ROOT ("Projects/selected_pair_marked_"+$ts+".csv")
   $rows = @(
     [pscustomobject]@{ port=$LeftPort;  elementId=[int]$L.elem.elementId; categoryId=[int]$L.elem.categoryId; familyName=$L.elem.familyName; typeName=$L.elem.typeName; cx=[double]$D.lc.x; cy=[double]$D.lc.y; cz=[double]$D.lc.z; distanceMm=[double]$D.distanceMm; withinTol=$D.withinTol; diffs=$cmt },
     [pscustomobject]@{ port=$RightPort; elementId=[int]$R.elem.elementId; categoryId=[int]$R.elem.categoryId; familyName=$R.elem.familyName; typeName=$R.elem.typeName; cx=[double]$D.rc.x; cy=[double]$D.rc.y; cz=[double]$D.rc.z; distanceMm=[double]$D.distanceMm; withinTol=$D.withinTol; diffs=$cmt }
@@ -130,3 +130,5 @@ catch{
   Write-Error $_
   exit 1
 }
+
+

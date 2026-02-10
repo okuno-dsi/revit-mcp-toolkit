@@ -27,7 +27,7 @@
   Wall length in mm (default: 5000)
 
 .EXAMPLE
-  pwsh -ExecutionPolicy Bypass -File ./Manuals/Scripts/test_failure_handling_overlapping_wall.ps1 -Port 5210
+  pwsh -ExecutionPolicy Bypass -File ./..\..\..\Docs\..\\..\\Manuals/test_failure_handling_overlapping_wall.ps1 -Port 5210
 #>
 
 [CmdletBinding()]
@@ -118,3 +118,5 @@ finally {
 }
 
 Write-Host "Done." -ForegroundColor Cyan
+
+

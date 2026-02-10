@@ -144,7 +144,7 @@ This playbook collects fast, reliable ways to accomplish common tasks (parameter
 
 ```bash
 # Durable sender (Python) – replace method/params as needed
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command <method> --params '<json>' --force \
   --wait-seconds 180 --timeout-sec 600
 ```
@@ -155,3 +155,6 @@ Links
 - Geometry Analyze: `Manuals/Commands/Analyze_Segments_EN.md`
 - Join Geometry: `Manuals/Commands/Join_Geometry_EN.md`
 - Type Actions: per‑category commands + `change_family_instance_type`, `change_structural_frame_type`
+
+
+

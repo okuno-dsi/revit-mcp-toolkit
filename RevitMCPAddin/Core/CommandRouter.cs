@@ -162,6 +162,8 @@ namespace RevitMCPAddin.Core
             var p = cmd?.Params as JObject;
 
             var docGuid = p?.Value<string>("docGuid");
+            if (string.IsNullOrWhiteSpace(docGuid))
+                docGuid = p?.Value<string>("docKey") ?? p?.Value<string>("doc_key");
             if (!string.IsNullOrWhiteSpace(docGuid)) return "doc:" + docGuid;
 
             var viewId = p?.Value<int?>("viewId");
@@ -189,6 +191,46 @@ namespace RevitMCPAddin.Core
                  ?? (cmd?.MetaRaw as JObject)?.Value<string>("agentId")
                  ?? "";
             return a ?? "";
+        }
+
+        private static string ExtractIdempotencyKey(RequestCommand cmd)
+        {
+            try
+            {
+                var p = cmd?.Params as JObject;
+                var key = p?.Value<string>("idempotencyKey") ?? p?.Value<string>("idempotency_key");
+                if (string.IsNullOrWhiteSpace(key) && cmd?.MetaRaw is JObject meta)
+                    key = meta.Value<string>("idempotencyKey") ?? meta.Value<string>("idempotency_key");
+                return (key ?? string.Empty).Trim();
+            }
+            catch { return string.Empty; }
+        }
+
+        private static string BuildIdemCacheKey(UIApplication uiapp, RequestCommand cmd, string methodEcho, string idemKey)
+        {
+            if (string.IsNullOrWhiteSpace(idemKey)) return string.Empty;
+            string docKey = string.Empty;
+            try
+            {
+                var p = cmd?.Params as JObject;
+                docKey = p?.Value<string>("docGuid")
+                    ?? p?.Value<string>("docKey")
+                    ?? p?.Value<string>("doc_key")
+                    ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(docKey))
+                {
+                    var doc = uiapp?.ActiveUIDocument?.Document;
+                    if (doc != null)
+                    {
+                        string source;
+                        docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            var key = $"{methodEcho}|{docKey}|{idemKey}";
+            return key;
         }
 
         // 既に JSON-RPC 形なら素通し。そうでない場合にだけ method/agentId を付けて包む
@@ -345,6 +387,27 @@ namespace RevitMCPAddin.Core
                 if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                 if (translated) cmd.Command = invokedMethod;
                 return WrapJsonRpcIfNeeded(cmd, standardized, ledger: null);
+            }
+
+            // Step 8: idempotency key (duplicate suppression)
+            string idemKey = ExtractIdempotencyKey(cmd);
+            string idemCacheKey = string.Empty;
+            if (!string.IsNullOrWhiteSpace(idemKey))
+            {
+                idemCacheKey = BuildIdemCacheKey(uiapp, cmd, methodEcho, idemKey);
+                if (!string.IsNullOrWhiteSpace(idemCacheKey)
+                    && IdempotencyResultCache.TryGet(idemCacheKey, out var cachedPayload, out var cachedLedger))
+                {
+                    var cached = cachedPayload ?? new JObject();
+                    var ctx = cached["context"] as JObject ?? new JObject();
+                    ctx["idempotencyKey"] = idemKey;
+                    ctx["idempotencyCache"] = "hit";
+                    cached["context"] = ctx;
+
+                    if (translated) TryAnnotateDispatch(cached, invokedMethod, dispatchMethod);
+                    if (translated) cmd.Command = invokedMethod;
+                    return WrapJsonRpcIfNeeded(cmd, cached, cachedLedger);
+                }
             }
 
             // ⑤ ディスパッチ（ここだけ“包む”。ハンドラは無改造）
@@ -607,6 +670,21 @@ namespace RevitMCPAddin.Core
                             standardized["confirmTokenMethod"] = confirmMethod;
                         }
                     }
+
+                    // Step 8: cache idempotent results (short-lived, process-local)
+                    if (!string.IsNullOrWhiteSpace(idemCacheKey))
+                    {
+                        try
+                        {
+                            var ctx = standardized["context"] as JObject ?? new JObject();
+                            ctx["idempotencyKey"] = idemKey;
+                            ctx["idempotencyCache"] = "miss";
+                            standardized["context"] = ctx;
+
+                            IdempotencyResultCache.Set(idemCacheKey, standardized, ledger);
+                        }
+                        catch { /* ignore */ }
+                    }
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                     if (translated) cmd.Command = invokedMethod;
 
@@ -751,6 +829,25 @@ namespace RevitMCPAddin.Core
                     var standardized = RpcResultEnvelope.StandardizePayload(ctxFail, uiapp, methodEcho, revitMs: 0);
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                     return standardized;
+                }
+
+                // Step 8: idempotency key (duplicate suppression) for internal route
+                string idemKey = ExtractIdempotencyKey(cmd);
+                string idemCacheKey = string.Empty;
+                if (!string.IsNullOrWhiteSpace(idemKey))
+                {
+                    idemCacheKey = BuildIdemCacheKey(uiapp, cmd, methodEcho, idemKey);
+                    if (!string.IsNullOrWhiteSpace(idemCacheKey)
+                        && IdempotencyResultCache.TryGet(idemCacheKey, out var cachedPayload, out var _))
+                    {
+                        var cached = cachedPayload ?? new JObject();
+                        var ctx = cached["context"] as JObject ?? new JObject();
+                        ctx["idempotencyKey"] = idemKey;
+                        ctx["idempotencyCache"] = "hit";
+                        cached["context"] = ctx;
+                        if (translated) TryAnnotateDispatch(cached, invokedMethod, dispatchMethod);
+                        return cached;
+                    }
                 }
 
                 // ⑤ ディスパッチ（No gate / No ledger）
@@ -944,6 +1041,19 @@ namespace RevitMCPAddin.Core
                     TryAttachFailureIssuesOnRollback(standardized, methodEcho, fhReq, targetCount, FAILURE_HANDLING_CONFIRM_THRESHOLD, fhScope);
                     if (dryRunRequested) standardized["dryRunRequested"] = true;
                     if (confirmTokenAccepted) standardized["confirmTokenAccepted"] = true;
+                    if (!string.IsNullOrWhiteSpace(idemCacheKey))
+                    {
+                        try
+                        {
+                            var ctx = standardized["context"] as JObject ?? new JObject();
+                            ctx["idempotencyKey"] = idemKey;
+                            ctx["idempotencyCache"] = "miss";
+                            standardized["context"] = ctx;
+
+                            IdempotencyResultCache.Set(idemCacheKey, standardized, ledger: null);
+                        }
+                        catch { /* ignore */ }
+                    }
                     if (translated) TryAnnotateDispatch(standardized, invokedMethod, dispatchMethod);
                     return standardized;
                 }
@@ -1940,13 +2050,14 @@ namespace RevitMCPAddin.Core
         // ============================================================
         private static class CommandParamTeach
         {
-            private static readonly HashSet<string> CommonOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "documentPath", "debug",
-                "dryRun", "dry_run",
-                "confirmToken", "confirm_token",
-                "requireConfirmToken", "require_confirm_token",
-                "failureHandling", "failure_handling",
+                private static readonly HashSet<string> CommonOptional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "documentPath", "debug",
+                    "dryRun", "dry_run",
+                    "idempotencyKey", "idempotency_key",
+                    "confirmToken", "confirm_token",
+                    "requireConfirmToken", "require_confirm_token",
+                    "failureHandling", "failure_handling",
                 "failureHandlingMode", "failure_handling_mode",
                 "scope", "where", "target", "targets",
                 "expectedContextToken", "__expectedContextToken"

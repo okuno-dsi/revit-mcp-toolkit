@@ -27,7 +27,7 @@ public partial class MainWindow : Window
     internal const int MaxSessionNameLength = 28;
     private const string RevitIntroInstruction =
         "このディレクトリにあるREAD_FIRST_RevitMCP_EN.md を読んでRevitへの接続を準備してください。" +
-        "一時保存データはすべてWorkフォルダ内にプロジェクト専用のフォルダを作成してそこに保存すること。" +
+        "一時保存データはすべてProjectsフォルダ内にプロジェクト専用のフォルダを作成してそこに保存すること。" +
         "セキュリティ以上危険を及ぼす可能性のある操作やスクリプトの作成やコードの作成は行わないこと。" +
         "システムディレクトリやファイルには一切触れないこと。" +
         "Pythonスクリプトの作成を求められた場合は、必ず```python```のコードブロックで全文を出力すること。" +
@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     // PowerShell process builder without complicating the signature.
     private static string? _currentModelForProcess;
     private static string? _currentReasoningEffortForProcess;
+    private static string? _currentProfileForProcess;
     private static bool _currentIsStatusRequestForProcess;
     private static string[]? _currentImagePathsForProcess;
     private static Process? _currentPwshProcess;
@@ -100,6 +101,13 @@ public partial class MainWindow : Window
         "medium",
         "high",
         "xhigh"
+    };
+
+    private static readonly string[] BuiltInProfilePresets =
+    {
+        "fast",
+        "live",
+        "safe"
     };
 
     private string? _codexConfigDefaultModel;
@@ -394,6 +402,7 @@ public partial class MainWindow : Window
         RefreshCodexConfigPresets();
         RefreshModelComboBoxItems();
         RefreshReasoningEffortComboBoxItems();
+        RefreshProfileComboBoxItems();
 
         // Busy インジケータ初期表示（停止中は 00:00 を赤で表示）
         BusyIndicatorTextBlock.Text = "00:00";
@@ -438,7 +447,7 @@ public partial class MainWindow : Window
 
     private static string GetSessionsFilePath()
     {
-        var baseDir = AppContext.BaseDirectory;
+        var baseDir = GetGuiDataRoot();
         return Path.Combine(baseDir, SessionsFileName);
     }
 
@@ -454,14 +463,52 @@ public partial class MainWindow : Window
 
     private static string GetUiSettingsFilePath()
     {
+        var baseDir = GetGuiDataRoot();
+        return Path.Combine(baseDir, "CodexGuiUiSettings.json");
+    }
+
+    private static string GetLegacySessionsFilePath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        return Path.Combine(baseDir, SessionsFileName);
+    }
+
+    private static string GetLegacyUiSettingsFilePath()
+    {
         var baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, "CodexGuiUiSettings.json");
+    }
+
+    private static string GetGuiDataRoot()
+    {
+        var baseDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "RevitMCP",
+            "CodexGui");
+        try { Directory.CreateDirectory(baseDir); } catch { }
+        return baseDir;
+    }
+
+    private static void MigrateLegacyFile(string legacyPath, string newPath)
+    {
+        try
+        {
+            if (File.Exists(newPath)) return;
+            if (!File.Exists(legacyPath)) return;
+            Directory.CreateDirectory(Path.GetDirectoryName(newPath) ?? ".");
+            File.Copy(legacyPath, newPath, overwrite: false);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private void LoadSessions()
     {
         _sessions.Clear();
         var path = GetSessionsFilePath();
+        MigrateLegacyFile(GetLegacySessionsFilePath(), path);
         if (!File.Exists(path))
         {
             return;
@@ -495,6 +542,7 @@ public partial class MainWindow : Window
         try
         {
             var path = GetUiSettingsFilePath();
+            MigrateLegacyFile(GetLegacyUiSettingsFilePath(), path);
             if (!File.Exists(path))
             {
                 return;
@@ -995,8 +1043,9 @@ public partial class MainWindow : Window
         var root = ResolveWorkRoot();
         if (string.IsNullOrWhiteSpace(root)) return null;
 
-        var workDir = Path.Combine(root, "Work");
-        if (!Directory.Exists(workDir)) return null;
+        var workDir = NormalizeWorkDir(root);
+        workDir = RedirectCodexProjects(workDir);
+        if (string.IsNullOrWhiteSpace(workDir) || !Directory.Exists(workDir)) return null;
 
         var dirs = Directory.GetDirectories(workDir);
         if (!string.IsNullOrWhiteSpace(docKey))
@@ -1013,21 +1062,125 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(safeKey)) safeKey = "unknown";
 
         var created = Path.Combine(workDir, $"{safeTitle}_{safeKey}");
+        TryMigrateCodexProjectsFolder(created);
         Directory.CreateDirectory(created);
         return created;
     }
 
-    private static string? ResolveWorkRoot()
+    private static string RedirectCodexProjects(string workDir)
     {
-        var env1 = Environment.GetEnvironmentVariable("REVIT_MCP_WORK_ROOT");
-        if (!string.IsNullOrWhiteSpace(env1) && Directory.Exists(env1)) return env1;
+        if (string.IsNullOrWhiteSpace(workDir)) return workDir;
+        var trimmed = workDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var codexSeg = $"{Path.DirectorySeparatorChar}Codex{Path.DirectorySeparatorChar}Projects";
+        var idx = trimmed.IndexOf(codexSeg, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            var root = trimmed.Substring(0, idx);
+            if (!string.IsNullOrWhiteSpace(root))
+                return Path.Combine(root, "Projects");
+        }
+        return trimmed;
+    }
+
+    private static void TryMigrateCodexProjectsFolder(string targetProjectDir)
+    {
+        try
+        {
+            var normalized = targetProjectDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var parent = Directory.GetParent(normalized);
+            if (parent == null) return;
+            var root = parent.Parent?.FullName;
+            if (string.IsNullOrWhiteSpace(root)) return;
+
+            var projectName = Path.GetFileName(normalized);
+            if (string.IsNullOrWhiteSpace(projectName)) return;
+
+            var legacy = Path.Combine(root, "Codex", "Projects", projectName);
+            if (!Directory.Exists(legacy)) return;
+
+            if (!Directory.Exists(normalized))
+            {
+                Directory.CreateDirectory(parent.FullName);
+                Directory.Move(legacy, normalized);
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private sealed class PathsConfig
+    {
+        public string? root { get; set; }        // e.g. C:\Users\<user>\Documents\Revit_MCP
+        public string? codexRoot { get; set; }   // e.g. C:\Users\<user>\Documents\Revit_MCP\Codex
+        public string? workRoot { get; set; }    // e.g. C:\Users\<user>\Documents\Revit_MCP\Projects
+        public string? appsRoot { get; set; }
+        public string? docsRoot { get; set; }
+        public string? scriptsRoot { get; set; }
+    }
+
+    private static PathsConfig? TryLoadPathsConfig()
+    {
+        try
+        {
+            var local = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "RevitMCP",
+                "paths.json");
+            var candidates = new List<string> { local };
+            var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (!string.IsNullOrWhiteSpace(docs))
+            {
+                candidates.Add(Path.Combine(docs, "Revit_MCP", "paths.json"));
+                candidates.Add(Path.Combine(docs, "Codex_MCP", "paths.json"));
+            }
+
+            foreach (var path in candidates.Distinct())
+            {
+                if (!File.Exists(path)) continue;
+                var json = File.ReadAllText(path, Encoding.UTF8);
+                var cfg = JsonSerializer.Deserialize<PathsConfig>(json);
+                if (cfg != null) return cfg;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+        return null;
+    }
+
+    private static string? ResolveCodexRoot()
+    {
+        var env1 = Environment.GetEnvironmentVariable("REVIT_MCP_ROOT");
+        if (!string.IsNullOrWhiteSpace(env1) && Directory.Exists(env1))
+        {
+            var codex = Path.Combine(env1, "Codex");
+            if (Directory.Exists(codex)) return codex;
+        }
 
         var env2 = Environment.GetEnvironmentVariable("CODEX_MCP_ROOT");
         if (!string.IsNullOrWhiteSpace(env2) && Directory.Exists(env2)) return env2;
 
+        var cfg = TryLoadPathsConfig();
+        if (cfg != null)
+        {
+            if (!string.IsNullOrWhiteSpace(cfg.codexRoot) && Directory.Exists(cfg.codexRoot))
+                return cfg.codexRoot;
+            if (!string.IsNullOrWhiteSpace(cfg.root))
+            {
+                var c2 = Path.Combine(cfg.root, "Codex");
+                if (Directory.Exists(c2)) return c2;
+            }
+        }
+
         var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (!string.IsNullOrWhiteSpace(docs))
         {
+            var p0b = Path.Combine(docs, "Revit_MCP", "Codex");
+            if (Directory.Exists(p0b)) return p0b;
+
             var p1 = Path.Combine(docs, "Codex_MCP", "Codex");
             if (Directory.Exists(p1)) return p1;
 
@@ -1035,15 +1188,80 @@ public partial class MainWindow : Window
             if (Directory.Exists(p2)) return p2;
         }
 
+        return null;
+    }
+
+    private static string? ResolveWorkRoot()
+    {
+        var env1 = Environment.GetEnvironmentVariable("REVIT_MCP_WORK_ROOT");
+        if (!string.IsNullOrWhiteSpace(env1))
+        {
+            var workDir = NormalizeWorkDir(env1);
+            try { Directory.CreateDirectory(workDir); } catch { }
+            if (Directory.Exists(workDir)) return workDir;
+        }
+
+        var cfg = TryLoadPathsConfig();
+        if (cfg != null)
+        {
+            if (!string.IsNullOrWhiteSpace(cfg.workRoot))
+            {
+                var workDir = NormalizeWorkDir(cfg.workRoot);
+                try { Directory.CreateDirectory(workDir); } catch { }
+                if (Directory.Exists(workDir)) return workDir;
+            }
+            if (!string.IsNullOrWhiteSpace(cfg.workRoot))
+            {
+                var workDir = NormalizeWorkDir(cfg.workRoot);
+                try { Directory.CreateDirectory(workDir); } catch { }
+                if (Directory.Exists(workDir)) return workDir;
+            }
+            if (!string.IsNullOrWhiteSpace(cfg.codexRoot))
+            {
+                var rootFromCodex = TryGetRootFromCodex(cfg.codexRoot) ?? cfg.codexRoot;
+                var workDir = NormalizeWorkDir(rootFromCodex);
+                try { Directory.CreateDirectory(workDir); } catch { }
+                if (Directory.Exists(workDir)) return workDir;
+            }
+            if (!string.IsNullOrWhiteSpace(cfg.root))
+            {
+                var workDir = NormalizeWorkDir(cfg.root);
+                try { Directory.CreateDirectory(workDir); } catch { }
+                if (Directory.Exists(workDir)) return workDir;
+            }
+        }
+
+        var env2 = Environment.GetEnvironmentVariable("CODEX_MCP_ROOT");
+        if (!string.IsNullOrWhiteSpace(env2))
+        {
+            var rootFromCodex = TryGetRootFromCodex(env2) ?? env2;
+            var workDir = NormalizeWorkDir(rootFromCodex);
+            try { Directory.CreateDirectory(workDir); } catch { }
+            if (Directory.Exists(workDir)) return workDir;
+        }
+
+        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrWhiteSpace(docs))
+        {
+            var p0 = Path.Combine(docs, "Revit_MCP");
+            if (Directory.Exists(p0)) return NormalizeWorkDir(p0);
+            var p1 = Path.Combine(docs, "Codex_MCP");
+            if (Directory.Exists(p1)) return NormalizeWorkDir(p1);
+            var p2 = Path.Combine(docs, "Codex");
+            if (Directory.Exists(p2)) return NormalizeWorkDir(p2);
+        }
+
         try
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             for (int i = 0; i < 6 && dir != null; i++)
             {
-                if (Directory.Exists(Path.Combine(dir.FullName, "Work")))
-                {
-                    return dir.FullName;
-                }
+                var projectsDir = Path.Combine(dir.FullName, "Projects");
+                if (Directory.Exists(projectsDir))
+                    return projectsDir;
+                var workDir = Path.Combine(dir.FullName, "Work");
+                if (Directory.Exists(workDir))
+                    return workDir;
                 dir = dir.Parent;
             }
         }
@@ -1053,6 +1271,60 @@ public partial class MainWindow : Window
         }
 
         return null;
+    }
+
+    private static string NormalizeWorkDir(string rootOrWork)
+    {
+        if (string.IsNullOrWhiteSpace(rootOrWork)) return rootOrWork;
+
+        var trimmed = rootOrWork.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var dir = new DirectoryInfo(trimmed);
+        var name = dir.Name;
+
+        // If someone passed Codex root, redirect to sibling Projects.
+        if (string.Equals(name, "Codex", StringComparison.OrdinalIgnoreCase))
+        {
+            if (dir.Parent != null && Directory.Exists(dir.Parent.FullName))
+                return Path.Combine(dir.Parent.FullName, "Projects");
+        }
+
+        // If someone passed ...\Codex\Projects (or Work/UserProjects), redirect to ...\Projects
+        if (string.Equals(name, "Projects", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Work", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "UserProjects", StringComparison.OrdinalIgnoreCase))
+        {
+            var parent = dir.Parent;
+            if (parent != null && string.Equals(parent.Name, "Codex", StringComparison.OrdinalIgnoreCase))
+            {
+                var root = parent.Parent?.FullName;
+                if (!string.IsNullOrWhiteSpace(root))
+                    return Path.Combine(root, "Projects");
+            }
+            return trimmed;
+        }
+
+        return Path.Combine(trimmed, "Projects");
+    }
+
+    private static string? TryGetRootFromCodex(string codexRoot)
+    {
+        if (string.IsNullOrWhiteSpace(codexRoot)) return null;
+        try
+        {
+            var dir = new DirectoryInfo(codexRoot);
+            if (dir == null) return null;
+            var name = dir.Name;
+            if (string.Equals(name, "Codex", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dir.Parent != null && Directory.Exists(dir.Parent.FullName))
+                    return dir.Parent.FullName;
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string SanitizePathSegment(string? name)
@@ -1321,6 +1593,7 @@ public partial class MainWindow : Window
             {
                 ApplyModelFromUiToSession(prev);
                 ApplyReasoningEffortFromUiToSession(prev);
+                ApplyProfileFromUiToSession(prev);
                 SaveSessions();
                 RememberRecentModel(prev.Model);
             }
@@ -1331,21 +1604,26 @@ public partial class MainWindow : Window
         {
             if (ModelComboBox != null) ModelComboBox.Text = session.Model ?? string.Empty;
             if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = session.ReasoningEffort ?? string.Empty;
+            if (ProfileComboBox != null) ProfileComboBox.Text = session.Profile ?? string.Empty;
             if (SessionIdTextBlock != null)
             {
-                SessionIdTextBlock.Text = session.Id;
+                var sid = ResolveCodexSessionId(session);
+                SessionIdTextBlock.Text = string.IsNullOrWhiteSpace(sid) ? "未取得" : sid;
             }
             RefreshPromptHistory(session);
+            LoadConversationForSession(session);
         }
         else
         {
             if (ModelComboBox != null) ModelComboBox.Text = string.Empty;
             if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = string.Empty;
+            if (ProfileComboBox != null) ProfileComboBox.Text = string.Empty;
             if (SessionIdTextBlock != null)
             {
                 SessionIdTextBlock.Text = string.Empty;
             }
             RefreshPromptHistory(null);
+            LoadConversationForSession(null);
         }
     }
 
@@ -1420,6 +1698,12 @@ public partial class MainWindow : Window
         session.ReasoningEffort = string.IsNullOrWhiteSpace(effortText) ? null : effortText;
     }
 
+    private void ApplyProfileFromUiToSession(SessionInfo session)
+    {
+        var profileText = (ProfileComboBox?.Text ?? string.Empty).Trim();
+        session.Profile = string.IsNullOrWhiteSpace(profileText) ? null : profileText;
+    }
+
     private void ModelComboBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
         try
@@ -1438,6 +1722,17 @@ public partial class MainWindow : Window
         {
             if (SessionComboBox.SelectedItem is not SessionInfo session) return;
             ApplyReasoningEffortFromUiToSession(session);
+            SaveSessions();
+        }
+        catch { }
+    }
+
+    private void ProfileComboBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        try
+        {
+            if (SessionComboBox.SelectedItem is not SessionInfo session) return;
+            ApplyProfileFromUiToSession(session);
             SaveSessions();
         }
         catch { }
@@ -1471,6 +1766,75 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    private void ClearProfileButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ProfileComboBox != null) ProfileComboBox.Text = string.Empty;
+            if (SessionComboBox.SelectedItem is SessionInfo session)
+            {
+                session.Profile = null;
+                SaveSessions();
+            }
+        }
+        catch { }
+    }
+
+    private void ShowSessionIdButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var session = SessionComboBox?.SelectedItem as SessionInfo;
+            var name = session?.Name ?? "Session";
+            var sid = ResolveCodexSessionId(session);
+            if (string.IsNullOrWhiteSpace(sid))
+            {
+                sid = "未取得";
+            }
+            var label = $"Codex Session ID ({name})";
+            var dialog = new SimpleTextInputWindow("Codex Session ID", label, sid, readOnly: true, showCancel: false, selectAll: true)
+            {
+                Owner = this
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Session ID の表示に失敗しました。\n{ex.Message}", "Codex GUI",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private string? ResolveCodexSessionId(SessionInfo? session)
+    {
+        if (session == null) return null;
+        if (!string.IsNullOrWhiteSpace(session.CodexSessionId)) return session.CodexSessionId;
+
+        try
+        {
+            var mapPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".codex",
+                "codex_gui_sessions.json");
+            if (!File.Exists(mapPath)) return null;
+            using var doc = JsonDocument.Parse(File.ReadAllText(mapPath, Encoding.UTF8));
+            if (!doc.RootElement.TryGetProperty(session.Id, out var entry)) return null;
+            if (entry.ValueKind != JsonValueKind.Object) return null;
+            if (!entry.TryGetProperty("codexSessionId", out var sidEl)) return null;
+            var sid = sidEl.GetString();
+            if (!string.IsNullOrWhiteSpace(sid))
+            {
+                session.CodexSessionId = sid;
+                SaveSessions();
+            }
+            return sid;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void RefreshModelsButton_OnClick(object sender, RoutedEventArgs e)
     {
         try
@@ -1478,6 +1842,7 @@ public partial class MainWindow : Window
             RefreshCodexConfigPresets();
             RefreshModelComboBoxItems();
             RefreshReasoningEffortComboBoxItems();
+            RefreshProfileComboBoxItems();
         }
         catch { }
     }
@@ -1532,6 +1897,31 @@ public partial class MainWindow : Window
 
             ReasoningEffortComboBox.ItemsSource = items;
             ReasoningEffortComboBox.Text = currentText;
+        }
+        catch { }
+    }
+
+    private void RefreshProfileComboBoxItems()
+    {
+        try
+        {
+            if (ProfileComboBox == null) return;
+
+            var currentText = ProfileComboBox.Text ?? string.Empty;
+            var items = new List<string>();
+
+            void Add(string? p)
+            {
+                var t = (p ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(t)) return;
+                if (items.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) return;
+                items.Add(t);
+            }
+
+            foreach (var p in BuiltInProfilePresets) Add(p);
+
+            ProfileComboBox.ItemsSource = items;
+            ProfileComboBox.Text = currentText;
         }
         catch { }
     }
@@ -1805,7 +2195,16 @@ public partial class MainWindow : Window
         }
 
         e.Handled = true;
+        StopCurrentRunOrClearPrompt();
+    }
 
+    private void StopButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        StopCurrentRunOrClearPrompt();
+    }
+
+    private void StopCurrentRunOrClearPrompt()
+    {
         if (_isSending && _currentPwshProcess is { HasExited: false })
         {
             try
@@ -2525,6 +2924,8 @@ public partial class MainWindow : Window
         }
 
         ApplyModelFromUiToSession(session);
+        ApplyReasoningEffortFromUiToSession(session);
+        ApplyProfileFromUiToSession(session);
         RememberRecentModel(session.Model);
 
         _isSending = true;
@@ -2801,6 +3202,8 @@ public partial class MainWindow : Window
         }
 
         ApplyModelFromUiToSession(session);
+        ApplyReasoningEffortFromUiToSession(session);
+        ApplyProfileFromUiToSession(session);
         RememberRecentModel(session.Model);
         EnsurePromptHistoryInitialized(session);
 
@@ -2817,6 +3220,12 @@ public partial class MainWindow : Window
         {
             var builder = new StringBuilder();
             builder.AppendLine(RevitIntroInstruction);
+            var workRoot = ResolveWorkRoot();
+            if (!string.IsNullOrWhiteSpace(workRoot))
+            {
+                builder.AppendLine($"Work root (absolute): {workRoot}");
+                builder.AppendLine("※ `Revit_MCP\\Codex\\Projects` は使用しません。必ず上記 Work root を使用してください。");
+            }
             builder.AppendLine();
             builder.AppendLine("上記の制約と準備を前提として、以下のユーザーリクエストに対応してください。");
             builder.AppendLine(prompt);
@@ -3012,6 +3421,8 @@ public partial class MainWindow : Window
         argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentModelForProcess ?? string.Empty)).Append('"');
         argsBuilder.Append(" -ReasoningEffort ");
         argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentReasoningEffortForProcess ?? string.Empty)).Append('"');
+        argsBuilder.Append(" -Profile ");
+        argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentProfileForProcess ?? string.Empty)).Append('"');
 
         if (_currentImagePathsForProcess != null && _currentImagePathsForProcess.Length > 0)
         {
@@ -3067,6 +3478,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
 
             _currentModelForProcess = session.Model ?? string.Empty;
             _currentReasoningEffortForProcess = session.ReasoningEffort ?? string.Empty;
+            _currentProfileForProcess = session.Profile ?? string.Empty;
             _currentIsStatusRequestForProcess = isStatusRequest;
             _currentImagePathsForProcess = (!isStatusRequest && imagePaths != null && imagePaths.Count > 0)
                 ? imagePaths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray()
@@ -3294,6 +3706,82 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
         {
             // ログ書き込み失敗は GUI 動作に影響させない
         }
+    }
+
+    private void LoadConversationForSession(SessionInfo? session)
+    {
+        try
+        {
+            if (ConversationTextBox == null) return;
+
+            ConversationTextBox.Clear();
+
+            if (session == null) return;
+
+            var logPath = ResolveSessionLogPath(session);
+            if (string.IsNullOrWhiteSpace(logPath) || !File.Exists(logPath)) return;
+
+            var lines = TailFileLines(logPath, 240);
+            if (lines.Count == 0) return;
+            ConversationTextBox.Text = string.Join(Environment.NewLine, lines);
+            ConversationTextBox.ScrollToEnd();
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private string? ResolveSessionLogPath(SessionInfo session)
+    {
+        try
+        {
+            if (_sessionLogPaths.TryGetValue(session.Id, out var existing) && File.Exists(existing))
+            {
+                return existing;
+            }
+
+            var dir = GetGuiLogDirectory();
+            if (!Directory.Exists(dir)) return null;
+
+            var target = $"# Session Id   : {session.Id}";
+            var files = Directory.GetFiles(dir, "*.log")
+                .OrderByDescending(File.GetLastWriteTimeUtc);
+
+            foreach (var file in files)
+            {
+                try
+                {
+                    var head = File.ReadLines(file, Encoding.UTF8).Take(6);
+                    if (head.Any(line => line.Contains(target, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _sessionLogPaths[session.Id] = file;
+                        return file;
+                    }
+                }
+                catch
+                {
+                    // ignore bad file
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static List<string> TailFileLines(string path, int maxLines)
+    {
+        var queue = new Queue<string>(maxLines);
+        foreach (var line in File.ReadLines(path, Encoding.UTF8))
+        {
+            if (queue.Count == maxLines) queue.Dequeue();
+            queue.Enqueue(line);
+        }
+        return queue.ToList();
     }
 
     private void AppendSystemMessage(string text)
@@ -3552,6 +4040,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                 _revitProgressLastLine = null;
                 _revitProgressLastSnapshot = null;
                 HideRevitProgressUi();
+                TryConsumeCodexGuiInputInbox();
                 return;
             }
 
@@ -3589,6 +4078,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             _revitProgressLastSnapshot = snap;
             UpdateRevitProgressUi(snap);
             await EnsureProjectSessionAsync(forceSelect: false);
+            TryConsumeCodexGuiInputInbox();
         }
         catch
         {
@@ -3596,6 +4086,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
         }
         finally
         {
+            TryConsumeCodexGuiInputInbox();
             _revitProgressRefreshing = false;
         }
     }
@@ -3608,6 +4099,57 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             if (RevitProgressTextBlock != null) RevitProgressTextBlock.Visibility = Visibility.Collapsed;
         }
         catch { }
+    }
+
+    private static string GetCodexGuiInputInboxPath()
+    {
+        var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP");
+        return Path.Combine(baseDir, "codexgui_input_inbox.json");
+    }
+
+    private void TryConsumeCodexGuiInputInbox()
+    {
+        try
+        {
+            var path = GetCodexGuiInputInboxPath();
+            if (!File.Exists(path)) return;
+            var text = File.ReadAllText(path, Encoding.UTF8);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                File.Delete(path);
+                return;
+            }
+
+            string payload = string.Empty;
+            try
+            {
+                using var doc = JsonDocument.Parse(text);
+                payload = TryReadString(doc.RootElement, new[] { "text" }) ?? string.Empty;
+            }
+            catch
+            {
+                payload = text;
+            }
+
+            if (!string.IsNullOrWhiteSpace(payload))
+            {
+                if (PromptTextBox != null)
+                {
+                    var existing = PromptTextBox.Text ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(existing))
+                        existing += Environment.NewLine;
+                    PromptTextBox.Text = existing + payload;
+                    PromptTextBox.CaretIndex = PromptTextBox.Text.Length;
+                    PromptTextBox.Focus();
+                }
+            }
+
+            File.Delete(path);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private void UpdateRevitProgressUi(RevitProgressSnapshot snap)
@@ -4262,7 +4804,13 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             docs = AppContext.BaseDirectory;
         }
 
-        var dir = Path.Combine(docs, "Codex_MCP", "Codex", "GUI_Log");
+        var codexRoot = ResolveCodexRoot();
+        var rootFromCodex = !string.IsNullOrWhiteSpace(codexRoot)
+            ? Directory.GetParent(codexRoot)?.FullName
+            : null;
+        var dir = !string.IsNullOrWhiteSpace(rootFromCodex)
+            ? Path.Combine(rootFromCodex, "Logs", "CodexGUI_Log")
+            : Path.Combine(docs, "Revit_MCP", "Logs", "CodexGUI_Log");
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -4403,6 +4951,8 @@ public class SessionInfo
     public string? Model { get; set; }
 
     public string? ReasoningEffort { get; set; }
+
+    public string? Profile { get; set; }
 
     public List<string>? PromptHistory { get; set; }
 

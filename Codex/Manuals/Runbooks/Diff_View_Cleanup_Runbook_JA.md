@@ -23,7 +23,7 @@
 
 ## PowerShell スニペット（send_revit_command_durable.py 利用）
 ```
-$PY = Join-Path $PWD 'Manuals/Scripts/send_revit_command_durable.py'
+$PY = Join-Path $PWD 'Scripts/Reference/send_revit_command_durable.py'
 
 function Normalize-ViewName([string]$name){
   if([string]::IsNullOrWhiteSpace($name)){ return '' }
@@ -79,4 +79,7 @@ Remove-DiffViews -Port 5211
 ## 既知の注意点
 - Revit の UI 前面化と API のアクティブはタイミングでずれる場合があるため、`activate_view` の直後に `get_current_view` で検証するのが望ましい。
 - ビュー名の正規化は NFKC を採用。案件で独自の命名規則がある場合は、上記抽出条件を適宜拡張する。
+
+
+
 

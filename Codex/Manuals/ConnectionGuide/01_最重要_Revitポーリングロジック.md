@@ -328,7 +328,7 @@ Revit要素の識別には、`Element ID`（整数値）と`Unique ID`（GUID文
 ## 2. 前提条件
 -   Revitが起動しており、対象のプロジェクトファイルが開かれていること。
 -   Revit MCPアドインがロードされ、サーバーが動作していること。
--   `Manuals/Scripts/send_revit_command_durable.py` スクリプトが利用可能であること。
+-   `Scripts/Reference/send_revit_command_durable.py` スクリプトが利用可能であること。
 
 ## 3. 接続テストの実行
 
@@ -337,7 +337,7 @@ Revit要素の識別には、`Element ID`（整数値）と`Unique ID`（GUID文
 
 **実行コマンド:** 
 ```bash
-python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_open_documents
+python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_open_documents
 ```
 -   `--port`: 必要に応じて、Revitアドインが動作しているポート番号に変更してください。
 
@@ -384,7 +384,7 @@ python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --comman
 
 ## 5. 【最重要】文字化けを確実に防ぐためのコマンド実行方法 (Windows)
 
-Windows環境で `Manuals/Scripts/send_revit_command_durable.py` を実行し、日本語を含むJSON結果をファイルに保存する際に、深刻な文字化け問題が発生します。これを回避するには、以下のルールを**絶対に守ってください**。
+Windows環境で `Scripts/Reference/send_revit_command_durable.py` を実行し、日本語を含むJSON結果をファイルに保存する際に、深刻な文字化け問題が発生します。これを回避するには、以下のルールを**絶対に守ってください**。
 
 ### 根本原因
 Windowsのコマンドプロンプトが使うデフォルトの文字コード（cp932）と、プログラムが期待する文字コード（UTF-8）が異なるためです。
@@ -394,15 +394,15 @@ Windowsのコマンドプロンプトが使うデフォルトの文字コード�
 
 ```bash
 # 間違い：この方法は必ず文字化けを引き起こす
-python Python/Manuals/Scripts/send_revit_command_durable.py --command get_rooms > rooms.json  # 絶対に禁止！
+python Python/Scripts/Reference/send_revit_command_durable.py --command get_rooms > rooms.json  # 絶対に禁止！
 ```
 
 ### 唯一の正しい方法：`--output-file` オプションの使用
-文字化けを防ぐ、唯一の信頼できる方法は、`Manuals/Scripts/send_revit_command_durable.py` の `--output-file` オプションを使用することです。これにより、スクリプトが直接UTF-8でファイルを書き込むため、エンコーディングの問題を完全に回避できます。
+文字化けを防ぐ、唯一の信頼できる方法は、`Scripts/Reference/send_revit_command_durable.py` の `--output-file` オプションを使用することです。これにより、スクリプトが直接UTF-8でファイルを書き込むため、エンコーディングの問題を完全に回避できます。
 
 **正しいコマンドの例:**
 ```bash
-python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_rooms --output-file C:\Users\user\path\to\rooms.json
+python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_rooms --output-file C:\Users\user\path\to\rooms.json
 ```
 
 パラメータを渡す必要がある場合は、`--params-file` オプションを併用します。
@@ -413,7 +413,7 @@ python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --comman
 # {"skip": 0, "count": 5000}
 
 # 2. コマンドを実行する
-python Python/Manuals/Scripts/send_revit_command_durable.py ^
+python Python/Scripts/Reference/send_revit_command_durable.py ^
     --port 5210 ^
     --command get_walls ^
     --params-file C:\path\to\params.json ^
@@ -439,11 +439,11 @@ python Python/Manuals/Scripts/send_revit_command_durable.py ^
 
 ## 2. 当初のエラー原因と課題
 
-根本的な原因は、Revitアドインとの通信を担う`Manuals/Scripts/send_revit_command_durable.py`スクリプト、およびそれを呼び出すラッパースクリプトの堅牢性不足にありました。
+根本的な原因は、Revitアドインとの通信を担う`Scripts/Reference/send_revit_command_durable.py`スクリプト、およびそれを呼び出すラッパースクリプトの堅牢性不足にありました。
 
-### 2.1. `Manuals/Scripts/send_revit_command_durable.py`の堅牢性不足
+### 2.1. `Scripts/Reference/send_revit_command_durable.py`の堅牢性不足
 - **短いタイムアウト設定**: デフォルトの60秒という短いタイムアウトが設定されており、Revit側での処理に時間がかかるコマンドが「ハングアップ」と誤認され、タイムアウトエラーを引き起こしていました。
-- **エラー報告の脆さ**: コマンドがRevitアドイン側で内部的に失敗した場合、`Manuals/Scripts/send_revit_command_durable.py`が構造化されたエラー情報をPython側に返さず、結果として`subprocess.run`が`UnicodeDecodeError`や`CalledProcessError`を発生させていました。これにより、Revitからの真のエラーメッセージ（例: 「パラメータが見つかりません」など）がPython側で捕捉できず、デバッグが極めて困難でした。
+- **エラー報告の脆さ**: コマンドがRevitアドイン側で内部的に失敗した場合、`Scripts/Reference/send_revit_command_durable.py`が構造化されたエラー情報をPython側に返さず、結果として`subprocess.run`が`UnicodeDecodeError`や`CalledProcessError`を発生させていました。これにより、Revitからの真のエラーメッセージ（例: 「パラメータが見つかりません」など）がPython側で捕捉できず、デバッグが極めて困難でした。
 - **`id`の固定値**: JSON-RPCリクエストの`id`フィールドが常に`1`に固定されており、Revit側での重複検知やセッション管理において誤動作を引き起こす可能性がありました。
 
 ### 2.2. ラッパースクリプト（`run_revit_command_silent`など）の課題
@@ -453,9 +453,9 @@ python Python/Manuals/Scripts/send_revit_command_durable.py ^
 
 ## 3. 解決策と修正内容
 
-上記課題を解決するため、`Manuals/Scripts/send_revit_command_durable.py`およびラッパースクリプトに以下の堅牢化修正を適用しました。
+上記課題を解決するため、`Scripts/Reference/send_revit_command_durable.py`およびラッパースクリプトに以下の堅牢化修正を適用しました。
 
-### 3.1. `Manuals/Scripts/send_revit_command_durable.py`の改善
+### 3.1. `Scripts/Reference/send_revit_command_durable.py`の改善
 - **タイムアウト延長**: `MAX_POLLING_ATTEMPTS`を`120`から`600`に増やし、ポーリングタイムアウトを300秒（5分）に延長しました。
 - **エラー報告の堅牢化**: 
     - `_json_or_raise`および`_raise_if_jsonrpc_error`関数を修正し、Revitからのエラー応答がどのような形式であっても安全に処理し、構造化された`RevitMcpError`を発生させるようにしました。
@@ -478,14 +478,17 @@ python Python/Manuals/Scripts/send_revit_command_durable.py ^
 
 1.  **初期のタイムアウト問題**: `get_rooms`コマンドが頻繁にタイムアウトし、処理が完了しない問題が発生。
 2.  **エラーメッセージの不明瞭さ**: `get_room_params`などの詳細コマンドが失敗する際、`UnicodeDecodeError`や`Command failed with exit code 1`といった汎用的なエラーしか得られず、Revitからの具体的なエラー原因が不明。
-3.  **`Manuals/Scripts/send_revit_command_durable.py`の出力問題**: `subprocess.DEVNULL`へのリダイレクトで`UnicodeDecodeError`は回避できたものの、`Manuals/Scripts/send_revit_command_durable.py`自体がエラー時に適切なJSONを`--output-file`に書き出さないため、根本原因の特定に至らず。
+3.  **`Scripts/Reference/send_revit_command_durable.py`の出力問題**: `subprocess.DEVNULL`へのリダイレクトで`UnicodeDecodeError`は回避できたものの、`Scripts/Reference/send_revit_command_durable.py`自体がエラー時に適切なJSONを`--output-file`に書き出さないため、根本原因の特定に至らず。
 4.  **ユーザーからの重要な指摘**: 「コマンドがアドインに届いていません」という指摘を受け、`ping_server`コマンドでRevitアドインへの基本的な到達性を確認。結果は成功し、コマンド自体は到達していることが判明。
-5.  **根本原因の特定**: `ping_server`は成功するが詳細コマンドが失敗するという状況から、コマンドがアドインに到達した後にRevit内部でエラーが発生している可能性が高いと判断。この時点で、`Manuals/Scripts/send_revit_command_durable.py`とラッパースクリプトの堅牢性不足がデバッグの大きな障壁となっていることが明確化。
+5.  **根本原因の特定**: `ping_server`は成功するが詳細コマンドが失敗するという状況から、コマンドがアドインに到達した後にRevit内部でエラーが発生している可能性が高いと判断。この時点で、`Scripts/Reference/send_revit_command_durable.py`とラッパースクリプトの堅牢性不足がデバッグの大きな障壁となっていることが明確化。
 6.  **ユーザーからの具体的な改善方針**: 「主な懸念は以下の4点」という形で、`subprocess.run`の安全な使用、タイムアウト、構造化エラー報告、一時ファイル管理に関する具体的な改善方針が提示される。
-7.  **修正の適用と検証**: 提示された方針に基づき、`Manuals/Scripts/send_revit_command_durable.py`とラッパースクリプト（`run_revit_command_silent`）を段階的に修正。特に`subprocess.run`の引数渡し方、`tempfile`の使用、エラー返却形式の統一に注力。
+7.  **修正の適用と検証**: 提示された方針に基づき、`Scripts/Reference/send_revit_command_durable.py`とラッパースクリプト（`run_revit_command_silent`）を段階的に修正。特に`subprocess.run`の引数渡し方、`tempfile`の使用、エラー返却形式の統一に注力。
 8.  **最終的な成功**: 修正後、`get_room_params`が正常に動作することを確認。これにより、当初の目的であった全部屋のパラメータ取得とJSONエクスポートが成功裏に完了。
 
 ## 5. 結論
 
 Revitアドインとの連携において、Pythonスクリプト側の堅牢なエラーハンドリングと`subprocess`モジュールの適切な使用が極めて重要であることが再確認されました。特に、Revitアドインからのエラーメッセージが不明瞭な場合でも、Python側でエラーを構造化して捕捉・報告する仕組みを構築することで、デバッグと問題解決の効率が大幅に向上します。これにより、将来的な同様の問題発生時にも、迅速かつ的確な対応が可能となります。
+
+
+
 

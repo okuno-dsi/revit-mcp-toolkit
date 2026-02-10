@@ -3,7 +3,7 @@ using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using RevitMCPAddin.Core.Ledger;
+using RevitMCPAddin.Core;
 using RevitMCPAddin.UI.PythonRunner;
 
 namespace RevitMCPAddin.Commands
@@ -24,9 +24,8 @@ namespace RevitMCPAddin.Commands
                     string? docKey = null;
                     try
                     {
-                        if (!LedgerDocKeyProvider.TryGetDocKey(doc, out var dk, out _, out _))
-                            LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out dk, out _, out _);
-                        docKey = dk;
+                        string source;
+                        docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
                     }
                     catch { /* best-effort */ }
                     if (string.IsNullOrWhiteSpace(docKey))

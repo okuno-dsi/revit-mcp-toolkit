@@ -17,7 +17,7 @@ try {
 
 # Resolve default ExportDir to latest AutoCadOut/Export_* if not provided
 $ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-$ACWORK = Join-Path $ROOT 'Codex/Work/AutoCadOut'
+$ACWORK = Join-Path $ROOT 'Codex/Projects/AutoCadOut'
 if([string]::IsNullOrWhiteSpace($ExportDir)){
   $latest = Get-ChildItem -LiteralPath $ACWORK -Directory -Filter 'Export_*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if(-not $latest){ throw "No Export_* under $ACWORK. Specify -ExportDir." }
@@ -62,4 +62,6 @@ foreach($job in $toCopy){
   Dest      = $dest
   Jobs      = $summary
 }
+
+
 

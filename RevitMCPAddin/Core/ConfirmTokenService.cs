@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using Autodesk.Revit.DB;
+using RevitMCPAddin.Core.Ledger;
 
 namespace RevitMCPAddin.Core
 {
@@ -121,9 +122,18 @@ namespace RevitMCPAddin.Core
 
         private static string SafeDocGuid(Document doc)
         {
+            try
+            {
+                if (LedgerDocKeyProvider.TryGetDocKey(doc, out var docKey, out _, out _)
+                    || LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out docKey, out _, out _))
+                {
+                    return (docKey ?? string.Empty).Trim();
+                }
+            }
+            catch { /* ignore */ }
+
             try { return doc?.ProjectInformation?.UniqueId ?? string.Empty; }
             catch { return string.Empty; }
         }
     }
 }
-

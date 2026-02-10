@@ -42,12 +42,12 @@
 - `export_schedule_to_csv`（見たまま出力）
   - UI表示どおりのセル文字列をCSV化します。行はそのままなので、グループ化や繰り返し空欄も反映されます。
   - 例（PowerShell/JSON-RPC）:
-    - `python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command export_schedule_to_csv --params '{"scheduleViewId": <ID>, "outputFilePath": "C:/path/out.csv", "includeHeader": true}'`
+    - `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command export_schedule_to_csv --params '{"scheduleViewId": <ID>, "outputFilePath": "C:/path/out.csv", "includeHeader": true}'`
 
 - `export_schedule_to_excel`（Excel出力）
   - 集計表を直接 .xlsx に書き出します（UTF-8テキストはExcelセルへ、数値/単位はUI表示準拠）。
   - 例（PowerShell/JSON-RPC）:
-    - `python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command export_schedule_to_excel --params '{"viewId": <ID>, "filePath": "C:/path/out.xlsx"}'`
+    - `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command export_schedule_to_excel --params '{"viewId": <ID>, "filePath": "C:/path/out.xlsx"}'`
 
 注意（変更点）
 - 旧コマンド `export_schedule_values_csv` は削除されました。値セマンティクス寄りの補完（列方向FillDown等）が必要な場合は、CSV出力後に表計算側で補完する運用に切り替えてください。
@@ -71,11 +71,11 @@
 例（ドア集計のフィールド確認）：
 
 ```
-python Manuals/Scripts/send_revit_command_durable.py ^
+python Scripts/Reference/send_revit_command_durable.py ^
   --port 5210 ^
   --command inspect_schedule_fields ^
   --params "{\"title\":\"ドア\",\"samplePerField\":5}" ^
-  --output-file Work/<ProjectName>_<Port>/Logs/inspect_fields_door.json
+  --output-file Projects/<ProjectName>_<Port>/Logs/inspect_fields_door.json
 ```
 
 これにより、列ヘッダの表示名と、スケジュールフィールドの内部名の対応が把握でき、空欄原因の切り分けが容易になります。
@@ -84,12 +84,12 @@ python Manuals/Scripts/send_revit_command_durable.py ^
 
 ## 8) 一括出力スクリプト（比較運用に便利）
 
-`Manuals/Scripts/export_all_schedules_to_csv.ps1` は、全集計表を一括CSV化します。
+`Scripts/Reference/export_all_schedules_to_csv.ps1` は、全集計表を一括CSV化します。
 
 - As‑Is（見たまま）
-  - `pwsh -ExecutionPolicy Bypass -File Manuals/Scripts/export_all_schedules_to_csv.ps1 -Port 5210 -OutDir "Work/…/Schedules_Compare/AsIs"`
+  - `pwsh -ExecutionPolicy Bypass -File Scripts/Reference/export_all_schedules_to_csv.ps1 -Port 5210 -OutDir "Projects/…/Schedules_Compare/AsIs"`
 - Itemize + Fill（値セマンティクス寄り）
-  - `pwsh -ExecutionPolicy Bypass -File Manuals/Scripts/export_all_schedules_to_csv.ps1 -Port 5210 -OutDir "Work/…/Schedules_Compare/Itemize_Fill" -FillBlanks -Itemize`
+  - `pwsh -ExecutionPolicy Bypass -File Scripts/Reference/export_all_schedules_to_csv.ps1 -Port 5210 -OutDir "Projects/…/Schedules_Compare/Itemize_Fill" -FillBlanks -Itemize`
 
 生成された2セットを比較すると、「見た目そのまま」と「値の補完あり」の違いを確認できます。
 
@@ -120,4 +120,8 @@ python Manuals/Scripts/send_revit_command_durable.py ^
 - `export_schedule_to_csv` は、オプションで一時複製ビューに対して `IsItemized` の適用と下方向 Fill を提供します。
 - `export_schedule_to_excel` は、Excel ワークブックへ直接書き出します（CSVと同じくUI表示準拠）。
 - どちらのモードでも、集計表に「要素ID」列を可視で含めることを強く推奨します（欠損削減・後工程の突合せが容易）。
+
+
+
+
 

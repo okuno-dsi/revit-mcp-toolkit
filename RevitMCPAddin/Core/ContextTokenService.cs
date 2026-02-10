@@ -6,7 +6,7 @@
 //   Step 7: Context tokens to detect state drift between human/UI edits and agent assumptions.
 //   Token = hash(docGuid + docPath + activeViewId + contextRevision + selectionIds)
 // Notes:
-//   - Revision is tracked per document (by ProjectInformation.UniqueId).
+//   - Revision is tracked per document (by MCP Ledger DocKey; fallback to ProjectInformation.UniqueId).
 //   - Token is derived from the *current* UI context (active doc/view + selection).
 // ================================================================
 using System;
@@ -273,6 +273,14 @@ namespace RevitMCPAddin.Core
 
         private static string GetDocGuid(Document doc)
         {
+            try
+            {
+                string source;
+                var docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
+                if (!string.IsNullOrWhiteSpace(docKey)) return docKey.Trim();
+            }
+            catch { /* ignore */ }
+
             try { return doc?.ProjectInformation?.UniqueId ?? string.Empty; }
             catch { return string.Empty; }
         }

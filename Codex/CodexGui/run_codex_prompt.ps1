@@ -44,6 +44,8 @@ param(
 
   [string]$ReasoningEffort,
 
+  [string]$Profile,
+
   [string[]]$ImagePaths,
 
   [switch]$ShowStatus,
@@ -119,17 +121,46 @@ function Extract-SessionIdFromOutput([string]$text) {
 }
 
 function Get-RepoRoot {
-  # 1) 環境変数 CODEX_MCP_ROOT があれば最優先
+  # 1) 環境変数 REVIT_MCP_ROOT があれば最優先（Revit_MCP ルート）
+  if ($env:REVIT_MCP_ROOT -and (Test-Path -LiteralPath $env:REVIT_MCP_ROOT -PathType Container)) {
+    $c = Join-Path $env:REVIT_MCP_ROOT 'Codex'
+    if (Test-Path -LiteralPath $c -PathType Container) {
+      return (Resolve-Path -LiteralPath $c).Path
+    }
+  }
+
+  # 2) 環境変数 CODEX_MCP_ROOT があれば次に優先（Codex 直下）
   if ($env:CODEX_MCP_ROOT -and (Test-Path -LiteralPath $env:CODEX_MCP_ROOT -PathType Container)) {
     return (Resolve-Path -LiteralPath $env:CODEX_MCP_ROOT).Path
   }
 
-  # 2) 既定: ユーザーの Documents\Codex_MCP\Codex
+  # 3) paths.json（%LOCALAPPDATA%\RevitMCP\paths.json）を読む
+  try {
+    $paths = Join-Path $env:LOCALAPPDATA 'RevitMCP\paths.json'
+    if (Test-Path -LiteralPath $paths -PathType Leaf) {
+      $cfg = Get-Content -LiteralPath $paths -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($cfg.codexRoot -and (Test-Path -LiteralPath $cfg.codexRoot -PathType Container)) {
+        return (Resolve-Path -LiteralPath $cfg.codexRoot).Path
+      }
+      if ($cfg.root) {
+        $c2 = Join-Path $cfg.root 'Codex'
+        if (Test-Path -LiteralPath $c2 -PathType Container) {
+          return (Resolve-Path -LiteralPath $c2).Path
+        }
+      }
+    }
+  } catch {}
+
+  # 4) 既定: ユーザーの Documents\Revit_MCP\Codex → Documents\Codex_MCP\Codex
   $docs = [Environment]::GetFolderPath('MyDocuments')
   if ($docs) {
-    $defaultRoot = Join-Path $docs 'Codex_MCP\Codex'
-    if (Test-Path -LiteralPath $defaultRoot -PathType Container) {
-      return (Resolve-Path -LiteralPath $defaultRoot).Path
+    $fallbackRoot = Join-Path $docs 'Revit_MCP\Codex'
+    if (Test-Path -LiteralPath $fallbackRoot -PathType Container) {
+      return (Resolve-Path -LiteralPath $fallbackRoot).Path
+    }
+    $legacyRoot = Join-Path $docs 'Codex_MCP\Codex'
+    if (Test-Path -LiteralPath $legacyRoot -PathType Container) {
+      return (Resolve-Path -LiteralPath $legacyRoot).Path
     }
   }
 
@@ -137,7 +168,42 @@ function Get-RepoRoot {
   return (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
 
+function Set-RevitMcpEnvFromPaths {
+  try {
+    $paths = Join-Path $env:LOCALAPPDATA 'RevitMCP\\paths.json'
+    if (Test-Path -LiteralPath $paths -PathType Leaf) {
+      $cfg = Get-Content -LiteralPath $paths -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($cfg.root -and (Test-Path -LiteralPath $cfg.root -PathType Container)) {
+        $env:REVIT_MCP_ROOT = (Resolve-Path -LiteralPath $cfg.root).Path
+      }
+      if ($cfg.workRoot -and (Test-Path -LiteralPath $cfg.workRoot -PathType Container)) {
+        $env:REVIT_MCP_WORK_ROOT = (Resolve-Path -LiteralPath $cfg.workRoot).Path
+      }
+    }
+  } catch {
+    # ignore
+  }
+}
+
 $map = Load-SessionMap
+
+function Test-ProfileAvailable {
+  param([string]$ProfileName)
+  if (-not $ProfileName) { return $false }
+  $cfg = Join-Path $env:USERPROFILE '.codex\config.toml'
+  if (-not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return $false }
+  try {
+    $lines = Get-Content -LiteralPath $cfg -Encoding UTF8
+    $escaped = [regex]::Escape($ProfileName)
+    foreach ($line in $lines) {
+      if ($line -match "^\s*\[(profiles|profile)\.$escaped\]\s*$") { return $true }
+      if ($line -match "^\s*\[profile\s+`"$escaped`"\]\s*$") { return $true }
+    }
+  } catch {
+    return $false
+  }
+  return $false
+}
 
 function Ensure-Hashtable([object]$obj) {
   if ($null -eq $obj) { return @{} }
@@ -177,6 +243,7 @@ if (-not $map.ContainsKey($SessionId)) {
     codexSessionId = $null
     model          = $modelNormalized
     reasoning_effort = $effortNormalized
+    profile        = $null
     createdAt      = (Get-Date).ToString('o')
     lastUsedAt     = $null
   }
@@ -189,6 +256,12 @@ if (-not $map.ContainsKey($SessionId)) {
   if ($hasEffortParam) {
     $map[$SessionId].reasoning_effort = $effortNormalized
   }
+}
+
+if ($PSBoundParameters.ContainsKey('Profile')) {
+  $p = $Profile
+  if ($p) { $p = $p.Trim() }
+  if ($p) { $map[$SessionId].profile = $p } else { $map[$SessionId].profile = $null }
 }
 
 $entry = $map[$SessionId]
@@ -212,6 +285,27 @@ switch ($Backend) {
   'codex' {
     # --- Codex CLI backend（従来動作） ---
     $repoRoot = Get-RepoRoot
+    Set-RevitMcpEnvFromPaths
+    try {
+      if (-not $env:REVIT_MCP_ROOT -and $repoRoot) {
+        # If repoRoot points to ...\Codex, use its parent as Revit_MCP root.
+        $rootCandidate = $repoRoot
+        if ($rootCandidate -match '\\Codex$') {
+          $rootCandidate = Split-Path -Parent $rootCandidate
+        }
+        if ($rootCandidate -and (Test-Path -LiteralPath $rootCandidate -PathType Container)) {
+          $env:REVIT_MCP_ROOT = (Resolve-Path -LiteralPath $rootCandidate).Path
+        }
+      }
+      if (-not $env:REVIT_MCP_WORK_ROOT -and $env:REVIT_MCP_ROOT) {
+        $wr = Join-Path $env:REVIT_MCP_ROOT 'Projects'
+        if (Test-Path -LiteralPath $wr -PathType Container) {
+          $env:REVIT_MCP_WORK_ROOT = (Resolve-Path -LiteralPath $wr).Path
+        }
+      }
+    } catch {
+      # ignore
+    }
 
     $tokens = @(
       '--yolo',
@@ -225,8 +319,15 @@ switch ($Backend) {
       $tokens += @('--model', $entry.model)
     }
     if ($entry.reasoning_effort) {
-      # Override Codex reasoning effort (TOML string).
-      $tokens += @('--config', ('model_reasoning_effort="{0}"' -f $entry.reasoning_effort))
+      # Override Codex reasoning effort (TOML string). Avoid quoting to prevent parse errors.
+      $tokens += @('--config', ('model_reasoning_effort={0}' -f $entry.reasoning_effort))
+    }
+    if ($entry.profile) {
+      if (Test-ProfileAvailable $entry.profile) {
+        $tokens += @('--profile', $entry.profile)
+      } else {
+        Write-Warning "Profile '$($entry.profile)' not found in config.toml. Ignoring --profile."
+      }
     }
 
     # Optional image attachments (consent-gated by GUI; still validate paths here).

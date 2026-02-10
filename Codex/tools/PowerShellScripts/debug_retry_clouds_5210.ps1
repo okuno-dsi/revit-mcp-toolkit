@@ -134,6 +134,8 @@ foreach($eid in $ids){
   $log += [pscustomobject]@{ elementId=[int]$eid; ok=$ok; note=$note }
 }
 
-$out = Join-Path $ROOT ("Work/retry_clouds_"+(Get-Date -Format 'yyyyMMdd_HHmmss')+".csv")
+$out = Join-Path $ROOT ("Projects/retry_clouds_"+(Get-Date -Format 'yyyyMMdd_HHmmss')+".csv")
 $log | Export-Csv -LiteralPath $out -NoTypeInformation -Encoding UTF8
 Write-Host ("Saved log: " + $out) -ForegroundColor Green
+
+

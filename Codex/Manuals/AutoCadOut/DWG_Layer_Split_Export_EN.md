@@ -12,13 +12,13 @@ Pattern (snapshot → per-group export → merge → restore)
 4) Restore the view state.
 
 Where results go
-- Project DWG folder: `Codex/Work/Project_<port>_<timestamp>/DWG`
+- Project DWG folder: `Codex/Projects/Project_<port>_<timestamp>/DWG`
   - `seed.dwg` (non-target baseline)
   - `walls_<type>.dwg` per type (example)
   - `Merged/walls_types_merged.dwg` (final) when AutoMerge is enabled
 
 Reference Script (Wall types)
-- `Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1`
+- `Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1`
 - What it does:
   - Captures the view state (`save_view_state`).
   - Hides all walls to export `seed.dwg`.
@@ -29,15 +29,15 @@ Reference Script (Wall types)
 How to run (example)
 - Use latest Project_* automatically and export walls split by type:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210
 ```
 - Specify a project folder explicitly:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656"
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656"
 ```
 - Merge in AutoCAD automatically (requires AutoCadMCP running at 5251):
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge
 ```
 
 Adapting to other categories / group keys
@@ -59,20 +59,24 @@ This is a concrete, ready-to-run flow specialized for wall types. The generic pa
 
 - One-shot to the latest `Project_*` under `Codex/Work` (Revit MCP at 5210):
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 
 - Explicit project folder:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 `
+  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 
 - Auto-merge in AutoCAD (AutoCadMCP at 5251):
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 
 Expected outputs under `.../DWG/`:
 - `seed.dwg` (all walls hidden), `walls_<TYPE>.dwg` per wall type, `command.txt`, and `Merged/walls_types_merged.dwg` when auto-merged.
+
+
+
+

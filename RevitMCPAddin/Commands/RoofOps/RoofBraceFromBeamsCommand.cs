@@ -45,6 +45,20 @@ namespace RevitMCPAddin.Commands.RoofOps
                 return new { ok = false, msg = $"Level が見つかりません: {options.LevelName}" };
             }
 
+            // Auto-detect brace types when none are provided.
+            if (options.BraceTypes == null || options.BraceTypes.Count == 0)
+            {
+                var autoBraceTypes = LoadBraceTypesFromDoc(doc, options);
+                if (autoBraceTypes.Count > 0)
+                {
+                    options.BraceTypes = autoBraceTypes;
+                    if (string.IsNullOrWhiteSpace(options.DefaultBraceTypeCode))
+                    {
+                        options.DefaultBraceTypeCode = autoBraceTypes.FirstOrDefault()?.Code ?? string.Empty;
+                    }
+                }
+            }
+
             var filter = new BraceBayFilter
             {
                 Level = level,
@@ -52,17 +66,40 @@ namespace RevitMCPAddin.Commands.RoofOps
                 UseBBeams = options.UseBBeams,
                 IgnoreChars = options.IgnoreChars.ToList(),
                 MarkParamSpec = options.MarkParamSpec ?? new JObject(),
-                MarkContains = options.MarkContains?.ToList() ?? new List<string>()
+                MarkContains = options.MarkContains?.ToList() ?? new List<string>(),
+                GridFromSelection = string.Equals(options.GridSource, "selection", StringComparison.OrdinalIgnoreCase),
+                GridSnapTolMm = options.GridSnapTolMm
             };
+
+            if (options.GridElementIds != null && options.GridElementIds.Count > 0)
+            {
+                foreach (var id in options.GridElementIds)
+                {
+                    if (id > 0) filter.GridElementIds.Add(new ElementId(id));
+                }
+                filter.GridFromSelection = true;
+            }
+            else if (filter.GridFromSelection)
+            {
+                // Use current selection as grid source
+                var selIds = uiapp.ActiveUIDocument?.Selection?.GetElementIds();
+                if (selIds != null)
+                {
+                    filter.GridElementIds = selIds.ToList();
+                }
+            }
 
             var bayBuilder = new BeamBayBuilder(doc);
             List<double> verticalOffsets;
             List<double> horizontalOffsets;
-            var bayModels = bayBuilder.BuildBaysFromBeams(filter, out verticalOffsets, out horizontalOffsets);
+            string bayError;
+            string bayErrorCode;
+            var bayModels = bayBuilder.BuildBaysFromBeams(filter, out verticalOffsets, out horizontalOffsets, out bayError, out bayErrorCode);
 
             if (bayModels.Count == 0)
             {
-                return new { ok = false, msg = "対象となるベイが検出できませんでした。" };
+                var msg = string.IsNullOrWhiteSpace(bayError) ? "対象となるベイが検出できませんでした。" : bayError;
+                return new { ok = false, code = bayErrorCode ?? "NO_BAY", msg };
             }
 
             int rowCount = bayModels.Max(b => b.Row) + 1;
@@ -79,7 +116,14 @@ namespace RevitMCPAddin.Commands.RoofOps
             }
             else
             {
-                xNames = GridNameResolver.ResolveXGridNames(doc, verticalOffsets, colCount + 1, "X");
+                if (options.GridLabelMode == "coord" || options.GridSource == "selection")
+                {
+                    xNames = BuildCoordGridNames(verticalOffsets, "X");
+                }
+                else
+                {
+                    xNames = GridNameResolver.ResolveXGridNames(doc, verticalOffsets, colCount + 1, "X");
+                }
             }
 
             if (options.YGridNames != null && options.YGridNames.Count > 0)
@@ -88,7 +132,14 @@ namespace RevitMCPAddin.Commands.RoofOps
             }
             else
             {
-                yNames = GridNameResolver.ResolveYGridNames(doc, horizontalOffsets, rowCount + 1, "Y");
+                if (options.GridLabelMode == "coord" || options.GridSource == "selection")
+                {
+                    yNames = BuildCoordGridNames(horizontalOffsets, "Y");
+                }
+                else
+                {
+                    yNames = GridNameResolver.ResolveYGridNames(doc, horizontalOffsets, rowCount + 1, "Y");
+                }
             }
 
             // Detect existing braces in each bay (for red-line visualization and deletion).
@@ -102,6 +153,18 @@ namespace RevitMCPAddin.Commands.RoofOps
                 PromptSummary = BracePromptOptions.BuildSummary(options, level)
             };
 
+            // Apply proportional grid scaling based on actual bay sizes (if available)
+            try
+            {
+                var colWeights = BuildColumnWeights(verticalOffsets, colCount);
+                var rowWeights = BuildRowWeights(horizontalOffsets, rowCount);
+                vm.SetGridWeights(colWeights, rowWeights);
+            }
+            catch
+            {
+                // best-effort; fall back to uniform grid
+            }
+
             // Axis labels: show actual Revit grid names at their positions, independent from bay boundaries.
             try
             {
@@ -112,6 +175,27 @@ namespace RevitMCPAddin.Commands.RoofOps
             catch
             {
                 // best-effort: keep legacy per-boundary labels when anything fails
+            }
+
+            // Highlight selected structural framing members in the prompt UI (thick lines)
+            try
+            {
+                if (options.HighlightFrames)
+                {
+                    var view = uiapp.ActiveUIDocument?.ActiveView;
+                    var highlight = BraceOverlayDetector.BuildHighlightLines(
+                        doc,
+                        view,
+                        level,
+                        verticalOffsets,
+                        horizontalOffsets,
+                        options);
+                    vm.SetHighlightLines(highlight);
+                }
+            }
+            catch
+            {
+                // best-effort; never fail UI because of highlight preview
             }
 
             // Map braceTypes (from MCP) to UI items
@@ -201,6 +285,243 @@ namespace RevitMCPAddin.Commands.RoofOps
             }
             return result;
         }
+
+        private static IList<string> BuildCoordGridNames(IList<double> offsets, string prefix)
+        {
+            var result = new List<string>();
+            if (offsets == null || offsets.Count == 0) return result;
+
+            foreach (var v in offsets)
+            {
+                double mm = UnitHelper.InternalToMm(v);
+                string label = $"{prefix}{mm:0}";
+                result.Add(label);
+            }
+            return result;
+        }
+
+        private static List<BraceTypeDefinition> LoadBraceTypesFromDoc(Document doc, BracePromptOptions options)
+        {
+            var list = new List<BraceTypeDefinition>();
+            if (doc == null) return list;
+
+            var symbols = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .WhereElementIsElementType()
+                .Cast<FamilySymbol>()
+                .ToList();
+
+            // Prefer brace-like symbols if any, otherwise include all framing types.
+            var braceLike = symbols.Where(IsBraceLikeSymbol).ToList();
+            var source = braceLike.Count > 0 ? braceLike : symbols;
+
+            foreach (var sym in source)
+            {
+                if (sym == null) continue;
+
+                string symbol = null;
+                try
+                {
+                    var prm = sym.LookupParameter("符号");
+                    if (prm != null && prm.StorageType == StorageType.String)
+                    {
+                        symbol = prm.AsString();
+                    }
+                }
+                catch { symbol = null; }
+
+                if (string.IsNullOrWhiteSpace(symbol))
+                {
+                    try
+                    {
+                        var prm = sym.LookupParameter("Type Mark");
+                        if (prm != null && prm.StorageType == StorageType.String)
+                        {
+                            symbol = prm.AsString();
+                        }
+                    }
+                    catch { symbol = null; }
+                }
+
+                var def = new BraceTypeDefinition
+                {
+                    Code = !string.IsNullOrWhiteSpace(symbol) ? symbol : (sym.Name ?? string.Empty),
+                    Symbol = symbol ?? string.Empty,
+                    TypeName = sym.Name ?? string.Empty,
+                    FamilyName = sym.FamilyName ?? string.Empty
+                };
+                if (!string.IsNullOrWhiteSpace(def.Code) || !string.IsNullOrWhiteSpace(def.TypeName))
+                {
+                    if (BraceTypeMatchesFilter(sym, def, options))
+                    {
+                        list.Add(def);
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        private static bool BraceTypeMatchesFilter(FamilySymbol sym, BraceTypeDefinition def, BracePromptOptions opt)
+        {
+            if (opt == null) return true;
+
+            bool hasFilter =
+                (opt.BraceTypeFilterParamSpec != null && opt.BraceTypeFilterParamSpec.HasValues) ||
+                (opt.BraceTypeContains != null && opt.BraceTypeContains.Count > 0) ||
+                (opt.BraceTypeExclude != null && opt.BraceTypeExclude.Count > 0) ||
+                (opt.BraceTypeFamilyContains != null && opt.BraceTypeFamilyContains.Count > 0) ||
+                (opt.BraceTypeNameContains != null && opt.BraceTypeNameContains.Count > 0);
+
+            if (!hasFilter) return true;
+
+            string filterValue = ResolveBraceTypeFilterValue(sym, opt);
+            string familyName = def?.FamilyName ?? sym?.FamilyName ?? string.Empty;
+            string typeName = def?.TypeName ?? sym?.Name ?? string.Empty;
+
+            if (opt.BraceTypeContains != null && opt.BraceTypeContains.Count > 0)
+            {
+                if (!ContainsAnyTokenLocal(filterValue, opt.BraceTypeContains) &&
+                    !ContainsAnyTokenLocal(typeName, opt.BraceTypeContains))
+                {
+                    return false;
+                }
+            }
+
+            if (opt.BraceTypeExclude != null && opt.BraceTypeExclude.Count > 0)
+            {
+                if (ContainsAnyTokenLocal(filterValue, opt.BraceTypeExclude) ||
+                    ContainsAnyTokenLocal(typeName, opt.BraceTypeExclude))
+                {
+                    return false;
+                }
+            }
+
+            if (opt.BraceTypeFamilyContains != null && opt.BraceTypeFamilyContains.Count > 0)
+            {
+                if (!ContainsAnyTokenLocal(familyName, opt.BraceTypeFamilyContains))
+                {
+                    return false;
+                }
+            }
+
+            if (opt.BraceTypeNameContains != null && opt.BraceTypeNameContains.Count > 0)
+            {
+                if (!ContainsAnyTokenLocal(typeName, opt.BraceTypeNameContains))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static string ResolveBraceTypeFilterValue(FamilySymbol type, BracePromptOptions opt)
+        {
+            if (type == null) return null;
+
+            // 1) ParamResolver using braceTypeFilterParam spec
+            if (opt != null && opt.BraceTypeFilterParamSpec != null && opt.BraceTypeFilterParamSpec.HasValues)
+            {
+                try
+                {
+                    string resolvedBy;
+                    var prm = ParamResolver.ResolveByPayload(type, opt.BraceTypeFilterParamSpec, out resolvedBy);
+                    if (prm != null)
+                    {
+                        if (prm.StorageType == StorageType.String)
+                        {
+                            return prm.AsString();
+                        }
+                        return prm.AsValueString();
+                    }
+                }
+                catch { }
+            }
+
+            // 2) fallback to "符号"
+            try
+            {
+                var prm = type.LookupParameter("符号");
+                if (prm != null)
+                {
+                    if (prm.StorageType == StorageType.String) return prm.AsString();
+                    return prm.AsValueString();
+                }
+            }
+            catch { }
+
+            // 3) fallback to Type Mark
+            try
+            {
+                var prm = type.LookupParameter("Type Mark");
+                if (prm != null)
+                {
+                    if (prm.StorageType == StorageType.String) return prm.AsString();
+                    return prm.AsValueString();
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static bool ContainsAnyTokenLocal(string source, IList<string> tokens)
+        {
+            if (string.IsNullOrWhiteSpace(source) || tokens == null || tokens.Count == 0)
+                return false;
+            foreach (var tok in tokens)
+            {
+                if (string.IsNullOrWhiteSpace(tok)) continue;
+                if (source.IndexOf(tok, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsBraceLikeSymbol(FamilySymbol sym)
+        {
+            if (sym == null) return false;
+            var typeName = sym.Name ?? string.Empty;
+            var famName = sym.FamilyName ?? string.Empty;
+            return typeName.IndexOf("BRACE", StringComparison.OrdinalIgnoreCase) >= 0
+                   || typeName.IndexOf("ブレース", StringComparison.OrdinalIgnoreCase) >= 0
+                   || typeName.IndexOf("筋交", StringComparison.OrdinalIgnoreCase) >= 0
+                   || famName.IndexOf("BRACE", StringComparison.OrdinalIgnoreCase) >= 0
+                   || famName.IndexOf("ブレース", StringComparison.OrdinalIgnoreCase) >= 0
+                   || famName.IndexOf("筋交", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static IList<double> BuildColumnWeights(IList<double> verticalOffsets, int colCount)
+        {
+            var result = new List<double>();
+            if (verticalOffsets == null || verticalOffsets.Count < 2)
+                return result;
+            for (int i = 0; i < verticalOffsets.Count - 1 && result.Count < colCount; i++)
+            {
+                double w = verticalOffsets[i + 1] - verticalOffsets[i];
+                if (w <= 1e-9) w = 1.0;
+                result.Add(w);
+            }
+            return result;
+        }
+
+        private static IList<double> BuildRowWeights(IList<double> horizontalOffsets, int rowCount)
+        {
+            var result = new List<double>();
+            if (horizontalOffsets == null || horizontalOffsets.Count < 2)
+                return result;
+
+            int totalRows = horizontalOffsets.Count - 1;
+            for (int row = 0; row < totalRows && result.Count < rowCount; row++)
+            {
+                int idx = (totalRows - 1) - row; // top-to-bottom
+                double w = horizontalOffsets[idx + 1] - horizontalOffsets[idx];
+                if (w <= 1e-9) w = 1.0;
+                result.Add(w);
+            }
+            return result;
+        }
     }
 
     #region Options / Models
@@ -239,6 +560,24 @@ namespace RevitMCPAddin.Commands.RoofOps
         }
     }
 
+    /// <summary>
+    /// Highlight group definition for previewing framing members in the brace UI.
+    /// </summary>
+    public class HighlightFrameGroupDefinition
+    {
+        /// <summary>Tokens that must be contained in the mark string (case-insensitive).</summary>
+        public IList<string> Contains { get; set; } = new List<string>();
+
+        /// <summary>Tokens that must NOT be contained in the mark string (case-insensitive).</summary>
+        public IList<string> ExcludeContains { get; set; } = new List<string>();
+
+        /// <summary>Stroke color in hex (e.g. "#FF8C00").</summary>
+        public string ColorHex { get; set; } = "#FF8C00";
+
+        /// <summary>Stroke thickness (px). If <=0, default thickness is used.</summary>
+        public double Thickness { get; set; } = 3.0;
+    }
+
     public class BracePromptOptions
     {
         public string RawPromptText { get; set; } = string.Empty;
@@ -269,6 +608,66 @@ namespace RevitMCPAddin.Commands.RoofOps
         /// </summary>
         public IList<string> MarkContains { get; set; } = new List<string>();
 
+        /// <summary>
+        /// Highlight structural framing members in the prompt UI (thick lines).
+        /// </summary>
+        public bool HighlightFrames { get; set; } = true;
+
+        /// <summary>
+        /// Grid source: "auto" (default) or "selection".
+        /// When "selection", the bay grid is built from selected structural framing elements.
+        /// </summary>
+        public string GridSource { get; set; } = "auto";
+
+        /// <summary>
+        /// Optional element ids used to build the bay grid.
+        /// When set, these override selection.
+        /// </summary>
+        public IList<int> GridElementIds { get; set; } = new List<int>();
+
+        /// <summary>
+        /// Grid label mode: "auto" (default) or "coord".
+        /// "coord" uses coordinate-based labels.
+        /// </summary>
+        public string GridLabelMode { get; set; } = "auto";
+
+        /// <summary>
+        /// Grid snap tolerance for selection-based grid (mm).
+        /// </summary>
+        public double GridSnapTolMm { get; set; } = 50.0;
+
+        /// <summary>
+        /// Type parameter spec used to filter highlighted framing members.
+        /// Default: { "paramName": "符号" }.
+        /// </summary>
+        public JObject HighlightFrameMarkParamSpec { get; set; } = new JObject();
+
+        /// <summary>
+        /// Tokens to match in the highlight param value (case-insensitive).
+        /// Default: ["SG", "G"].
+        /// </summary>
+        public IList<string> HighlightFrameMarkContains { get; set; } = new List<string> { "SG", "G" };
+
+        /// <summary>Grid matching tolerance (mm) for highlight lines.</summary>
+        public double HighlightFrameGridTolMm { get; set; } = 50.0;
+
+        /// <summary>Stroke thickness (px) for highlight lines.</summary>
+        public double HighlightFrameLineThickness { get; set; } = 3.0;
+
+        /// <summary>
+        /// Optional highlight groups for preview lines. If empty, a single group is derived from HighlightFrameMarkContains.
+        /// </summary>
+        public IList<HighlightFrameGroupDefinition> HighlightFrameGroups { get; set; } = new List<HighlightFrameGroupDefinition>();
+
+        /// <summary>
+        /// Optional filter for brace types (dropdown). If set, only types matching these conditions appear.
+        /// </summary>
+        public JObject BraceTypeFilterParamSpec { get; set; } = new JObject();
+        public IList<string> BraceTypeContains { get; set; } = new List<string>();
+        public IList<string> BraceTypeExclude { get; set; } = new List<string>();
+        public IList<string> BraceTypeFamilyContains { get; set; } = new List<string>();
+        public IList<string> BraceTypeNameContains { get; set; } = new List<string>();
+
         public IList<BraceTypeDefinition> BraceTypes { get; set; } = new List<BraceTypeDefinition>();
         public string DefaultBraceTypeCode { get; set; } = string.Empty;
 
@@ -292,8 +691,17 @@ namespace RevitMCPAddin.Commands.RoofOps
                 AutoPattern = p.Value<string>("autoPattern") ?? "none",
                 ZOffsetMm = p.Value<double?>("zOffsetMm") ?? 0.0,
                 Note = p.Value<string>("note") ?? string.Empty,
-                DryRun = p.Value<bool?>("dryRun") ?? false
+                DryRun = p.Value<bool?>("dryRun") ?? false,
+                GridSource = p.Value<string>("gridSource") ?? "auto",
+                GridLabelMode = p.Value<string>("gridLabelMode") ?? "auto",
+                GridSnapTolMm = p.Value<double?>("gridSnapTolMm") ?? 50.0
             };
+
+            // gridElementIds (optional)
+            if (p["gridElementIds"] is JArray geArr)
+            {
+                opt.GridElementIds = geArr.Values<int>().ToList();
+            }
 
             // ignore chars (string like "Z,#" or array)
             var ignoreToken = p["ignore"];
@@ -401,6 +809,204 @@ namespace RevitMCPAddin.Commands.RoofOps
                 }
             }
 
+            // highlight frames (optional)
+            opt.HighlightFrames = p.Value<bool?>("highlightFrames") ?? true;
+
+            // highlightFrameMarkParam (optional)
+            var hfParam = p["highlightFrameMarkParam"] as JObject;
+            if (hfParam != null)
+            {
+                opt.HighlightFrameMarkParamSpec = (JObject)hfParam.DeepClone();
+                if (opt.HighlightFrameMarkParamSpec["paramId"] != null &&
+                    opt.HighlightFrameMarkParamSpec["builtInId"] == null)
+                {
+                    try
+                    {
+                        int pid = opt.HighlightFrameMarkParamSpec.Value<int>("paramId");
+                        if (pid < 0)
+                        {
+                            opt.HighlightFrameMarkParamSpec["builtInId"] = pid;
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // highlightFrameMarkContains (optional)
+            var hmcTok = p["highlightFrameMarkContains"];
+            if (hmcTok != null)
+            {
+                if (hmcTok.Type == JTokenType.String)
+                {
+                    var s = (hmcTok.Value<string>() ?? string.Empty).Trim();
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        opt.HighlightFrameMarkContains = new List<string> { s };
+                    }
+                }
+                else if (hmcTok is JArray hmcArr)
+                {
+                    opt.HighlightFrameMarkContains = hmcArr
+                        .Values<string>()
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x.Trim())
+                        .Where(x => x.Length > 0)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                }
+            }
+
+            // highlightFrameGroups (optional)
+            if (p["highlightFrameGroups"] is JArray hgArr)
+            {
+                foreach (var jt in hgArr.OfType<JObject>())
+                {
+                    var grp = new HighlightFrameGroupDefinition();
+
+                    if (jt["contains"] is JArray cArr)
+                    {
+                        grp.Contains = cArr.Values<string>()
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Select(x => x.Trim())
+                            .Where(x => x.Length > 0)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                    }
+                    else if (jt["contains"]?.Type == JTokenType.String)
+                    {
+                        var s = jt.Value<string>("contains");
+                        if (!string.IsNullOrWhiteSpace(s))
+                        {
+                            grp.Contains = new List<string> { s.Trim() };
+                        }
+                    }
+
+                    if (jt["excludeContains"] is JArray ecArr)
+                    {
+                        grp.ExcludeContains = ecArr.Values<string>()
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Select(x => x.Trim())
+                            .Where(x => x.Length > 0)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                    }
+                    else if (jt["excludeContains"]?.Type == JTokenType.String)
+                    {
+                        var s = jt.Value<string>("excludeContains");
+                        if (!string.IsNullOrWhiteSpace(s))
+                        {
+                            grp.ExcludeContains = new List<string> { s.Trim() };
+                        }
+                    }
+
+                    grp.ColorHex = jt.Value<string>("color") ?? grp.ColorHex;
+                    grp.Thickness = jt.Value<double?>("thickness") ?? grp.Thickness;
+
+                    if (grp.Contains != null && grp.Contains.Count > 0)
+                    {
+                        opt.HighlightFrameGroups.Add(grp);
+                    }
+                }
+            }
+
+            // brace type filter (optional)
+            var braceTypeFilterParam = p["braceTypeFilterParam"] as JObject;
+            if (braceTypeFilterParam != null)
+            {
+                opt.BraceTypeFilterParamSpec = (JObject)braceTypeFilterParam.DeepClone();
+            }
+
+            if (p["braceTypeContains"] is JArray btcArr)
+            {
+                opt.BraceTypeContains = btcArr.Values<string>()
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            if (p["braceTypeExclude"] is JArray bteArr)
+            {
+                opt.BraceTypeExclude = bteArr.Values<string>()
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            if (p["braceTypeFamilyContains"] is JArray btfArr)
+            {
+                opt.BraceTypeFamilyContains = btfArr.Values<string>()
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            if (p["braceTypeNameContains"] is JArray btnArr)
+            {
+                opt.BraceTypeNameContains = btnArr.Values<string>()
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            opt.HighlightFrameGridTolMm = p.Value<double?>("highlightFrameGridTolMm") ?? opt.HighlightFrameGridTolMm;
+            opt.HighlightFrameLineThickness = p.Value<double?>("highlightFrameLineThickness") ?? opt.HighlightFrameLineThickness;
+
+            // Defaults when not specified: paramName="符号", tokens=["SG","G"]
+            if (opt.HighlightFrameMarkParamSpec == null || !opt.HighlightFrameMarkParamSpec.HasValues)
+            {
+                opt.HighlightFrameMarkParamSpec = new JObject { ["paramName"] = "符号" };
+            }
+            if (opt.HighlightFrameMarkContains == null || opt.HighlightFrameMarkContains.Count == 0)
+            {
+                opt.HighlightFrameMarkContains = new List<string> { "SG", "G" };
+            }
+
+            // Default highlight groups when not explicitly provided.
+            if (opt.HighlightFrameGroups == null || opt.HighlightFrameGroups.Count == 0)
+            {
+                var tokens = opt.HighlightFrameMarkContains ?? new List<string>();
+                bool hasSG = tokens.Any(t => string.Equals(t, "SG", StringComparison.OrdinalIgnoreCase));
+                bool hasG = tokens.Any(t => string.Equals(t, "G", StringComparison.OrdinalIgnoreCase));
+
+                if (hasSG && hasG)
+                {
+                    // Big beams (SG) -> orange, small beams (G) -> blue (exclude SG to avoid overlap)
+                    opt.HighlightFrameGroups = new List<HighlightFrameGroupDefinition>
+                    {
+                        new HighlightFrameGroupDefinition
+                        {
+                            Contains = new List<string> { "SG" },
+                            ColorHex = "#FF8C00", // DarkOrange
+                            Thickness = opt.HighlightFrameLineThickness
+                        },
+                        new HighlightFrameGroupDefinition
+                        {
+                            Contains = new List<string> { "G" },
+                            ExcludeContains = new List<string> { "SG" },
+                            ColorHex = "#1E88E5", // Blue
+                            Thickness = opt.HighlightFrameLineThickness
+                        }
+                    };
+                }
+                else if (tokens.Count > 0)
+                {
+                    opt.HighlightFrameGroups = new List<HighlightFrameGroupDefinition>
+                    {
+                        new HighlightFrameGroupDefinition
+                        {
+                            Contains = tokens.ToList(),
+                            ColorHex = "#FF8C00",
+                            Thickness = opt.HighlightFrameLineThickness
+                        }
+                    };
+                }
+            }
+
             return opt;
         }
 
@@ -447,6 +1053,14 @@ namespace RevitMCPAddin.Commands.RoofOps
             {
                 parts.Add($"除外記号: {new string(opt.IgnoreChars.ToArray())}");
             }
+            if (!string.IsNullOrWhiteSpace(opt.GridSource))
+            {
+                parts.Add($"gridSource: {opt.GridSource}");
+            }
+            if (!string.IsNullOrWhiteSpace(opt.GridLabelMode))
+            {
+                parts.Add($"gridLabel: {opt.GridLabelMode}");
+            }
             if (opt.BraceTypes != null && opt.BraceTypes.Count > 0)
             {
                 var label = opt.BraceTypes.FirstOrDefault(bt =>
@@ -473,6 +1087,9 @@ namespace RevitMCPAddin.Commands.RoofOps
         public IList<char> IgnoreChars { get; set; } = new List<char>();
         public JObject MarkParamSpec { get; set; } = new JObject();
         public IList<string> MarkContains { get; set; } = new List<string>();
+        public IList<ElementId> GridElementIds { get; set; } = new List<ElementId>();
+        public bool GridFromSelection { get; set; } = false;
+        public double GridSnapTolMm { get; set; } = 50.0;
     }
 
     public class BayModel
@@ -520,6 +1137,255 @@ namespace RevitMCPAddin.Commands.RoofOps
 
     #endregion
 
+    #region Highlight overlay (structural framing preview)
+
+    public static class BraceOverlayDetector
+    {
+        public static List<BraceOverlayLine> BuildHighlightLines(
+            Document doc,
+            View view,
+            Level level,
+            IList<double> bayXOffsets,
+            IList<double> bayYOffsets,
+            BracePromptOptions opt)
+        {
+            var result = new List<BraceOverlayLine>();
+            if (doc == null || view == null || level == null || opt == null)
+                return result;
+            if (bayXOffsets == null || bayYOffsets == null || bayXOffsets.Count < 2 || bayYOffsets.Count < 2)
+                return result;
+
+            double minX = bayXOffsets.Min();
+            double maxX = bayXOffsets.Max();
+            double minY = bayYOffsets.Min();
+            double maxY = bayYOffsets.Max();
+            double spanX = maxX - minX;
+            double spanY = maxY - minY;
+            if (spanX <= 1e-9 || spanY <= 1e-9)
+                return result;
+
+            var allowedX = BuildAllowedCoords(doc, bayXOffsets, opt.XGridNames, true, minX, spanX);
+            var allowedY = BuildAllowedCoords(doc, bayYOffsets, opt.YGridNames, false, minY, spanY);
+
+            double tol = UnitHelper.MmToInternalLength(Math.Max(1.0, opt.HighlightFrameGridTolMm));
+            const double axisCos = 0.866; // cos(30°)
+
+            var collector = new FilteredElementCollector(doc, view.Id)
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .WhereElementIsNotElementType()
+                .Cast<FamilyInstance>()
+                .ToList();
+
+            foreach (var fi in collector)
+            {
+                if (fi == null) continue;
+                if (fi.StructuralType != StructuralType.Beam && fi.StructuralType != StructuralType.Brace)
+                    continue;
+                if (!(fi.Location is LocationCurve lc)) continue;
+                var curve = lc.Curve;
+                if (curve == null) continue;
+
+                var type = doc.GetElement(fi.GetTypeId()) as FamilySymbol;
+                if (type == null) continue;
+
+                string mark = ResolveTypeMark(type, opt.HighlightFrameMarkParamSpec);
+                if (string.IsNullOrWhiteSpace(mark)) continue;
+                var grp = ResolveHighlightGroup(mark, opt);
+                if (grp == null)
+                    continue;
+
+                var p0 = curve.GetEndPoint(0);
+                var p1 = curve.GetEndPoint(1);
+                var v = p1 - p0;
+                v = new XYZ(v.X, v.Y, 0);
+                if (v.GetLength() < 1e-6) continue;
+                var d = v.Normalize();
+                double ax = Math.Abs(d.X);
+                double ay = Math.Abs(d.Y);
+
+                bool isHorizontal = ax >= axisCos;
+                bool isVertical = ay >= axisCos;
+                if (!isHorizontal && !isVertical)
+                    continue;
+
+                double midX = 0.5 * (p0.X + p1.X);
+                double midY = 0.5 * (p0.Y + p1.Y);
+
+                if (isHorizontal)
+                {
+                    if (!NearAny(midY, allowedY, tol)) continue;
+                }
+                else if (isVertical)
+                {
+                    if (!NearAny(midX, allowedX, tol)) continue;
+                }
+
+                if (!IntersectsRect(p0, p1, minX, maxX, minY, maxY))
+                    continue;
+
+                double x1 = Clamp(p0.X, minX, maxX);
+                double y1 = Clamp(p0.Y, minY, maxY);
+                double x2 = Clamp(p1.X, minX, maxX);
+                double y2 = Clamp(p1.Y, minY, maxY);
+
+                result.Add(new BraceOverlayLine
+                {
+                    X1 = (x1 - minX) / spanX,
+                    Y1 = (y1 - minY) / spanY,
+                    X2 = (x2 - minX) / spanX,
+                    Y2 = (y2 - minY) / spanY,
+                    Thickness = grp.Thickness > 0 ? grp.Thickness : Math.Max(1.0, opt.HighlightFrameLineThickness),
+                    StrokeHex = grp.ColorHex ?? string.Empty
+                });
+            }
+
+            return result;
+        }
+
+        private static List<double> BuildAllowedCoords(
+            Document doc,
+            IList<double> bayOffsets,
+            IList<string> explicitNames,
+            bool wantVertical,
+            double min,
+            double span)
+        {
+            var result = new List<double>();
+            if (explicitNames != null && explicitNames.Count > 0)
+            {
+                var labels = wantVertical
+                    ? GridNameResolver.BuildXAxisLabels(doc, bayOffsets, explicitNames)
+                    : GridNameResolver.BuildYAxisLabels(doc, bayOffsets, explicitNames);
+                foreach (var lbl in labels)
+                {
+                    if (lbl == null) continue;
+                    double coord = min + lbl.Position01 * span;
+                    result.Add(coord);
+                }
+                if (result.Count > 0) return result;
+            }
+
+            // fallback: use all bay offsets (grid boundaries)
+            result.AddRange(bayOffsets);
+            return result;
+        }
+
+        private static string ResolveTypeMark(FamilySymbol type, JObject spec)
+        {
+            if (type == null) return null;
+
+            // 1) ParamResolver using spec
+            if (spec != null && spec.HasValues)
+            {
+                try
+                {
+                    string resolvedBy;
+                    var prm = ParamResolver.ResolveByPayload(type, spec, out resolvedBy);
+                    if (prm != null)
+                    {
+                        if (prm.StorageType == StorageType.String)
+                        {
+                            return prm.AsString();
+                        }
+                        // fallback to display string
+                        return prm.AsValueString();
+                    }
+                }
+                catch { }
+            }
+
+            // 2) fallback to "符号"
+            try
+            {
+                var prm = type.LookupParameter("符号");
+                if (prm != null)
+                {
+                    if (prm.StorageType == StorageType.String) return prm.AsString();
+                    return prm.AsValueString();
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        private static HighlightFrameGroupDefinition ResolveHighlightGroup(string source, BracePromptOptions opt)
+        {
+            if (string.IsNullOrWhiteSpace(source) || opt == null)
+                return null;
+
+            var groups = opt.HighlightFrameGroups;
+            if (groups == null || groups.Count == 0)
+            {
+                // fallback to legacy single-token list
+                if (ContainsAnyToken(source, opt.HighlightFrameMarkContains))
+                {
+                    return new HighlightFrameGroupDefinition
+                    {
+                        Contains = opt.HighlightFrameMarkContains?.ToList() ?? new List<string>(),
+                        ColorHex = "#FF8C00",
+                        Thickness = opt.HighlightFrameLineThickness
+                    };
+                }
+                return null;
+            }
+
+            foreach (var g in groups)
+            {
+                if (g == null || g.Contains == null || g.Contains.Count == 0)
+                    continue;
+                if (!ContainsAnyToken(source, g.Contains))
+                    continue;
+                if (g.ExcludeContains != null && g.ExcludeContains.Count > 0 && ContainsAnyToken(source, g.ExcludeContains))
+                    continue;
+                return g;
+            }
+
+            return null;
+        }
+
+        private static bool ContainsAnyToken(string source, IList<string> tokens)
+        {
+            if (string.IsNullOrWhiteSpace(source) || tokens == null || tokens.Count == 0)
+                return false;
+            foreach (var tok in tokens)
+            {
+                if (string.IsNullOrWhiteSpace(tok)) continue;
+                if (source.IndexOf(tok, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool NearAny(double value, IList<double> targets, double tol)
+        {
+            if (targets == null || targets.Count == 0) return false;
+            foreach (var t in targets)
+            {
+                if (Math.Abs(value - t) <= tol) return true;
+            }
+            return false;
+        }
+
+        private static double Clamp(double v, double min, double max)
+        {
+            if (v < min) return min;
+            if (v > max) return max;
+            return v;
+        }
+
+        private static bool IntersectsRect(XYZ p0, XYZ p1, double minX, double maxX, double minY, double maxY)
+        {
+            double x0 = Math.Min(p0.X, p1.X);
+            double x1 = Math.Max(p0.X, p1.X);
+            double y0 = Math.Min(p0.Y, p1.Y);
+            double y1 = Math.Max(p0.Y, p1.Y);
+            return !(x1 < minX || x0 > maxX || y1 < minY || y0 > maxY);
+        }
+    }
+
+    #endregion
+
     #region BeamBayBuilder
 
     public class BeamBayBuilder
@@ -534,12 +1400,16 @@ namespace RevitMCPAddin.Commands.RoofOps
         public List<BayModel> BuildBaysFromBeams(
             BraceBayFilter filter,
             out List<double> verticalOffsets,
-            out List<double> horizontalOffsets)
+            out List<double> horizontalOffsets,
+            out string errorMessage,
+            out string errorCode)
         {
             if (filter == null) throw new ArgumentNullException(nameof(filter));
             if (filter.Level == null) throw new ArgumentException("Level が未指定です。", nameof(filter));
+            errorMessage = null;
+            errorCode = null;
 
-            const double tol = 0.01; // 約 3mm
+            double tol = UnitHelper.MmToInternalLength(Math.Max(1.0, filter.GridSnapTolMm));
 
             var beams = new FilteredElementCollector(_doc)
                 .OfCategory(BuiltInCategory.OST_StructuralFraming)
@@ -552,10 +1422,42 @@ namespace RevitMCPAddin.Commands.RoofOps
             // Filter by mark (configurable type parameter via markParam) or, if not available, by type name.
             var sourceBeams = beams;
 
+            // If grid source is selection (or explicit ids), override source set.
+            if (filter.GridElementIds != null && filter.GridElementIds.Count > 0)
+            {
+                var picked = new List<FamilyInstance>();
+                foreach (var id in filter.GridElementIds)
+                {
+                    var el = _doc.GetElement(id) as FamilyInstance;
+                    if (el == null) continue;
+                    if (el.Category == null || el.Category.Id.IntegerValue != (int)BuiltInCategory.OST_StructuralFraming)
+                        continue;
+                    if (el.StructuralType != StructuralType.Beam) continue;
+                    picked.Add(el);
+                }
+                sourceBeams = picked;
+            }
+            else if (filter.GridFromSelection)
+            {
+                errorMessage = "グリッドを構成する構造フレーム要素が選択されていません。";
+                errorCode = "GRID_SELECTION_EMPTY";
+                verticalOffsets = new List<double>();
+                horizontalOffsets = new List<double>();
+                return new List<BayModel>();
+            }
+
             // LevelId で 1 本も梁が見つからない場合は、
             // 梁の中点 Z がレベル高さ付近にあるものをフォールバックで採用する。
             if (sourceBeams.Count == 0)
             {
+                if (filter.GridFromSelection)
+                {
+                    errorMessage = "選択された構造フレームからグリッドを形成できませんでした。座標のずれや要素不足が原因の可能性があります。";
+                    errorCode = "GRID_SELECTION_NO_FRAMES";
+                    verticalOffsets = new List<double>();
+                    horizontalOffsets = new List<double>();
+                    return new List<BayModel>();
+                }
                 var allBeams = new FilteredElementCollector(_doc)
                     .OfCategory(BuiltInCategory.OST_StructuralFraming)
                     .WhereElementIsNotElementType()
@@ -617,6 +1519,10 @@ namespace RevitMCPAddin.Commands.RoofOps
             }
 
             var filtered = new List<FamilyInstance>();
+            bool hasMarkFilter =
+                (filter.MarkContains != null && filter.MarkContains.Count > 0) ||
+                (filter.MarkParamSpec != null && filter.MarkParamSpec.HasValues) ||
+                (filter.IgnoreChars != null && filter.IgnoreChars.Count > 0);
 
             foreach (var fi in sourceBeams)
             {
@@ -624,6 +1530,15 @@ namespace RevitMCPAddin.Commands.RoofOps
                 if (type == null) continue;
 
                 string source = null;
+
+                // If grid is built from selection and no mark-based filters are provided,
+                // include all selected framing members. Otherwise, apply the same filters
+                // to keep grid boundaries aligned with the specified conditions.
+                if (filter.GridFromSelection && !hasMarkFilter)
+                {
+                    filtered.Add(fi);
+                    continue;
+                }
 
                 // 1) try markParamSpec (paramName / builtInName / builtInId / guid ...)
                 if (filter.MarkParamSpec != null && filter.MarkParamSpec.HasValues)
@@ -696,6 +1611,15 @@ namespace RevitMCPAddin.Commands.RoofOps
                 }
             }
 
+            if (filter.GridFromSelection && hasMarkFilter && filtered.Count == 0)
+            {
+                errorMessage = "選択された構造フレームが条件に一致しないためグリッドを形成できません。";
+                errorCode = "GRID_SELECTION_FILTERED_EMPTY";
+                verticalOffsets = new List<double>();
+                horizontalOffsets = new List<double>();
+                return new List<BayModel>();
+            }
+
             verticalOffsets = new List<double>();
             horizontalOffsets = new List<double>();
 
@@ -717,7 +1641,7 @@ namespace RevitMCPAddin.Commands.RoofOps
 
                 // Only use near-axis members for bay boundary detection.
                 // This prevents diagonal braces from polluting the bay grid when they are modeled as beams.
-                const double axisCos = 0.90;
+                const double axisCos = 0.866; // cos(30°)
                 if (ax >= axisCos)
                 {
                     // horizontal (X-direction) -> group by Y
@@ -736,6 +1660,11 @@ namespace RevitMCPAddin.Commands.RoofOps
             var bays = new List<BayModel>();
             if (verticalOffsets.Count < 2 || horizontalOffsets.Count < 2)
             {
+                if (filter.GridFromSelection)
+                {
+                    errorMessage = $"選択された構造フレームの座標が揃わないためグリッドを形成できません（X候補={verticalOffsets.Count}, Y候補={horizontalOffsets.Count}）。";
+                    errorCode = "GRID_MISALIGNED";
+                }
                 return bays;
             }
 

@@ -177,3 +177,4 @@ try {
 } catch {
   Write-Host ("Colored elements. LeftIds=" + $LeftIdsArr.Count + " RightIds=" + $RightIdsArr.Count + " CSV=" + $CsvPath) -ForegroundColor Green
 }
+

@@ -1,4 +1,4 @@
-# @feature: Resolve default logs folder under Work/<Project>_<Port>/Logs if not provided | keywords: スペース, ビュー, レベル
+# @feature: Resolve default logs folder under Projects/<Project>_<Port>/Logs if not provided | keywords: スペース, ビュー, レベル
 param(
   [int]$Port = 5210,
   [string]$OutDir,
@@ -15,9 +15,9 @@ try { $utf8 = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncod
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 
-# Resolve default logs folder under Work/<Project>_<Port>/Logs if not provided
+# Resolve default logs folder under Projects/<Project>_<Port>/Logs if not provided
 function Resolve-LogsDir([int]$p){
-  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -130,3 +130,5 @@ $outPath = Join-Path $OutDir ("view_elements_visibility_{0}_{1}.json" -f $viewId
 
 Write-Host ("Saved: {0}" -f $outPath) -ForegroundColor Green
 Write-Output ($outPath)
+
+

@@ -64,3 +64,4 @@ while($true){
 }
 
 Write-Host ("[Done] Unhid selected elements in viewId={0}. Section box unchanged." -f $viewId) -ForegroundColor Green
+

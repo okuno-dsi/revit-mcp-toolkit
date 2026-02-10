@@ -140,3 +140,4 @@ $summary | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $PSScriptRoot 
 $rlog | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $PSScriptRoot '..\Logs\rooms_log.json') -Encoding UTF8
 Write-Host ("[Summary] Walls={0}, Errors={1}, Rooms={2}" -f $created, $errs, $roomsPlaced) -ForegroundColor Green
 
+

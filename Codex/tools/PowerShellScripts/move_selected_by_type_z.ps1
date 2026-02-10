@@ -16,7 +16,7 @@ $SCRIPT_DIR = $PSScriptRoot
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
-$workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+$workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
 $projDir = Join-Path $workRoot ("Move_Selected_{0}_{1}" -f $TypeName, $Port)
 if(!(Test-Path $projDir)){ [void](New-Item -ItemType Directory -Path $projDir) }
 $logs = Join-Path $projDir 'Logs'
@@ -89,4 +89,6 @@ foreach($id in $matches){
 }
 
 Write-Host ("[Done] Moved {0} '{1}' elements by ΔZ={2} mm" -f $moved, $TypeName, [double]$DeltaZmm) -ForegroundColor Green
+
+
 

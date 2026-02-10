@@ -14,10 +14,10 @@
 使い方の例:
 
     cd %USERPROFILE%/Documents/VS2022/Ver551/Codex
-    python Manuals/Scripts/dwg_to_dxf_with_view_suffix.py ^
-        --input-dir Work/DWG_4F_Walls ^
+    python Scripts/Reference/dwg_to_dxf_with_view_suffix.py ^
+        --input-dir Projects/DWG_4F_Walls ^
         --pattern *.dwg ^
-        --out-dir Work/DWG_4F_Walls/DXF
+        --out-dir Projects/DWG_4F_Walls/DXF
 
 デフォルトではファイル名の stem（拡張子を除いた部分）を
 そのままビュー名サフィックスとして使います。
@@ -268,3 +268,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+

@@ -219,8 +219,8 @@ def main():
     def decide_max_attempts() -> int:
         """
         Time-window defaults:
-          - 07:00-23:00 => 3 attempts
-          - 23:00-07:00 => 10 attempts
+          - 07:00-23:00 => 8 attempts
+          - 23:00-07:00 => 20 attempts
         Overrides:
           - CLI --max-attempts
           - env MCP_MAX_ATTEMPTS (highest priority)
@@ -235,8 +235,8 @@ def main():
 
         env_day = os.getenv("MCP_MAX_ATTEMPTS_DAY")
         env_night = os.getenv("MCP_MAX_ATTEMPTS_NIGHT")
-        day_default = int(env_day) if env_day and env_day.isdigit() else 3
-        night_default = int(env_night) if env_night and env_night.isdigit() else 10
+        day_default = int(env_day) if env_day and env_day.isdigit() else 8
+        night_default = int(env_night) if env_night and env_night.isdigit() else 20
 
         hour = datetime.now().hour
         if 7 <= hour < 23:

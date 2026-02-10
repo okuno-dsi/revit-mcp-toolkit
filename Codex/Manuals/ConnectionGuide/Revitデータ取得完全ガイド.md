@@ -16,7 +16,7 @@
 2.  **pingコマンドでサーバーの応答を確認します。**
 
     ```bash
-    python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server
+    python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server
     ```
 
     **成功時の応答例:**
@@ -44,7 +44,7 @@ Windowsのコマンドプロンプトで作業する場合、日本語などの�
 
 **実行コマンド:**
 ```bash
-chcp 65001 && python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_doors > doors_list.json
+chcp 65001 && python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_doors > doors_list.json
 ```
 
 *   `--command get_doors`: `get_rooms`、`get_walls` など、取得したい要素に応じて変更してください。
@@ -99,10 +99,10 @@ def get_and_save_door_details():
         
         params_str = json.dumps({'elementId': door_id})
 
-        # Manuals/Scripts/send_revit_command_durable.pyを呼び出すコマンドをリストとして構築
+        # Scripts/Reference/send_revit_command_durable.pyを呼び出すコマンドをリストとして構築
         command = [
             'python',
-            'Python/Manuals/Scripts/send_revit_command_durable.py',
+            'Python/Scripts/Reference/send_revit_command_durable.py',
             '--port', '5210',
             '--command', 'get_door_parameters',
             '--params', params_str
@@ -159,7 +159,7 @@ python get_all_door_details.py
 
 ## 4. トラブルシューティング
 
--   **タイムアウトエラー:** `Manuals/Scripts/send_revit_command_durable.py` のポーリングロジックが古い可能性があります。「`手順書/01_最重要_Revitポーリングロジック.md`」を参照して、`commandId` を使用しない最新のロジックに更新してください。
+-   **タイムアウトエラー:** `Scripts/Reference/send_revit_command_durable.py` のポーリングロジックが古い可能性があります。「`手順書/01_最重要_Revitポーリングロジック.md`」を参照して、`commandId` を使用しない最新のロジックに更新してください。
 -   **文字化け:** このガイドのStep 2で説明した `chcp 65001` の使用や、Step 3のスクリプトテンプレート内のエンコーディング処理を確認してください。
 -   **unrecognized arguments エラー:** Step 3のスクリプトテンプレートのように、`subprocess.run` にコマンドをリスト形式で渡し、`shell=True` を避けることで、コマンドライン引数のパース問題を回避できます。
 
@@ -220,3 +220,6 @@ python get_all_door_details.py
    に明記しておくと、後から別のメンバーが同じ誤解を繰り返すことを防げます。
 
 この「Snoop で必ず実体確認 → 不明点があればユーザーに問い合わせ」の流れを、**パラメータ入出力に関わる全てのコマンド／スクリプトの共通ルール**として運用することを推奨します。
+
+
+

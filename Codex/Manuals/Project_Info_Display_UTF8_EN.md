@@ -23,7 +23,7 @@ $port = 5210
 Test-NetConnection localhost -Port $port | Out-Null
 
 # Call durable client
-$json = python "Codex/Manuals/Scripts/send_revit_command_durable.py" --port $port --command get_project_info
+$json = python "Codex/Scripts/Reference/send_revit_command_durable.py" --port $port --command get_project_info
 $obj = $json | ConvertFrom-Json
 $inner = if ($obj.result -and $obj.result.result) { $obj.result.result } elseif ($obj.result) { $obj.result } else { $obj }
 
@@ -44,10 +44,10 @@ chcp 65001 > $null
 $env:PYTHONUTF8 = '1'
 
 $port = 5210
-$out = "Codex/Work/Project_$port/Logs/get_project_info_${port}.json"
+$out = "Codex/Projects/Project_$port/Logs/get_project_info_${port}.json"
 New-Item -ItemType Directory -Force -Path (Split-Path $out) | Out-Null
 
-python "Codex/Manuals/Scripts/send_revit_command_durable.py" --port $port --command get_project_info --output-file $out
+python "Codex/Scripts/Reference/send_revit_command_durable.py" --port $port --command get_project_info --output-file $out
 
 $proj = Get-Content -Raw -Encoding UTF8 -LiteralPath $out | ConvertFrom-Json
 $inner = $proj.result.result
@@ -58,9 +58,9 @@ Using the Cached Helper (Optional)
 - The helper prints a concise UTF-8 summary and can output full JSON with `-Full`.
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/get_project_and_documents_cached.ps1 -Port 5210
+pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/get_project_and_documents_cached.ps1 -Port 5210
 # or
-pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/get_project_and_documents_cached.ps1 -Port 5210 -Full
+pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/get_project_and_documents_cached.ps1 -Port 5210 -Full
 ```
 
 Troubleshooting
@@ -71,7 +71,11 @@ Troubleshooting
 
 References
 - Quickstart: `Codex/Manuals/ConnectionGuide/QUICKSTART.md`
-- Durable client: `Codex/Manuals/Scripts/send_revit_command_durable.py`
+- Durable client: `Codex/Scripts/Reference/send_revit_command_durable.py`
 - Execution policy: `Codex/Manuals/ExecutionPolicy_Windows.md`
 - Durable vs Legacy flow (includes get_project_info): `Codex/Manuals/Durable_vs_Legacy_Request_Flow.md`
+
+
+
+
 

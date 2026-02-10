@@ -1,7 +1,7 @@
 # @feature: export project info parameters identity | keywords: スペース
 param(
   [int]$Port = 5210,
-  [string]$OutCsv = "Work/Project_5210/Logs/project_info_parameters_identity_5210.csv",
+  [string]$OutCsv = "Projects/Project_5210/Logs/project_info_parameters_identity_5210.csv",
   [int]$WaitSec = 20,
   [int]$TimeoutSec = 60,
   [int]$PauseMsPer50 = 300
@@ -88,3 +88,5 @@ foreach($pr in $nonBuilt){
 }
 
 Write-Host ("Saved: " + (Resolve-Path $OutCsv).Path) -ForegroundColor Green
+
+

@@ -19,7 +19,7 @@ namespace RevitMCPAddin.UI
 {
     internal static class RibbonUnits
     {
-        private const string TabName = "RevitMCPServer";
+        private static readonly string TabName = RibbonPortUi.TabName;
         private const string PanelName = "Units";
         private const string PullDownName = "MCP_Units_PullDown";
 

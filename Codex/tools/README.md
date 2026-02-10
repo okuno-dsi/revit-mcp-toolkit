@@ -9,7 +9,7 @@
   - RevitMCP 等の MCP 呼び出しを「リトライ／バックオフ／タイムアウト耐性」を付けて実行するためのラッパー。
   - 参考: `Manuals/Durable_vs_Legacy_Request_Flow.md`
 - `Tools/PowerShellScripts/cleanup_old_artifacts.ps1`
-  - `Work/` や `%LOCALAPPDATA%/RevitMCP` 配下のキャッシュ／ログ等を、更新日が古いものから削除する補助（既定: 7日）。
+  - `Projects/` や `%LOCALAPPDATA%/RevitMCP` 配下のキャッシュ／ログ等を、更新日が古いものから削除する補助（既定: 7日）。
   - `-Execute` を付けないと DRY RUN です。
 - スナップショット／復元・差分比較系（作業支援）
   - `save_snapshot_bundle.py`
@@ -32,3 +32,4 @@ AutoCAD Core Console 等を使う補助スクリプトは `Tools/AutoCad/` に�
 
 - PowerShell スクリプトは `Tools/PowerShellScripts/` に集約しています。
 - `Tools/__pycache__/` は Python 実行時に自動生成されるため、削除して問題ありません。
+

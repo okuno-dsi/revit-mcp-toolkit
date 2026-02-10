@@ -36,7 +36,7 @@ Return (object)
 Examples
 1) Walls: prefix by Function (JP: 機能)
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command rename_types_by_parameter \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command rename_types_by_parameter \
   --params '{
     "scope":"all",
     "categories":[-2000011],
@@ -50,7 +50,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command renam
 
 2) Floors: prefix by thickness display (no‑space)
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command rename_types_by_parameter \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command rename_types_by_parameter \
   --params '{
     "scope":"all",
     "categories":[-2000032],
@@ -66,4 +66,7 @@ Notes
 - If response includes `nextIndex`, call again with `startIndex=nextIndex` until `completed:true`.
 - Conflicts (duplicate names) are skipped with `reason="name_conflict"`.
 - Prefix removal is applied before composing new names so repeated runs are safe (idempotent).
+
+
+
 

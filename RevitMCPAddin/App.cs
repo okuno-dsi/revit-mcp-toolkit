@@ -6,7 +6,6 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;     // RevitLogger
-using RevitMCPAddin.Core.Ledger;
 using RevitMCPAddin.Core.Net; // ServerProcessManager
 using RevitMCPAddin.Core.Progress;
 using RevitMCPAddin.Core.ViewWorkspace;
@@ -82,6 +81,10 @@ namespace RevitMCPAddin
 
             // Progress snapshots (JSONL) for long-running operations (read-only external viewers such as CodexGUI).
             try { ProgressHub.Initialize(progress); } catch (Exception ex) { RevitLogger.Warn($"ProgressHub.Initialize failed: {ex.Message}"); }
+
+            // Ensure paths.json exists so CodexGUI/Bridge paths are stable across machines.
+            try { RevitMCPAddin.Core.Paths.EnsurePathsConfig(); }
+            catch (Exception ex) { RevitLogger.Warn($"EnsurePathsConfig failed: {ex.Message}"); }
 
             // 3) 起動時クリーンアップ（古ロック・古ログ）
             TryCleanupStaleArtifacts(logs, locks);
@@ -358,10 +361,8 @@ namespace RevitMCPAddin
                 {
                     try
                     {
-                        if (LedgerDocKeyProvider.TryGetDocKey(doc, out var dk, out _, out _))
-                            docKey = dk;
-                        else if (LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out dk, out _, out _))
-                            docKey = dk;
+                        string source;
+                        docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
                     }
                     catch { /* ignore */ }
 

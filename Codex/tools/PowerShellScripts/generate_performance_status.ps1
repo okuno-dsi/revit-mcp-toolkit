@@ -1,7 +1,7 @@
 # @feature: Helpers: robust path normalization (abs/rel, slash, case) | keywords: 壁, スペース, ビュー, DWG
 param(
-  [string]$Root = "$env:USERPROFILE\Documents\VS2022\Ver431\RevitMCPAddin",
-  [string]$OutCsv = "Work/Logs/performance_status_cs.csv"
+  [string]$Root = "%USERPROFILE%\Documents\VS2022\Ver431\RevitMCPAddin",
+  [string]$OutCsv = "Projects/Logs/performance_status_cs.csv"
 )
 
 Set-StrictMode -Version Latest
@@ -28,13 +28,13 @@ $NoWrite = ([bool]$NoWrite) -or ($OutCsv -eq '-')
 
 if(-not $NoWrite){ if(!(Test-Path (Split-Path -Parent $OutCsv))){ New-Item -ItemType Directory -Path (Split-Path -Parent $OutCsv) -Force | Out-Null } }
 
-# Build modified list from Work/Optimize/done_list.txt when present
+# Build modified list from Projects/Optimize/done_list.txt when present
 $modified = @()
 $modifiedRel = @()
 try {
   $candidates = @(
-    (Join-Path $PSScriptRoot '..\..\Work\Optimize\done_list.txt'),
-    'Work\Optimize\done_list.txt'
+    (Join-Path $PSScriptRoot '..\\..\\..\\Projects\Optimize\done_list.txt'),
+    'Projects\\Optimize\done_list.txt'
   )
   $doneFile = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
   if ($doneFile) {
@@ -50,8 +50,8 @@ $modifiedAbsSet = New-Object 'System.Collections.Generic.HashSet[string]' ([Syst
 $modifiedRelSet = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
 try {
   $candidates2 = @(
-    (Join-Path $PSScriptRoot '..\\..\\Work\\Optimize\\done_list.txt'),
-    'Work\\Optimize\\done_list.txt'
+    (Join-Path $PSScriptRoot '..\\..\\Projects\\\Optimize\\done_list.txt'),
+    'Projects\\\Optimize\\done_list.txt'
   )
   $doneFile2 = $candidates2 | Where-Object { Test-Path $_ } | Select-Object -First 1
   if ($doneFile2) {
@@ -74,12 +74,12 @@ try {
   }
 } catch {}
 
-# Optional manual overrides map: Work/Optimize/status_overrides.json
+# Optional manual overrides map: Projects/Optimize/status_overrides.json
 $overrides = @{}
 try {
   $ovCandidates = @(
-    (Join-Path $PSScriptRoot '..\\..\\Work\\Optimize\\status_overrides.json'),
-    'Work\\Optimize\\status_overrides.json'
+    (Join-Path $PSScriptRoot '..\\..\\Projects\\\Optimize\\status_overrides.json'),
+    'Projects\\\Optimize\\status_overrides.json'
   )
   $ovFile = $ovCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
   if ($ovFile) {
@@ -172,4 +172,6 @@ else {
   $sorted | ConvertTo-Csv -NoTypeInformation | Write-Output
   Write-Host ("Generated {0} rows (dry-run)" -f ($sorted.Count)) -ForegroundColor Yellow
 }
+
+
 

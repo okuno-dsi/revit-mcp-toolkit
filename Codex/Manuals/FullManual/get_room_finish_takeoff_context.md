@@ -90,9 +90,12 @@ It can also **temporarily enable Room Bounding on columns** (for boundary calcul
 
 ## Excel helper
 - If you saved a comparison JSON like `test_room_finish_takeoff_context_compare_*.json`, you can (re)generate a standardized `SegmentWallTypes` sheet via:
-  - `Manuals/Scripts/room_finish_compare_to_excel.py`
+  - `Scripts/Reference/room_finish_compare_to_excel.py`
 
 ## Related
 - `get_room_perimeter_with_columns_and_walls`
 - `get_room_openings`
 - `get_wall_layers`
+
+
+

@@ -5,15 +5,15 @@ This folder is the curated entry point for Revit MCP work: guides, commands, hel
 ## Ready-to-Start (Start Here)
 - Read: `START_HERE.md` at repo root for the shortest path to begin.
 - Quickstart: `Manuals/ConnectionGuide/QUICKSTART.md` (port check, ping, bootstrap).
-- Work rules: `WORK_RULES.md` (use `Work/<ProjectName>_<ProjectID>/` for per‑project work).
+- Work rules: `WORK_RULES.md` (use `Projects/<ProjectName>_<ProjectID>/` for per‑project work).
 - Helper scripts (PowerShell):
-  - `Manuals/Scripts/test_connection.ps1` — connectivity + bootstrap
-  - `Manuals/Scripts/list_elements_in_view.ps1` — element IDs to `Work/<ProjectName>_<Port>/Logs/elements_in_view.json`
+  - `Scripts/Reference/test_connection.ps1` — connectivity + bootstrap
+  - `Scripts/Reference/list_elements_in_view.ps1` — element IDs to `Projects/<ProjectName>_<Port>/Logs/elements_in_view.json`
   - Safe writes (two‑phase):
-    - `Manuals/Scripts/set_visual_override_safe.ps1`
-    - `Manuals/Scripts/update_wall_parameter_safe.ps1`
+    - `Scripts/Reference/set_visual_override_safe.ps1`
+    - `Scripts/Reference/update_wall_parameter_safe.ps1`
   - Resilient view ops:
-    - `Manuals/Scripts/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
+    - `Scripts/Reference/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
 
 ## New (2026-01-26)
@@ -24,7 +24,7 @@ This folder is the curated entry point for Revit MCP work: guides, commands, hel
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：
   - Python 出力は **` ```python ``` ブロックのみ**保存対象。
-  - 保存先は `Work/<RevitFileName>_<docKey>/python_script/` に統一。
+  - 保存先は `Projects/<RevitFileName>_<docKey>/python_script/` に統一。
   - `# @feature:` / `# @keywords:` を自動付与（未指定は空欄）。
   - Python Runner は **Load Codex** で取り込み。
 - 更新: `Manuals/ConnectionGuide/07_基本操作_PythonRunner_UI.md`
@@ -64,14 +64,14 @@ Quick view ops
 - Commands: command index and references
 - Scripts: helper scripts for connection and listing elements
 - Chat: collaborative chat workflow (`Manuals/Chat/CollaborativeChatWorkflow_*.md`)
-- Logs: moved under `Work/<ProjectName>_<ProjectID>/Logs` (Manuals/Logs is deprecated)
+- Logs: moved under `Projects/<ProjectName>_<ProjectID>/Logs` (Manuals/Logs is deprecated)
 - TODO: task list and pending items in `Manuals/TODO.md`
 
 For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/ConnectionGuide/INDEX.md`.
 
 ## Command registration notes
 - After updating/rebuilding the Revit MCP add‑in, restart Revit (or reload the add‑in) so new commands are registered and visible to clients.
-- Always verify command availability with `list_commands` (prefer `namesOnly:true`). Save the list to `Work/<ProjectName>_<Port>/Logs/list_commands_names.json` for reproducibility.
+- Always verify command availability with `list_commands` (prefer `namesOnly:true`). Save the list to `Projects/<ProjectName>_<Port>/Logs/list_commands_names.json` for reproducibility.
 - If a manual references a command you don’t see, confirm:
   - The port/instance is correct (`$env:REVIT_MCP_PORT` / `-Port`).
   - Your build registers the handler in `RevitMcpWorker`.
@@ -102,7 +102,7 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
 
 ## Important (Windows/PowerShell)
 - Unsigned scripts may be blocked by Execution Policy. Prefer process‑scoped bypass when running scripts:
-  - `pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/test_connection.ps1 -Port 5210`
+  - `pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/test_connection.ps1 -Port 5210`
 - Details: `Manuals/ExecutionPolicy_Windows.md`
 
 ## CSV Encoding (Required for Japanese)
@@ -117,26 +117,26 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
 
 ## DWG Exports (fast path)
 - Simple walls‑by‑type export without tweaking current view (uses `export_dwg { elementIds: [...] }`):
-  - `Manuals/Scripts/export_walls_by_type_simple.ps1`
+  - `Scripts/Reference/export_walls_by_type_simple.ps1`
 - Batch export multiple views in one call (uses `export_dwg { items: [...] }` with optional `startIndex/batchSize/maxMillisPerTx`):
   - See Runbook: `Manuals/Runbooks/View_Isolation_and_DWG_Plan_EN.md` (section 4.1) for items[] examples and time‑sliced loop.
 
 ## AutoCAD Merge Helpers
 - Merge B/G DWGs into one file using Core Console (layers consolidated to `B` and `G`):
-  - `Manuals/Scripts/merge_bg_from_seed.ps1`
+  - `Scripts/Reference/merge_bg_from_seed.ps1`
   - Usage example:
-    - `pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 -ExportDir "Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale ja-JP`
+    - `pwsh -File Codex/Scripts/Reference/merge_bg_from_seed.ps1 -ExportDir "Codex/Projects/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale ja-JP`
 - Verify layers of any DWG via Core Console:
-  - `Manuals/Scripts/list_dwg_layers_coreconsole.ps1`
+  - `Scripts/Reference/list_dwg_layers_coreconsole.ps1`
   - Usage example:
-    - `pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 -DwgPath ".../Merged_B_G.dwg" -Locale ja-JP`
+    - `pwsh -File Codex/Scripts/Reference/list_dwg_layers_coreconsole.ps1 -DwgPath ".../Merged_B_G.dwg" -Locale ja-JP`
 - Merge via AutoCAD COM (GUI AutoCAD running):
   - `Tools/AutoCad/merge_dwgs_by_map_com.py`
   - Dependency: `pywin32` (AI agent can help install: `python -m pip install pywin32`)
 
 ## Snapshots
 - Save current project snapshot (project info, open docs/views, sample element IDs):
-  - `pwsh -ExecutionPolicy Bypass -File Manuals/Scripts/save_project_snapshot.ps1 -Port 5210 -OutRoot Work/Snapshots -MaxViews 5`
+  - `pwsh -ExecutionPolicy Bypass -File Scripts/Reference/save_project_snapshot.ps1 -Port 5210 -OutRoot Projects/Snapshots -MaxViews 5`
 
 ## Dynamo (graph execution)
 - Place .dyn files under `RevitMCPAddin/Dynamo/Scripts`.
@@ -155,5 +155,9 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
 - Dashboard (project + levels + rooms + categories/types): `export_dashboard_html`
 - Schedules: `export_schedule_to_csv`, `export_schedule_to_excel` (stable)
 - See: `Manuals/Schedule_Exports_Guide_JA.md` for schedule export usage.
+
+
+
+
 
 

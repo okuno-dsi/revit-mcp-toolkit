@@ -64,7 +64,7 @@ if (-not $portOk) {
 }
 
 # Run the existing bootstrap script to collect environment info
-$scriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'Manuals/Scripts/test_connection.ps1'
+$scriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'Scripts/Reference/test_connection.ps1'
 if (-not (Test-Path -Path $scriptPath -PathType Leaf)) {
   throw "Bootstrap script not found: $scriptPath"
 }
@@ -77,8 +77,8 @@ Write-Host "[RevitMCP] Running bootstrap via test_connection.ps1 ..." -Foregroun
 $workDir = Join-Path -Path $PSScriptRoot -ChildPath 'Work'
 $logs = Get-ChildItem -Path $workDir -Filter 'agent_bootstrap.json' -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
 if (-not $logs -or $logs.Count -eq 0) {
-  # Fallback to Manuals/Logs if Work path not created by script
-  $fallback = Join-Path -Path $PSScriptRoot -ChildPath 'Manuals/Logs/agent_bootstrap.json'
+  # Fallback to Docs/Manuals/Logs if Work path not created by script
+  $fallback = Join-Path -Path $PSScriptRoot -ChildPath 'Docs/Manuals/Logs/agent_bootstrap.json'
   if (Test-Path $fallback) {
     $logs = ,(Get-Item $fallback)
   }
@@ -104,6 +104,10 @@ if ($logs -and $logs.Count -gt 0) {
 }
 
 Write-Host "[Next] List elements in active view:" -ForegroundColor Cyan
-Write-Host "  pwsh -ExecutionPolicy Bypass -File ./Manuals/Scripts/list_elements_in_view.ps1 -Port $usePort" -ForegroundColor Gray
+Write-Host "  pwsh -ExecutionPolicy Bypass -File ./Scripts/Reference/list_elements_in_view.ps1 -Port $usePort" -ForegroundColor Gray
 
 Write-Host "Done." -ForegroundColor Cyan
+
+
+
+

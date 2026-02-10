@@ -85,7 +85,7 @@ Write-Host "[1/6] Get project info" -ForegroundColor Cyan
 $projRes = Invoke-RevitCommandJson -Method 'get_project_info' -Params @{} -Port $Port
 if(-not $projRes){ throw 'get_project_info returned no payload' }
 
-Write-Host "[2/6] Ensure Work/<Project>_<Port> folders" -ForegroundColor Cyan
+Write-Host "[2/6] Ensure Projects/<Project>_<Port> folders" -ForegroundColor Cyan
 $dirs = Ensure-ProjectWorkDirs -Port $Port -ProjectInfo $projRes
 $projInfoPath = Join-Path $dirs.Logs ("project_info_{0}.json" -f $Port)
 @{ ok=$true; method='get_project_info'; port=$Port; result=$projRes } | ConvertTo-Json -Depth 32 | Out-File -LiteralPath $projInfoPath -Encoding utf8
@@ -189,3 +189,5 @@ foreach($m in $mapping){
   }
 }
 Write-Host ("Done. Success={0}, Failed={1}. Log={2}" -f $ok, $fail, $logFile) -ForegroundColor Green
+
+

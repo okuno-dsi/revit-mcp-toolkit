@@ -53,10 +53,10 @@ function Snapshot([int]$Port){
 function Strict-Diff([string]$Ljson,[string]$Rjson){
   $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
   $root = (Get-Location).Path
-  $csv   = Join-Path $root ("Work/crossport_differences_RSL1_"+$ts+".csv")
-  $pairs = Join-Path $root ("Work/crossport_modified_pairs_RSL1_"+$ts+".json")
-  $lids  = Join-Path $root ("Work/crossport_left_ids_RSL1_"+$ts+".json")
-  $rids  = Join-Path $root ("Work/crossport_right_ids_RSL1_"+$ts+".json")
+  $csv   = Join-Path $root ("Projects/crossport_differences_RSL1_"+$ts+".csv")
+  $pairs = Join-Path $root ("Projects/crossport_modified_pairs_RSL1_"+$ts+".json")
+  $lids  = Join-Path $root ("Projects/crossport_left_ids_RSL1_"+$ts+".json")
+  $rids  = Join-Path $root ("Projects/crossport_right_ids_RSL1_"+$ts+".json")
   $keys='familyName,typeName,符号,H,B,tw,tf,Type Mark,コメント,構造用途,材質'
   $null = & python -X utf8 (Join-Path $PSScriptRoot 'strict_crossport_diff.py') "$Ljson" "$Rjson" --csv "$csv" --left-ids "$lids" --right-ids "$rids" --pairs-out "$pairs" --pos-tol-mm 600 --len-tol-mm 150 --keys "$keys"
   return @{ csv=$csv; pairs=$pairs; leftIds=$lids; rightIds=$rids }
@@ -148,6 +148,8 @@ $summary = [pscustomobject]@{
   csvFile = $res.csv
 }
 
-$sumPath = Join-Path (Get-Location).Path ("Work/end_to_end_summary_"+(Get-Date -Format 'yyyyMMdd_HHmmss')+".json")
+$sumPath = Join-Path (Get-Location).Path ("Projects/end_to_end_summary_"+(Get-Date -Format 'yyyyMMdd_HHmmss')+".json")
 $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $sumPath -Encoding UTF8
 Write-Host ("[Done] Summary -> " + $sumPath) -ForegroundColor Green
+
+

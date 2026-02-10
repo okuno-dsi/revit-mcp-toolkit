@@ -15,10 +15,13 @@ Update Steps (when commands are added/removed)
    - Or `list_commands { namesOnly:true }` (canonical only)
 1. (Optional / legacy) If you still maintain `Manuals/Commands/commands_index.json`:
    - Refresh the live command names (namesOnly):
-     - `python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file list_commands_names.json`
+     - `python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file list_commands_names.json`
 
 Notes
 - Importance and category are heuristic; adjust the `HIGH` set and keyword buckets in the generator as needed.
 - For exact parameters/behavior, prefer the live environment and per‑command docs.
+
+
+
 
 

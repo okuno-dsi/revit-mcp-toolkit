@@ -1,4 +1,4 @@
-# @feature: Resolve project logs directory under Work/<Project>_<Port>/Logs, fallback to Manuals/Logs | keywords: misc
+# @feature: Resolve project logs directory under Projects/<Project>_<Port>/Logs, fallback to ..\..\..\Docs\..\..\..\Docs\Manuals\Logs | keywords: misc
 param(
   [int]$Port = 5210
 )
@@ -11,9 +11,9 @@ if(-not $PSBoundParameters.ContainsKey('Port') -and $env:REVIT_MCP_PORT){
 $SCRIPT_DIR = $PSScriptRoot
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 
-# Resolve project logs directory under Work/<Project>_<Port>/Logs, fallback to Manuals/Logs
+# Resolve project logs directory under Projects/<Project>_<Port>/Logs, fallback to ..\..\..\Docs\..\..\..\Docs\Manuals\Logs
 function Get-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){
@@ -31,4 +31,6 @@ Write-Host "[Ping]" -ForegroundColor Cyan
 python $PY --port $Port --command ping_server
 Write-Host "[Bootstrap] -> $LOGS" -ForegroundColor Cyan
 python $PY --port $Port --command agent_bootstrap --output-file (Join-Path $LOGS 'agent_bootstrap.json')
+
+
 

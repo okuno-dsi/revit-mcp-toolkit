@@ -96,7 +96,7 @@ $rightSnap = (Get-ChildItem -Recurse -File -Filter ("structural_details_port{0}_
 if(-not $leftSnap -or -not $rightSnap){ throw 'Snapshots not found. Please run create_structural_details_snapshot.ps1 first.' }
 
 $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-$pairsPath = Join-Path $ROOT ("Work/crossport_modified_pairs_"+$ts+".json")
+$pairsPath = Join-Path $ROOT ("Projects/crossport_modified_pairs_"+$ts+".json")
 # Pair broadly to ensure type diffs are captured regardless of distance; filtering is applied below
 python -X utf8 (Join-Path $SCRIPT_DIR 'strict_crossport_diff.py') "$leftSnap" "$rightSnap" --pairs-out "$pairsPath" --pos-tol-mm 100000 --len-tol-mm $LenTolMm --keys 'familyName,typeName,符号,H,B,tw,tf' | Out-Null
 
@@ -210,7 +210,7 @@ foreach($pair in $pFiltered){
 }
 
 # Save CSV summary with ports
-$csv = Join-Path $ROOT ("Work/type_diffs_marked_"+$ts+".csv")
+$csv = Join-Path $ROOT ("Projects/type_diffs_marked_"+$ts+".csv")
 $rows = @()
 foreach($pair in $pFiltered){
   $diffs = (@($pair.diffs | ForEach-Object { "{0}: {1}->{2}" -f $_.key,$_.left,$_.right })) -join '; '
@@ -220,3 +220,5 @@ foreach($pair in $pFiltered){
 $rows | Export-Csv -LiteralPath $csv -NoTypeInformation -Encoding UTF8
 
 Write-Host ("Completed. LeftClouds="+$createdL+" RightClouds="+$createdR+" CSV="+$csv) -ForegroundColor Green
+
+

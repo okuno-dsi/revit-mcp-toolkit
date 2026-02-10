@@ -85,4 +85,7 @@ Add-in は次の順に `term_map_ja.json` を探します（見つかったも�
 ```
 
 ### 簡易テスト用スクリプト
-- `Manuals/Scripts/test_terminology_routing.ps1 -Port 5210`
+- `Scripts/Reference/test_terminology_routing.ps1 -Port 5210`
+
+
+

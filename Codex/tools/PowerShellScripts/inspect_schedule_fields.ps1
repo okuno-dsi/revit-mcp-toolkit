@@ -18,7 +18,7 @@ function Invoke-RevitCommandJson {
   $tmp = New-TemporaryFile
   try {
     $argsList = @(
-      "Manuals/Scripts/send_revit_command_durable.py",
+      "..\..\..\Docs\..\\..\\Manuals/send_revit_command_durable.py",
       "--port", $Port,
       "--command", $Method,
       "--params", $paramsJson,
@@ -84,4 +84,6 @@ function Inspect-Schedule {
 
 $id = Resolve-ScheduleId -Port $Port -Title $Title -ScheduleViewId $ScheduleViewId
 Inspect-Schedule -Port $Port -Id $id -SamplePerField $SamplePerField
+
+
 

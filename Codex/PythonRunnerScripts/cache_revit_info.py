@@ -96,7 +96,7 @@ def main():
     ap = argparse.ArgumentParser(description="Fetch and cache Revit project/document info via Proxy→Playbook→Revit chain.")
     ap.add_argument("--proxy", type=str, default="http://127.0.0.1:5221", help="Proxy base URL")
     ap.add_argument("--revit-port", type=int, default=5211, help="Target Revit MCP port")
-    ap.add_argument("--out-dir", type=str, default=default_out_dir, help="Output directory for JSON cache (prefer Work/<Project>_<Port>/Logs)")
+    ap.add_argument("--out-dir", type=str, default=default_out_dir, help="Output directory for JSON cache (prefer Projects/<Project>_<Port>/Logs)")
     ap.add_argument("--refresh", action="store_true", help="Force refresh even if cache exists")
     ap.add_argument("--ttl-sec", type=int, default=0, help="Cache TTL (seconds). 0 = no TTL (always reuse if present)")
     ap.add_argument("--what", type=str, default="all", choices=["all", "project", "documents"], help="What to fetch")
@@ -144,3 +144,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

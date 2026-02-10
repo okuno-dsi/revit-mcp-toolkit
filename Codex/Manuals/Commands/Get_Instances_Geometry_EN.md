@@ -56,14 +56,14 @@ At least one of `elementIds`, `uniqueIds`, or `fromSelection` must be provided. 
 ## Examples
 - Current selection, medium detail, page of 200
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command get_instances_geometry \
   --params '{"fromSelection":true,"detailLevel":"Medium","page":{"startIndex":0,"batchSize":200}}' --force
 ```
 
 - Explicit ids with coarse detail and 1 mm weld tolerance
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command get_instances_geometry \
   --params '{"elementIds":[101,202,303],"detailLevel":"Coarse","weld":true,"weldToleranceMm":1.0}' --force
 ```
@@ -81,3 +81,6 @@ python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
 ## See Also
 - `get_instance_geometry` — single element variant
 - `analyze_segments` — geometry relations (2D/3D)
+
+
+

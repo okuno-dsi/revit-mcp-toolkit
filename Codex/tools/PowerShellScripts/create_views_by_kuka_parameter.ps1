@@ -19,7 +19,7 @@ try { $enc = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncodi
 $PY = Join-Path $PSScriptRoot 'send_revit_command_durable.py'
 
 function Resolve-LogsDir([int]$p){
-  $workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -310,3 +310,5 @@ try{
 }catch{}
 
 Write-Host 'Done. Created/updated SEED and per-区画 views.' -ForegroundColor Green
+
+

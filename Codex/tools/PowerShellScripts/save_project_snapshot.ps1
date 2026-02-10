@@ -1,7 +1,7 @@
 # @feature: Resolve paths | keywords: ビュー, スナップショット
 param(
   [int]$Port = 5210,
-  [string]$OutRoot = "Work/Snapshots",
+  [string]$OutRoot = "Projects/Snapshots",
   [int]$MaxViews = 5,
   [int]$WaitSeconds = 600,
   [int]$TimeoutSec = 1200,
@@ -96,3 +96,5 @@ if ($views -and $views.Count -gt 0) {
 }
 
 Write-Host ("Saved snapshot: {0}" -f $snapDir) -ForegroundColor Green
+
+

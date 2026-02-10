@@ -16,7 +16,7 @@ try { $enc = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncodi
 $PY = Join-Path $PSScriptRoot 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
-$workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+$workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
 $projDir = Join-Path $workRoot ("Unhide_Structural_{0}" -f $Port)
 if(!(Test-Path $projDir)){ [void](New-Item -ItemType Directory -Path $projDir) }
 $logs = Join-Path $projDir 'Logs'
@@ -88,3 +88,5 @@ while($true){
 }
 
 Write-Host ("[Done] Unhid {0} structural elements in viewId={1}. Section box kept as-is." -f $targets.Count, $viewId) -ForegroundColor Green
+
+

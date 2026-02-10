@@ -1,14 +1,13 @@
 # Update Log (Manual + Add-in)
 
-## 目玉アップデート（2026-01）
-- **Python Runner（初登場）**：Revit 内で専用Pythonスクリプトを実行でき、作業効率を大幅に向上。
-- **Codex GUI 強化**：入力欄リサイズ／タスクバー通知で操作性が改善。
-- **無人運用の安定化**：ダイアログ自動Dismiss＋キャプチャ/OCR（best effort）。
-- **空間系の一括取得**：Room/Space/Area の bulk 取得＋パラメータ提案。
-- **Dynamo 実行**：機能は追加済みだが **不安定なため原則推奨しません**。
-
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
+
+## 重要: 推奨ユーザーフォルダ構成の変更（Big Change）
+- 旧: `Work/` 直下運用 → **新: `Projects/<ProjectName>_<ProjectID>/` 配下に統一**。
+- 既定ルート: `%USERPROFILE%\\Documents\\Revit_MCP`（legacy: `Codex_MCP`）。
+- 作業ログ/中間ファイル/スクリプト出力は **すべて `Projects/<...>` 配下**に集約。
+- 詳細: `WORK_RULES.md` / `START_HERE.md` / `Manuals/README.md` を参照。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -33,6 +32,36 @@
 
 ---
 
+## 2026-02-04 Add-in: parallel safety + idempotency + stable ordering
+
+### 目的
+- 並行実行時の整合性を強化（docKey 安定化 / idempotency）。
+- JSON の配列順序を安定化し、差分検証や比較を容易にする。
+
+### 変更概要
+- `context.docKey` を安定化（ledger docKey 優先、fallback は docPath / docTitle / UniqueId / central path を元にハッシュ）。
+- `params.idempotencyKey` / `idemKey` による **短時間の結果キャッシュ**を追加。
+- 要素配列の **安定ソート**（elementId/id/hostElementId 優先）。
+
+### 詳細
+
+## 2026-02-02 Codex GUI: session display + log restore + safe install
+
+### 目的
+- セッション切替時の出力表示を分かりやすくする（新規はクリア、既存は復元）。
+- Codex セッションIDの表示/コピー機能を追加。
+- CodexGUI の設定/ログがインストールで上書きされる問題を防止する。
+
+### 変更概要
+- 新規セッション選択時は出力をクリア、既存セッションへ戻るとログ末尾を復元表示。
+- 「Codex Session ID」を表示・コピーできるダイアログを追加。
+- Session ID 表示位置を Apply（BG/FG）の右側に配置（60pt 空け）。
+- Codex GUI の保存先を `%LOCALAPPDATA%\\RevitMCP\\CodexGui\\` に移行（旧ファイルは自動移行）。
+- `run_codex_prompt.ps1` で **存在しない profile を無視**して実行継続。
+- 安全インストール用 `install_codexgui_safe.ps1` を追加（設定/ログを上書きしない）。
+
+### 詳細
+
 ## 2026-01-28 Add-in + CodexGUI: Python script handoff (CodexGUI → Python Runner)
 
 ### 目的
@@ -40,7 +69,7 @@
 
 ### 変更概要
 - CodexGUI: ` ```python ``` ` ブロックのみ保存対象（説明文やログを混在させない）。
-- CodexGUI: 保存先を `Work/<RevitFileName>_<docKey>/python_script/` に統一。
+- CodexGUI: 保存先を `Projects/<RevitFileName>_<docKey>/python_script/` に統一。
 - CodexGUI: `# @feature:` / `# @keywords:` を自動付与（未指定は空欄）。
 - Python Runner: CodexGUI 生成スクリプトは **Load Codex** から読み込み。
 - Python Runner: 実行時に `REVIT_MCP_PORT` を自動設定（Python 側で参照可能）。
@@ -103,7 +132,7 @@
 - MCP クライアント実装の注意点をまとめ、再発防止の指針を追加する。
 
 ### 変更概要
-- Add-in: Python Runner の既定フォルダを `Work/<RevitFileName>_<docKey>/python_script` に変更。
+- Add-in: Python Runner の既定フォルダを `Projects/<RevitFileName>_<docKey>/python_script` に変更。
 - Add-in: Save/Save As 前に dedent（共通先頭空白の削除）を適用。
 - Add-in: 出力ウィンドウの時刻表示を「出力開始時のみ」に変更。
 - Add-in: Python Runner リボンアイコンを「Py」バッジへ変更。
@@ -291,7 +320,6 @@
   - 読み込み時に重複キーは `ja` フレーズをマージ、無効な `BuiltInCategory` は警告付きでドロップ（ベストエフォート）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260114.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/GlossaryJaService.cs`
 - `RevitMCPAddin/Commands/MetaOps/HelpSuggestHandler.cs`
 - `RevitMCPAddin/glossary_ja.json`
@@ -311,7 +339,6 @@
   - ビューテンプレートが適用されているビューでは、上書きが効かないため `VIEW_TEMPLATE_LOCK` として中断（または `detachViewTemplate=true` で解除して実行）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260114.md`（同日追記: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/AnnotationOps/DrawColoredLineSegmentsCommand.cs`
 - `RevitMCPAddin/RevitMcpWorker.cs`
 - `RevitMCPAddin/RevitMCPAddin.csproj`
@@ -405,7 +432,6 @@
 - `set_visual_override` / `batch_set_visual_override` で、線色と塗りつぶし色を別指定できるようにしました（`lineRgb` / `fillRgb`）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/SetVisualOverrideCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/BatchSetVisualOverrideCommand.cs`
@@ -426,7 +452,6 @@
 - ビューテンプレートが適用されているビューはロックされることがあるため、`detachViewTemplate=true`（またはテンプレートビューを直接指定）に対応しました。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/ViewFilterOps/ViewFilterCommands.cs`
 - `Manuals/FullManual/view_filter.list.md`
 - `Manuals/FullManual/view_filter.upsert.md`
@@ -455,7 +480,6 @@
   - alias→canonical を一覧で確認する場合: `GET /debug/capabilities?includeDeprecated=1&grouped=1`
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260109.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPServer/Program.cs`
 - `RevitMCPServer/Engine/DurableQueue.cs`
 - `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
@@ -549,7 +573,6 @@
 - `RebarBarClearanceTable.json` の径→中心間(mm) を基準に判定し、必要なら違反ペアを返します（`includePairs=true`）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260107.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/RebarAutoModelService.cs`
 - `RevitMCPAddin/RebarMapping.json`
 - `RevitMCPAddin/RebarBarClearanceTable.json`
@@ -692,7 +715,7 @@
 - `Manuals/Response_Envelope_JA.md`
 
 ### テスト方法（例）
-- `Manuals/Scripts/test_failure_handling_overlapping_wall.ps1`（壁重なり警告の再現）
+- `Scripts/Reference/test_failure_handling_overlapping_wall.ps1`（壁重なり警告の再現）
 - 既存部屋に重ねて `create_room` 実行（Roomの重複警告→rollbackの再現）
 
 ### 互換性・注意
@@ -744,7 +767,7 @@
 - 仕上げ数量の前処理用の参考として、床/天井の関連要素（`floors[]` / `ceilings[]`）と、セグメント単位の天井高さサンプル（`loops[].segments[].ceilingHeightsFromRoomLevelMm`）を返します（bbox＋室内サンプル点の近似）。
 - 部屋内（交差含む）の要素を収集する `interiorElements` を追加（既定は `includeInteriorElements=false`。`interiorCategories` 未指定時は「積算向けオブジェクトカテゴリ」（壁/床/天井/屋根/柱/建具/家具/設備など）を対象。`insideLengthMm` は `LocationCurve` をサンプリングして部屋内長さを概算）。点ベース要素は既定で `interiorElementPointBboxProbe=true` とし、基準点が室外でもBBoxが室内に掛かるケースを拾う（出力は `measure.referencePointInside` / `measure.bboxProbe.used` で判別）。
 - 比較JSON（`test_room_finish_takeoff_context_compare_*.json`）から標準化した `SegmentWallTypes` シートを再生成するスクリプトを追加:
-  - `Manuals/Scripts/room_finish_compare_to_excel.py`
+  - `Scripts/Reference/room_finish_compare_to_excel.py`
 
 ### 実装変更（主なファイル）
 - `RevitMCPAddin/Commands/Room/GetRoomFinishTakeoffContextCommand.cs`
@@ -896,12 +919,12 @@
 ## 2026-01-20 (later)
 
 ### ツールスクリプト改善
-- `Manuals/Scripts/send_revit_command_durable.py`  
+- `Scripts/Reference/send_revit_command_durable.py`  
   - ポーリングのリトライ上限を時間帯で自動切替（07:00〜23:00: 3回 / 23:00〜07:00: 10回）。  
   - 上書き方法: `--max-attempts` または環境変数 `MCP_MAX_ATTEMPTS`（全時間帯共通）、`MCP_MAX_ATTEMPTS_DAY` / `MCP_MAX_ATTEMPTS_NIGHT`（時間帯別）。
 
 ### インストール手順強化
-- `Manuals/Scripts/install_revitmcp_safe.ps1`
+- `Scripts/Reference/install_revitmcp_safe.ps1`
   - Revit / RevitMCPServer を停止してから /MIR コピー（addin本体→%APPDATA%\\...\\RevitMCPAddin、server→server）。
   - サーバーexeのSHA256ハッシュを検証。ロックや部分コピーによる破損を防止。
 
@@ -928,3 +951,19 @@
 - `Manuals/FullManual/commands.manifest.json`
 - `Manuals/Commands/revitmcp_commands_full.jsonl`
 - `Manuals/Commands/revitmcp_commands_extended.jsonl`
+
+
+
+
+
+## 2026-02-06 Brace UI: brace type dropdown filter + selection-level fixes
+
+### 目的
+- ブレース配置UIのタイプドロップダウンを、ユーザー指定条件で絞り込み可能にする。
+
+### 変更概要
+- place_roof_brace_from_prompt に brace type フィルタ条件を追加（未指定なら全件自動検出）。
+- 条件: contains/exclude/family/typeName を AND で評価。
+
+### 詳細
+

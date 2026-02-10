@@ -15,7 +15,7 @@ $SCRIPT_DIR = $PSScriptRoot
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 
 function Resolve-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -44,4 +44,6 @@ if($params.Count -gt 0){
 } else {
   python $PY --port $Port --command save_view_workspace --output-file $outPath
 }
+
+
 

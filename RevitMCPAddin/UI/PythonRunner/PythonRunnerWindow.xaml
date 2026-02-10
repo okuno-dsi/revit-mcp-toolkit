@@ -11,6 +11,7 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock x:Name="TxtStatus" Grid.Row="0" Margin="0,0,0,6" Foreground="Gray" TextWrapping="Wrap"/>
@@ -23,8 +24,6 @@
             <Button x:Name="BtnSelectAll" Content="Select All" Width="90" Margin="0,0,6,0"/>
             <Button x:Name="BtnClearScript" Content="Clear" Width="90" Margin="0,0,6,0"/>
             <Button x:Name="BtnResetPaste" Content="Reset+Paste" Width="110" Margin="0,0,12,0"/>
-            <Button x:Name="BtnRun" Content="Run" Width="90" Margin="0,0,6,0"/>
-            <Button x:Name="BtnStop" Content="Stop" Width="90" Margin="0,0,6,0" IsEnabled="False"/>
         </WrapPanel>
 
         <Grid Grid.Row="2" Margin="0,0,0,8">
@@ -82,12 +81,20 @@
             </Grid>
         </GroupBox>
 
-        <WrapPanel Grid.Row="4" Margin="0,0,0,8">
-            <Button x:Name="BtnCopyOut" Content="Copy Output" Width="110" Margin="0,0,6,0"/>
-            <Button x:Name="BtnClearOut" Content="Clear Output" Width="110"/>
-        </WrapPanel>
+        <Grid Grid.Row="4" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Args" Margin="0,0,6,0"/>
+            <TextBox x:Name="TxtArgs" Grid.Column="1" MinWidth="420" Margin="0,0,12,0"/>
+            <Button x:Name="BtnRun" Grid.Column="2" Content="Run" Width="90" Margin="0,0,6,0"/>
+            <Button x:Name="BtnStop" Grid.Column="3" Content="Stop" Width="90" IsEnabled="False"/>
+        </Grid>
 
-        <GroupBox Header="Output" Grid.Row="5">
+        <GroupBox Header="Output" Grid.Row="5" Margin="0,0,0,8">
             <TextBox x:Name="OutputBox"
                      IsReadOnly="True"
                      AcceptsReturn="True"
@@ -97,5 +104,10 @@
                      FontSize="12"
                      TextWrapping="NoWrap"/>
         </GroupBox>
+
+        <WrapPanel Grid.Row="6">
+            <Button x:Name="BtnCopyOut" Content="Copy Output" Width="110" Margin="0,0,6,0"/>
+            <Button x:Name="BtnClearOut" Content="Clear Output" Width="110"/>
+        </WrapPanel>
     </Grid>
 </Window>

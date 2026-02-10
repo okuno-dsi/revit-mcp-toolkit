@@ -15,12 +15,12 @@
 ## 再出力（更新）方法
 1) 元データを出力（RUG）
 ```powershell
-python Manuals/Scripts/dump_rug_selected_type_parameters.py --port 5210 --column-family RC_C_B --column-type 1C1 --frame-family RC_B --frame-type FG13
+python Scripts/Reference/dump_rug_selected_type_parameters.py --port 5210 --column-family RC_C_B --column-type 1C1 --frame-family RC_B --frame-type FG13
 ```
 
 2) Excel等で追記したCSVを、`kind` 列で分割しつつ `note` に正規化
 ```powershell
-python Manuals/Scripts/normalize_split_type_params_csv.py --src Work/RevitMcp/5210/rug_type_parameters_with_values_<timestamp>.csv --split-key kind --out-dir Work/RevitMcp/5210 --base-name rug_type_parameters_with_values_<timestamp> --copy-to Manuals/Runbooks/RUG
+python Scripts/Reference/normalize_split_type_params_csv.py --src Projects/RevitMcp/5210/rug_type_parameters_with_values_<timestamp>.csv --split-key kind --out-dir Projects/RevitMcp/5210 --base-name rug_type_parameters_with_values_<timestamp> --copy-to Manuals/Runbooks/RUG
 ```
 
 ## 注意（必須）
@@ -45,3 +45,7 @@ python Manuals/Scripts/normalize_split_type_params_csv.py --src Work/RevitMcp/52
 補足:
 - 現状の配筋ロジックは「梁断面内に 1〜3層まで主筋をスタックする」簡易近似です。
   - 層ピッチ（中心-中心）は `RebarBarClearanceTable.json`（中心間離隔テーブル）を優先し、無い径のみ `barDiameter + options.beamMainBarLayerClearMm` にフォールバックします。
+
+
+
+

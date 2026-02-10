@@ -1,5 +1,5 @@
 Param(
-  [string]$SourceDir = 'Work/AutoCadOut',
+  [string]$SourceDir = 'Projects/AutoCadOut',
   [string]$OutDir = 'C:/Temp/CadOut',
   [string]$LayerName = 'A-WALL-____-MCUT',
   [string]$AccorePath = 'C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe',
@@ -98,3 +98,4 @@ if(-not (Test-Path $outDwg)){
 Write-Host "DXF files:" -ForegroundColor Cyan
 $dxfs | ForEach-Object { Write-Host " - $_" }
 Write-Host "Merged DWG: $outDwg" -ForegroundColor Green
+

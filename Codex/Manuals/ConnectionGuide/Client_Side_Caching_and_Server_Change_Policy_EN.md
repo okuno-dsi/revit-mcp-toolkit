@@ -35,8 +35,8 @@ python "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit_
 ````
 
 - Saves:
-  - `Codex/Work/<ProjectName>_<Port>/Logs/project_info_<port>.json`
-  - `Codex/Work/<ProjectName>_<Port>/Logs/open_documents_<port>.json`
+  - `Codex/Projects/<ProjectName>_<Port>/Logs/project_info_<port>.json`
+  - `Codex/Projects/<ProjectName>_<Port>/Logs/open_documents_<port>.json`
 
 2) Read cached data (concise summary)
 
@@ -64,8 +64,8 @@ pwsh -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_proj
 - The caching layer uses existing endpoints (`/enqueue`, `/job/{id}`) provided by RevitMCPServer.
 - Playbook and Proxy forward requests as they already do; no new behavior is required server‑side.
 - All logic (TTL, refresh, file I/O) lives in client scripts:
-  - `Codex/Manuals/Scripts/cache_revit_info.py`
-  - `Codex/Manuals/Scripts/get_project_and_documents_cached.ps1`
+  - `Codex/Scripts/Reference/cache_revit_info.py`
+  - `Codex/Scripts/Reference/get_project_and_documents_cached.ps1`
 
 ---
 
@@ -74,7 +74,7 @@ pwsh -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_proj
 - Prefer per‑request targeting for multi‑Revit environments: `POST /t/5211/rpc`.
 - Keep Playbook `--forward` pointing at a Revit port (e.g., 5210). Do not forward Playbook to the Proxy.
 - Separate caches by Revit port to avoid mixing data across instances.
-- Check caches into source control only if they are small, anonymized, and stable; otherwise keep local under `Codex/Work/<ProjectName>_<Port>/Logs`.
+- Check caches into source control only if they are small, anonymized, and stable; otherwise keep local under `Codex/Projects/<ProjectName>_<Port>/Logs`.
 
 ---
 
@@ -92,8 +92,12 @@ pwsh -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_proj
 - Playbook: `McpPlaybookServer/src/McpPlaybookServer`
 - Proxy: `ChatRevit/proxy_mcp_logger.py`
 - Scripts (caching):
-  - `Codex/Manuals/Scripts/cache_revit_info.py`
-  - `Codex/Manuals/Scripts/get_project_and_documents_cached.ps1`
+  - `Codex/Scripts/Reference/cache_revit_info.py`
+  - `Codex/Scripts/Reference/get_project_and_documents_cached.ps1`
 - Quickstart: `Codex/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md` (see “Caching” section)
+
+
+
+
 
 

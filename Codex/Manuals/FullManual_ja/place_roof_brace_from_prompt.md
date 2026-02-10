@@ -8,3 +8,6 @@
 
 - 英語版: `../FullManual/place_roof_brace_from_prompt.md`
 
+## 追記（ブレースタイプの絞り込み）
+`braceTypeFilterParam` / `braceTypeContains` / `braceTypeExclude` / `braceTypeFamilyContains` / `braceTypeNameContains` を指定すると、
+ブレースタイプのドロップダウンを条件で絞り込みできます（AND 条件）。

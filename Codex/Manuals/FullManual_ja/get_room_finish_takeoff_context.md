@@ -1,4 +1,4 @@
-﻿# get_room_finish_takeoff_context
+# get_room_finish_takeoff_context
 
 - カテゴリ: Room
 - 目的: 部屋の仕上げ数量算出に必要な「境界線＋近傍壁＋柱＋ドア/窓（壁ホスト）」情報を、1回の呼び出しでまとめて取得します。
@@ -58,6 +58,9 @@
 
 ## Excel（セグメント表）
 比較JSON（`test_room_finish_takeoff_context_compare_*.json`）から、標準化した `SegmentWallTypes` シートを再生成するスクリプト:
-- `Manuals/Scripts/room_finish_compare_to_excel.py`
+- `Scripts/Reference/room_finish_compare_to_excel.py`
+
+
+
 
 

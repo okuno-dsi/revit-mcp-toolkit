@@ -4,6 +4,7 @@ using System.Text;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
+using RevitMCPAddin.Core.Ledger;
 
 namespace RevitMCPAddin.Core
 {
@@ -48,7 +49,16 @@ namespace RevitMCPAddin.Core
                 if (!string.IsNullOrWhiteSpace(expectGuid))
                 {
                     string actualGuid = string.Empty;
-                    try { actualGuid = doc.ProjectInformation?.UniqueId ?? string.Empty; } catch { }
+                    try
+                    {
+                        if (!LedgerDocKeyProvider.TryGetDocKey(doc, out actualGuid, out _, out _))
+                            LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out actualGuid, out _, out _);
+                    }
+                    catch { /* ignore */ }
+                    if (string.IsNullOrWhiteSpace(actualGuid))
+                    {
+                        try { actualGuid = doc.ProjectInformation?.UniqueId ?? string.Empty; } catch { }
+                    }
                     if (!string.Equals((expectGuid ?? string.Empty).Trim(), (actualGuid ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase))
                     {
                         return new

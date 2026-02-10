@@ -42,12 +42,12 @@
 
 呼び出し例（要素レベルは除外、軽量）
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command compare_view_states --params '{"baselineViewId":101,"viewIds":[102,103],"includeHiddenElements":false}' --output-file Work/<Project>_<Port>/Logs/compare_view_states.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command compare_view_states --params '{"baselineViewId":101,"viewIds":[102,103],"includeHiddenElements":false}' --output-file Projects/<Project>_<Port>/Logs/compare_view_states.json
 ```
 
 要素重複サマリの取得（軽量サマリのみ追加）
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command compare_view_states --params '{"baselineViewId":101,"viewIds":[102,103,104],"includeElementOverlapSummary":true}' --output-file Work/<Project>_<Port>/Logs/compare_view_states.overlap.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command compare_view_states --params '{"baselineViewId":101,"viewIds":[102,103,104],"includeElementOverlapSummary":true}' --output-file Projects/<Project>_<Port>/Logs/compare_view_states.overlap.json
 ```
 
 要素重複サマリのレスポンス例（抜粋）
@@ -72,3 +72,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command compa
 Tips
 - 要素レベル比較はモデル全体を走査するため重くなります。必要な場合のみ `includeHiddenElements:true` を指定してください。
 - オリジナルとの差異が多い場合は、`save_view_state` と `restore_view_state` を併用し、テンプレートや一時非表示の扱いを整理してから比較すると安定します。
+
+
+
+

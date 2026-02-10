@@ -2,7 +2,7 @@ Param(
   [string[]]$InputDwgs,
   [Parameter(Mandatory=$true)][string]$LayerName,
   [string[]]$Stems,
-  [string]$OutPath = 'Work/AutoCadOut/merged_by_comment_v2.dwg',
+  [string]$OutPath = 'Projects/AutoCadOut/merged_by_comment_v2.dwg',
   [string]$AccorePath = 'C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe',
   [string]$Locale = 'ja-JP',
   [int]$TimeoutSec = 180,
@@ -150,3 +150,4 @@ else {
 
 if(-not (Test-Path $outAbs)){ throw 'Merged DWG not found' }
 Write-Output $outAbs
+

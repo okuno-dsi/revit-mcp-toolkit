@@ -1,7 +1,7 @@
 # @feature: export struct views to dwg | keywords: 柱, 梁, スペース, ビュー, タグ, DWG
 param(
   [int]$Port = 5210,
-  [string]$OutDir = "Work/AutoCadOut",
+  [string]$OutDir = "Projects/AutoCadOut",
   [int]$WaitSeconds = 300,
   [int]$TimeoutSec = 900,
   [string]$BaseViewName = ""
@@ -237,3 +237,5 @@ Isolate-Grids -ViewId $gridsViewId
 Export-ViewToDwg -ViewId $gridsViewId -FileName 'Grids'
 
 Write-Host "[Done] Exported DWGs for StructFrames / StructColumns / Grids." -ForegroundColor Green
+
+

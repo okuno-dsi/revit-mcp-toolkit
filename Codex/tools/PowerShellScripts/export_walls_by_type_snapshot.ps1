@@ -261,3 +261,4 @@ if($AutoMerge){
 }
 
 Write-Host 'Done.' -ForegroundColor Green
+

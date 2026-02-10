@@ -30,6 +30,25 @@ Some async/utility paths may return payload at:
 
 If you pass `params.expectedContextToken` to many commands, the add-in will fail fast with `code: PRECONDITION_FAILED` when the token does not match.
 
+## Stable document key (docKey)
+To support parallel execution and stable project folder naming, responses now include:
+- `context.docKey`: stable document key (preferred over file-name-based keys)
+- `context.docKeySource`: `ledger` or `fallback`
+- `context.docKeyStable`: `true | false` (whether the key is derived from stable sources)
+
+Legacy compatibility:
+- `context.docGuid` is still populated and equals `context.docKey`.
+
+## Idempotency key (optional)
+If you pass `params.idempotencyKey` (or `params.idemKey`), the router may **return a cached result** for the same `(method + docKey + idempotencyKey)` within a short TTL.
+The response will include:
+- `context.idempotencyKey`
+- `context.idempotencyCache`: `{ hit: true|false, ttlMs, maxEntries }`
+
+## Stable ordering (deterministic arrays)
+Common element arrays (`elements`, `items`, `hosts`, etc.) are **stably sorted** by `elementId` / `id` / `hostElementId` when present.
+This reduces noisy diffs when the same command is executed multiple times.
+
 ## Failure handling gate (Step 10)
 For batch-like operations (heuristic: `elementIds` count >= 5), the router may refuse to execute and return:
 - `code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED"`

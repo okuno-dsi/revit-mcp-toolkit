@@ -88,3 +88,4 @@ if($fail){
 }
 
 Write-Host "All checks passed." -ForegroundColor Green
+

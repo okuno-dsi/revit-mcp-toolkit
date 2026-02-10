@@ -105,11 +105,13 @@ $report = [pscustomobject]@{
 }
 
 $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-$outj = Join-Path $ROOT ("Work/selected_5211_vs_5210_pair_"+$ts+".json")
-$outc = Join-Path $ROOT ("Work/selected_5211_vs_5210_pair_"+$ts+".csv")
+$outj = Join-Path $ROOT ("Projects/selected_5211_vs_5210_pair_"+$ts+".json")
+$outc = Join-Path $ROOT ("Projects/selected_5211_vs_5210_pair_"+$ts+".csv")
 $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $outj -Encoding UTF8
 $rows = @(); foreach($d in $typeDiffs){ $rows += [pscustomobject]@{ key=$d.key; left=$d.left; right=$d.right } }
 $rows | Export-Csv -LiteralPath $outc -NoTypeInformation -Encoding UTF8
 
 Write-Host ("Saved: JSON=$outj CSV=$outc") -ForegroundColor Green
 $report | ConvertTo-Json -Depth 8
+
+

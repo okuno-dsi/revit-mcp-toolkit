@@ -7,7 +7,7 @@ Purpose
 Prerequisites
 - Revit with MCP add-in running (default port 5210).
 - PowerShell 7+/Python 3.x available.
-- Durable sender: `Manuals/Scripts/send_revit_command_durable.py`.
+- Durable sender: `Scripts/Reference/send_revit_command_durable.py`.
 
 Key Ideas
 - Detach view template on duplicates before any writes.
@@ -49,12 +49,12 @@ Performance & Reliability
 
 Example (PowerShell; Seed + per-type walls)
 ```
-pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/create_seed_and_type_views_typeid.ps1 -Port 5210 -BatchSize 800 -MaxMillisPerTx 3000
+pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/create_seed_and_type_views_typeid.ps1 -Port 5210 -BatchSize 800 -MaxMillisPerTx 3000
 ```
 
 Example (Python; one-shot isolate by TypeId)
 ```
-python Codex/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command isolate_by_filter_in_view --params '{
+python Codex/Scripts/Reference/send_revit_command_durable.py --port 5210 --command isolate_by_filter_in_view --params '{
   "viewId": <id>,
   "detachViewTemplate": true,
   "reset": true,
@@ -74,4 +74,7 @@ Troubleshooting
 - Grids/annotations remain visible: set `keepAnnotations:false` or hide annotation categories explicitly.
 - Stalls on reset: use the lightweight `show_all_in_view` (no unhide/clear), then explicit-hide non-targets.
 - Long operations: reduce `batchSize` (e.g., 200) and keep `maxMillisPerTx` around 2000–3000ms.
+
+
+
 

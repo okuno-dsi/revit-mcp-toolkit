@@ -95,3 +95,4 @@ $remain = @($clouds2 | Where-Object { try { $targetIds -contains ([int]$_.viewId
 
 $out = [pscustomobject]@{ ok=$true; port=$Port; pattern=$NameLike; includeActive=$IncludeActiveView.IsPresent; targetViewCount=$targetIds.Count; deleted=$before; remaining=$remain }
 $out | ConvertTo-Json -Depth 6
+

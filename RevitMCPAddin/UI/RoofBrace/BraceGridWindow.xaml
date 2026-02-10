@@ -96,10 +96,15 @@
                                   SizeChanged="BayItemsControl_SizeChanged">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Rows="{Binding RowCount}"
-                                             Columns="{Binding ColumnCount}"/>
+                                <Grid/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Grid.Row" Value="{Binding Row}"/>
+                                <Setter Property="Grid.Column" Value="{Binding Column}"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:BayViewModel}">
                                 <Button Style="{StaticResource BayButtonStyle}"
@@ -173,9 +178,15 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <!-- Highlighted framing members (thick lines) -->
+                    <Canvas x:Name="HighlightLinesCanvas"
+                            IsHitTestVisible="False"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Panel.ZIndex="2"/>
                 </Grid>
             </ScrollViewer>
         </Grid>
     </DockPanel>
 </Window>
-

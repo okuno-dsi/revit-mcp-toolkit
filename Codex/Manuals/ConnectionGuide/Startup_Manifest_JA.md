@@ -20,15 +20,19 @@
 コマンド一覧の取得
 - 簡易（名前のみ）:
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file Work/<ProjectName>_<Port>/Logs/list_commands_names.json
+python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file Projects/<ProjectName>_<Port>/Logs/list_commands_names.json
 ```
   - 出力: `result.result.commands` にメソッド名の配列
 
 - 検索（部分一致/カテゴリ指定など）:
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command search_commands --params '{"q":"view list","top":30}'
+python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command search_commands --params '{"q":"view list","top":30}'
 ```
 
 トラブルシューティング
 - `/manifest/register` が見つからない/失敗する場合でも、`list_commands` が返す一覧が真実です（Add-in 側の実体）。
 - 期待するコマンドが `list_commands` に出てこない場合は、`RevitMcpWorker` のハンドラ登録（`new XxxCommand()`）を確認してください。
+
+
+
+

@@ -32,6 +32,17 @@ namespace RevitMCPAddin.Commands.MetaOps
                     process = new { pid = System.Diagnostics.Process.GetCurrentProcess().Id }
                 };
 
+                string docKey = null;
+                if (doc != null)
+                {
+                    try
+                    {
+                        string source;
+                        docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
+                    }
+                    catch { /* ignore */ }
+                }
+
                 var project = new
                 {
                     ok = doc != null,
@@ -39,7 +50,7 @@ namespace RevitMCPAddin.Commands.MetaOps
                     number = doc != null ? doc.ProjectInformation.Number : null,
                     filePath = doc != null ? doc.PathName : null,
                     revitVersion = app != null ? app.VersionNumber : null,
-                    documentGuid = doc != null ? doc.ProjectInformation.UniqueId : null,
+                    documentGuid = doc != null ? (string.IsNullOrWhiteSpace(docKey) ? doc.ProjectInformation.UniqueId : docKey) : null,
                     message = doc == null ? "No active document." : null
                 };
 

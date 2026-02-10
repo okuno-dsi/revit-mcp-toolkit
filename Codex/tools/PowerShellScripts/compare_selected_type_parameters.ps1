@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 chcp 65001 > $null
 
 function Resolve-WorkDir([int]$p){
-  $root = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+  $root = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
   $dirs = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($dirs){ $chosen = ($dirs | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $dirs | Select-Object -First 1 } }
@@ -128,4 +128,6 @@ if($diff.different.Count -gt 0){
     if($i -ge 5){ break }
   }
 }
+
+
 

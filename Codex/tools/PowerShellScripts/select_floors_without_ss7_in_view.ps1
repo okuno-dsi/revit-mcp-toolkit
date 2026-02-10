@@ -20,7 +20,7 @@ $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
 function Ensure-ProjectDir([string]$baseName, [int]$p){
-  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $projName = ("{0}_{1}" -f $baseName, $p)
   $projDir = Join-Path $workRoot $projName
   if(!(Test-Path $projDir)){ [void](New-Item -ItemType Directory -Path $projDir) }
@@ -145,4 +145,6 @@ $sel = Get-Payload $selResp
 
 Write-Host ("[Done] Selected {0} Floors (without SS7)." -f $without.Count) -ForegroundColor Green
 Write-Host ("Result saved: {0}" -f $selOut) -ForegroundColor DarkGreen
+
+
 

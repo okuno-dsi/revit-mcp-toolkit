@@ -22,14 +22,14 @@ Revit の「プロジェクト情報（Project Information）」要素の文字�
 使用例
 ```powershell
 # PowerShell（直接）
-pwsh -File Manuals/Scripts/send_revit_command_durable.py `
+pwsh -File Scripts/Reference/send_revit_command_durable.py `
   --port 5211 --command update_project_info `
   --params '{"projectName":"テストBIMモデル","projectNumber":"P-001"}'
 ```
 
 ```bash
 # Python（直接）
-python Manuals/Scripts/send_revit_command_durable.py \
+python Scripts/Reference/send_revit_command_durable.py \
   --port 5211 \
   --command update_project_info \
   --params '{"clientName":"○○建設","status":"基本設計"}'
@@ -43,4 +43,7 @@ python Manuals/Scripts/send_revit_command_durable.py \
 トラブルシュート
 - `Unknown command: update_project_info` が出る場合は、Add-in を更新して Revit を再起動（コマンド登録の再読み込み）してください。
 - 作業共有や権限により項目がロックされていると `updated` が 0 の場合があります。
+
+
+
 

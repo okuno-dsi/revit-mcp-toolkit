@@ -13,7 +13,7 @@
 構造柱/構造フレーム（梁）を選択して、以下を実行します:
 
 ```powershell
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command rebar_regenerate_delete_recreate --params "{""useSelectionIfEmpty"":true,""deleteMode"":""tagged_only"",""tag"":""RevitMcp:AutoRebar"",""options"":{""tagComments"":""RevitMcp:AutoRebar""}}"
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command rebar_regenerate_delete_recreate --params "{""useSelectionIfEmpty"":true,""deleteMode"":""tagged_only"",""tag"":""RevitMcp:AutoRebar"",""options"":{""tagComments"":""RevitMcp:AutoRebar""}}"
 ```
 
 注意:
@@ -29,7 +29,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command rebar
 3. 実行:
 
 ```powershell
-python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210
+python Scripts/Reference/rebar_set_hooks_and_rotations_on_selection.py --port 5210
 ```
 
 このスクリプトは、参照のフック設定を以下4つのインスタンスパラメータとして読み取り、残りの選択要素へコピーします:
@@ -43,7 +43,7 @@ python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210
 `RebarHookType` の elementId を既知の場合:
 
 ```powershell
-python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210 --hook-type-id 4857530 --start-rot-deg 0 --end-rot-deg 180
+python Scripts/Reference/rebar_set_hooks_and_rotations_on_selection.py --port 5210 --hook-type-id 4857530 --start-rot-deg 0 --end-rot-deg 180
 ```
 
 重要:
@@ -53,7 +53,7 @@ python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210
 ## 3) 検証とログ
 
 スクリプトは自動的に検証し、結果を次に保存します:
-- `Work/RevitMcp/<port>/rebar_hooks_apply_*.json`
+- `Projects/RevitMcp/<port>/rebar_hooks_apply_*.json`
 
 ## 次: 柱/梁パラメータと配筋方法の突合せへ
 
@@ -78,5 +78,9 @@ python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210
 ホスト要素を選択して以下を実行します:
 
 ```powershell
-python Manuals/Scripts/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug
+python Scripts/Reference/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug
 ```
+
+
+
+

@@ -14,7 +14,7 @@
 - .NET Framework 4.8 Developer Pack
 - Autodesk Revit 2023 または 2024（RevitAPI.dll / RevitAPIUI.dll）
 
-※ Revit 2025 は .NET Framework 4.8 ではビルドできないため、別途 `Codex/Manuals/Revit2025_NET8_Migration_JA.md` を参照してください。
+※ Revit 2025 は .NET Framework 4.8 ではビルドできないため、別途 `Docs/Manuals/Revit2025_NET8_Migration_JA.md` を参照してください。
 
 ---
 

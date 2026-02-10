@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 chcp 65001 > $null
 
 function Resolve-WorkDir([int]$p){
-  $root = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+  $root = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
   $dirs = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($dirs){ $chosen = ($dirs | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $dirs | Select-Object -First 1 } }
@@ -149,3 +149,5 @@ $outFile = Join-Path $outDir ("selected_instance_parameters_diff_{0}_vs_{1}.json
 
 Write-Host "Saved diff: $outFile" -ForegroundColor Green
 Write-Host ("Paired: {0}, Changed: {1}, OnlyA: {2}, OnlyB: {3}" -f ($pairs.Count), $diffDetails.Count, $onlyA.Count, $onlyB.Count) -ForegroundColor Yellow
+
+

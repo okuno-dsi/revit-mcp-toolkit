@@ -13,7 +13,7 @@ This runbook assumes:
 Select one or more hosts (Structural Columns / Structural Framing), then run:
 
 ```powershell
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command rebar_regenerate_delete_recreate --params "{""useSelectionIfEmpty"":true,""deleteMode"":""tagged_only"",""tag"":""RevitMcp:AutoRebar"",""options"":{""tagComments"":""RevitMcp:AutoRebar""}}"
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command rebar_regenerate_delete_recreate --params "{""useSelectionIfEmpty"":true,""deleteMode"":""tagged_only"",""tag"":""RevitMcp:AutoRebar"",""options"":{""tagComments"":""RevitMcp:AutoRebar""}}"
 ```
 
 Notes:
@@ -29,7 +29,7 @@ Notes:
 3. Run:
 
 ```powershell
-python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210
+python Scripts/Reference/rebar_set_hooks_and_rotations_on_selection.py --port 5210
 ```
 
 Behavior:
@@ -45,7 +45,7 @@ Behavior:
 If you already know the `RebarHookType` elementId:
 
 ```powershell
-python Manuals/Scripts/rebar_set_hooks_and_rotations_on_selection.py --port 5210 --hook-type-id 4857530 --start-rot-deg 0 --end-rot-deg 180
+python Scripts/Reference/rebar_set_hooks_and_rotations_on_selection.py --port 5210 --hook-type-id 4857530 --start-rot-deg 0 --end-rot-deg 180
 ```
 
 Important: Revit may normalize `180°` to `0°` for some angle parameters.  
@@ -54,7 +54,7 @@ This script applies a safe workaround by setting `179.999°` when `180°` is req
 ## 3) Verify quickly
 
 The script automatically verifies and logs the result under:
-- `Work/RevitMcp/<port>/rebar_hooks_apply_*.json`
+- `Projects/RevitMcp/<port>/rebar_hooks_apply_*.json`
 
 ## Next: align host parameters ↔ rebar behavior
 
@@ -66,10 +66,14 @@ Before building a “parameter-to-rebar” validation table, it’s recommended 
 Select host(s) and run:
 
 ```powershell
-python Manuals/Scripts/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug
+python Scripts/Reference/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug
 ```
 
 Then compare:
 - `rebar_mapping_resolve` results
 - `rebar_plan_auto` (planned curves/layout)
 - actual created rebars + their parameters/layout
+
+
+
+

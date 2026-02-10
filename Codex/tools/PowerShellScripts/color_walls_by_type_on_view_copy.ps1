@@ -179,3 +179,4 @@ foreach($tn in (@($groups.Keys) | Sort-Object)){
 }
 
 Write-Host ("Done. View colored by wall type. New viewId={0}" -f $viewId) -ForegroundColor Green
+

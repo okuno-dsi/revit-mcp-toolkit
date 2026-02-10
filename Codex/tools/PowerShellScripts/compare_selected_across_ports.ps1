@@ -138,8 +138,8 @@ try{
   }
 
   $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-  $outj = Join-Path (Resolve-Path (Join-Path $SCRIPT_DIR '..\\..')).Path ("Work/selected_pair_diff_"+$ts+".json")
-  $outc = Join-Path (Resolve-Path (Join-Path $SCRIPT_DIR '..\\..')).Path ("Work/selected_pair_diff_"+$ts+".csv")
+  $outj = Join-Path (Resolve-Path (Join-Path $SCRIPT_DIR '..\\..')).Path ("Projects/selected_pair_diff_"+$ts+".json")
+  $outc = Join-Path (Resolve-Path (Join-Path $SCRIPT_DIR '..\\..')).Path ("Projects/selected_pair_diff_"+$ts+".csv")
   $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $outj -Encoding UTF8
   # CSV（差分のみ）
   $rows = @()
@@ -154,6 +154,8 @@ catch{
   Write-Error $_
   exit 1
 }
+
+
 
 
 

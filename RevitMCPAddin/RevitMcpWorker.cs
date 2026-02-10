@@ -602,6 +602,8 @@ namespace RevitMCPAddin
                 new PinElementsCommand(),
                 new JoinElementsCommand(),
                 new UnjoinElementsCommand(),
+                new CutElementsCommand(),
+                new UncutElementsCommand(),
                 new AreElementsJoinedCommand(),
                 new SwitchJoinOrderCommand(),
                 new GetJoinedElementsCommand(),

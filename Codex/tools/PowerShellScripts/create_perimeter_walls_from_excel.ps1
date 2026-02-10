@@ -68,3 +68,4 @@ $r4 = New-Wall -x1 0 -y1 $Hmm -x2 0 -y2 0
 $summary = [pscustomobject]@{ ok = ($r1.ok -and $r2.ok -and $r3.ok -and $r4.ok); edge1=$r1; edge2=$r2; edge3=$r3; edge4=$r4 }
 $summary | ConvertTo-Json -Depth 12
 
+

@@ -17,6 +17,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.UI;
+using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.UI.PythonRunner
 {
@@ -127,14 +128,23 @@ namespace RevitMCPAddin.UI.PythonRunner
         private void OpenScript()
         {
             StartOutputGroup();
-            var dlg = new OpenFileDialog
+            try
             {
-                Filter = "Python (*.py)|*.py|All files (*.*)|*.*",
-                InitialDirectory = GetDefaultFolder()
-            };
+                var folder = ResolveDialogFolder();
+                var dlg = new OpenFileDialog
+                {
+                    Filter = "Python (*.py)|*.py|All files (*.*)|*.*"
+                };
+                if (!string.IsNullOrWhiteSpace(folder))
+                    dlg.InitialDirectory = folder;
 
-            if (dlg.ShowDialog(this) != true) return;
-            LoadScriptFromPath(dlg.FileName);
+                if (dlg.ShowDialog(this) != true) return;
+                LoadScriptFromPath(dlg.FileName);
+            }
+            catch (Exception ex)
+            {
+                AppendOutput("Open failed: " + ex.Message);
+            }
         }
 
         private void LoadCodexScript()
@@ -159,13 +169,12 @@ namespace RevitMCPAddin.UI.PythonRunner
 
         private void SaveScriptAs()
         {
-            var folder = GetDefaultFolder();
-            Directory.CreateDirectory(folder);
+            var folder = ResolveDialogFolder();
 
             var dlg = new SaveFileDialog
             {
                 Filter = "Python (*.py)|*.py|All files (*.*)|*.*",
-                InitialDirectory = folder,
+                InitialDirectory = string.IsNullOrWhiteSpace(folder) ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : folder,
                 FileName = $"script_{DateTime.Now:yyyyMMdd_HHmmss}.py"
             };
 
@@ -284,7 +293,13 @@ namespace RevitMCPAddin.UI.PythonRunner
                     return;
                 }
 
-                await StartProcessAsync(pythonExe, runPath, port);
+                var rawArgs = (TxtArgs?.Text ?? string.Empty).Trim();
+                var rewrittenArgs = RewritePortArgs(rawArgs, port, out var argHits2);
+                if (argHits2 > 0)
+                {
+                    AppendOutput($"Rewrite args: {argHits2} -> {port}");
+                }
+                await StartProcessAsync(pythonExe, runPath, port, rewrittenArgs);
             }
             catch (Exception ex)
             {
@@ -297,13 +312,14 @@ namespace RevitMCPAddin.UI.PythonRunner
             }
         }
 
-        private async Task StartProcessAsync(string pythonExe, string scriptPath, int port)
+        private async Task StartProcessAsync(string pythonExe, string scriptPath, int port, string argsText)
         {
             var scriptDir = Path.GetDirectoryName(scriptPath) ?? GetDefaultFolder();
+            var extraArgs = string.IsNullOrWhiteSpace(argsText) ? "" : (" " + argsText);
             var psi = new ProcessStartInfo
             {
                 FileName = pythonExe,
-                Arguments = "-u \"" + scriptPath + "\"",
+                Arguments = "-u \"" + scriptPath + "\"" + extraArgs,
                 WorkingDirectory = scriptDir,
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -405,6 +421,34 @@ namespace RevitMCPAddin.UI.PythonRunner
         private string GetDefaultFolder()
         {
             return _defaultScriptsRoot;
+        }
+
+        private string ResolveDialogFolder()
+        {
+            string folder = "";
+            try
+            {
+                folder = GetDefaultFolder();
+                if (string.IsNullOrWhiteSpace(folder))
+                    folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+                // Normalize & validate (avoid OpenFileDialog "value out of range")
+                folder = Path.GetFullPath(folder);
+                if (folder.Length > 240) // avoid MAX_PATH issues in dialog
+                    throw new IOException("path too long");
+
+                var invalid = Path.GetInvalidPathChars();
+                if (folder.IndexOfAny(invalid) >= 0)
+                    throw new IOException("invalid path chars");
+
+                Directory.CreateDirectory(folder);
+                return folder;
+            }
+            catch (Exception ex)
+            {
+                AppendOutput("Open: default folder invalid, fallback to Documents. " + ex.Message);
+                return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            }
         }
 
         private string SaveRunCopy(string scriptText)
@@ -861,6 +905,29 @@ namespace RevitMCPAddin.UI.PythonRunner
             return rewritten;
         }
 
+        private static string RewritePortArgs(string argsText, int port, out int argCount)
+        {
+            var argHits = 0;
+            if (string.IsNullOrWhiteSpace(argsText))
+            {
+                argCount = 0;
+                return argsText ?? string.Empty;
+            }
+
+            var argRx = new Regex(@"(?i)\b(--port)(?:=|\s+)(\d{2,5})\b");
+            var rewritten = argRx.Replace(argsText, m =>
+            {
+                var oldPort = m.Groups[2].Value;
+                if (oldPort == port.ToString(CultureInfo.InvariantCulture)) return m.Value;
+                argHits++;
+                var sep = m.Value.Contains("=") ? "=" : " ";
+                return m.Groups[1].Value + sep + port.ToString(CultureInfo.InvariantCulture);
+            });
+
+            argCount = argHits;
+            return rewritten;
+        }
+
         private static string DedentCommonLeadingWhitespace(string text)
         {
             if (string.IsNullOrEmpty(text)) return text ?? "";
@@ -930,8 +997,8 @@ namespace RevitMCPAddin.UI.PythonRunner
             var workRoot = ResolveWorkRoot();
             if (string.IsNullOrWhiteSpace(workRoot)) return null;
 
-            var workDir = Path.Combine(workRoot, "Work");
-            if (!Directory.Exists(workDir)) return null;
+            var workDir = workRoot;
+            if (string.IsNullOrWhiteSpace(workDir) || !Directory.Exists(workDir)) return null;
 
             var dirs = Directory.GetDirectories(workDir);
             if (!string.IsNullOrWhiteSpace(docKey))
@@ -954,23 +1021,7 @@ namespace RevitMCPAddin.UI.PythonRunner
 
         private static string? ResolveWorkRoot()
         {
-            var env1 = Environment.GetEnvironmentVariable("REVIT_MCP_WORK_ROOT");
-            if (!string.IsNullOrWhiteSpace(env1) && Directory.Exists(env1)) return env1;
-
-            var env2 = Environment.GetEnvironmentVariable("CODEX_MCP_ROOT");
-            if (!string.IsNullOrWhiteSpace(env2) && Directory.Exists(env2)) return env2;
-
-            var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            if (!string.IsNullOrWhiteSpace(docs))
-            {
-                var p1 = Path.Combine(docs, "Codex_MCP", "Codex");
-                if (Directory.Exists(p1)) return p1;
-
-                var p2 = Path.Combine(docs, "Codex");
-                if (Directory.Exists(p2)) return p2;
-            }
-
-            return null;
+            return Paths.ResolveWorkRoot();
         }
 
         private static string SanitizePathSegment(string name)

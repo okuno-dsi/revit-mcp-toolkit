@@ -16,7 +16,7 @@ Update Steps (when commands are added/removed)
    - `GET http://127.0.0.1:<PORT>/debug/capabilities`
    - Or `list_commands { namesOnly:true }` (canonical only)
 1. Refresh the live command names (namesOnly):
-   - `python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file list_commands_names.json`
+   - `python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command list_commands --params '{"namesOnly":true}' --output-file list_commands_names.json`
    - Alternatively place an array of names in available_commands.json`.
 2. (Optional / legacy) If you still maintain `Manuals/Commands/commands_index.json`, update it manually or regenerate it from `/debug/capabilities`.
 
@@ -76,3 +76,6 @@ Command availability & versioning
 ## New (Type Rename Helpers)
 - `rename_types_by_parameter`: Flexible, rule‑based rename for ElementTypes using a parameter value (supports tokens `{value}/{display}/{display_no_space}`, idempotent prefixes, paging, and dry‑run). See Rename_Types_By_Parameter_EN.md.
 - `rename_types_bulk`: Explicit list mapping for high‑throughput renames (single slice transaction; conflict policy `skip|appendNumber|fail`; dry‑run). See Rename_Types_Bulk_EN.md.
+
+
+

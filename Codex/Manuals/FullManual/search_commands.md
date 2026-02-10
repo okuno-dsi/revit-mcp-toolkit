@@ -85,7 +85,7 @@ Notes:
 ```
 
 ### Smoke Test Script
-- `Manuals/Scripts/test_terminology_routing.ps1 -Port 5210`
+- `Scripts/Reference/test_terminology_routing.ps1 -Port 5210`
 
 ## Related
 - start_command_logging
@@ -132,3 +132,6 @@ Notes:
   "additionalProperties": true
 }
 ```
+
+
+

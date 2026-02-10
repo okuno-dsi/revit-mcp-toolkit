@@ -23,14 +23,14 @@
 
 例（HTTP シンプルルート）
 - PowerShell
-  - `Invoke-RestMethod 'http://127.0.0.1:5210/rpc/export_dashboard_html' -Method Post -ContentType 'application/json; charset=utf-8' -Body (@{ outDir = '%USERPROFILE%\Documents\VS2022\Ver441\Codex\Work\DashboardOut' } | ConvertTo-Json -Compress)`
+  - `Invoke-RestMethod 'http://127.0.0.1:5210/rpc/export_dashboard_html' -Method Post -ContentType 'application/json; charset=utf-8' -Body (@{ outDir = '%USERPROFILE%\Documents\VS2022\Ver441\Codex\Projects\\DashboardOut' } | ConvertTo-Json -Compress)`
 
 例（JSON-RPC）
 - PowerShell
-  - `Invoke-RestMethod 'http://127.0.0.1:5210/rpc' -Method Post -ContentType 'application/json; charset=utf-8' -Body (@{ jsonrpc='2.0'; id='1'; method='export_dashboard_html'; params=@{ outDir='%USERPROFILE%\Documents\VS2022\Ver441\Codex\Work\DashboardOut' } } | ConvertTo-Json -Compress)`
+  - `Invoke-RestMethod 'http://127.0.0.1:5210/rpc' -Method Post -ContentType 'application/json; charset=utf-8' -Body (@{ jsonrpc='2.0'; id='1'; method='export_dashboard_html'; params=@{ outDir='%USERPROFILE%\Documents\VS2022\Ver441\Codex\Projects\\DashboardOut' } } | ConvertTo-Json -Compress)`
 
 JSONL 一行例
-- `{ "jsonrpc":"2.0","id":"1","method":"export_dashboard_html","params":{"outDir":"C:\\Users\\okuno\\Documents\\VS2022\\Ver441\\Codex\\Work\\DashboardOut"} }`
+- `{ "jsonrpc":"2.0","id":"1","method":"export_dashboard_html","params":{"outDir":"%USERPROFILE%\\Documents\\VS2022\\Ver441\\Codex\\Projects\\\DashboardOut"} }`
 
 ---
 ## トラブルシュート
@@ -41,3 +41,4 @@ JSONL 一行例
 
 参考
 - 集計表の書き出しは `Manuals/Schedule_Exports_Guide_JA.md` を参照してください（CSV/Excel）。
+

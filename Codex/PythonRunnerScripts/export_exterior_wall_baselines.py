@@ -79,7 +79,7 @@ def main(argv: List[str]) -> int:
     ap.add_argument(
         "--output-json",
         type=str,
-        default="Work/tmp_exterior_wall_baselines.json",
+        default="Projects/tmp_exterior_wall_baselines.json",
         help="書き出し先 JSON パス（Codex ルート基準）",
     )
     args = ap.parse_args(argv)
@@ -143,4 +143,5 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
 

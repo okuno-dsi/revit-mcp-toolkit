@@ -177,8 +177,8 @@ def main(argv: List[str]) -> int:
         )
     )
     ap.add_argument("--port", type=int, default=_default_port(), help="Revit MCP ポート番号 (env: REVIT_MCP_PORT)")
-    ap.add_argument("--out-json", type=str, default="", help="出力JSONパス（省略時は Work/RevitMcp/<port>/ に保存）")
-    ap.add_argument("--out-csv", type=str, default="", help="出力CSVパス（省略時は Work/RevitMcp/<port>/ に保存）")
+    ap.add_argument("--out-json", type=str, default="", help="出力JSONパス（省略時は Projects/RevitMcp/<port>/ に保存）")
+    ap.add_argument("--out-csv", type=str, default="", help="出力CSVパス（省略時は Projects/RevitMcp/<port>/ に保存）")
     ap.add_argument(
         "--include-values",
         action="store_true",
@@ -417,3 +417,4 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+

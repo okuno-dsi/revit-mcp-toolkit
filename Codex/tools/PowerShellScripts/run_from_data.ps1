@@ -4,7 +4,7 @@ param(
   [string]$Path
 )
 
-if(-not $Path){ throw 'Path to data JSON file is required (e.g., Work/建物1/data1.txt)' }
+if(-not $Path){ throw 'Path to data JSON file is required (e.g., Projects/建物1/data1.txt)' }
 chcp 65001 > $null
 $ErrorActionPreference = 'Stop'
 $durable = Join-Path $PSScriptRoot 'send_revit_command_durable.py'
@@ -110,3 +110,5 @@ foreach($s in $steps){
 }
 
 Write-Host "Done." -ForegroundColor Green
+
+

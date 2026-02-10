@@ -16,7 +16,7 @@ $SCRIPT_DIR = $PSScriptRoot
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 
 function Resolve-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -42,4 +42,6 @@ if($useEnv){ Write-Host "[Port] Using REVIT_MCP_PORT=$Port" -ForegroundColor Dar
 $outPath = Join-Path $LOGS 'set_view_workspace_autosave.json'
 Write-Host "[set_view_workspace_autosave] -> $outPath" -ForegroundColor Cyan
 python $PY --port $Port --command set_view_workspace_autosave --params $json --output-file $outPath
+
+
 

@@ -35,6 +35,11 @@
 |`markParam`|object|任意|空|G/B 判定に使う「梁タイプパラメータ」の指定（柔軟指定）。未指定時は `"ХДНЖ"` → タイプ名の順でフォールバック。|
 |`braceTypes`|object[]|必須|—|UIで選べるブレースタイプ一覧。各要素 `{code,symbol,typeName,familyName?}`。UI表示は `symbol:typeName`。|
 |`defaultBraceTypeCode`|string|任意|braceTypes先頭|UIの初期選択タイプ。|
+|`braceTypeFilterParam`|object|任意|空|**ブレースタイプ絞り込み用のパラメータ指定**（ParamResolver形式）。例: `{ "paramName": "符号" }`。|
+|`braceTypeContains`|string[]|任意|空|ブレースタイプを **含むトークンで絞り込み**。`braceTypeFilterParam` があればその値、なければ符号/Type Mark/TypeName を参照。|
+|`braceTypeExclude`|string[]|任意|空|ブレースタイプの **除外トークン**。|
+|`braceTypeFamilyContains`|string[]|任意|空|**ファミリ名**に含むトークンで絞り込み。|
+|`braceTypeNameContains`|string[]|任意|空|**タイプ名**に含むトークンで絞り込み。|
 |`zOffsetMm`|double|任意|0.0|配置ブレースの Z オフセット（mm）。|
 |`dryRun`|bool|任意|false|true の場合は UI/計画作成のみで配置しない。|
 
@@ -100,6 +105,17 @@
   "defaultBraceTypeCode": "HV2",
   "zOffsetMm": 0.0,
   "dryRun": true
+}
+```
+
+#### 4) ブレースタイプの絞り込み（ファミリ名・タイプ名）
+```json
+{
+  "levelName": "2FL",
+  "gridSource": "selection",
+  "gridElementIds": [101,102,103],
+  "braceTypeFamilyContains": ["ﾌﾞﾚｰｽ"],
+  "braceTypeNameContains": ["L"]
 }
 ```
 

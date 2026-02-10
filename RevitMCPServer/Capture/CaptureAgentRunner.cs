@@ -57,8 +57,6 @@ namespace RevitMcpServer.Capture
                 var candidates = new[]
                 {
                     Path.Combine(baseDir, "capture-agent", "RevitMcp.CaptureAgent.exe"),
-                    Path.Combine(baseDir, "CaptureAgent", "RevitMcp.CaptureAgent.exe"),
-                    Path.Combine(baseDir, "RevitMcp.CaptureAgent.exe"),
                 };
                 string? lastReason = null;
                 foreach (var c in candidates)
@@ -74,8 +72,7 @@ namespace RevitMcpServer.Capture
 
                 error =
                     "CaptureAgent executable not found (or invalid). " +
-                    "Build RevitMcp.CaptureAgent and ensure it is deployed next to the server " +
-                    "(capture-agent\\RevitMcp.CaptureAgent.exe + RevitMcp.CaptureAgent.dll), " +
+                    "Ensure capture-agent\\RevitMcp.CaptureAgent.exe + RevitMcp.CaptureAgent.dll are deployed, " +
                     "or set REVIT_MCP_CAPTURE_AGENT_EXE. " +
                     (string.IsNullOrWhiteSpace(lastReason) ? "" : ("Last reason: " + lastReason));
                 return null;

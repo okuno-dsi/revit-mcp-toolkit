@@ -17,7 +17,7 @@ Key Paths
 - Server: `AutoCadMcpServer`
 - Template: `AutoCadMcpServer/Scripts/merge_template.scr`
 - Tools: `AutoCadMcpServer/tools`
-- Sample inputs: `Work/AutoCadOut`
+- Sample inputs: `Projects/AutoCadOut`
 - Default staging roots: `C:/CadJobs/Staging`, `C:/Temp/CadJobs/Staging`
 
 Run the Server
@@ -41,7 +41,7 @@ JSON?RPC Endpoint
 
 Example (via file path body)
 
-- Body: `%USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut\command.txt`
+- Body: `%USERPROFILE%\Documents\VS2022\Ver421\Codex\Projects\\AutoCadOut\command.txt`
 
 Example (raw JSON body)
 
@@ -50,12 +50,12 @@ Example (raw JSON body)
   "jsonrpc": "2.0", "id": "dxfmap-001", "method": "merge_dwgs_dxf_textmap",
   "params": {
     "inputs": [
-      "C:/.../Work/AutoCadOut/walls_A.dwg",
-      "C:/.../Work/AutoCadOut/walls_B.dwg",
-      "C:/.../Work/AutoCadOut/walls_C.dwg",
-      "C:/.../Work/AutoCadOut/walls_D.dwg"
+      "C:/.../Projects/AutoCadOut/walls_A.dwg",
+      "C:/.../Projects/AutoCadOut/walls_B.dwg",
+      "C:/.../Projects/AutoCadOut/walls_C.dwg",
+      "C:/.../Projects/AutoCadOut/walls_D.dwg"
     ],
-    "output": "C:/.../Work/AutoCadOut/Merged/merged.dwg",
+    "output": "C:/.../Projects/AutoCadOut/Merged/merged.dwg",
     "rename": { "include": ["A-WALL-____-MCUT"], "format": "{old}_{stem}" },
     "accore": {
       "path": "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe",
@@ -79,7 +79,7 @@ Request Parameters
     - Example: `{old}_{stem}` �� `A-WALL-____-MCUT_walls_A`.
 - `accore` (optional to run headless):
   - `path`: full path to `accoreconsole.exe`.
-  - `seed`: seed DWG to open; if missing/unavailable, the server uses `Work/AutoCadOut/seed.dwg` or the first input DWG.
+  - `seed`: seed DWG to open; if missing/unavailable, the server uses `Projects/AutoCadOut/seed.dwg` or the first input DWG.
   - `locale`: e.g., `en-US`.
   - `timeoutMs`: run timeout; default 180000.
 - `stagingPolicy`:
@@ -105,7 +105,7 @@ What the Server Does
 
 3) Headless run (optional)
 - If `accore` is present, the server runs `accoreconsole.exe` without opening another console.
-- Logs go to `<jobId>/logs/accore_console.txt` and `Work/AutoCadOut/console_out.txt`.
+- Logs go to `<jobId>/logs/accore_console.txt` and `Projects/AutoCadOut/console_out.txt`.
 - Response includes `run` with `exitCode`, `timedOut`, and `outputExists`.
 
 Result Lookup
@@ -126,26 +126,26 @@ Troubleshooting
 
 - Port in use: stop the other listener on 5251 or run with `--urls`.
 - Accore path invalid: set `accore.path` to the installed version (e.g., AutoCAD 2026 path).
-- Seed missing: provide a valid `seed` or place `Work/AutoCadOut/seed.dwg`.
+- Seed missing: provide a valid `seed` or place `Projects/AutoCadOut/seed.dwg`.
 - Timeout: increase `accore.timeoutMs` for large models.
 - Logs encoding: logs are UTF?8 with BOM; open in a Unicode?capable editor.
 
 Lingering Core Console (accoreconsole.exe)
 - If a previous headless run did not exit, you may need to kill `accoreconsole.exe` before starting a new job.
 - Quick kill:
-  - `pwsh -File Codex/Manuals/Scripts/kill_accoreconsole.ps1`
+  - `pwsh -File Codex/Scripts/Reference/kill_accoreconsole.ps1`
   - Or: `Get-Process accoreconsole -ErrorAction SilentlyContinue | Stop-Process -Force`
 - Consider adding a job timeout (`accore.timeoutMs`) and ensuring scripts use non?interactive commands (e.g., `._` prefixes, `EXPERT 5`).
 
 Lingering AutoCAD (acad.exe)
 - If GUI AutoCAD was launched for diagnostics and remained open or hung, kill it before running headless jobs.
 - Quick kill:
-  - `pwsh -File Codex/Manuals/Scripts/kill_cad_processes.ps1 -IncludeAcad`
+  - `pwsh -File Codex/Scripts/Reference/kill_cad_processes.ps1 -IncludeAcad`
   - Or: `Get-Process acad -ErrorAction SilentlyContinue | Stop-Process -Force`
 
 Collecting Logs (support bundle)
 - To gather recent Core Console logs (.scr and console text) next to your export folder:
-  - `pwsh -File Codex/Manuals/Scripts/collect_accore_logs.ps1 -ExportDir ".../Export_YYYYMMDD_HHMMSS" -IncludeLayerList`
+  - `pwsh -File Codex/Scripts/Reference/collect_accore_logs.ps1 -ExportDir ".../Export_YYYYMMDD_HHMMSS" -IncludeLayerList`
 - Attach the created `AccoreLogs_*` folder when reporting issues.
 
 Operational Notes
@@ -167,12 +167,12 @@ Operational Notes
   - Mitigation: set `accore.timeoutMs` (e.g., `900000` = 15 minutes), or split inputs into smaller batches.
 
 - Seed DWG
-  - If `accore.seed` is missing, the server attempts `Work/AutoCadOut/seed.dwg`, then falls back to the first input DWG.
+  - If `accore.seed` is missing, the server attempts `Projects/AutoCadOut/seed.dwg`, then falls back to the first input DWG.
   - Mitigation: keep a small, trusted seed DWG at a known path (e.g., `C:/Seed/empty_seed.dwg`) and reference it explicitly.
 
 - Output path and permissions
   - The server creates the output directory if needed, but the directory must be writable by the service user.
-  - Mitigation: target user?writable locations (e.g., under `Work/AutoCadOut`) and avoid protected folders.
+  - Mitigation: target user?writable locations (e.g., under `Projects/AutoCadOut`) and avoid protected folders.
 
 - Parallel servers and port conflicts
   - Default bind: `http://127.0.0.1:5251`. Running multiple instances on the same port causes conflicts.
@@ -228,9 +228,9 @@ Security Notes
 Fallback (No Server)
 
 - If you only need to merge two files like `B.dwg` and `G.dwg` onto layers `B` and `G` inside a seed drawing, you may skip the server and use the Core Console helper script:
-  - `Manuals/Scripts/merge_bg_from_seed.ps1`
+  - `Scripts/Reference/merge_bg_from_seed.ps1`
   - Example:
-    - `pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 -ExportDir "Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale en-US`
+    - `pwsh -File Codex/Scripts/Reference/merge_bg_from_seed.ps1 -ExportDir "Codex/Projects/AutoCadOut/Export_YYYYMMDD_HHMMSS" -Locale en-US`
   - This uses INSERT+EXPLODE and entity?level layer reassignment (entlast?based) to avoid XREF+BIND fragility in some environments.
 
 Reference Core Console Script (per-file rename)
@@ -288,3 +288,7 @@ Reference Core Console Script (per-file rename)
   - A `relayer` LISP that renames layers by wildcard while skipping `0` and `DEFPOINTS`.
   - `INSERT`+`EXPLODE` per input DWG at the origin, followed by a per-file suffix (e.g. `_seed_beam`, `_wall`) on matching layer names.
   - PURGE/AUDIT and a final `SAVEAS` to the requested output path.
+
+
+
+

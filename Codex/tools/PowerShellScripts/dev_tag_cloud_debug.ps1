@@ -14,7 +14,7 @@ chcp 65001 > $null
 $env:PYTHONUTF8='1'
 
 $PY = Join-Path $PSScriptRoot 'send_revit_command_durable.py'
-$outDir = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path ("Work/RevisionCloud_Debug/{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+$outDir = Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path ("Projects/RevisionCloud_Debug/{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 function Call($method, $params, $outfile){
@@ -61,4 +61,6 @@ $rectOut = Join-Path $outDir 'create_revision_cloud_rect.json'
 Call 'create_revision_cloud' @{ viewId=$viewId; revisionId=$revId; curveLoops=@($loop) } $rectOut
 
 Write-Host "Saved to $outDir" -ForegroundColor Green
+
+
 

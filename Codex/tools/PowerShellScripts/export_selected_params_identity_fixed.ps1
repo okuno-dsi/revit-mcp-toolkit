@@ -55,7 +55,7 @@ $inv = [IO.Path]::GetInvalidFileNameChars() -join ''
 $re = New-Object System.Text.RegularExpressions.Regex("["+[RegEx]::Escape($inv)+"]")
 $projectName = $re.Replace($projectName,'_')
 
-$workRoot = (Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')).Path
+$workRoot = (Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')).Path
 $projDir = Join-Path $workRoot ("{0}_{1}" -f $projectName,$Port)
 $logs = Join-Path $projDir 'Logs'
 if(!(Test-Path $logs)){ [void](New-Item -ItemType Directory -Path $logs) }
@@ -137,3 +137,5 @@ foreach($eid in $ElementIds){
 }
 
 Write-Host ("Saved: " + (Resolve-Path $csv).Path)
+
+

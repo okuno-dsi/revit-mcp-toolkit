@@ -221,3 +221,4 @@ $resL = Cloud-Ids -Port $LeftPort -ViewId $Lview -Ids $idsL -RevId $revL -Visibl
 $resR = Cloud-Ids -Port $RightPort -ViewId $Rview -Ids $idsR -RevId $revR -VisibleSet $visR -Centroids $centR
 
 Write-Host ("Clouds created. Left ok="+$resL.ok+" fail="+$resL.fail+" | Right ok="+$resR.ok+" fail="+$resR.fail) -ForegroundColor Green
+

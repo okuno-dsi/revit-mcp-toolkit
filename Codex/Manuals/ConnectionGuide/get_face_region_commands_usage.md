@@ -8,11 +8,11 @@
 
 ## 前提
 - Revit 側アドインに接続可能: `http://localhost:5210`
-- 本リポジトリの `Manuals/Scripts/send_revit_command_durable.py` を使用
+- 本リポジトリの `Scripts/Reference/send_revit_command_durable.py` を使用
 - 例は Python 実行。Windows PowerShell での実行を想定
 
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command <method> --params '{...}' [--output-file <path>]
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command <method> --params '{...}' [--output-file <path>]
 ```
 
 ## フェイスの特定（faceIndex）
@@ -21,7 +21,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command <meth
 
 例（要素ID 61124693 の床の全フェイス）:
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_paint_info \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_paint_info \
   --params '{"elementId":61124693,"includeUnpainted":true}' \
   --output-file data/floor_61124693_paint_info.json
 ```
@@ -48,7 +48,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_p
 
 - 実行例（床ID=61124693, トップ面=faceIndex 1, 境界あり・メッシュなし）
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_face_regions \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_face_regions \
   --params '{
     "elementId":61124693,
     "faceIndex":1,
@@ -86,7 +86,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_f
 
 - 実行例（最小面積リージョン index=2 の詳細）
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_face_region_detail \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_face_region_detail \
   --params '{
     "elementId":61124693,
     "faceIndex":1,
@@ -119,7 +119,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_f
 
 - 実行例（faceIndex=1 のリージョン内訳と集計）
 ```bash
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_face_region_takeoff \
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_face_region_takeoff \
   --params '{
     "elementId":61124693,
     "faceIndex":1,
@@ -155,4 +155,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_f
 - `data/floor_61124693_region2_takeoff.json`
 
 上記を雛形として、別要素・別フェイスでもパラメータを差し替えて実行できます。
+
+
+
 

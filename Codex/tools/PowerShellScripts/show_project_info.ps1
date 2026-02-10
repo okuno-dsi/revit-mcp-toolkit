@@ -18,7 +18,7 @@ $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
 function Ensure-ProjectDirByName([string]$projName, [int]$p){
-  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   # Prefer exact match directory under Work
   $cand = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -eq $projName }
@@ -75,7 +75,7 @@ if([string]::IsNullOrWhiteSpace($projectName)){
 $dirs = Ensure-ProjectDirByName -projName $projectName -p $Port
 Write-Host ("[Project] {0} -> {1}" -f $projectName, $dirs.Root) -ForegroundColor Cyan
 
-# 2) Save details under Work/<ProjectName*>
+# 2) Save details under Projects/<ProjectName*>
 $projPath = Join-Path $dirs.Logs 'project_info.json'
 $openPath = Join-Path $dirs.Logs 'open_documents.json'
 $viewPath = Join-Path $dirs.Logs 'current_view.json'
@@ -110,4 +110,6 @@ if($VerboseInfo){
   Write-Host ("  - {0}" -f $openPath)
   Write-Host ("  - {0}" -f $viewPath)
 }
+
+
 

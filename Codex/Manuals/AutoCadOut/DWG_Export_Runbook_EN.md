@@ -11,24 +11,24 @@ Prerequisites
 One‑Shot (Recommended)
 - Latest Project_* auto‑detected under `Codex/Work`:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 - Specify project folder explicitly:
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Work\Project_5211_20251021_125656" `
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 `
+  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 - Auto‑merge in AutoCAD (requires AutoCadMCP at 5251):
 ```
-pwsh -File Codex/Manuals/Scripts/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -AutoMerge -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 
 Outputs
-- `Codex/Work/Project_…/DWG/seed.dwg` (walls hidden, non‑walls only)
-- `Codex/Work/Project_…/DWG/walls_<TYPE>.dwg` (one per wall type)
-- `Codex/Work/Project_…/DWG/command.txt` (AutoCAD merge payload)
-- `Codex/Work/Project_…/DWG/Merged/walls_types_merged.dwg` (when -AutoMerge)
+- `Codex/Projects/Project_…/DWG/seed.dwg` (walls hidden, non‑walls only)
+- `Codex/Projects/Project_…/DWG/walls_<TYPE>.dwg` (one per wall type)
+- `Codex/Projects/Project_…/DWG/command.txt` (AutoCAD merge payload)
+- `Codex/Projects/Project_…/DWG/Merged/walls_types_merged.dwg` (when -AutoMerge)
 
 Optional (COM merge, AutoCAD running)
 - If AutoCadMCP is not available, you can merge DWGs with AutoCAD COM:
@@ -37,9 +37,9 @@ Optional (COM merge, AutoCAD running)
   - Example:
 ```
 python Tools/AutoCad/merge_dwgs_by_map_com.py \
-  --source-dir "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg" \
-  --out-dwg "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\MERGED_DWG_COM.dwg" \
-  --map-csv "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Work\dwg\layermap.csv"
+  --source-dir "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg" \
+  --out-dwg "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg\MERGED_DWG_COM.dwg" \
+  --map-csv "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg\layermap.csv"
 ```
 
 What the Script Does (High Level)
@@ -59,7 +59,7 @@ Performance & Safety Knobs
 Manual Checklist (if not using the script)
 1) Save state:
 ```
-python Codex/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command save_view_state --params "{}" --output-file Codex/Work/<ProjectName>_<Port>/Logs/view_state.json
+python Codex/Scripts/Reference/send_revit_command_durable.py --port 5210 --command save_view_state --params "{}" --output-file Codex/Projects/<ProjectName>_<Port>/Logs/view_state.json
 ```
 2) Export seed:
 - Hide walls (batched calls to `hide_elements_in_view`)
@@ -83,12 +83,12 @@ Purpose
 
 Prerequisites
 - AutoCAD 2026 Core Console installed: `C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe`.
-- Export folder like `Codex/Work/AutoCadOut/Export_YYYYMMDD_HHMMSS` containing `seed.dwg`, `B.dwg`, `G.dwg`.
+- Export folder like `Codex/Projects/AutoCadOut/Export_YYYYMMDD_HHMMSS` containing `seed.dwg`, `B.dwg`, `G.dwg`.
 
 Run
 ```
-pwsh -File Codex/Manuals/Scripts/merge_bg_from_seed.ps1 \
-  -ExportDir "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250" \
+pwsh -File Codex/Scripts/Reference/merge_bg_from_seed.ps1 \
+  -ExportDir "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250" \
   -Locale ja-JP
 ```
 
@@ -99,8 +99,8 @@ Outputs
 Verification (optional)
 - Dump layer names via Core Console to confirm the presence of `B` and `G` layers:
 ```
-pwsh -File Codex/Manuals/Scripts/list_dwg_layers_coreconsole.ps1 \
-  -DwgPath "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Work\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
+pwsh -File Codex/Scripts/Reference/list_dwg_layers_coreconsole.ps1 \
+  -DwgPath "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
   -Locale ja-JP
 ```
 - A `layers.txt` is written next to the DWG or reported in output.
@@ -113,8 +113,8 @@ Troubleshooting
 ### Cleanup: lingering accoreconsole.exe
 - Symptom: Core Console hangs or a previous run leaves `accoreconsole.exe` running.
 - Quick kill (PowerShell):
-  - `pwsh -File Codex/Manuals/Scripts/kill_accoreconsole.ps1`
-  - List only: `pwsh -File Codex/Manuals/Scripts/kill_accoreconsole.ps1 -ListOnly`
+  - `pwsh -File Codex/Scripts/Reference/kill_accoreconsole.ps1`
+  - List only: `pwsh -File Codex/Scripts/Reference/kill_accoreconsole.ps1 -ListOnly`
 - One‑liner alternative:
   - `Get-Process accoreconsole -ErrorAction SilentlyContinue | Stop-Process -Force`
 - Notes:
@@ -124,16 +124,20 @@ Troubleshooting
 ### Cleanup: lingering acad.exe (full AutoCAD)
 - Symptom: GUI AutoCAD remained open or zombie processes block file access.
 - Quick kill (PowerShell):
-  - `pwsh -File Codex/Manuals/Scripts/kill_cad_processes.ps1 -IncludeAcad`
-  - List only: `pwsh -File Codex/Manuals/Scripts/kill_cad_processes.ps1 -ListOnly -IncludeAcad`
+  - `pwsh -File Codex/Scripts/Reference/kill_cad_processes.ps1 -IncludeAcad`
+  - List only: `pwsh -File Codex/Scripts/Reference/kill_cad_processes.ps1 -ListOnly -IncludeAcad`
 - One‑liner alternative:
   - `Get-Process acad -ErrorAction SilentlyContinue | Stop-Process -Force`
 
 ### Collect logs for support
 - Script (copies latest Core Console logs and scripts to the export folder):
-  - `pwsh -File Codex/Manuals/Scripts/collect_accore_logs.ps1 -ExportDir ".../Export_YYYYMMDD_HHMMSS"`
+  - `pwsh -File Codex/Scripts/Reference/collect_accore_logs.ps1 -ExportDir ".../Export_YYYYMMDD_HHMMSS"`
   - Include layer-list jobs too: add `-IncludeLayerList`
 - One‑liner (ad‑hoc):
   - `Get-ChildItem "$env:TEMP/CadJobs" -Recurse -Filter console_*.txt | Sort LastWriteTime -Descending | Select -First 10 | Copy-Item -Destination ".../Export_YYYYMMDD_HHMMSS/AccoreLogs" -Force`
+
+
+
+
 
 

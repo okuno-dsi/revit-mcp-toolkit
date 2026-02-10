@@ -14,7 +14,7 @@ This guide replaces ad-hoc visibility resets with a reliable snapshot/restore fl
 
 1) Save
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command save_view_state --params "{}" --output-file Work/<ProjectName>_<Port>/Logs/view_state.json
+python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command save_view_state --params "{}" --output-file Projects/<ProjectName>_<Port>/Logs/view_state.json
 ```
 - To include element-level hidden IDs: `--params "{\"includeHiddenElements\":true}"`
 
@@ -26,7 +26,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command sav
 # Prepare payload with the captured `state`
 { "viewId": <viewId>, "state": { ... }, "apply": { "template": true, "categories": true, "filters": true, "worksets": true, "hiddenElements": false } }
 
-python Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command restore_view_state --params-file Work/<ProjectName>_<Port>/Logs/view_state_payload.json
+python Scripts/Reference/send_revit_command_durable.py --port <PORT> --command restore_view_state --params-file Projects/<ProjectName>_<Port>/Logs/view_state_payload.json
 ```
 
 Notes
@@ -35,7 +35,11 @@ Notes
 
 ## Tips
 - Pair with `get_elements_in_view(idsOnly)` before/after to validate visible sets.
-- Keep per-view snapshots under `Codex/Work/Project_<port>_<timestamp>/` for traceability.
+- Keep per-view snapshots under `Codex/Projects/Project_<port>_<timestamp>/` for traceability.
 - Avoid repeated server calls by caching frequently used read results.
+
+
+
+
 
 

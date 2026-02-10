@@ -114,3 +114,4 @@ elseif($AllInLatestRevision){
 
 $out = [pscustomobject]@{ ok=$true; port=$Port; viewId=($viewId); scope=$scope; deleted=$deletedTotal; remaining=$remain }
 $out | ConvertTo-Json -Depth 5
+

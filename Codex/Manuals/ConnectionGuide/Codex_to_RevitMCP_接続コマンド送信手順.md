@@ -51,7 +51,7 @@ for ($i=0; $i -lt 30; $i++){ Start-Sleep -Milliseconds 500; $g = Invoke-WebReque
 ### Python クライアント（推奨）
 リポジトリ同梱の汎用クライアントを利用します。
 ```
-chcp 65001 > NUL & python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server
+chcp 65001 > NUL & python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server
 ```
 - 正常時は `result.ok == true` の JSON を出力します。
 
@@ -76,9 +76,12 @@ chcp 65001 > NUL & python Manuals/Scripts/send_revit_command_durable.py --port 5
 - コマンド一覧（抜粋に `ping_server` 例あり）
   - `コマンドハンドラ一覧/Most Important コマンドハンドラ一覧（カテゴリ別）20250901_AI向け.txt`
 - 汎用クライアント
-  - `Manuals/Scripts/send_revit_command_durable.py`
+  - `Scripts/Reference/send_revit_command_durable.py`
 
 ## 再利用（次回以降のCodex作業方針）
 - Revit MCP への接続・疎通確認やコマンド送信が必要になった場合、本手順書（このファイル）を参照して実行します。
-- まず `ping_server` で到達性を確認し、次に目的コマンドを `Manuals/Scripts/send_revit_command_durable.py` もしくは PowerShell 例に沿って送信します。
+- まず `ping_server` で到達性を確認し、次に目的コマンドを `Scripts/Reference/send_revit_command_durable.py` もしくは PowerShell 例に沿って送信します。
+
+
+
 

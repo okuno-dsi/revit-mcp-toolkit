@@ -28,7 +28,7 @@
 - 雲: 実行後 `get_elements_in_view` で `categoryId=-2006060` を数え、件数差があれば再試行対象を抽出。
 
 ## 7) ログ/成果物
-- すべての MCP 応答はファイルに保存（`Work/.../Logs/*.json`）。
+- すべての MCP 応答はファイルに保存（`Projects/.../Logs/*.json`）。
 - スナップショット/差分/可視化の成果物は日付付きで保存し、最新への symlink 的な `*_latest.*` も併置（上書き注意）。
 
 ## 8) エラーと復旧
@@ -60,4 +60,5 @@ create_revision_cloud_for_element_projection {
 }
 set_revision_cloud_parameter { elementId: <cloudId>, paramName:'Comments', value: 'Diff: ...' }
 ```
+
 

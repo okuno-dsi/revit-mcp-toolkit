@@ -40,7 +40,7 @@ Notes:
 
 ### 1) 3D point → segment distance
 ```bash
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 \
   --command analyze_segments \
   --params '{
@@ -57,7 +57,7 @@ Key outputs: `pointToSeg1.distanceMm`, `pointToSeg1.projection`, `pointToSeg1.on
 
 ### 2) 2D segment relations (overlap/intersection)
 ```bash
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 \
   --command analyze_segments \
   --params '{
@@ -105,7 +105,7 @@ payload = {
   "point": {"x":250,"y":12.3,"z":0},
   "tol": {"distMm":0.1,"angleDeg":1e-4}
 }
-args = [sys.executable, 'Manuals/Scripts/send_revit_command_durable.py', '--port','5210',
+args = [sys.executable, 'Scripts/Reference/send_revit_command_durable.py', '--port','5210',
         '--command','analyze_segments','--params', json.dumps(payload), '--force']
 print(subprocess.run(args, capture_output=True, text=True).stdout)
 ```
@@ -114,4 +114,7 @@ print(subprocess.run(args, capture_output=True, text=True).stdout)
 - `get_structural_frames` — frame endpoints (mm) and metadata
 - `get_wall_baseline` — wall LocationCurve in mm
 - `get_element_info` — quick way to get bboxMm/locations
+
+
+
 

@@ -14,11 +14,11 @@
 
 使い方（例）:
 - 選択要素で実行（推奨）:
-    python Manuals/Scripts/rebar_auto_model_generic.py --port 5210
+    python Scripts/Reference/rebar_auto_model_generic.py --port 5210
 - elementId を直接指定:
-    python Manuals/Scripts/rebar_auto_model_generic.py --port 5210 --host-ids 110463,111855
+    python Scripts/Reference/rebar_auto_model_generic.py --port 5210 --host-ids 110463,111855
 - 被り厚さの曖昧さを承認して続行（必要な場合のみ）:
-    python Manuals/Scripts/rebar_auto_model_generic.py --cover-confirm-proceed
+    python Scripts/Reference/rebar_auto_model_generic.py --cover-confirm-proceed
 
 注意:
 - 実行コマンドは write で、ホスト内の「タグ付き」鉄筋を削除→再作成します。
@@ -239,3 +239,6 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+

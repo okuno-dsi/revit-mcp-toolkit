@@ -13,11 +13,11 @@ This guide describes a robust, repeatable workflow to create Revit walls and roo
 - ExcelMCP running (e.g., `http://localhost:5216`).
 - PowerShell and Python available.
 - Repository files:
-  - `Manuals/Scripts/send_revit_command_durable.py` (durable job sender; default)
+  - `Scripts/Reference/send_revit_command_durable.py` (durable job sender; default)
   - Helper scripts referenced below.
 
 ## Services Health Check
-- Revit MCP: `python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server`
+- Revit MCP: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server`
 - ExcelMCP: open `http://localhost:5216/health` and verify `{ ok: true }`.
 
 ## Excel Parsing (ExcelMCP)
@@ -55,7 +55,7 @@ Cell center shift for room labels: `centerShiftMm = (cellSizeMeters * 1000) / 2`
 Example (one wall) using Durable sender:
 ```powershell
 $p = @{ start = @{ x = 0; y = 0; z = 0 }; end = @{ x = 3000; y = 0; z = 0 }; baseLevelName = '1FL'; heightMm = 3000; wallTypeName = 'RC150'; __smoke_ok = $true } | ConvertTo-Json -Compress
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_wall --params $p --wait-seconds 120
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_wall --params $p --wait-seconds 120
 ```
 
 ## Rooms — Creation Flow
@@ -71,24 +71,24 @@ Defaults and results
 Example (create and then set name):
 ```powershell
 # Resolve levelId
-$levels = (python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_levels | ConvertFrom-Json).result.result.levels
+$levels = (python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_levels | ConvertFrom-Json).result.result.levels
 $levelId = ($levels | Where-Object { $_.name -eq '1FL' } | Select-Object -First 1).levelId
 
 # Create room
 $create = @{ levelId = [int]$levelId; x = 1500; y = 1500; __smoke_ok = $true } | ConvertTo-Json -Compress
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_room --params $create --wait-seconds 120
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_room --params $create --wait-seconds 120
 
 # Get a room id from result or list and set Name
-$rid = (python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_rooms --params '{"skip":0,"count":50}' | ConvertFrom-Json).result.result.rooms[-1].elementId
+$rid = (python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_rooms --params '{"skip":0,"count":50}' | ConvertFrom-Json).result.result.rooms[-1].elementId
 $set = @{ elementId = $rid; builtInId = -1001002; value = 'Room A'; __smoke_ok = $true } | ConvertTo-Json -Compress
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_room_param --params $set --wait-seconds 60
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command set_room_param --params $set --wait-seconds 60
 ```
 
 Note: Parameter keys accepted (priority): builtInId → builtInName → guid → paramName. Prefer builtInId/guid to avoid locale issues.
 
 ## Error Handling & Stall Avoidance
 - Always include `params:{}` (API expects it).
-- Prefer Durable (`Manuals/Scripts/send_revit_command_durable.py`). Fallback to legacy only if `/job/{id}` is unavailable.
+- Prefer Durable (`Scripts/Reference/send_revit_command_durable.py`). Fallback to legacy only if `/job/{id}` is unavailable.
 - On 409 conflict (job in progress), retry or add `?force=1` on enqueue; better yet, serialize calls.
 - If dialogs cause timeouts (e.g., duplicates), continue with the rest; merged intervals reduce repeats.
 
@@ -101,12 +101,16 @@ Note: Parameter keys accepted (priority): builtInId → builtInName → guid →
 - [ ] Zero‑area rooms cleaned
 
 ## Where Logs Are Saved
-- `Work/<ProjectName>_<Port>/Logs/parse_run.json`
-- `Work/<ProjectName>_<Port>/Logs/segments_merged.json`
-- `Work/<ProjectName>_<Port>/Logs/wall_errors.json`
-- `Work/<ProjectName>_<Port>/Logs/apply_summary.json`
-- `Work/<ProjectName>_<Port>/Logs/rooms_from_labels_run.json`
-- `Work/<ProjectName>_<Port>/Logs/rooms_zero_area_snapshot.json`
-- `Work/<ProjectName>_<Port>/Logs/rooms_zero_area_delete_results.jsonl`
+- `Projects/<ProjectName>_<Port>/Logs/parse_run.json`
+- `Projects/<ProjectName>_<Port>/Logs/segments_merged.json`
+- `Projects/<ProjectName>_<Port>/Logs/wall_errors.json`
+- `Projects/<ProjectName>_<Port>/Logs/apply_summary.json`
+- `Projects/<ProjectName>_<Port>/Logs/rooms_from_labels_run.json`
+- `Projects/<ProjectName>_<Port>/Logs/rooms_zero_area_snapshot.json`
+- `Projects/<ProjectName>_<Port>/Logs/rooms_zero_area_delete_results.jsonl`
+
+
+
+
 
 

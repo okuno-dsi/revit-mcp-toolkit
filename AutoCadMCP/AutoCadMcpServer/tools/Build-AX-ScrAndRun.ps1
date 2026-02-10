@@ -1,9 +1,9 @@
 param(
   [string[]]$Inputs = @(
-    '$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_A.dwg',
-    '$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_B.dwg',
-    '$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_C.dwg',
-    '$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_D.dwg'
+    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_A.dwg",
+    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_B.dwg",
+    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_C.dwg",
+    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_D.dwg"
   ),
   [string[]]$Include = @('A-WALL-____-MCUT'),
   [string]$StagingRoot = 'C:/Temp/CadJobs/Staging'

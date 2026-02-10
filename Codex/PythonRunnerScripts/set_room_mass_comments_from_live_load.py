@@ -41,9 +41,9 @@ def unwrap(payload: Dict[str, Any]) -> Dict[str, Any]:
 def find_latest_mapping_json(port: int) -> str:
     """
     Find the latest create_room_masses_*.json mapping file
-    under Work/Project_<port>/Logs.
+    under Projects/Project_<port>/Logs.
     """
-    # Codex repo root (this script lives in Manuals/Scripts)
+    # Codex repo root (this script lives in Scripts/Reference)
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     work_dir = os.path.join(repo_root, "Work", f"Project_{port}", "Logs")
     if not os.path.isdir(work_dir):
@@ -136,7 +136,7 @@ def main(argv: List[str]) -> int:
         default="",
         help=(
             "Path to create_room_masses_*.json. "
-            "If omitted, the latest file under Work/Project_<port>/Logs is used."
+            "If omitted, the latest file under Projects/Project_<port>/Logs is used."
         ),
     )
     args = ap.parse_args(argv)
@@ -215,3 +215,7 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+

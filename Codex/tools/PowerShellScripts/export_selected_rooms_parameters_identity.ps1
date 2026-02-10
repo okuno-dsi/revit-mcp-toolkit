@@ -1,7 +1,7 @@
 # @feature: export selected rooms parameters identity | keywords: 部屋, スペース, ビュー, レベル
 param(
   [int]$Port = 5210,
-  [string]$OutCsv = "Work/Project_5210/Logs/selected_rooms_parameters_identity_5210.csv",
+  [string]$OutCsv = "Projects/Project_5210/Logs/selected_rooms_parameters_identity_5210.csv",
   [string]$UnitsMode = "SI", # SI | Project | Raw | Both
   [switch]$AllRooms,
   [int]$WaitSec = 20,
@@ -153,3 +153,5 @@ foreach($room in $rooms){
 }
 
 Write-Host ("Saved: " + (Resolve-Path $OutCsv).Path) -ForegroundColor Green
+
+

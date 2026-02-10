@@ -13,11 +13,11 @@
 - `Manuals/Runbooks/SIRBIM/structural_column_type_parameters_with_values_SIRBIM_annotated.csv`
 
 元データ（自動出力）:
-- `Manuals/Scripts/dump_structural_column_type_param_definitions.py`
+- `Scripts/Reference/dump_structural_column_type_param_definitions.py`
 
 ### 注釈（note）を維持したまま再出力する
 ```powershell
-python Manuals/Scripts/dump_structural_column_type_param_definitions.py --port 5210 --include-values --annotation-csv Manuals/Runbooks/SIRBIM/structural_column_type_parameters_with_values_SIRBIM_annotated.csv
+python Scripts/Reference/dump_structural_column_type_param_definitions.py --port 5210 --include-values --annotation-csv Manuals/Runbooks/SIRBIM/structural_column_type_parameters_with_values_SIRBIM_annotated.csv
 ```
 
 ## J列（note）に記載された主要項目（抜粋）
@@ -50,5 +50,8 @@ python Manuals/Scripts/dump_structural_column_type_param_definitions.py --port 5
   - そもそも type ではなく instance にある
   などが起こりえます。
 - 実際に配筋で使う前に、対象ホスト（柱/梁）を選択して次を実行し、**どのキーがどの値に解決されるか**を確認してください:
-  - `python Manuals/Scripts/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug`
+  - `python Scripts/Reference/rebar_mapping_dump_selected_hosts.py --port 5210 --include-debug`
+
+
+
 

@@ -2,7 +2,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$LeftSnapshot,
   [Parameter(Mandatory=$true)][string]$RightSnapshot,
-  [string]$CsvOut = "Work/structural_crossport_differences.csv",
+  [string]$CsvOut = "Projects/structural_crossport_differences.csv",
   [string]$Suffix = "相違",
   [int]$BatchSize = 100,
   [int]$WaitSeconds = 300,
@@ -274,3 +274,5 @@ $summary = [pscustomobject]@{
   csv = [string]$csvPath
 }
 $summary | ConvertTo-Json -Depth 6
+
+

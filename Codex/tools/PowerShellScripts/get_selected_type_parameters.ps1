@@ -17,7 +17,7 @@ $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
 function Resolve-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -144,4 +144,6 @@ Write-Host ("Saved: {0}" -f $finalPath) -ForegroundColor Green
 
 # Also print to console
 Get-Content -Path $finalPath -Encoding UTF8
+
+
 

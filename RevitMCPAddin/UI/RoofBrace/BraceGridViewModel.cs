@@ -20,6 +20,23 @@ namespace RevitMCPAddin.UI.RoofBrace
         public double Position01 { get; set; } = 0.0;
     }
 
+    /// <summary>
+    /// Overlay line (normalized coordinates 0..1 within bay extent).
+    /// Used to show highlighted structural framing members in the grid UI.
+    /// </summary>
+    public class BraceOverlayLine
+    {
+        public double X1 { get; set; }
+        public double Y1 { get; set; }
+        public double X2 { get; set; }
+        public double Y2 { get; set; }
+        public double Thickness { get; set; } = 3.0;
+        /// <summary>
+        /// Optional stroke color in hex (e.g. "#FF8C00"). If empty, UI uses default.
+        /// </summary>
+        public string StrokeHex { get; set; } = string.Empty;
+    }
+
     public enum BayPattern
     {
         None,
@@ -186,9 +203,22 @@ namespace RevitMCPAddin.UI.RoofBrace
         public ObservableCollection<string> XGridNames { get; } = new ObservableCollection<string>();
         public ObservableCollection<string> YGridNames { get; } = new ObservableCollection<string>();
 
+        /// <summary>
+        /// Optional column width weights (length == ColumnCount). If null/invalid, UI uses uniform widths.
+        /// </summary>
+        public IList<double> ColumnWeights { get; private set; }
+
+        /// <summary>
+        /// Optional row height weights (length == RowCount). If null/invalid, UI uses uniform heights.
+        /// </summary>
+        public IList<double> RowWeights { get; private set; }
+
         // Axis labels (actual Revit Grid labels) are independent from bay boundaries.
         public ObservableCollection<AxisGridLabel> XGridLabels { get; } = new ObservableCollection<AxisGridLabel>();
         public ObservableCollection<AxisGridLabel> YGridLabels { get; } = new ObservableCollection<AxisGridLabel>();
+
+        // Overlay lines for highlighted structural framing members.
+        public ObservableCollection<BraceOverlayLine> HighlightLines { get; } = new ObservableCollection<BraceOverlayLine>();
 
         private BraceTypeItem _selectedGlobalBraceType;
         public BraceTypeItem SelectedGlobalBraceType
@@ -397,6 +427,28 @@ namespace RevitMCPAddin.UI.RoofBrace
                     YGridLabels.Add(y);
                 }
             }
+        }
+
+        public void SetHighlightLines(IEnumerable<BraceOverlayLine> lines)
+        {
+            HighlightLines.Clear();
+            if (lines == null) return;
+            foreach (var ln in lines)
+            {
+                if (ln == null) continue;
+                HighlightLines.Add(ln);
+            }
+        }
+
+        /// <summary>
+        /// Set column/row weights for proportional grid scaling.
+        /// </summary>
+        public void SetGridWeights(IList<double> columnWeights, IList<double> rowWeights)
+        {
+            ColumnWeights = columnWeights;
+            RowWeights = rowWeights;
+            OnPropertyChanged(nameof(ColumnWeights));
+            OnPropertyChanged(nameof(RowWeights));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

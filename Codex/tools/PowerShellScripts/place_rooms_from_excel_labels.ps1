@@ -83,3 +83,4 @@ foreach($l in $labels){
 $logs | ConvertTo-Json -Depth 6 | Set-Content -Path (Join-Path $PSScriptRoot '..\Logs\rooms_from_labels_run.json') -Encoding UTF8
 Write-Host ("Rooms created: {0}" -f $created) -ForegroundColor Green
 
+

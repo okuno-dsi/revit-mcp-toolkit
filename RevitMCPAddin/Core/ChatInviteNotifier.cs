@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json.Linq;
-using RevitMCPAddin.Core.Ledger;
 using RevitMCPAddin.UI.Chat;
 
 namespace RevitMCPAddin.Core
@@ -59,16 +58,10 @@ namespace RevitMCPAddin.Core
 
                 try
                 {
-                    if (LedgerDocKeyProvider.TryGetDocKey(doc, out var docKey, out _, out _))
-                    {
-                        if (!string.IsNullOrWhiteSpace(docKey))
-                            AppServices.CurrentDocKey = docKey.Trim();
-                    }
-                    else if (LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out docKey, out _, out _))
-                    {
-                        if (!string.IsNullOrWhiteSpace(docKey))
-                            AppServices.CurrentDocKey = docKey.Trim();
-                    }
+                    string source;
+                    var docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out source);
+                    if (!string.IsNullOrWhiteSpace(docKey))
+                        AppServices.CurrentDocKey = docKey.Trim();
                 }
                 catch { /* ignore */ }
 

@@ -19,7 +19,7 @@ if(-not $PSBoundParameters.ContainsKey('Port') -and $env:REVIT_MCP_PORT){
 $SCRIPT_DIR = $PSScriptRoot
 $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 function Resolve-LogsDir([int]$p){
-  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $work = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $work -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -44,7 +44,7 @@ function Get-JsonSeverity([object]$obj){
 if(-not $ElementId){
   $evPath = Join-Path $LOGS 'elements_in_view.json'
   if(!(Test-Path $evPath)){
-    # fallback to Manuals/Logs for compatibility
+    # fallback to ..\..\..\Docs\..\..\..\Docs\Manuals\Logs for compatibility
     $evPath = Join-Path (Resolve-Path (Join-Path $SCRIPT_DIR '..\Logs')) 'elements_in_view.json'
     if(!(Test-Path $evPath)){
       Write-Error "elements_in_view.json not found. Run list_elements_in_view.ps1 first or pass -ElementId explicitly."; exit 2
@@ -95,4 +95,6 @@ try{ $exec = $execOut | ConvertFrom-Json } catch { Write-Error "Execution return
 Write-Host "Done. Results saved:" -ForegroundColor Green
 Write-Host " - Smoke: $smokePath"
 Write-Host " - Exec : $execPath"
+
+
 

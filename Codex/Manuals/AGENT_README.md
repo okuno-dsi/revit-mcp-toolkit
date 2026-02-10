@@ -4,7 +4,7 @@ Purpose: enable any automation agent to connect to Revit MCP reliably and safely
 
 Critical Notes (Read First)
 - Read first: `Manuals/RevitMCP_Client_Dev_Guide.md` (client transport rules, queued handling, unwrap rules)
-- Work rules: always use `Work/<RevitFileName>_<docKey>/...` for all outputs, temp files, and scripts (no files directly under `Work/`).
+- Work rules: always use `Projects/<RevitFileName>_<docKey>/...` for all outputs, temp files, and scripts (no files directly under `Projects/`).
 - Prefer canonical command names (`*.*` namespaced). Legacy names remain callable but are `deprecated` aliases.
 - Prefer TaskSpec v2 for multi-step / write flows: the agent outputs a declarative `*.task.json` (no transport scripts) and executes via the fixed runner (`Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py` or `.ps1`).
 - For deterministic discovery (no LLM), use `help.suggest` first; then confirm details via `help.describe_command` before executing writes.
@@ -30,14 +30,14 @@ Critical Notes (Read First)
 
 Essential Steps
 - Read `ConnectionGuide/QUICKSTART.md` and `ConnectionGuide/PRIMER.jsonl`.
-- Run `Scripts/test_connection.ps1 -Port 5210` to produce `Logs/agent_bootstrap.json`.
+- Run `Scripts/Reference/test_connection.ps1 -Port 5210` to produce `Logs/agent_bootstrap.json`.
   - Alternatively set `REVIT_MCP_PORT` to override the port when `-Port` is omitted.
 - Derive `activeViewId` from `Logs/agent_bootstrap.json` at `result.result.document.activeViewId` (or `result.result.environment.activeViewId` for legacy logs).
-- List elements: `Scripts/list_elements_in_view.ps1 -Port 5210 -ViewId <activeViewId>` → writes `Logs/elements_in_view.json` at `result.result.rows`.
+- List elements: `Scripts/Reference/list_elements_in_view.ps1 -Port 5210 -ViewId <activeViewId>` → writes `Logs/elements_in_view.json` at `result.result.rows`.
 - Pick a valid `elementId (>0)`. Zero IDs must never be sent.
 - For writes, prefer the safe scripts that preflight via `smoke_test`:
-  - `Scripts/set_visual_override_safe.ps1 -Port 5210 -ElementId <id>`
-  - `Scripts/update_wall_parameter_safe.ps1 -Port 5210 -ElementId <id> -Param Comments -Value "..."`
+  - `Scripts/Reference/set_visual_override_safe.ps1 -Port 5210 -ElementId <id>`
+  - `Scripts/Reference/update_wall_parameter_safe.ps1 -Port 5210 -ElementId <id> -Param Comments -Value "..."`
   - Use `-DryRun` to generate payloads and skip network calls; use `-Force` to continue on `severity: warn`.
   - Parameter keys (write): commands accept `builtInId` → `builtInName` → `guid` → `paramName` (priority). Prefer `builtInId`/`builtInName`/`guid` for locale‑agnostic runs.
 
@@ -67,12 +67,15 @@ Local LLM (GGUF via llama.cpp)
   - `pushd ..\..\NVIDIA-Nemotron-v3\tool`
   - `python .\revit_llm_agent.py run --port 5210 --model ..\gguf\gemma-3-4b-it-q4_0.gguf --prompt "List the selected element IDs."`
   - Apply mode (writes): `python .\revit_llm_agent.py run --port 5210 --apply --force --prompt "..."`
-  - Replay: `python .\revit_llm_agent.py replay --ledger ..\Work\<Project>_<Port>\out\ledger_*.jsonl`
+  - Replay: `python .\revit_llm_agent.py replay --ledger ..\Projects\\<Project>_<Port>\out\ledger_*.jsonl`
   - `popd`
 
 File Map (quick)
 - Connection: `ConnectionGuide/QUICKSTART.md`, `ConnectionGuide/PRIMER.jsonl`
 - Commands: `Commands/commands_index.json`, `Commands/HOT_COMMANDS.md`
-- Scripts: `Scripts/*.ps1`, `Scripts/send_revit_command_durable.py`
+- Scripts: `Scripts/Reference/*.ps1`, `Scripts/Reference/send_revit_command_durable.py`
 - Logs: `Logs/*.json` (bootstrap, element lists, smoke/exec results)
+
+
+
 

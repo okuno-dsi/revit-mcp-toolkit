@@ -20,7 +20,7 @@ Revit APIを介した操作において、対象となる要素を誤りなく�
 
 ```bash
 # 例: 部屋リストを取得し、ファイルに保存する
-chcp 65001 && python Python/Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_rooms > all_rooms.json
+chcp 65001 && python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_rooms > all_rooms.json
 ```
 
 ### ステップ2: ファイル内容の読込と検証
@@ -61,4 +61,7 @@ chcp 65001 && python Python/Manuals/Scripts/send_revit_command_durable.py --port
 - [ ] 保存したファイルを `read_file` で読み直したか？
 - [ ] 読み込んだデータの中から、名前等で目的の要素を検索したか？
 - [ ] 検索して見つかった要素から `elementId` / `uniqueId` を正確に抽出したか？
+
+
+
 

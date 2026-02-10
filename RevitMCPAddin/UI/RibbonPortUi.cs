@@ -27,7 +27,8 @@ namespace RevitMCPAddin.UI
         public const string TabName = "RevitMCPServer";
         public const string PanelName = "RevitMCPServer";   // 既存
         public const string DevPanelName = "Developer";     // 追加
-        public const string GuiPanelName = "GUI";           // Codex GUI 用
+        public const string GuiPanelName = "GUI";           // Codex GUI / Python Runner / Chat
+        public const string PickPanelName = "Tools";        // Pick Info only
 
         // ---- Port ----
         public const string ButtonNamePort = "ShowPort";
@@ -63,6 +64,9 @@ namespace RevitMCPAddin.UI
         // 新規: Python Script Runner（人間専用）
         public const string ButtonNamePythonRunner = "PythonRunner";
         public const string ButtonClassPythonRunner = "RevitMCPAddin.Commands.ShowPythonRunnerCommand";
+        // 新規: Pick Info（クリック情報収集）
+        public const string ButtonNameInfoPick = "InfoPick";
+        public const string ButtonClassInfoPick = "RevitMCPAddin.Commands.ShowInfoPickCommand";
 
         // ---- Build Info ----
         public const string ButtonNameBuildInfo = "ShowBuildInfo";
@@ -283,10 +287,20 @@ namespace RevitMCPAddin.UI
         public static void AddGuiPanel(UIControlledApplication app)
         {
             try { app.CreateRibbonTab(TabName); } catch { }
+            var pickPanel = app.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == PickPanelName)
+                        ?? app.CreateRibbonPanel(TabName, PickPanelName);
             var panel = app.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == GuiPanelName)
                         ?? app.CreateRibbonPanel(TabName, GuiPanelName);
 
             string asm = Assembly.GetExecutingAssembly().Location;
+
+            // Pick Info（クリック情報収集）
+            var btnInfoPick = EnsurePushButton(pickPanel, ButtonNameInfoPick, "Pick\nInfo", asm, ButtonClassInfoPick);
+            btnInfoPick.ToolTip = "クリックした点や要素の情報（座標/カテゴリ/ID/タイプ）を収集します。";
+            {
+                btnInfoPick.Image = PortIconBuilder.BuildTextBadge("Pick", 16);
+                btnInfoPick.LargeImage = PortIconBuilder.BuildTextBadge("Pick", 32);
+            }
 
             // Python Runner（人間専用）: Codex GUI の左に配置
             var btnPythonRunner = EnsurePushButton(panel, ButtonNamePythonRunner, "Python\nRunner", asm, ButtonClassPythonRunner);
@@ -674,6 +688,45 @@ namespace RevitMCPAddin.UI
                     new System.Windows.Point(center.X - sizePx * 0.06, center.Y - sizePx * 0.10),
                     redRadius * 0.55,
                     redRadius * 0.55);
+            }
+            return ToBitmap(dv, sizePx);
+        }
+
+        // 指差し（白い手袋・上から見た手）アイコン（Pick Info 用）
+        public static Media.ImageSource BuildFingerIcon(int sizePx)
+        {
+            var dv = new Media.DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                DrawPlate(dc, sizePx);
+
+                var glove = new Media.SolidColorBrush(Media.Color.FromRgb(245, 245, 245));
+                var shadow = new Media.SolidColorBrush(Media.Color.FromRgb(220, 220, 220));
+                var outline = new Media.Pen(new Media.SolidColorBrush(Media.Color.FromRgb(80, 80, 80)), Math.Max(1, sizePx * 0.04));
+                glove.Freeze();
+                shadow.Freeze();
+                (outline.Brush as Media.SolidColorBrush)!.Freeze();
+                outline.Freeze();
+
+                // Palm (bottom)
+                double pad = sizePx * 0.18;
+                var palm = new System.Windows.Rect(pad, sizePx * 0.56, sizePx - pad * 2, sizePx * 0.30);
+                dc.DrawRoundedRectangle(shadow, null, new System.Windows.Rect(palm.X + 1, palm.Y + 1, palm.Width, palm.Height), sizePx * 0.10, sizePx * 0.10);
+                dc.DrawRoundedRectangle(glove, outline, palm, sizePx * 0.10, sizePx * 0.10);
+
+                // Index finger (upwards)
+                var finger = new System.Windows.Rect(sizePx * 0.43, sizePx * 0.16, sizePx * 0.22, sizePx * 0.46);
+                dc.DrawRoundedRectangle(shadow, null, new System.Windows.Rect(finger.X + 1, finger.Y + 1, finger.Width, finger.Height), sizePx * 0.12, sizePx * 0.12);
+                dc.DrawRoundedRectangle(glove, outline, finger, sizePx * 0.12, sizePx * 0.12);
+
+                // Thumb (right)
+                var thumb = new System.Windows.Rect(sizePx * 0.62, sizePx * 0.50, sizePx * 0.18, sizePx * 0.18);
+                dc.DrawRoundedRectangle(shadow, null, new System.Windows.Rect(thumb.X + 1, thumb.Y + 1, thumb.Width, thumb.Height), sizePx * 0.08, sizePx * 0.08);
+                dc.DrawRoundedRectangle(glove, outline, thumb, sizePx * 0.08, sizePx * 0.08);
+
+                // Fingertip circle
+                var tipCenter = new System.Windows.Point(finger.X + finger.Width / 2.0, finger.Y + sizePx * 0.05);
+                dc.DrawEllipse(glove, outline, tipCenter, sizePx * 0.11, sizePx * 0.11);
             }
             return ToBitmap(dv, sizePx);
         }

@@ -213,7 +213,7 @@ curl -sS "http://localhost:5210/get_result"
 - **重すぎる**：`includeCategoryIds` を絞る、`paramIds/builtinIds` を最小限にする。
 - **コンソールの文字化け / エンコーディングエラー**:
   - `export.path` を指定せず、コマンドの応答としてスナップショットを受け取る場合、コンソールで結果を表示したり、リダイレクト (`>`) でファイルに保存しようとすると `UnicodeEncodeError` が発生することがあります。これはWindowsのコンソールが日本語の文字コード(cp932)を標準で使うためです。
-  - **【最重要対策】** この問題を確実に避けるには、`export.path` を指定してアドインに直接ファイルを書き出させるか、`Manuals/Scripts/send_revit_command_durable.py` の `--output-file` オプションを使用してください。
+  - **【最重要対策】** この問題を確実に避けるには、`export.path` を指定してアドインに直接ファイルを書き出させるか、`Scripts/Reference/send_revit_command_durable.py` の `--output-file` オプションを使用してください。
   - 詳細は `Most Important 文字化け対策手順書.md` を参照してください。この対策を怠ると、コマンドが成功したかどうかの判別もできず、作業が停滞する原因となります。
 
 
@@ -236,4 +236,7 @@ curl -sS "http://localhost:5210/get_result"
   "id": 301
 }
 ```
+
+
+
 

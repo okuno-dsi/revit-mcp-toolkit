@@ -1,7 +1,7 @@
 # @feature: export walls by type | keywords: 壁, スペース, ビュー, タグ, DWG, レベル
 param(
   [int]$Port = 5210,
-  [string]$OutDir = "Work/AutoCadOut",
+  [string]$OutDir = "Projects/AutoCadOut",
   [switch]$AutoMerge,
   [switch]$Clean,
   [string]$AccorePath = "C:/Program Files/Autodesk/AutoCAD 2025/accoreconsole.exe",
@@ -312,3 +312,5 @@ if($AutoMerge){
 }
 
 Write-Host 'Done.' -ForegroundColor Green
+
+

@@ -2,7 +2,7 @@
 param(
   [string]$BaseUrl,
   [int]$Port,
-  [string]$ExePath = '$env:USERPROFILE\Documents\VS2022\Ver541\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe',
+  [string]$ExePath = '%USERPROFILE%\Documents\VS2022\Ver541\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe',
   [switch]$OnlyCheck,
   [switch]$NoStart
 )
@@ -17,8 +17,8 @@ param(
 
   This is intended as a convenience helper before running scripts that call
   ExcelMCP such as:
-    - Codex/Manuals/Scripts/apply_from_excelmcp.ps1
-    - Codex/Manuals/Scripts/place_rooms_from_excel_labels.ps1
+    - Codex/Scripts/Reference/apply_from_excelmcp.ps1
+    - Codex/Scripts/Reference/place_rooms_from_excel_labels.ps1
 
 .PARAMETER BaseUrl
   Target ExcelMCP base URL, e.g. 'http://localhost:5215'.
@@ -135,4 +135,8 @@ Write-Host "  # File-based helpers (no Excel process required)" -ForegroundColor
 Write-Host "  Invoke-RestMethod -Method Post -Uri '$excelUrl/read_cells' -ContentType 'application/json' -Body (@{ excelPath='C:\\path\\book.xlsx'; sheetName='Sheet1'; rangeA1='A1:C5'; returnRaw=\$true } | ConvertTo-Json)" -ForegroundColor Gray
 
 Write-Host "Done." -ForegroundColor Cyan
+
+
+
+
 

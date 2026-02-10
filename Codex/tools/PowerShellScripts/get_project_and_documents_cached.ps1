@@ -16,9 +16,9 @@ $env:PYTHONUTF8 = '1'
 try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) } catch {}
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
-# Resolve default logs directory under Work/<Project>_<Port>/Logs if not provided
+# Resolve default logs directory under Projects/<Project>_<Port>/Logs if not provided
 function Resolve-LogsDir([int]$p){
-  $workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
   $cands = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$p" }
   $chosen = $null
   if($cands){ $chosen = ($cands | Where-Object { $_.Name -notlike 'Project_*' } | Select-Object -First 1); if(-not $chosen){ $chosen = $cands | Select-Object -First 1 } }
@@ -82,3 +82,5 @@ if ($firstDoc) {
 } else {
   Write-Host "(no documents)"
 }
+
+

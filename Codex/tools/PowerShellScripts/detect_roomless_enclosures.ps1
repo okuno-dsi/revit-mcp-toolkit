@@ -125,3 +125,4 @@ for($i=0; $i -lt $printCount; $i++){
   $p=$voids[$i]
   Write-Output ('- centerMm=({0:N1},{1:N1},{2:N1}) span=({3:N0}x{4:N0}) bounds(x:[{5:N0},{6:N0}] y:[{7:N0},{8:N0}])' -f $p.x, $p.y, $p.z, $p.spanX, $p.spanY, $p.bounds.xA, $p.bounds.xB, $p.bounds.yA, $p.bounds.yB)
 }
+

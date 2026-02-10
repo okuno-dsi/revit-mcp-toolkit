@@ -108,3 +108,4 @@ foreach($row in $plan){
   }
 }
 Write-Host ("Done. Success={0}, Failed={1}. Log={2}" -f $ok, $fail, $logFile) -ForegroundColor Green
+

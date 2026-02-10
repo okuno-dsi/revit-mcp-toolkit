@@ -6,7 +6,7 @@ Scope
 Prerequisites
 - Revit running with Revit MCP add‑in on 5210 (health: `GET http://127.0.0.1:5210/debug`).
 - This repo on disk; PowerShell 7 recommended.
-- Durable sender: `Codex/Manuals/Scripts/send_revit_command_durable.py`.
+- Durable sender: `Codex/Scripts/Reference/send_revit_command_durable.py`.
 
 Command Inventory (server)
 - `duplicate_view` → returns `{ ok, viewId, name }` to create a view copy.
@@ -21,7 +21,7 @@ Command Inventory (server)
 
 PowerShell snippet
 ```
-$py='Codex/Manuals/Scripts/send_revit_command_durable.py'
+$py='Codex/Scripts/Reference/send_revit_command_durable.py'
 function Call($m,$p,$w=240,$t=360){ $pjson=($p|ConvertTo-Json -Depth 60 -Compress); & python -X utf8 $py --port 5210 --command $m --params $pjson --wait-seconds $w --timeout-sec $t }
 $lov = Call 'list_open_views' @{} | ConvertFrom-Json
 $open=@($lov.result.result.views)
@@ -77,7 +77,7 @@ Option B – 手動分離（ビュー側で再計測→非対象をHide）
 
 PowerShell snippet
 ```
-$py='Codex/Manuals/Scripts/send_revit_command_durable.py'
+$py='Codex/Scripts/Reference/send_revit_command_durable.py'
 function Call($m,$p,$w=600,$t=1200){ $pjson=($p|ConvertTo-Json -Depth 60 -Compress); & python -X utf8 $py --port 5210 --command $m --params $pjson --wait-seconds $w --timeout-sec $t }
 
 # Prepare view list (example)
@@ -120,3 +120,6 @@ Notes
 - For each typeName: duplicate_view → isolate_by_filter_in_view (rules by typeName) → export_dwg
 
 This plan is safe to rerun across sessions: views are duplicated per run, state is reset per duplicate, and annotations are preserved while model non-targets are hidden.
+
+
+

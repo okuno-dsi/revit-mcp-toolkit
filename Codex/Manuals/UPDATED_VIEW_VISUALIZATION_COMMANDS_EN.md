@@ -5,7 +5,7 @@ These commands were upgraded to avoid UI stalls and improve reliability in templ
 - Template handling: `detachViewTemplate:true` or `autoWorkingView:true` (duplicate/3D fallback) to avoid template locks
 - Time slicing: `batchSize`, `maxMillisPerTx`, `startIndex`, `refreshView` to break long work into short transactions and resume via `nextIndex`
 
-All examples use: `python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command <METHOD> --params '<JSON>'`.
+All examples use: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command <METHOD> --params '<JSON>'`.
 
 ## set_visual_override
 - Purpose: Per‑element fill/line color and transparency overrides in a view.
@@ -83,3 +83,6 @@ All examples use: `python Manuals/Scripts/send_revit_command_durable.py --port 5
 - Non-graphical views (e.g., Project Browser) cannot be duplicated. Activate a graphical view first, or create a plan view via `create_view_plan` and use that as a base for duplication.
 - When templates lock visibility/overrides, prefer `detachViewTemplate:true` for the operation and reapply templates/categories/filters/worksets via `save_view_state` → `restore_view_state` (`apply.hiddenElements` as needed).
 - To debug why elements are not visible, call `audit_hidden_in_view` with `_filter.includeKinds=["category","explicit","filter","temp"]`. If the result says `category_hidden`, use `set_category_visibility`; if `hidden_in_view`, use `unhide_elements_in_view` (batched) to recover, then apply your isolation rules.
+
+
+

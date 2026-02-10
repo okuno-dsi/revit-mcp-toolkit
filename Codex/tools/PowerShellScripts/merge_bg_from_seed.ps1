@@ -18,7 +18,7 @@ try {
 } catch {}
 
 $ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-$WORK = Join-Path $ROOT 'Codex/Work/AutoCadOut'
+$WORK = Join-Path $ROOT 'Codex/Projects/AutoCadOut'
 
 if([string]::IsNullOrWhiteSpace($ExportDir)){
   $latest = Get-ChildItem -LiteralPath $WORK -Directory -Filter 'Export_*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -148,3 +148,5 @@ $exists = Test-Path $OutputPath
   OutLog=$outLog
   ErrLog=$errLog
 }
+
+

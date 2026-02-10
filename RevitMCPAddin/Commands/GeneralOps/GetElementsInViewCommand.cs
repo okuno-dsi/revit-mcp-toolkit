@@ -29,7 +29,7 @@ namespace RevitMCPAddin.Commands.GeneralOps
             bool usedActiveView = false;
             View view = null;
             int viewId = 0;
-            if (p.TryGetValue("viewId", out var viewToken))
+            if (p.TryGetValue("viewId", out var viewToken) && viewToken.Type != JTokenType.Null)
             {
                 viewId = viewToken.Value<int>();
                 view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;

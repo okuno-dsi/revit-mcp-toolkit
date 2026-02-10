@@ -163,3 +163,4 @@ Hide-Elements-Batched -viewId $viewId -ids $nonwalls
 Hide-Elements-Batched -viewId $viewId -ids $otherWalls
 
 Write-Host ("Done. Isolated typeId={0} in viewId={1}" -f $TypeId, $viewId) -ForegroundColor Green
+

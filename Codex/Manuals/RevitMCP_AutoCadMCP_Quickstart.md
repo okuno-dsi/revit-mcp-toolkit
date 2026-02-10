@@ -8,7 +8,7 @@
 - Revit 起動＋MCPアドイン有効（既定ポート 5210）
 - AutoCadMCP サーバー起動可能（既定ポート 5251）
 - AutoCAD Core Console 2026 (accoreconsole.exe) 利用可能
-- 作業フォルダ: `Work/AutoCadOut`
+- 作業フォルダ: `Projects/AutoCadOut`
 
 ---
 
@@ -16,12 +16,12 @@
 
 最短動作確認（PowerShell）
 - ポート確認: `Test-NetConnection localhost -Port 5210`
-- 疎通＆ブートストラップ: `Manuals/Scripts/test_connection.ps1 -Port 5210`
-  - ログ: `Work/<ProjectName>_<Port>/Logs/agent_bootstrap.json`
+- 疎通＆ブートストラップ: `Scripts/Reference/test_connection.ps1 -Port 5210`
+  - ログ: `Projects/<ProjectName>_<Port>/Logs/agent_bootstrap.json`
 
 よく使う送信スクリプト
-- `Manuals/Scripts/send_revit_command_durable.py`（JSON-RPC durable送信）
-- 例: `python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server`
+- `Scripts/Reference/send_revit_command_durable.py`（JSON-RPC durable送信）
+- 例: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server`
 
 ---
 
@@ -31,16 +31,16 @@
 1. ビュー作成＋活性化
 
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_view_plan --params '{"levelName":"レベル 1","name":"Export_NoTemplate","__smoke_ok":true}'
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command activate_view --params '{"viewId": <viewId>}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_view_plan --params '{"levelName":"レベル 1","name":"Export_NoTemplate","__smoke_ok":true}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command activate_view --params '{"viewId": <viewId>}'
 ```
 
 2. テンプレート解除＋カテゴリ可視＋フィット
 
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_view_template --params '{"viewId": <viewId>, "clear": true, "__smoke_ok": true}'
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command save_view_state --params '{}'
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command view_fit --params '{"viewId": <viewId>}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command set_view_template --params '{"viewId": <viewId>, "clear": true, "__smoke_ok": true}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command save_view_state --params '{}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command view_fit --params '{"viewId": <viewId>}'
 ```
 
 注意
@@ -54,10 +54,10 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command view_
 
 ```
 # ビュー内要素ID（idsOnly）
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_elements_in_view --params '{"viewId": <viewId>, "_shape": {"idsOnly": true, "page": {"limit": 20000}}}' --output-file Work/<ProjectName>_<Port>/Logs/elements_in_view.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_elements_in_view --params '{"viewId": <viewId>, "_shape": {"idsOnly": true, "page": {"limit": 20000}}}' --output-file Projects/<ProjectName>_<Port>/Logs/elements_in_view.json
 
 # 要素情報（カテゴリ判定用）
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_element_info --params '{"elementIds": [<ids...>], "rich": true}' --output-file Work/<ProjectName>_<Port>/Logs/elements_info.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_element_info --params '{"elementIds": [<ids...>], "rich": true}' --output-file Projects/<ProjectName>_<Port>/Logs/elements_info.json
 ```
 
 - 壁カテゴリID: `-2000011`
@@ -65,7 +65,7 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_e
 「コメント」の読み取り（インスタンス）
 
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command list_wall_parameters --params '{"elementId": <wallId>}' --output-file Work/<ProjectName>_<Port>/Logs/wall_<id>_params.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command list_wall_parameters --params '{"elementId": <wallId>}' --output-file Projects/<ProjectName>_<Port>/Logs/wall_<id>_params.json
 ```
 
 - `name` が `Comments`/`コメント` に該当するパラメータの `value` または `display` を使用
@@ -79,16 +79,16 @@ python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command list_
 
 ```
 # あるグループ keep[] のみ残し、その他 allIds-keep を非表示
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command hide_elements_in_view --params '{"viewId": <viewId>, "elementIds": [<hide...>]}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command hide_elements_in_view --params '{"viewId": <viewId>, "elementIds": [<hide...>]}'
 
 # As Displayed で DWG 書き出し（ACAD2018）
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command export_dwg --params '{"viewId": <viewId>, "outputFolder": "Work/AutoCadOut", "fileName": "walls_<COMMENT>", "dwgVersion": "ACAD2018", "__smoke_ok": true}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command export_dwg --params '{"viewId": <viewId>, "outputFolder": "Projects/AutoCadOut", "fileName": "walls_<COMMENT>", "dwgVersion": "ACAD2018", "__smoke_ok": true}'
 
 # 解除
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command show_all_in_view --params '{"viewId": <viewId>, "detachViewTemplate": true, "includeTempReset": true}'
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command show_all_in_view --params '{"viewId": <viewId>, "detachViewTemplate": true, "includeTempReset": true}'
 ```
 
-- 期待成果物: `Work/AutoCadOut/walls_A.dwg` ほか（A/B/C/D）
+- 期待成果物: `Projects/AutoCadOut/walls_A.dwg` ほか（A/B/C/D）
 
 ---
 
@@ -109,13 +109,13 @@ Invoke-RestMethod http://127.0.0.1:5251/health
 A) AutoCadMCP（accoreconsole 直叩き）
 - accoreconsole パス例: `C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe`
 - サーバー API `merge_dwgs_perfile_rename` を使い、**DWG 実在確認＋失敗時フォールバック**まで行う。
-- サンプル: `Manuals/Scripts/merge_dwgs_perfile_safe.py`
+- サンプル: `Scripts/Reference/merge_dwgs_perfile_safe.py`
 
 ```bash
-python Manuals/Scripts/merge_dwgs_perfile_safe.py ^
-  --inputs C:/.../Work/AutoCadOut/walls_A.dwg C:/.../Work/AutoCadOut/walls_B.dwg ^
-  --output C:/.../Work/AutoCadOut/merged_by_comment.dwg ^
-  --seed C:/.../Work/AutoCadOut/SEED.dwg
+python Scripts/Reference/merge_dwgs_perfile_safe.py ^
+  --inputs C:/.../Projects/AutoCadOut/walls_A.dwg C:/.../Projects/AutoCadOut/walls_B.dwg ^
+  --output C:/.../Projects/AutoCadOut/merged_by_comment.dwg ^
+  --seed C:/.../Projects/AutoCadOut/SEED.dwg
 ```
 
 - 概要
@@ -132,11 +132,11 @@ B) DXF経由（より安定・推奨、要 TrustedPaths）
 - 実行例
 
 ```
-pwsh -File Tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Work/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe" -Locale ja-JP
+pwsh -File Tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Projects/AutoCadOut -OutDir C:/Temp/CadOut -LayerName "A-WALL-____-MCUT" -AccorePath "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe" -Locale ja-JP
 ```
 
 - 事前に TrustedPaths を AutoCAD に設定（GUI: オプション→ファイル→信頼できる位置）
-  - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Work\AutoCadOut`
+  - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Projects\\AutoCadOut`
 
 C) COM経由（AutoCAD起動中、最も直感的）
 - スクリプト: `Tools/AutoCad/merge_dwgs_by_map_com.py`
@@ -148,9 +148,9 @@ C) COM経由（AutoCAD起動中、最も直感的）
 
 ```
 python Tools/AutoCad/merge_dwgs_by_map_com.py ^
-  --source-dir C:/.../Work/dwg ^
-  --out-dwg C:/.../Work/dwg/MERGED_DWG_COM.dwg ^
-  --map-csv C:/.../Work/dwg/layermap.csv
+  --source-dir C:/.../Projects/dwg ^
+  --out-dwg C:/.../Projects/dwg/MERGED_DWG_COM.dwg ^
+  --map-csv C:/.../Projects/dwg/layermap.csv
 ```
 
 - 注意:
@@ -171,7 +171,7 @@ python Tools/AutoCad/merge_dwgs_by_map_com.py ^
 ## 8) 次回最短到達のチェックリスト
 
 1. RevitMCP 疎通
-   - `Manuals/Scripts/test_connection.ps1 -Port 5210` → OK
+   - `Scripts/Reference/test_connection.ps1 -Port 5210` → OK
 2. ビュー準備（壁可視）
    - `create_view_plan` → `activate_view` → `set_view_template(clear)` → `set_category_visibility(-2000011,true)` → `view_fit`
 3. 壁抽出/分類
@@ -188,11 +188,15 @@ python Tools/AutoCad/merge_dwgs_by_map_com.py ^
 
 ## 参考（本リポジトリ内ファイル）
 - Revit クイック: `Manuals/ConnectionGuide/QUICKSTART.md`
-- スクリプト一覧: `Manuals/Scripts/README.md`
-- 送信: `Manuals/Scripts/send_revit_command_durable.py`
+- スクリプト一覧: `Scripts/Reference/README.md`
+- 送信: `Scripts/Reference/send_revit_command_durable.py`
 - 便利スクリプト（本件向け）
   - `Tools/AutoCad/Run_MergeByDXF.ps1`
   - `Tools/AutoCad/ConvertToDxfOutDir.ps1`
 
 以上。これに沿って順に実行すれば、次回起動時も最短で統合まで到達できます。
+
+
+
+
 

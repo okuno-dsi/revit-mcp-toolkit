@@ -32,6 +32,25 @@ RevitMCP はすべてのコマンド応答に **共通フィールド** を付�
 
 多くのコマンドに `params.expectedContextToken` を渡すと、トークン不一致時に `code: PRECONDITION_FAILED` で早期に失敗します。
 
+## 安定ドキュメントキー（docKey）
+並行実行や作業フォルダ命名の安定化のため、以下を追加しました:
+- `context.docKey`: 安定ドキュメントキー
+- `context.docKeySource`: `ledger` または `fallback`
+- `context.docKeyStable`: `true | false`（安定ソースから生成されたか）
+
+互換性のため:
+- `context.docGuid` は引き続き付与され、`context.docKey` と同一です。
+
+## Idempotency キー（任意）
+`params.idempotencyKey`（または `params.idemKey`）を渡すと、同一 `(method + docKey + idempotencyKey)` の結果を短時間キャッシュし、
+**重複実行を抑止**することがあります。応答には以下が追加されます:
+- `context.idempotencyKey`
+- `context.idempotencyCache`: `{ hit: true|false, ttlMs, maxEntries }`
+
+## 安定順序（配列の決定論的並び）
+`elements` / `items` / `hosts` などの配列は、`elementId` / `id` / `hostElementId` を優先キーとして **安定ソート**されます。
+同一コマンドの繰り返し実行での差分ノイズを減らす目的です。
+
 ## 失敗処理（failureHandling）確認ゲート（Step 10）
 バッチ的な操作（目安: `elementIds` が 5 件以上）の場合、ルータが実行前に確認を要求し、次を返すことがあります:
 - `code: "FAILURE_HANDLING_CONFIRMATION_REQUIRED"`

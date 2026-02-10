@@ -6,7 +6,7 @@
   Calls the Revit MCP JSON-RPC endpoint `get_project_info` on the specified port,
   then saves the full JSON result under the repository Work folder:
 
-    Work\RevitMcp\<Port>\project_info.json
+    Projects\\RevitMcp\<Port>\project_info.json
 
   The script writes the output file path to stdout on success.
 
@@ -30,7 +30,7 @@ $env:PYTHONUTF8 = '1'
 $repoRoot = $PSScriptRoot
 
 # Durable client (recommended) – avoids dealing with jobId / polling here.
-$pythonClient = Join-Path $repoRoot "Manuals\Scripts\send_revit_command_durable.py"
+$pythonClient = Join-Path $repoRoot "Scripts\\Manuals\send_revit_command_durable.py"
 if (-not (Test-Path -LiteralPath $pythonClient -PathType Leaf)) {
   throw "Durable Revit client not found: $pythonClient"
 }
@@ -54,3 +54,5 @@ if (-not (Test-Path -LiteralPath $outPath -PathType Leaf)) {
 # GUI 側からは相対パスで扱いやすいように、Work からの相対パスを返す
 $relative = Join-Path "Work" (Join-Path "RevitMcp" (Join-Path $Port "project_info.json"))
 Write-Output $relative
+
+

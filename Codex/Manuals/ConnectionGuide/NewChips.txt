@@ -211,7 +211,7 @@ Note: Replace `<PORT>` with the active MCP port reported by `agent_bootstrap.ser
 1. Verify the MCP queue is reachable: run `Test-NetConnection localhost -Port <PORT>` and confirm `TcpTestSucceeded : True`.
 2. Export the current project metadata in UTF-8:
    - Ensure the console is using UTF-8 (`chcp 65001`) or set `$env:PYTHONUTF8 = '1'` for the session.
-   - Execute `python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port <PORT> --command get_project_info --output-file project_info.json`.
+   - Execute `python -X utf8 Scripts/Reference/send_revit_command_durable.py --port <PORT> --command get_project_info --output-file project_info.json`.
 3. Display the primary fields without mojibake:
    ```powershell
    chcp 65001 > $null   # run once per PowerShell session
@@ -221,5 +221,8 @@ Note: Replace `<PORT>` with the active MCP port reported by `agent_bootstrap.ser
    $proj.site | Select-Object placeName, latitude, longitude, timeZone
    ```
    The JSON file is stored as UTF-8, so other tools can consume it directly if further processing is required.
+
+
+
 
 

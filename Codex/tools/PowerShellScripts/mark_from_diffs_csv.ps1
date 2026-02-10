@@ -92,5 +92,7 @@ foreach($id in $idsR){
 }
 
 $out = [pscustomobject]@{ ok=$true; leftViewId=$Lview; rightViewId=$Rview; leftClouds=$createdL; rightClouds=$createdR; leftCount=$idsL.Count; rightCount=$idsR.Count; csv=$CsvPath }
-$out | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Work/clouds_marked_from_csv.json') -Encoding UTF8
+$out | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Projects/clouds_marked_from_csv.json') -Encoding UTF8
 Write-Host ("Marked clouds from CSV. LeftClouds="+$createdL+"/"+$($idsL.Count)+" RightClouds="+$createdR+"/"+$($idsR.Count)) -ForegroundColor Green
+
+

@@ -1,7 +1,7 @@
 Param(
-  [string]$SourceDir = 'Work/AutoCadOut',
+  [string]$SourceDir = 'Projects/AutoCadOut',
   [string]$LayerName = 'A-WALL-____-MCUT',
-  [string]$OutDwg = 'Work/AutoCadOut/merged_by_comment_via_dxf.dwg',
+  [string]$OutDwg = 'Projects/AutoCadOut/merged_by_comment_via_dxf.dwg',
   [string]$AccorePath = 'C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe',
   [string]$Locale = 'ja-JP',
   [int]$TimeoutSec = 600
@@ -52,3 +52,4 @@ $p.WaitForExit($TimeoutSec * 1000) | Out-Null
 if(-not $p.HasExited){ try { $p.Kill($true) } catch {}; throw "DXFIN merge timeout (logs: $logOut, $logErr)" }
 if(-not (Test-Path $outAbs)){ throw "Merged DWG not produced (logs: $logOut, $logErr)" }
 Write-Output (Resolve-Path $outAbs).Path
+

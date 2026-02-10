@@ -21,6 +21,15 @@ Notes:
 
 Other options are accepted and may vary by implementation (beam filters, mark filters, brace type list, etc.).
 
+### Brace type filtering (optional)
+You can filter the brace type dropdown by passing any of the following:
+- `braceTypeFilterParam` (ParamResolver spec, e.g. `{ "paramName": "符号" }`)
+- `braceTypeContains` / `braceTypeExclude`
+- `braceTypeFamilyContains`
+- `braceTypeNameContains`
+
+These filters are evaluated with **AND** logic. If `braceTypeFilterParam` is not provided, the command falls back to `Symbol(符号) → Type Mark → TypeName`.
+
 ### Example Request (dry run)
 ```json
 {
@@ -37,4 +46,3 @@ Other options are accepted and may vary by implementation (beam filters, mark fi
 ## Related
 - get_structural_framing
 - get_grids
-

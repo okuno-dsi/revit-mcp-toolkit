@@ -155,3 +155,4 @@ $snapshot = [PSCustomObject]@{
 }
 $snapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $outfile -Encoding UTF8
 Write-Host ("Saved: {0}" -f $outfile) -ForegroundColor Green
+

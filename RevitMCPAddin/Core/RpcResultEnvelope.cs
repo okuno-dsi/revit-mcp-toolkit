@@ -1,5 +1,7 @@
 #nullable enable
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -105,17 +107,30 @@ namespace RevitMCPAddin.Core
                 if (doc != null)
                 {
                     if (ctx["docTitle"] == null) ctx["docTitle"] = doc.Title ?? "";
-                    if (ctx["docGuid"] == null)
+                    try
                     {
-                        try
+                        string docKeySource = "unknown";
+                        string docKey = DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out docKeySource);
+                        if (!string.IsNullOrWhiteSpace(docKey))
+                        {
+                            if (ctx["docKey"] == null) ctx["docKey"] = docKey.Trim();
+                            if (ctx["docKeySource"] == null) ctx["docKeySource"] = docKeySource;
+                            if (ctx["docGuid"] == null) ctx["docGuid"] = docKey.Trim(); // keep legacy field
+                        }
+                        else if (ctx["docGuid"] == null)
                         {
                             var pi = doc.ProjectInformation;
                             if (pi != null) ctx["docGuid"] = pi.UniqueId ?? "";
                         }
-                        catch
+
+                        if (ctx["docKeyStable"] == null)
                         {
-                            // ignore
+                            ctx["docKeyStable"] = string.Equals(docKeySource, "stable", StringComparison.OrdinalIgnoreCase);
                         }
+                    }
+                    catch
+                    {
+                        // ignore
                     }
 
                     var av = doc.ActiveView;
@@ -150,6 +165,15 @@ namespace RevitMCPAddin.Core
                     }
                     catch { /* ignore */ }
                 }
+            }
+            catch
+            {
+                // never fail standardization
+            }
+
+            try
+            {
+                StableSortCollections(payload);
             }
             catch
             {
@@ -204,6 +228,84 @@ namespace RevitMCPAddin.Core
         {
             try { return value is JToken jt ? jt : JToken.FromObject(value); }
             catch { return JValue.CreateNull(); }
+        }
+
+        // ------------------------------------------------------------
+        // Stable ordering for common collections (additive, safe)
+        // ------------------------------------------------------------
+        private static void StableSortCollections(JObject root)
+        {
+            if (root == null) return;
+
+            // Typical collection keys that benefit from stable ordering.
+            var keys = new[]
+            {
+                "elements", "items", "rooms", "spaces", "areas", "hosts",
+                "views", "types", "rebarTypes", "families", "documents",
+                "categories", "levels", "grids", "tags", "schedules"
+            };
+
+            foreach (var k in keys)
+            {
+                if (root[k] is JArray arr) StableSortArrayById(arr);
+            }
+
+            // Also attempt in common nested containers.
+            if (root["data"] is JObject dataObj) StableSortCollections(dataObj);
+            if (root["result"] is JObject resultObj) StableSortCollections(resultObj);
+        }
+
+        private static void StableSortArrayById(JArray arr)
+        {
+            if (arr == null || arr.Count <= 1) return;
+
+            // Only sort arrays of objects with numeric identifiers.
+            var objs = new List<JObject>(arr.Count);
+            foreach (var it in arr)
+            {
+                if (it is JObject jo) objs.Add(jo);
+                else return; // mixed or primitive array: keep original order
+            }
+
+            string? key = ResolveIdKey(objs);
+            if (string.IsNullOrWhiteSpace(key)) return;
+
+            var ordered = objs.OrderBy(o => GetNumeric(o, key)).ToList();
+            arr.Clear();
+            foreach (var o in ordered) arr.Add(o);
+        }
+
+        private static string? ResolveIdKey(List<JObject> objs)
+        {
+            var keys = new[] { "elementId", "id", "hostElementId", "viewId", "typeId", "levelId" };
+            foreach (var k in keys)
+            {
+                bool any = false;
+                foreach (var o in objs)
+                {
+                    if (o[k] != null) { any = true; break; }
+                }
+                if (any) return k;
+            }
+            return null;
+        }
+
+        private static long GetNumeric(JObject obj, string key)
+        {
+            if (obj == null || string.IsNullOrWhiteSpace(key)) return long.MaxValue;
+            var tok = obj[key];
+            if (tok == null) return long.MaxValue;
+            try
+            {
+                if (tok.Type == JTokenType.Integer) return tok.Value<long>();
+                if (tok.Type == JTokenType.Float) return (long)tok.Value<double>();
+                if (tok.Type == JTokenType.String)
+                {
+                    if (long.TryParse(tok.Value<string>(), out var v)) return v;
+                }
+            }
+            catch { }
+            return long.MaxValue;
         }
     }
 }

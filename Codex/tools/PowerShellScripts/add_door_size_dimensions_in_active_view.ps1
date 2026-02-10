@@ -57,3 +57,4 @@ if($OverrideR -ge 0 -and $OverrideG -ge 0 -and $OverrideB -ge 0){
 
 $json = ($params | ConvertTo-Json -Depth 50 -Compress)
 python -X utf8 $PY --port $Port --command add_door_size_dimensions --params $json --wait-seconds 240
+

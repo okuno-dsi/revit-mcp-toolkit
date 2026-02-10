@@ -144,7 +144,7 @@ powershell -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\ge
 powershell -File "...\get_project_and_documents_cached.ps1" -Port 5211 -Refresh
 ````
 
-Outputs are saved under `Codex/Work/<ProjectName>_<Port>/Logs` as `project_info_<port>.json` and `open_documents_<port>.json`.
+Outputs are saved under `Codex/Projects/<ProjectName>_<Port>/Logs` as `project_info_<port>.json` and `open_documents_<port>.json`.
 
 ---
 
@@ -206,4 +206,5 @@ Close the windows you launched, or from PowerShell:
 ````powershell
 Get-NetTCPConnection -LocalPort 5209,5221 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ````
+
 

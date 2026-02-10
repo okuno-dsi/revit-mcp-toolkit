@@ -24,7 +24,7 @@ try { $enc = New-Object System.Text.UTF8Encoding $false; [Console]::OutputEncodi
 $PY = Join-Path $PSScriptRoot 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
-$workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\Work')
+$workRoot = Resolve-Path (Join-Path $PSScriptRoot '..\\..\\..\\Projects')
 $projDir = Join-Path $workRoot ("Focus3D_Selected_{0}" -f $Port)
 if(!(Test-Path $projDir)){ [void](New-Item -ItemType Directory -Path $projDir) }
 $logs = Join-Path $projDir 'Logs'
@@ -178,3 +178,5 @@ if ($HideNonSelected.IsPresent) {
 try { [void](Call-Mcp 'view_fit' @{ viewId=$viewId } 60 120 -Force) } catch {}
 
 Write-Host ("[Done] Focus 3D view ready. viewId={0} name='{1}'" -f $viewId, $name) -ForegroundColor Green
+
+

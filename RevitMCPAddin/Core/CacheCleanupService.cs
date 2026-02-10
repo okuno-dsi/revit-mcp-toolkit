@@ -54,6 +54,11 @@ namespace RevitMCPAddin.Core
             string logsDir = Path.Combine(root, "logs");
             string queueDir = Path.Combine(root, "queue");
             string dataDir = Path.Combine(root, "data");
+            string tempDir = Path.Combine(root, "temp");
+            string capturesDir = Path.Combine(root, "captures");
+            string chatDir = Path.Combine(root, "chat");
+            string dynamoDir = Path.Combine(root, "dynamo");
+            string progressDir = Path.Combine(root, "progress");
 
             var activePorts = GetActivePortsFromLocks(locksDir, report);
             activePorts.Add(currentPort);
@@ -178,8 +183,30 @@ namespace RevitMCPAddin.Core
                 report.warnings.Add("Queue cleanup failed: " + ex.Message);
             }
 
-            // logsDir/locksDir: handled elsewhere at startup (best-effort), do not duplicate here.
-            // But we do ensure they exist.
+            // Deep cleanup for common subfolders (older than retentionDays)
+            try { CleanupDirectoryRecursive(tempDir, threshold, report, dryRun); } catch (Exception ex) { report.warnings.Add("Temp cleanup failed: " + ex.Message); }
+            try { CleanupDirectoryRecursive(capturesDir, threshold, report, dryRun); } catch (Exception ex) { report.warnings.Add("Captures cleanup failed: " + ex.Message); }
+            try { CleanupDirectoryRecursive(chatDir, threshold, report, dryRun); } catch (Exception ex) { report.warnings.Add("Chat cleanup failed: " + ex.Message); }
+            try { CleanupDirectoryRecursive(dynamoDir, threshold, report, dryRun); } catch (Exception ex) { report.warnings.Add("Dynamo cleanup failed: " + ex.Message); }
+            try { CleanupDirectoryRecursive(progressDir, threshold, report, dryRun); } catch (Exception ex) { report.warnings.Add("Progress cleanup failed: " + ex.Message); }
+
+            // Logs: keep active port logs; delete older others
+            try
+            {
+                CleanupDirectoryRecursive(
+                    logsDir,
+                    threshold,
+                    report,
+                    dryRun,
+                    fileSkip: path => IsActivePortLog(path, activePorts)
+                );
+            }
+            catch (Exception ex)
+            {
+                report.warnings.Add("Logs cleanup failed: " + ex.Message);
+            }
+
+            // logsDir/locksDir: ensure they exist.
             try { if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir); } catch { /* ignore */ }
             try { if (!Directory.Exists(locksDir)) Directory.CreateDirectory(locksDir); } catch { /* ignore */ }
 
@@ -301,6 +328,64 @@ namespace RevitMCPAddin.Core
                 report.warnings.Add("Delete dir failed: " + dir + " :: " + ex.Message);
             }
         }
+
+        private static bool IsActivePortLog(string path, HashSet<int> activePorts)
+        {
+            try
+            {
+                var name = Path.GetFileName(path) ?? string.Empty;
+                foreach (var port in activePorts)
+                {
+                    if (port <= 0) continue;
+                    if (name.IndexOf(port.ToString(), StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+            }
+            catch { /* ignore */ }
+            return false;
+        }
+
+        private static void CleanupDirectoryRecursive(string dir, DateTime threshold, CacheCleanupReport report, bool dryRun, Func<string, bool>? fileSkip = null)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) return;
+            if (!Directory.Exists(dir)) return;
+
+            try
+            {
+                foreach (var file in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+                {
+                    if (fileSkip != null && fileSkip(file)) continue;
+                    if (GetLastWriteTimeSafe(file) < threshold)
+                        TryDeleteFile(file, report, dryRun);
+                }
+            }
+            catch (Exception ex)
+            {
+                report.warnings.Add("Cleanup files failed: " + dir + " :: " + ex.Message);
+            }
+
+            try
+            {
+                var allDirs = Directory.GetDirectories(dir, "*", SearchOption.AllDirectories)
+                    .OrderByDescending(d => d.Length)
+                    .ToList();
+                foreach (var d in allDirs)
+                {
+                    try
+                    {
+                        if (Directory.Exists(d) && Directory.GetFileSystemEntries(d).Length == 0)
+                        {
+                            if (GetNewestWriteTimeRecursiveSafe(d) < threshold)
+                                TryDeleteDirectory(d, report, dryRun);
+                        }
+                    }
+                    catch { /* ignore */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                report.warnings.Add("Cleanup dirs failed: " + dir + " :: " + ex.Message);
+            }
+        }
     }
 }
-

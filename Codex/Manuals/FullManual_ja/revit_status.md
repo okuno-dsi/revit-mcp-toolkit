@@ -1,4 +1,4 @@
-﻿# revit.status
+# revit.status
 
 - カテゴリ: MetaOps
 - 種別: read
@@ -20,12 +20,13 @@
 
 durable helper:
 ```powershell
-python .\\Manuals\\Scripts\\send_revit_command_durable.py --port 5210 --command revit.status
+python .\\Scripts\\Manuals\\send_revit_command_durable.py --port 5210 --command revit.status
 ```
 
 JSON-RPC:
 ```json
 { "jsonrpc":"2.0", "id":1, "method":"revit.status", "params":{} }
 ```
+
 
 

@@ -14,10 +14,10 @@ How it works
 5) get_type_parameters_bulk (values; chunked)
 
 Outputs
-- Work/<RevitFileName>_<docKey>/Reports/selected_structural_column_type_params_<timestamp>.csv
+- Projects/<RevitFileName>_<docKey>/Reports/selected_structural_column_type_params_<timestamp>.csv
 
 Run (CLI)
-python -X utf8 Manuals/Scripts/dump_selected_structural_column_type_parameters_csv.py --port 5210
+python -X utf8 Scripts/Reference/dump_selected_structural_column_type_parameters_csv.py --port 5210
 """
 
 import argparse
@@ -84,7 +84,7 @@ def _safe_filename(s: str) -> str:
 
 
 def _repo_root() -> Path:
-    # This script lives under Manuals/Scripts in the Codex repo.
+    # This script lives under Scripts/Reference in the Codex repo.
     return Path(__file__).resolve().parents[2]
 
 
@@ -345,4 +345,8 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+
 

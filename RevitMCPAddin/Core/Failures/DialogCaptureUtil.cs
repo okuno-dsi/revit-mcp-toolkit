@@ -182,9 +182,7 @@ namespace RevitMCPAddin.Core.Failures
 
             var candidates = new[]
             {
-                Path.Combine(baseDir, "server", "capture-agent", "RevitMcp.CaptureAgent.exe"),
-                Path.Combine(baseDir, "server", "CaptureAgent", "RevitMcp.CaptureAgent.exe"),
-                Path.Combine(baseDir, "server", "RevitMcp.CaptureAgent.exe")
+                Path.Combine(baseDir, "server", "capture-agent", "RevitMcp.CaptureAgent.exe")
             };
 
             foreach (var c in candidates)

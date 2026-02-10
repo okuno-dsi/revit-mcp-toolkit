@@ -67,49 +67,49 @@ Manage Revit element joins and related constraints programmatically. Wraps `Join
 
 Join two walls (by ids):
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command join_elements \
   --params '{"elementIdA":12345, "elementIdB":67890}' --force
 ```
 
 Check joined:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command are_elements_joined \
   --params '{"elementIdA":12345, "elementIdB":67890}' --force
 ```
 
 Switch join order:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command switch_join_order \
   --params '{"elementIdA":12345, "elementIdB":67890}' --force
 ```
 
 Unjoin:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command unjoin_elements \
   --params '{"elementIdA":12345, "elementIdB":67890}' --force
 ```
 
 List joined/constraint info from one element:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command get_joined_elements \
   --params '{"elementId":12345}' --force
 ```
 
 Unpin a single element:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command unpin_element \
   --params '{"elementId":12345}' --force
 ```
 
 Unpin several elements at once:
 ```
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
+python -X utf8 Scripts/Reference/send_revit_command_durable.py \
   --port 5210 --command unpin_elements \
   --params '{"elementIds":[12345,67890]}' --force
 ```
@@ -119,3 +119,6 @@ python -X utf8 Manuals/Scripts/send_revit_command_durable.py \
 - Switching order changes which element cuts the other.
 - Prefer passing ElementIds. uniqueIds are supported for convenience.
 - `get_joined_elements` also reports pin/group/host/dependent state and suggests safe follow-up commands (`unjoin_elements`, `unpin_element`) while warning about operations that should stay in Revit UI.
+
+
+

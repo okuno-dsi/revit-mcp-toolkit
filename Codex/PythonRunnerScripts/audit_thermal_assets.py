@@ -131,7 +131,7 @@ def main(argv: List[str]) -> int:
     ap.add_argument(
         "--output-json",
         type=str,
-        default="Work/tmp_thermal_assets_audit.json",
+        default="Projects/tmp_thermal_assets_audit.json",
         help="レポートを書き出す JSON パス（Codex ルート基準）",
     )
     args = ap.parse_args(argv)
@@ -195,4 +195,5 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
 

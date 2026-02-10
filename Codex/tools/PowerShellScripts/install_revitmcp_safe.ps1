@@ -104,3 +104,4 @@ $h2 = Get-Hash $dstExe
 if ($h1 -ne $h2) { throw "Hash mismatch for RevitMCPServer.exe (src:$h1 dst:$h2)" }
 
 Write-Host "[OK] Install completed. Hash verified." -ForegroundColor Green
+

@@ -44,7 +44,7 @@ for ($i=0; $i -lt 30; $i++){ Start-Sleep -Milliseconds 500; $g = Invoke-WebReque
 ### Python client (recommended)
 Use the reusable script in this repository.
 ```
-chcp 65001 > NUL & python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server
+chcp 65001 > NUL & python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server
 ```
 Expected output: JSON where `result.ok == true`.
 
@@ -69,9 +69,12 @@ Expected output: JSON where `result.ok == true`.
 - Command catalogue (includes `ping_server`)
   - `コマンドハンドラ一覧/Most Important コマンドハンドラ一覧（カテゴリ別）20250901_AI向け.txt`
 - Reusable client
-  - `Manuals/Scripts/send_revit_command_durable.py`
+  - `Scripts/Reference/send_revit_command_durable.py`
 
 ## Reuse (Future Codex sessions)
 - When you need to reconnect to the Revit MCP and send commands, follow this runbook.
-- First verify reachability with `ping_server`, then send the target command with `Manuals/Scripts/send_revit_command_durable.py` or the PowerShell examples above.
+- First verify reachability with `ping_server`, then send the target command with `Scripts/Reference/send_revit_command_durable.py` or the PowerShell examples above.
+
+
+
 

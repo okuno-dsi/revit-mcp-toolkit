@@ -2,7 +2,7 @@
 param(
   [int]$Port = 5210,
   [int[]]$ElementIds = @(),
-  [string]$OutCsv = "Work/Project_5210/Logs/elements_parameters_identity_5210.csv",
+  [string]$OutCsv = "Projects/Project_5210/Logs/elements_parameters_identity_5210.csv",
   [string]$UnitsMode = "SI", # SI | Project | Raw | Both
   [int]$WaitSec = 20,
   [int]$TimeoutSec = 120,
@@ -122,3 +122,5 @@ foreach($eid in $ElementIds){
 }
 
 Write-Host ("Saved: " + (Resolve-Path $OutCsv).Path) -ForegroundColor Green
+
+

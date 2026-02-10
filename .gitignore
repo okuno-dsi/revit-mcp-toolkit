@@ -108,10 +108,12 @@ UpgradeReport*.xml
 # Local / generated work dirs
 Codex/Design/
 Codex/Work/
+Codex/Projects/
 Codex/Manuals/Work/
 Codex/Trash/
 Codex/tools/Work/
 Codex/Logs/
+Projects/
 Codex/cleanup_*.md
 Codex/git_igonore_items_list.md
 **/logs/

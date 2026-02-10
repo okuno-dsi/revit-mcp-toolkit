@@ -34,7 +34,7 @@
 ## 手順（標準フロー）
 
 1) ベースラインを決める
-   - 例: `Work/Project_5210_B/20251027_123122/view_<viewId>_elements.json`
+   - 例: `Projects/Project_5210_B/20251027_123122/view_<viewId>_elements.json`
 2) 現在のビューIDを取得 `get_current_view`
 3) 現在のビューの要素ID一覧を取得 `get_elements_in_view{ idsOnly:true }`
 4) 現在の要素詳細をチャンク取得 `get_element_info{ rich:true }`
@@ -65,38 +65,38 @@
 
 ```powershell
 # 1) 現在のビュー
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_current_view --output-file Work/tmp/current_view.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_current_view --output-file Projects/tmp/current_view.json
 
 # 2) タグ取得（ビュー内）
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_tags_in_view --params '{"viewId":60521780}' --output-file Work/tmp/tags.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_tags_in_view --params '{"viewId":60521780}' --output-file Projects/tmp/tags.json
 
 # 3) 要素IDと詳細
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_elements_in_view --params '{"viewId":60521780, "_shape":{"idsOnly":true}}' --output-file Work/tmp/ids.json
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_element_info --params '{"elementIds":[...],"rich":true}' --output-file Work/tmp/now_part_0.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_elements_in_view --params '{"viewId":60521780, "_shape":{"idsOnly":true}}' --output-file Projects/tmp/ids.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_element_info --params '{"elementIds":[...],"rich":true}' --output-file Projects/tmp/now_part_0.json
 
 # 4) リビジョンID
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command list_revisions --output-file Work/tmp/revs.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command list_revisions --output-file Projects/tmp/revs.json
 # 無ければ
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_default_revision --output-file Work/tmp/rev_new.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_default_revision --output-file Projects/tmp/rev_new.json
 
 # 5) タグ優先クラウド（サイズ付き）
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_tag_bounds_in_view --params '{"viewId":60521780, "tagId":60521957, "inflateMm":100}' --output-file Work/tmp/tag_bounds.json
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_revision_cloud_for_element_projection --params '{"viewId":60521780, "revisionId":60521965, "elementId":60521957, "paddingMm":120, "tagWidthMm":2092.0, "tagHeightMm":1175.7}' --output-file Work/tmp/cloud_for_tag.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_tag_bounds_in_view --params '{"viewId":60521780, "tagId":60521957, "inflateMm":100}' --output-file Projects/tmp/tag_bounds.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_revision_cloud_for_element_projection --params '{"viewId":60521780, "revisionId":60521965, "elementId":60521957, "paddingMm":120, "tagWidthMm":2092.0, "tagHeightMm":1175.7}' --output-file Projects/tmp/cloud_for_tag.json
 
 # 6) 要素投影 → 不可なら curveLoops 矩形でフォールバック
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_revision_cloud_for_element_projection --params '{"viewId":60521780, "revisionId":60521965, "elementId":60521941, "paddingMm":150}' --output-file Work/tmp/cloud_for_elem.json
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command create_revision_cloud --params '{"viewId":60521780, "revisionId":60521965, "curveLoops":[[{"start":{"x":x0,"y":y0,"z":0}, "end":{"x":x1,"y":y0,"z":0}}, ... ]]}' --output-file Work/tmp/cloud_rect.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_revision_cloud_for_element_projection --params '{"viewId":60521780, "revisionId":60521965, "elementId":60521941, "paddingMm":150}' --output-file Projects/tmp/cloud_for_elem.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_revision_cloud --params '{"viewId":60521780, "revisionId":60521965, "curveLoops":[[{"start":{"x":x0,"y":y0,"z":0}, "end":{"x":x1,"y":y0,"z":0}}, ... ]]}' --output-file Projects/tmp/cloud_rect.json
 
 # 7) コメント追記（任意）
-python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --command set_revision_cloud_parameter --params '{"elementId":<cloudId>, "name":"コメント", "value":"壁タイプ変更 + 寸法差分"}' --output-file Work/tmp/set_comment.json
+python -X utf8 Scripts/Reference/send_revit_command_durable.py --port 5210 --command set_revision_cloud_parameter --params '{"elementId":<cloudId>, "name":"コメント", "value":"壁タイプ変更 + 寸法差分"}' --output-file Projects/tmp/set_comment.json
 ```
 
 ## サンプル: Python スクリプト（バッチ自動化）
 
-`Manuals/Scripts/diff_cloud_tagfirst.py` を参照してください。主なオプション:
+`Scripts/Reference/diff_cloud_tagfirst.py` を参照してください。主なオプション:
 
 - `--port 5210`
-- `--baseline Work/Project_5210_B/20251027_123122`
+- `--baseline Projects/Project_5210_B/20251027_123122`
 - `--tag-mode ask|prefer|never`（既定: ask）
 - `--write-comments`（リビジョンクラウドのコメントに要約を書込）
 - `--csv out.csv`（CSVの保存先）
@@ -104,9 +104,9 @@ python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --comma
 実行例:
 
 ```bash
-  python Manuals/Scripts/diff_cloud_tagfirst.py --port 5210 \
-  --baseline Work/Project_5210_B/20251027_123122 \
-  --tag-mode prefer --write-comments --csv Work/DiffCloud/out.csv
+  python Scripts/Reference/diff_cloud_tagfirst.py --port 5210 \
+  --baseline Projects/Project_5210_B/20251027_123122 \
+  --tag-mode prefer --write-comments --csv Projects/DiffCloud/out.csv
 
 補足（パフォーマンス向上）
 - ビュー内の使用タイプ一覧 `get_types_in_view` → タイプパラメータ `get_type_parameters_bulk` を併用すると、`get_element_info` の詳細展開を省略でき高速化します。
@@ -131,3 +131,7 @@ python -X utf8 Manuals/Scripts/send_revit_command_durable.py --port 5210 --comma
   - 本アドインではバージョン差異に対応済み（反射で解決）。
 - Z 入力
   - 入力 Z=0 でも、内部でビューのスケッチ平面に正射影して作図するため問題なし。
+
+
+
+

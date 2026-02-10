@@ -18,7 +18,7 @@ function Invoke-RevitCommandJson {
   $tmp = New-TemporaryFile
   try {
     $argsList = @(
-      "Manuals/Scripts/send_revit_command_durable.py",
+      "..\..\..\Docs\..\\..\\Manuals/send_revit_command_durable.py",
       "--port", $Port,
       "--command", $Method,
       "--params", $paramsJson,
@@ -49,8 +49,8 @@ function Get-ProjectNameSafe {
   $cands = @(
     (Join-Path $logs ("project_info_{0}.json" -f $Port)),
     (Join-Path $logs 'project_info.json'),
-    (Join-Path 'Manuals/Logs' ("project_info_{0}.json" -f $Port)),
-    (Join-Path 'Manuals/Logs' 'project_info.json')
+    (Join-Path '..\..\..\Docs\..\..\..\Docs\Manuals\Logs' ("project_info_{0}.json" -f $Port)),
+    (Join-Path '..\..\..\Docs\..\..\..\Docs\Manuals\Logs' 'project_info.json')
   )
   foreach($path in $cands){
     if(Test-Path $path){
@@ -338,3 +338,5 @@ if (-not $CsvFallbackOnly) {
 } else {
   Write-Host "[Done] CSV only as requested."; Write-Host ("CSV: {0}" -f $csvParams)
 }
+
+

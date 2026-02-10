@@ -21,7 +21,7 @@ $PY = Join-Path $SCRIPT_DIR 'send_revit_command_durable.py'
 if(!(Test-Path $PY)) { Write-Error "Python client not found: $PY"; exit 2 }
 
 function Ensure-ProjectDirByName([string]$projName, [int]$p){
-  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+  $workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
   $cand = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq ("{0}_{1}" -f $projName, $p) }
   if(-not $cand){
     $cand = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like ("{0}_*" -f $projName) } | Select-Object -First 1
@@ -179,3 +179,5 @@ foreach($p in $renamePlan){
 }
 
 Write-Host ("[Done] Renamed {0} types. Errors: {1}" -f $renamed.Count, $errors.Count) -ForegroundColor Green
+
+

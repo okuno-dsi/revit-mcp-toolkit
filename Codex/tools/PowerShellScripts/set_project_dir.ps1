@@ -14,7 +14,9 @@ New-Item -ItemType Directory -Force -Path (Join-Path $proj 'Logs') | Out-Null
 
 $env:MCP_PROJECT_DIR = (Resolve-Path $proj).Path
 # Persist for other tools reading it later (optional)
-Set-Content -LiteralPath (Join-Path $ROOT 'Work\.project_dir') -Encoding UTF8 -Value $env:MCP_PROJECT_DIR
+Set-Content -LiteralPath (Join-Path $ROOT 'Projects\\.project_dir') -Encoding UTF8 -Value $env:MCP_PROJECT_DIR
 
 Write-Host ("Project directory set: " + $env:MCP_PROJECT_DIR) -ForegroundColor Green
+
+
 

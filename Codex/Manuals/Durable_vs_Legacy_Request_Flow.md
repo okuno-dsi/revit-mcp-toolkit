@@ -2,7 +2,7 @@
 
 This document compares the “durable” job-based sender and the traditional (legacy) FIFO sender used to communicate with the Revit MCP add-in.
 
-- Durable sender: `Manuals/Scripts/send_revit_command_durable.py`
+- Durable sender: `Scripts/Reference/send_revit_command_durable.py`
 - Legacy sender: (deprecated here) — use durable wrapper `..\..\NVIDIA-Nemotron-v3\tool\send_revit_command.py` which implements durable flow
 - Optional resilient wrapper: `Tools/mcp_safe.py`
 
@@ -61,20 +61,20 @@ This document compares the “durable” job-based sender and the traditional (l
 - Durable (recommended when `/job/{id}` is available)
   - Ping
     ```bash
-    python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server --wait-seconds 120 --timeout-sec 120
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server --wait-seconds 120 --timeout-sec 120
     ```
   - Get project info (save result)
     ```bash
-    python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_project_info --wait-seconds 120 --timeout-sec 120 --output-file Work/<ProjectName>_<Port>/Logs/get_project_info_5210.json
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_project_info --wait-seconds 120 --timeout-sec 120 --output-file Projects/<ProjectName>_<Port>/Logs/get_project_info_5210.json
     ```
 - Legacy (fallback/compatibility)
   - Ping
     ```bash
-    python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command ping_server --wait-seconds 120
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server --wait-seconds 120
     ```
   - Get project info (save result)
     ```bash
-    python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_project_info --wait-seconds 120 --output-file Work/<ProjectName>_<Port>/Logs/get_project_info_5210.legacy.json
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_project_info --wait-seconds 120 --output-file Projects/<ProjectName>_<Port>/Logs/get_project_info_5210.legacy.json
     ```
 
 ## Operational Notes
@@ -85,6 +85,10 @@ This document compares the “durable” job-based sender and the traditional (l
 
 ## Observation (This Workspace)
 - On 2025-10-14, port `5210` timed out with the legacy sender for `ping_server`, while the durable sender succeeded quickly. Ports `5211` and `5212` also responded successfully with the durable sender.
+
+
+
+
 
 
 

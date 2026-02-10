@@ -77,8 +77,8 @@ Write-Host "Creating snapshots for $LeftPort and $RightPort" -ForegroundColor Cy
 # Ensure same base view name is active on both ports before snapshot
 Activate-BaseView -Port $LeftPort -Name $BaseViewName
 Activate-BaseView -Port $RightPort -Name $BaseViewName
-& pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'create_structural_details_snapshot.ps1') -Port $LeftPort -DeleteOld | Tee-Object -FilePath (Join-Path $ROOT 'Work\snap_left.log') | Out-Null
-& pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'create_structural_details_snapshot.ps1') -Port $RightPort -DeleteOld | Tee-Object -FilePath (Join-Path $ROOT 'Work\snap_right.log') | Out-Null
+& pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'create_structural_details_snapshot.ps1') -Port $LeftPort -DeleteOld | Tee-Object -FilePath (Join-Path $ROOT 'Projects\\snap_left.log') | Out-Null
+& pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'create_structural_details_snapshot.ps1') -Port $RightPort -DeleteOld | Tee-Object -FilePath (Join-Path $ROOT 'Projects\\snap_right.log') | Out-Null
 
 function Get-LatestSnapshot([int]$Port){
   $pattern = "structural_details_port{0}_*.json" -f $Port
@@ -93,17 +93,17 @@ Write-Host "Left=$leftSnap`nRight=$rightSnap" -ForegroundColor DarkCyan
 
 # 2) Strict diff
 $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-$csv = Join-Path $ROOT ("Work/crossport_differences_"+$ts+".csv")
-$leftIds = Join-Path $ROOT ("Work/crossport_left_ids_"+$ts+".json")
-$rightIds = Join-Path $ROOT ("Work/crossport_right_ids_"+$ts+".json")
-$pairs = Join-Path $ROOT ("Work/crossport_modified_pairs_"+$ts+".json")
-python -X utf8 (Join-Path $SCRIPT_DIR 'strict_crossport_diff.py') "$leftSnap" "$rightSnap" --csv "$csv" --left-ids "$leftIds" --right-ids "$rightIds" --pairs-out "$pairs" --pos-tol-mm $PosTolMm --len-tol-mm $LenTolMm --keys 'familyName,typeName,符号,H,B,tw,tf' | Tee-Object -FilePath (Join-Path $ROOT 'Work\crossport_diff_result.json') | Out-Null
+$csv = Join-Path $ROOT ("Projects/crossport_differences_"+$ts+".csv")
+$leftIds = Join-Path $ROOT ("Projects/crossport_left_ids_"+$ts+".json")
+$rightIds = Join-Path $ROOT ("Projects/crossport_right_ids_"+$ts+".json")
+$pairs = Join-Path $ROOT ("Projects/crossport_modified_pairs_"+$ts+".json")
+python -X utf8 (Join-Path $SCRIPT_DIR 'strict_crossport_diff.py') "$leftSnap" "$rightSnap" --csv "$csv" --left-ids "$leftIds" --right-ids "$rightIds" --pairs-out "$pairs" --pos-tol-mm $PosTolMm --len-tol-mm $LenTolMm --keys 'familyName,typeName,符号,H,B,tw,tf' | Tee-Object -FilePath (Join-Path $ROOT 'Projects\\crossport_diff_result.json') | Out-Null
 Write-Host "Strict diff done: $csv" -ForegroundColor Green
 
 if($CleanOldClouds){
   Write-Host "Cleaning old clouds in views like '*相違*'" -ForegroundColor Yellow
-  & pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'delete_revision_clouds_by_viewname.ps1') -Port $LeftPort -NameLike '*相違*' -IncludeActiveView | Tee-Object -FilePath (Join-Path $ROOT 'Work\clean_left.json') | Out-Null
-  & pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'delete_revision_clouds_by_viewname.ps1') -Port $RightPort -NameLike '*相違*' -IncludeActiveView | Tee-Object -FilePath (Join-Path $ROOT 'Work\clean_right.json') | Out-Null
+  & pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'delete_revision_clouds_by_viewname.ps1') -Port $LeftPort -NameLike '*相違*' -IncludeActiveView | Tee-Object -FilePath (Join-Path $ROOT 'Projects\\clean_left.json') | Out-Null
+  & pwsh -NoProfile -File (Join-Path $SCRIPT_DIR 'delete_revision_clouds_by_viewname.ps1') -Port $RightPort -NameLike '*相違*' -IncludeActiveView | Tee-Object -FilePath (Join-Path $ROOT 'Projects\\clean_right.json') | Out-Null
 }
 
 # 3) Duplicate views and detach template
@@ -146,7 +146,7 @@ if($Lids.Count -gt 0){
       try { $null = Call-Mcp $LeftPort 'set_revision_cloud_parameter' @{ elementId=$cid; paramName='Comments'; value=$comment } 60 120 -Force } catch { try { $null = Call-Mcp $LeftPort 'set_revision_cloud_parameter' @{ elementId=$cid; paramName='コメント'; value=$comment } 60 120 -Force } catch {} }
     } catch {}
   }
-  @{ ok = $true; created = $created.Count } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Work\clouds_left_result.json') -Encoding UTF8
+  @{ ok = $true; created = $created.Count } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Projects\\clouds_left_result.json') -Encoding UTF8
 }
 if($Rids.Count -gt 0){
   # Clean clouds strictly in target view on right
@@ -171,10 +171,12 @@ if($Rids.Count -gt 0){
       try { $null = Call-Mcp $RightPort 'set_revision_cloud_parameter' @{ elementId=$cid; paramName='Comments'; value=$comment } 60 120 -Force } catch { try { $null = Call-Mcp $RightPort 'set_revision_cloud_parameter' @{ elementId=$cid; paramName='コメント'; value=$comment } 60 120 -Force } catch {} }
     } catch {}
   }
-  @{ ok = $true; created = $created.Count } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Work\clouds_right_result.json') -Encoding UTF8
+  @{ ok = $true; created = $created.Count } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $ROOT 'Projects\\clouds_right_result.json') -Encoding UTF8
 }
 
 Write-Host "Completed: CSV=$csv | LeftView=$($Lview.viewId) | RightView=$($Rview.viewId)" -ForegroundColor Green
+
+
 
 
 

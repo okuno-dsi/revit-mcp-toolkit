@@ -13,6 +13,8 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>RevitMCPAddin</RootNamespace>
     <AssemblyName>RevitMCPAddin</AssemblyName>
+    <!-- Enable WPF XAML compilation for window resources -->
+    <ProjectTypeGuids>{60DC8134-EBA5-43B8-BCC9-BB4BC16C2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -85,8 +87,13 @@
 
     <!-- Copy full server publish output (DLLs, runtimes, wwwroot, tessdata, etc.). Exclude nested publish folders. -->
     <ItemGroup>
-      <ServerFiles Include="$(ServerRootSource)\**\*.*" Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)') "
-                   Exclude="$(ServerRootSource)\publish\**\*.*" />
+      <ServerFiles Include="$(ServerRootSource)\**\*.*"
+                   Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)') "
+                   Exclude="$(ServerRootSource)\publish\**\*.*;
+                            $(ServerRootSource)\capture-agent\**\*.*;
+                            $(ServerRootSource)\CaptureAgent\**\*.*;
+                            $(ServerRootSource)\tessdata\**\*.*;
+                            $(ServerRootSource)\RevitMcp.CaptureAgent.*" />
     </ItemGroup>
     <Copy SourceFiles="@(ServerFiles)"
           DestinationFiles="@(ServerFiles->'$(OutputPath)server\%(RecursiveDir)%(Filename)%(Extension)')"
@@ -103,6 +110,18 @@
           DestinationFiles="@(CaptureAgentFiles->'$(OutputPath)server\capture-agent\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true"
           Condition=" '@(CaptureAgentFiles)'!='' " />
+  </Target>
+  <!-- Clean accidental legacy CaptureAgent outputs (avoid duplication). -->
+  <Target Name="CleanLegacyCaptureAgentDupes" AfterTargets="CopyRevitMcpServerExe">
+    <RemoveDir Directories="$(OutputPath)server\CaptureAgent" />
+    <!-- Remove duplicate capture-agent publish subfolder (win-x64) to shrink package -->
+    <RemoveDir Directories="$(OutputPath)server\capture-agent\win-x64" />
+    <ItemGroup>
+      <LegacyCaptureAgentFiles Include="$(OutputPath)server\RevitMcp.CaptureAgent.*" />
+      <LegacyTessdataFiles Include="$(OutputPath)server\tessdata\**\*.*" />
+    </ItemGroup>
+    <Delete Files="@(LegacyCaptureAgentFiles)" />
+    <Delete Files="@(LegacyTessdataFiles)" />
   </Target>
   <!-- Build info (date + commit) for ribbon display -->
   <Target Name="GenerateBuildInfo" BeforeTargets="Build">
@@ -234,6 +253,7 @@
     <Compile Include="Commands\Family\FamilyDiscoveryCommands.cs" />
     <Compile Include="Commands\ElementOps\ElementQueryCommands.cs" />
     <Compile Include="Commands\ElementOps\JoinGeometryCommands.cs" />
+    <Compile Include="Commands\ElementOps\CutGeometryCommands.cs" />
     <Compile Include="Commands\ElementOps\Material\ThermalAssetHelpers.cs" />
     <Compile Include="Commands\ElementOps\StructuralColumn\ClassifyColumnsByRoomArmsCommand.cs" />
     <Compile Include="Commands\ElementOps\StructuralColumn\GetCandidateExteriorColumnsCommand.cs" />
@@ -746,6 +766,8 @@
     <Compile Include="Core\FaceHostHelper.cs" />
     <Compile Include="Core\PaintHelper.cs" />
     <Compile Include="Core\ConfirmTokenService.cs" />
+    <Compile Include="Core\DocumentKeyUtil.cs" />
+    <Compile Include="Core\IdempotencyResultCache.cs" />
     <Compile Include="RevitMcpWorker.cs" />
     <Compile Include="Core\RequestCommand.cs" />
     <Compile Include="Core\CommandRouter.cs" />
@@ -813,6 +835,12 @@
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- WPF build tasks for XAML pages (fallback to .NET Framework path when using dotnet msbuild) -->
+  <PropertyGroup>
+    <WinFxTargets>$(MSBuildBinPath)\Microsoft.WinFX.targets</WinFxTargets>
+    <WinFxTargets Condition="!Exists('$(WinFxTargets)')">$(WINDIR)\Microsoft.NET\Framework\v4.0.30319\Microsoft.WinFX.targets</WinFxTargets>
+  </PropertyGroup>
+  <Import Project="$(WinFxTargets)" Condition="Exists('$(WinFxTargets)')" />
   <Import Project="packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
   <!-- NuGet パッケージ存在チェック -->
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
@@ -870,6 +898,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\ShowPythonRunnerCommand.cs" />
+    <Compile Include="Commands\ShowInfoPickCommand.cs" />
     <Compile Include="UI\PythonRunner\PythonRunnerWindow.xaml.cs">
       <DependentUpon>PythonRunnerWindow.xaml</DependentUpon>
     </Compile>
@@ -883,6 +912,9 @@
       <DependentUpon>ScriptMetadataWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="UI\PythonRunner\PythonRunnerScriptLibrary.cs" />
+    <Compile Include="UI\InfoPick\InfoPickWindow.xaml.cs">
+      <DependentUpon>InfoPickWindow.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Page Include="UI\PythonRunner\PythonRunnerWindow.xaml">
@@ -898,6 +930,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="UI\PythonRunner\ScriptMetadataWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\InfoPick\InfoPickWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

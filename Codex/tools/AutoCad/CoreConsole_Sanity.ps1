@@ -1,5 +1,5 @@
 Param(
-  [string]$SeedDwg = 'Work/AutoCadOut/walls_A.dwg',
+  [string]$SeedDwg = 'Projects/AutoCadOut/walls_A.dwg',
   [string]$AccorePath = 'C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe',
   [string]$OutDir = 'C:/Temp/CadOut',
   [string]$Locale = 'ja-JP',
@@ -10,8 +10,8 @@ if(-not (Test-Path $AccorePath)){ throw "accoreconsole not found: $AccorePath" }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $seed = (Resolve-Path $SeedDwg).Path
 if(-not (Test-Path $seed)){
-  $cand = Get-ChildItem -Path 'Work/AutoCadOut' -Filter 'walls_*.dwg' -File | Select-Object -First 1
-  if($cand){ $seed = $cand.FullName } else { throw 'No seed DWG found under Work/AutoCadOut' }
+  $cand = Get-ChildItem -Path 'Projects/AutoCadOut' -Filter 'walls_*.dwg' -File | Select-Object -First 1
+  if($cand){ $seed = $cand.FullName } else { throw 'No seed DWG found under Projects/AutoCadOut' }
 }
 $scr = Join-Path $OutDir 'core_sanity.scr'
 $outDwg = Join-Path $OutDir 'core_sanity.dwg'
@@ -43,3 +43,4 @@ $ok = $p.WaitForExit($TimeoutSec * 1000)
 if(-not $ok){ try{ $p.Kill($true) }catch{}; throw "Core Console timeout (logs: $logOut, $logErr)" }
 if($p.ExitCode -ne 0){ throw "accoreconsole exit=$($p.ExitCode). logs: $logOut, $logErr" }
 if(Test-Path $outDwg){ Write-Host ('OK: ' + (Resolve-Path $outDwg).Path) -ForegroundColor Green } else { throw ("NG: output not created. logs: $logOut, $logErr") }
+

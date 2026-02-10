@@ -4,7 +4,7 @@
 - Purpose: Set Project Base Point in Revit.
 
 ## Overview
-This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
+Moves the Project Base Point without moving model geometry (sheet/view appearance stays the same, coordinates change). Use this to resolve origin mismatches between architectural/structural models while keeping views unchanged.
 
 ## Usage
 - Method: set_project_base_point
@@ -12,52 +12,58 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 ### Parameters
 | Name | Type | Required | Default |
 |---|---|---|---|
-| angleToTrueNorthDeg | number | no/depends | 0.0 |
-| sharedSiteName | string | no/depends |  |
+| xyzMm | object {x,y,z} | no |  |
+| deltaMm | object {x,y,z} | no |  |
+| fromPointMm | object {x,y,z} | no |  |
+| toPointMm | object {x,y,z} | no |  |
+| angleToTrueNorthDeg | number | no | 0.0 |
+| sharedSiteName | string | no |  |
 
-### Example Request
+**Coordinate rules**
+- `xyzMm` sets the absolute base point coordinates (mm).
+- `deltaMm` moves the base point by the given offset (mm).
+- `fromPointMm` + `toPointMm` will compute `deltaMm = to - from` and apply it.
+- If none of `xyzMm/deltaMm/fromPointMm/toPointMm` are provided, only `angleToTrueNorthDeg` (if any) is applied.
+
+### Example Request (absolute)
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
   "method": "set_project_base_point",
   "params": {
-    "angleToTrueNorthDeg": 0.0,
-    "sharedSiteName": "..."
+    "xyzMm": {"x": 1000, "y": -500, "z": 0},
+    "angleToTrueNorthDeg": 0.0
+  }
+}
+```
+
+### Example Request (delta)
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "set_project_base_point",
+  "params": {
+    "deltaMm": {"x": -250, "y": 0, "z": 0}
+  }
+}
+```
+
+### Example Request (from/to)
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "set_project_base_point",
+  "params": {
+    "fromPointMm": {"x": 10000, "y": 20000, "z": 0},
+    "toPointMm": {"x": 0, "y": 0, "z": 0}
   }
 }
 ```
 
 ## Related
-- create_toposurface_from_points
-- append_toposurface_points
-- replace_toposurface_points
-- place_building_pad
-- create_property_line_from_points
 - set_survey_point
 - set_shared_coordinates_from_points
 - get_site_overview
-
-### Params Schema
-```json
-{
-  "type": "object",
-  "properties": {
-    "angleToTrueNorthDeg": {
-      "type": "number"
-    },
-    "sharedSiteName": {
-      "type": "string"
-    }
-  }
-}
-```
-
-### Result Schema
-```json
-{
-  "type": "object",
-  "properties": {},
-  "additionalProperties": true
-}
-```

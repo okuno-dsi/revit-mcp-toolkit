@@ -11,7 +11,7 @@
         --output C:/path/Merged/merged.dwg ^
         --seed C:/path/Seed/seed.dwg
 
-このスクリプトは、Codex/Work/merge_4F_walls_dwg.py を汎用化したものです。
+このスクリプトは、Codex/Projects/merge_4F_walls_dwg.py を汎用化したものです。
 """
 
 from __future__ import annotations
@@ -251,4 +251,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

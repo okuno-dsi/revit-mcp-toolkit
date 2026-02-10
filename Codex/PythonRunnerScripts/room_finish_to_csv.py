@@ -104,7 +104,7 @@ def main() -> None:
         "--output-csv",
         type=str,
         required=True,
-        help="書き出し先の CSV ファイルパス（例: Work/Temp_5210/room_finish.csv）",
+        help="書き出し先の CSV ファイルパス（例: Projects/Temp_5210/room_finish.csv）",
     )
     args = parser.parse_args()
 
@@ -227,4 +227,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
 

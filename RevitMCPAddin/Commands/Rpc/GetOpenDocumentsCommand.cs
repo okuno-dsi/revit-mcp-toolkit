@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;
+using RevitMCPAddin.Core.Ledger;
 
 namespace RevitMCPAddin.Commands.DocumentOps
 {
@@ -146,9 +147,18 @@ namespace RevitMCPAddin.Commands.DocumentOps
                 else if (isHost) role = "host";
                 else role = "standalone";
 
-                // A surrogate GUID for cross-port matching
+                // A surrogate GUID for cross-port matching (prefer MCP Ledger docKey)
                 string guid = null;
-                try { guid = d?.ProjectInformation?.UniqueId; } catch { }
+                try
+                {
+                    if (!LedgerDocKeyProvider.TryGetDocKey(d, out guid, out _, out _))
+                        LedgerDocKeyProvider.TryGetOrCreateDocKey(d, createIfMissing: true, out guid, out _, out _);
+                }
+                catch { /* ignore */ }
+                if (string.IsNullOrWhiteSpace(guid))
+                {
+                    try { guid = d?.ProjectInformation?.UniqueId; } catch { }
+                }
                 if (string.IsNullOrWhiteSpace(guid))
                 {
                     try { var sig = ($"{d?.Title}|{SafePath(d)}"); guid = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sig)); } catch { guid = string.Empty; }

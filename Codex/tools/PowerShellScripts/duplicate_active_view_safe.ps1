@@ -193,3 +193,4 @@ $outFail = [pscustomobject]@{
   newViewName = $dupName
 }
 $outFail | ConvertTo-Json -Depth 5 -Compress
+

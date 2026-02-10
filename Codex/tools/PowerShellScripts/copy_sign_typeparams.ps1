@@ -24,7 +24,7 @@ function Invoke-Revit($method, $paramsObj, $outFile){
 function Get-Payload($o){ if($o -and $o.result -and $o.result.result){ return $o.result.result } elseif($o -and $o.result){ return $o.result } else { return $o } }
 
 # Logs dir
-$workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\..\Work')
+$workRoot = Resolve-Path (Join-Path $SCRIPT_DIR '..\\..\\..\\Projects')
 $cands = Get-ChildItem -LiteralPath $workRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*_$Port" }
 if(-not $cands){ $proj = New-Item -ItemType Directory -Path (Join-Path $workRoot ("Project_{0}" -f $Port)) } else { $proj = $cands | Select-Object -First 1 }
 $logs = Join-Path $proj.FullName 'Logs'
@@ -108,4 +108,6 @@ foreach($t in $types){
 }
 
 Write-Host ("Done. Changed={0}, Skipped={1}" -f $changed.Count, $skipped.Count) -ForegroundColor Green
+
+
 

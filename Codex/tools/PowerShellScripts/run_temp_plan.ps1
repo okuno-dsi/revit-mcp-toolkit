@@ -49,7 +49,9 @@ if($DryRun){
   exit 0
 }
 
-$py = Join-Path $repoRoot 'Manuals\Scripts\send_revit_command_durable.py'
+$py = Join-Path $repoRoot '..\\..\\Manuals\send_revit_command_durable.py'
 python $py --port $Port --command $method --params (ConvertTo-Json $params -Depth 10 -Compress) --output-file $outFile --timeout-sec 600 --wait-seconds 240
 
 Write-Host ("[Saved] " + $outFile) -ForegroundColor Green
+
+

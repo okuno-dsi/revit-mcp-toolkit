@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -40,7 +41,21 @@ namespace RevitMCPAddin.Commands.SiteOps
         private object SetProjectBasePoint(Document doc, RequestCommand req)
         {
             var p = req.Params as JObject ?? new JObject();
-            var xyz = p["xyzMm"]?.ToObject<P3>() ?? default;
+            var hasXyz = p["xyzMm"] != null;
+            var hasDelta = p["deltaMm"] != null;
+            var hasFrom = p["fromPointMm"] != null;
+            var hasTo = p["toPointMm"] != null;
+
+            var xyz = hasXyz ? p["xyzMm"]!.ToObject<P3>() : default;
+            var delta = hasDelta ? p["deltaMm"]!.ToObject<P3>() : default;
+            var from = hasFrom ? p["fromPointMm"]!.ToObject<P3>() : default;
+            var to = hasTo ? p["toPointMm"]!.ToObject<P3>() : default;
+
+            if (!hasDelta && hasFrom && hasTo)
+            {
+                delta = new P3 { x = to.x - from.x, y = to.y - from.y, z = to.z - from.z };
+                hasDelta = true;
+            }
             double? angleDeg = p.Value<double?>("angleToTrueNorthDeg");
 
             using (var t = new Transaction(doc, "Set Project Base Point"))
@@ -50,9 +65,20 @@ namespace RevitMCPAddin.Commands.SiteOps
                 if (pbp == null) { t.RollBack(); return new { ok = false, msg = "Project Base Point not found." }; }
 
                 // Position プロパティを書けない環境向け：個別パラメータで設定
-                TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_EASTWEST_PARAM, UnitHelper.MmToFt(xyz.x));
-                TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_NORTHSOUTH_PARAM, UnitHelper.MmToFt(xyz.y));
-                TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_ELEVATION_PARAM, UnitHelper.MmToFt(xyz.z));
+                if (hasXyz || hasDelta)
+                {
+                    double curX = GetDoubleParam(pbp, BuiltInParameter.BASEPOINT_EASTWEST_PARAM);
+                    double curY = GetDoubleParam(pbp, BuiltInParameter.BASEPOINT_NORTHSOUTH_PARAM);
+                    double curZ = GetDoubleParam(pbp, BuiltInParameter.BASEPOINT_ELEVATION_PARAM);
+
+                    double newX = hasXyz ? UnitHelper.MmToFt(xyz.x) : (curX + UnitHelper.MmToFt(delta.x));
+                    double newY = hasXyz ? UnitHelper.MmToFt(xyz.y) : (curY + UnitHelper.MmToFt(delta.y));
+                    double newZ = hasXyz ? UnitHelper.MmToFt(xyz.z) : (curZ + UnitHelper.MmToFt(delta.z));
+
+                    TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_EASTWEST_PARAM, newX);
+                    TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_NORTHSOUTH_PARAM, newY);
+                    TrySetDoubleParam(pbp, BuiltInParameter.BASEPOINT_ELEVATION_PARAM, newZ);
+                }
 
                 if (angleDeg.HasValue)
                 {
@@ -158,17 +184,39 @@ namespace RevitMCPAddin.Commands.SiteOps
             catch { /* ignore */ }
         }
 
+        private static double GetDoubleParam(Element e, BuiltInParameter bip, double fallback = 0.0)
+        {
+            try
+            {
+                var p = e.get_Parameter(bip);
+                if (p != null && p.StorageType == StorageType.Double) return p.AsDouble();
+            }
+            catch { }
+            return fallback;
+        }
+
         private struct P3 { public double x, y, z; }
 
         private static class LoggerProxy
         {
             static readonly Type T = typeof(RevitMCPAddin.Core.RevitLogger);
+            private static System.Reflection.MethodInfo Pick(string name)
+            {
+                return T.GetMethods()
+                    .Where(m => m.Name == name)
+                    .FirstOrDefault(m =>
+                    {
+                        var ps = m.GetParameters();
+                        return ps.Length == 1 && ps[0].ParameterType == typeof(string);
+                    });
+            }
+
             static readonly System.Reflection.MethodInfo MInfo =
-                T.GetMethod("Info") ?? T.GetMethod("LogInfo") ?? T.GetMethod("AppendLog");
+                Pick("Info") ?? Pick("LogInfo") ?? Pick("AppendLog");
             static readonly System.Reflection.MethodInfo MWarn =
-                T.GetMethod("Warn") ?? T.GetMethod("LogWarn") ?? T.GetMethod("AppendLog");
+                Pick("Warn") ?? Pick("LogWarn") ?? Pick("AppendLog");
             static readonly System.Reflection.MethodInfo MErr =
-                T.GetMethod("Error") ?? T.GetMethod("LogError") ?? T.GetMethod("AppendLog");
+                Pick("Error") ?? Pick("LogError") ?? Pick("AppendLog");
 
             public static void Info(string msg) { if (MInfo != null) MInfo.Invoke(null, new object[] { msg }); else System.Diagnostics.Debug.WriteLine(msg); }
             public static void Warn(string msg) { if (MWarn != null) MWarn.Invoke(null, new object[] { msg }); else System.Diagnostics.Debug.WriteLine("WARN: " + msg); }

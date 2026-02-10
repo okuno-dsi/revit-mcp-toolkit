@@ -60,9 +60,13 @@
 
 呼び出し例（PowerShell）
 ```
-python Manuals/Scripts/send_revit_command_durable.py --port 5210 --command get_views --params '{"detail":true,"includeTemplates":false}' --output-file Work/<ProjectName>_<Port>/Logs/views.json
+python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_views --params '{"detail":true,"includeTemplates":false}' --output-file Projects/<ProjectName>_<Port>/Logs/views.json
 ```
 
 関連
 - 開いているUIビュー（タブ/ウィンドウ）だけを列挙したい場合は `list_open_views` を使用してください。
+
+
+
+
 

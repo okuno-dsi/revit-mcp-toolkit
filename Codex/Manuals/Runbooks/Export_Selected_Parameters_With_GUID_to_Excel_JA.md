@@ -7,23 +7,23 @@
 - Revit が起動し、MCP Add-in が有効（既定ポート `5210`）。
 - PowerShell 5+/7+ と Python 3.x が使用可能。
 - 実行ポリシーでブロックされる場合はプロセス限定 Bypass を使用: 例
-  - `pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/test_connection.ps1 -Port 5210`
+  - `pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/test_connection.ps1 -Port 5210`
 
 出力先（既定）
-- `Work/<ProjectName>_<Port>/Logs/`
+- `Projects/<ProjectName>_<Port>/Logs/`
 - 代表ファイル名（例）:
   - `selected_parameters_with_values_guid.csv`（UTF-8 BOM）
   - `selected_parameters_with_values_guid.xlsx`
 
 手順 A: 接続確認（必須）
 ```powershell
-pwsh -ExecutionPolicy Bypass -File Codex/Manuals/Scripts/test_connection.ps1 -Port 5210
+pwsh -ExecutionPolicy Bypass -File Codex/Scripts/Reference/test_connection.ps1 -Port 5210
 ```
 
 手順 B: 選択中要素 ID を取得
 ```powershell
 $PORT = 5210
-$PY = "Codex/Manuals/Scripts/send_revit_command_durable.py"
+$PY = "Codex/Scripts/Reference/send_revit_command_durable.py"
 $LOGS = (Resolve-Path "Codex/Work").Path | ForEach-Object { Get-ChildItem $_ -Directory | Where-Object { $_.Name -like "*_$PORT" -and $_.Name -notlike 'Project_*' } | Select-Object -First 1 } | ForEach-Object { Join-Path $_.FullName 'Logs' }
 if(-not (Test-Path $LOGS)){ New-Item -ItemType Directory -Path $LOGS | Out-Null }
 python $PY --port $PORT --command get_selected_element_ids --params '{}' --output-file (Join-Path $LOGS 'selected_element_ids.json')
@@ -147,7 +147,7 @@ $filtered | ConvertTo-Json -Depth 5 | Out-File -FilePath $JSON_TODO -Encoding ut
 手順 I: 再照会（shared_without_guid.csv をソースに GUID を個別解決）
 - `get_parameter_identity { fields:['guid'] }` を名前＋kind（type/instance）に応じて呼び出します。20 件前後ずつ分割実行すると安定します。
 ```powershell
-$PY = "Codex/Manuals/Scripts/send_revit_command_durable.py"
+$PY = "Codex/Scripts/Reference/send_revit_command_durable.py"
 $PORT = 5210
 $results = @()
 $targets = Import-Csv -Path (Join-Path $LOGS 'shared_without_guid.csv')
@@ -204,6 +204,10 @@ Write-Host ("[Merged] updated rows="+$updated)
 
 関連
 - 接続クイックスタート: `Manuals/ConnectionGuide/QUICKSTART.md`
-- スクリプト一覧: `Manuals/Scripts/README.md`
+- スクリプト一覧: `Scripts/Reference/README.md`
 - Bulk パラメータの詳細: `Manuals/Commands/Bulk_Parameters_EN.md`
-- セクションボックスのフォーカス 3D 作成: `Manuals/Scripts/create_focus_3d_from_selection.ps1`
+- セクションボックスのフォーカス 3D 作成: `Scripts/Reference/create_focus_3d_from_selection.ps1`
+
+
+
+
