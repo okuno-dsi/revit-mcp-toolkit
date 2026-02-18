@@ -10,7 +10,7 @@ using RevitMCP.Abstractions.Docs;
 
 namespace RevitMcpServer.Docs
 {
-    /// <summary>.NET Type ¨ JSON Schema (Å¬) •ÏŠ·ƒ†[ƒeƒBƒŠƒeƒB</summary>
+    /// <summary>.NET Type  JSON Schema (Å) ÏŠ[eBeB</summary>
     public static class SchemaUtils
     {
         public static Dictionary<string, object?> ToJsonSchema(Type t, HashSet<Type>? seen = null)

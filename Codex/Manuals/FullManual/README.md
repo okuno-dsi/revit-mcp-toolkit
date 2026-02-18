@@ -578,6 +578,7 @@ For batch-like commands (heuristic: `elementIds` count >= 5), the router may ret
 - [cleanup_revitmcp_cache](cleanup_revitmcp_cache.md)
 
 ## Misc
+- [get_project_browser_selection](get_project_browser_selection.md)
 - [get_selected_element_ids](get_selected_element_ids.md)
 - [get_last_selection](get_last_selection.md)
 - [stash_selection](stash_selection.md)

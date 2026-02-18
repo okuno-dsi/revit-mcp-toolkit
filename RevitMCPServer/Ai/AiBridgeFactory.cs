@@ -13,9 +13,9 @@ namespace RevitMcpServer.Ai
         {
             switch (_settings.Ai.Provider)
             {
-                // «—ˆ: case AiProvider.OpenAi: return new OpenAiBridge(...);
-                // «—ˆ: case AiProvider.Gemini: return new GeminiBridge(...);
-                // «—ˆ: case AiProvider.Cli:    return new LocalCliBridge(...);
+                // : case AiProvider.OpenAi: return new OpenAiBridge(...);
+                // : case AiProvider.Gemini: return new GeminiBridge(...);
+                // : case AiProvider.Cli:    return new LocalCliBridge(...);
                 default: return new NoopBridge();
             }
         }

@@ -807,6 +807,19 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             bool copyRotation = p.Value<bool?>("copyRotation") ?? true;
             bool copyScale = p.Value<bool?>("copyScale") ?? false;
+            var alignByGrid = p["alignByGridIntersection"] as JObject;
+            int refViewportId = alignByGrid?.Value<int?>("referenceViewportId")
+                                ?? p.Value<int?>("referenceViewportId")
+                                ?? 0;
+            string anchorGridA = (alignByGrid?.Value<string>("gridA")
+                                  ?? p.Value<string>("gridA")
+                                  ?? "").Trim();
+            string anchorGridB = (alignByGrid?.Value<string>("gridB")
+                                  ?? p.Value<string>("gridB")
+                                  ?? "").Trim();
+            bool doAnchorAlign = (!string.IsNullOrWhiteSpace(anchorGridA) && !string.IsNullOrWhiteSpace(anchorGridB))
+                                 || refViewportId > 0
+                                 || (alignByGrid != null && (alignByGrid.Value<bool?>("enabled") ?? true));
 
             ViewportRotation? oldRotation = null;
             if (oldViewport != null)
@@ -827,6 +840,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         doc.Delete(oldSchedule.Id);
 
                     object createdInfo;
+                    Viewport vpNewCreated = null;
 
                     // 新しいビューがスケジュールか一般ビューかで分岐
                     if (newView is ViewSchedule newVs)
@@ -849,6 +863,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         }
 
                         var vpNew = Viewport.Create(doc, sheet.Id, newView.Id, targetPosFt);
+                        vpNewCreated = vpNew;
 
                         if (copyRotation && oldRotation.HasValue)
                         {
@@ -881,6 +896,92 @@ namespace RevitMCPAddin.Commands.ViewOps
                         }
                     }
 
+                    string alignWarning = null;
+                    JObject alignResult = null;
+                    if (vpNewCreated != null && doAnchorAlign)
+                    {
+                        if (refViewportId <= 0)
+                        {
+                            alignWarning = "alignByGridIntersection: referenceViewportId が必要です。";
+                        }
+                        else if (string.IsNullOrWhiteSpace(anchorGridA) || string.IsNullOrWhiteSpace(anchorGridB))
+                        {
+                            alignWarning = "alignByGridIntersection: gridA/gridB を指定してください。";
+                        }
+                        else
+                        {
+                            var refVp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(refViewportId)) as Viewport;
+                            if (refVp == null)
+                            {
+                                alignWarning = $"alignByGridIntersection: referenceViewportId={refViewportId} のViewportが見つかりません。";
+                            }
+                            else if (refVp.Id == vpNewCreated.Id)
+                            {
+                                alignWarning = "alignByGridIntersection: 参照Viewportと移動対象Viewportが同一です。";
+                            }
+                            else if (!TryGetGridIntersectionPoint(doc, anchorGridA, anchorGridB, out var modelAnchor, out var gridErr))
+                            {
+                                alignWarning = "alignByGridIntersection: " + gridErr;
+                            }
+                            else
+                            {
+                                try { doc.Regenerate(); } catch { /* ignore */ }
+
+                                if (!TryProjectModelPointToSheet(refVp, modelAnchor, out var refSheetAnchor, out var refErr))
+                                {
+                                    alignWarning = "alignByGridIntersection(ref): " + refErr;
+                                }
+                                else if (!TryProjectModelPointToSheet(vpNewCreated, modelAnchor, out var newSheetAnchor, out var newErr))
+                                {
+                                    alignWarning = "alignByGridIntersection(new): " + newErr;
+                                }
+                                else
+                                {
+                                    var delta = refSheetAnchor - newSheetAnchor;
+                                    XYZ beforeCenter;
+                                    XYZ afterCenter;
+                                    try { beforeCenter = vpNewCreated.GetBoxCenter(); }
+                                    catch { beforeCenter = targetPosFt; }
+
+                                    vpNewCreated.SetBoxCenter(beforeCenter + delta);
+                                    try { doc.Regenerate(); } catch { /* ignore */ }
+
+                                    try { afterCenter = vpNewCreated.GetBoxCenter(); }
+                                    catch { afterCenter = beforeCenter + delta; }
+
+                                    alignResult = new JObject
+                                    {
+                                        ["enabled"] = true,
+                                        ["referenceViewportId"] = refViewportId,
+                                        ["gridA"] = anchorGridA,
+                                        ["gridB"] = anchorGridB,
+                                        ["anchorModelMm"] = new JObject
+                                        {
+                                            ["x"] = Math.Round(SheetUtil.FtToMm(modelAnchor.X), 3),
+                                            ["y"] = Math.Round(SheetUtil.FtToMm(modelAnchor.Y), 3),
+                                            ["z"] = Math.Round(SheetUtil.FtToMm(modelAnchor.Z), 3)
+                                        },
+                                        ["deltaSheetMm"] = new JObject
+                                        {
+                                            ["x"] = Math.Round(SheetUtil.FtToMm(delta.X), 3),
+                                            ["y"] = Math.Round(SheetUtil.FtToMm(delta.Y), 3)
+                                        },
+                                        ["newViewportCenterBeforeMm"] = new JObject
+                                        {
+                                            ["x"] = Math.Round(SheetUtil.FtToMm(beforeCenter.X), 3),
+                                            ["y"] = Math.Round(SheetUtil.FtToMm(beforeCenter.Y), 3)
+                                        },
+                                        ["newViewportCenterAfterMm"] = new JObject
+                                        {
+                                            ["x"] = Math.Round(SheetUtil.FtToMm(afterCenter.X), 3),
+                                            ["y"] = Math.Round(SheetUtil.FtToMm(afterCenter.Y), 3)
+                                        }
+                                    };
+                                }
+                            }
+                        }
+                    }
+
                     tx.Commit();
 
                     return new
@@ -893,6 +994,8 @@ namespace RevitMCPAddin.Commands.ViewOps
                         copyRotation,
                         copyScale,
                         scaleWarning,
+                        alignWarning,
+                        alignment = alignResult,
                         result = createdInfo
                     };
                 }
@@ -901,6 +1004,156 @@ namespace RevitMCPAddin.Commands.ViewOps
                     tx.RollBack();
                     return new { ok = false, msg = $"ビューの入れ替えに失敗: {ex.Message}" };
                 }
+            }
+        }
+
+        private static bool TryGetGridIntersectionPoint(Document doc, string gridA, string gridB, out XYZ point, out string error)
+        {
+            point = XYZ.Zero;
+            error = null;
+
+            var gA = new FilteredElementCollector(doc)
+                .OfClass(typeof(Grid))
+                .Cast<Grid>()
+                .FirstOrDefault(g => string.Equals(g.Name ?? "", gridA ?? "", StringComparison.OrdinalIgnoreCase));
+            if (gA == null)
+            {
+                error = $"Grid '{gridA}' が見つかりません。";
+                return false;
+            }
+
+            var gB = new FilteredElementCollector(doc)
+                .OfClass(typeof(Grid))
+                .Cast<Grid>()
+                .FirstOrDefault(g => string.Equals(g.Name ?? "", gridB ?? "", StringComparison.OrdinalIgnoreCase));
+            if (gB == null)
+            {
+                error = $"Grid '{gridB}' が見つかりません。";
+                return false;
+            }
+
+            var cA = gA.Curve;
+            var cB = gB.Curve;
+            var lA = cA as Line;
+            var lB = cB as Line;
+            if (lA == null || lB == null)
+            {
+                error = "指定グリッドのいずれかが直線ではないため、交点を求められません。";
+                return false;
+            }
+
+            try
+            {
+                var ua = Line.CreateUnbound(lA.GetEndPoint(0), lA.Direction);
+                var ub = Line.CreateUnbound(lB.GetEndPoint(0), lB.Direction);
+                IntersectionResultArray ira;
+                var cmp = ua.Intersect(ub, out ira);
+                if (cmp != SetComparisonResult.Overlap || ira == null || ira.Size == 0)
+                {
+                    error = $"Grid '{gridA}' と '{gridB}' の交点を取得できません。";
+                    return false;
+                }
+
+                point = ira.get_Item(0).XYZPoint;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static bool TryProjectModelPointToSheet(Viewport vp, XYZ modelPoint, out XYZ sheetPoint, out string error)
+        {
+            sheetPoint = XYZ.Zero;
+            error = null;
+            if (vp == null)
+            {
+                error = "Viewport is null.";
+                return false;
+            }
+
+            try
+            {
+                try
+                {
+                    if (!vp.HasViewportTransforms())
+                    {
+                        error = "Viewport transform is not available.";
+                        return false;
+                    }
+                }
+                catch
+                {
+                    // HasViewportTransforms が利用不可でも、GetProjectionToSheetTransform を試行する。
+                }
+
+                var projToSheet = vp.GetProjectionToSheetTransform();
+                if (projToSheet == null)
+                {
+                    error = "Projection-to-sheet transform is null.";
+                    return false;
+                }
+
+                // Revit 2024+: model -> projection -> sheet を通す。
+                // view transform が無い場合は modelPoint を projection 点として扱う。
+                var doc = vp.Document;
+                var view = doc?.GetElement(vp.ViewId) as View;
+
+                var candidates = new List<XYZ>();
+                bool hasModelToProjection = false;
+                try { hasModelToProjection = view != null && view.HasViewTransforms(); } catch { hasModelToProjection = false; }
+
+                if (hasModelToProjection && view != null)
+                {
+                    IList<TransformWithBoundary> tbs = null;
+                    try { tbs = view.GetModelToProjectionTransforms(); } catch { tbs = null; }
+                    if (tbs != null)
+                    {
+                        foreach (var tb in tbs)
+                        {
+                            if (tb == null) continue;
+                            Transform m2p = null;
+                            try { m2p = tb.GetModelToProjectionTransform(); } catch { m2p = null; }
+                            if (m2p == null) continue;
+                            try
+                            {
+                                var projectionPoint = m2p.OfPoint(modelPoint);
+                                var onSheet = projToSheet.OfPoint(projectionPoint);
+                                candidates.Add(onSheet);
+                            }
+                            catch { /* ignore this candidate */ }
+                        }
+                    }
+                }
+
+                if (candidates.Count == 0)
+                {
+                    // fallback（従来互換）
+                    sheetPoint = projToSheet.OfPoint(modelPoint);
+                    return true;
+                }
+
+                XYZ center;
+                bool hasCenter = true;
+                try { center = vp.GetBoxCenter(); } catch { center = XYZ.Zero; hasCenter = false; }
+                if (!hasCenter)
+                {
+                    sheetPoint = candidates[0];
+                    return true;
+                }
+
+                // 複数候補がある場合は viewport center に最も近いものを採用。
+                sheetPoint = candidates
+                    .OrderBy(pt => pt.DistanceTo(center))
+                    .FirstOrDefault();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
             }
         }
     }

@@ -1,5 +1,5 @@
 // ================================================================
-// File: Commands/Room/GetRoomParamsCommand.cs  (UnitHelper�����)
+// File: Commands/Room/GetRoomParamsCommand.cs  (UnitHelper)
 // ================================================================
 using System;
 using System.Linq;
@@ -31,7 +31,7 @@ namespace RevitMCPAddin.Commands.Room
             int skip = p.Value<int?>("skip") ?? 0;
             int count = p.Value<int?>("count") ?? int.MaxValue;
 
-            // unitsMode: SI | Project | Raw | Both  �i���w��� SI�j
+            // unitsMode: SI | Project | Raw | Both  iw SIj
             var mode = UnitHelper.ResolveUnitsMode(doc, p);
 
             var allParams = room.Parameters

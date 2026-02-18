@@ -72,6 +72,7 @@ public partial class MainWindow : Window
     private string? _lastProjectDocGuid;
     private string? _lastSavedPythonHash;
     private readonly object _pythonSaveLock = new();
+    private string _userInitialPrompt = string.Empty;
 
     // Pending images to attach to the next Codex run (requires explicit consent via CaptureConsentWindow).
     private readonly List<string> _pendingImagePaths = new();
@@ -394,6 +395,7 @@ public partial class MainWindow : Window
 
         // UI 設定を読み込み（ウィンドウサイズ / 位置 / 色 / 不透明度）
         LoadUiSettings();
+        LoadInitialPromptSettings();
 
         // 現在の BG/FG とスライダー値を反映
         ApplyColorsButton_OnClick(this, new RoutedEventArgs());
@@ -467,6 +469,12 @@ public partial class MainWindow : Window
         return Path.Combine(baseDir, "CodexGuiUiSettings.json");
     }
 
+    private static string GetInitialPromptSettingsFilePath()
+    {
+        var baseDir = GetGuiDataRoot();
+        return Path.Combine(baseDir, "CodexGuiInitialPrompt.json");
+    }
+
     private static string GetLegacySessionsFilePath()
     {
         var baseDir = AppContext.BaseDirectory;
@@ -477,6 +485,12 @@ public partial class MainWindow : Window
     {
         var baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, "CodexGuiUiSettings.json");
+    }
+
+    private static string GetLegacyInitialPromptSettingsFilePath()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        return Path.Combine(baseDir, "CodexGuiInitialPrompt.json");
     }
 
     private static string GetGuiDataRoot()
@@ -610,6 +624,62 @@ public partial class MainWindow : Window
         {
             // 設定読み込み失敗は無視
         }
+    }
+
+    private void LoadInitialPromptSettings()
+    {
+        _userInitialPrompt = string.Empty;
+        try
+        {
+            var path = GetInitialPromptSettingsFilePath();
+            MigrateLegacyFile(GetLegacyInitialPromptSettingsFilePath(), path);
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var json = File.ReadAllText(path, Encoding.UTF8);
+            var settings = JsonSerializer.Deserialize<InitialPromptSettings>(json);
+            _userInitialPrompt = (settings?.UserAppendPrompt ?? string.Empty).Trim();
+        }
+        catch
+        {
+            _userInitialPrompt = string.Empty;
+        }
+    }
+
+    private void SaveInitialPromptSettings()
+    {
+        try
+        {
+            var path = GetInitialPromptSettingsFilePath();
+            var settings = new InitialPromptSettings
+            {
+                UserAppendPrompt = (_userInitialPrompt ?? string.Empty).Trim(),
+                UpdatedUtc = DateTime.UtcNow
+            };
+            var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+            File.WriteAllText(path, json, Encoding.UTF8);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private string BuildEffectiveInitialPrompt()
+    {
+        var fixedPrompt = RevitIntroInstruction.Trim();
+        var userPrompt = (_userInitialPrompt ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(userPrompt))
+        {
+            return fixedPrompt;
+        }
+
+        return fixedPrompt + Environment.NewLine + userPrompt;
     }
 
     private void SaveSessions()
@@ -1832,6 +1902,129 @@ public partial class MainWindow : Window
         catch
         {
             return null;
+        }
+    }
+
+    private static List<string> GetComboBoxItemTexts(ComboBox? comboBox)
+    {
+        var result = new List<string>();
+        if (comboBox == null) return result;
+
+        foreach (var item in comboBox.Items)
+        {
+            var raw = item switch
+            {
+                ComboBoxItem cbi => cbi.Content?.ToString(),
+                _ => item?.ToString()
+            };
+            var text = (raw ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(text)) continue;
+            if (result.Any(x => string.Equals(x, text, StringComparison.OrdinalIgnoreCase))) continue;
+            result.Add(text);
+        }
+
+        return result;
+    }
+
+    private void InitialPromptSettingsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new InitialPromptEditorWindow(
+                RevitIntroInstruction,
+                _userInitialPrompt)
+            {
+                Owner = this
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _userInitialPrompt = (dialog.UserAppendPrompt ?? string.Empty).Trim();
+                SaveInitialPromptSettings();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                $"初期設定の表示に失敗しました。\n{ex.Message}",
+                "Codex GUI",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private void OpenSettingsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            while (true)
+            {
+                RefreshCodexConfigPresets();
+                RefreshModelComboBoxItems();
+                RefreshReasoningEffortComboBoxItems();
+                RefreshProfileComboBoxItems();
+
+                var session = SessionComboBox?.SelectedItem as SessionInfo;
+                var sid = ResolveCodexSessionId(session);
+                var sidText = string.IsNullOrWhiteSpace(sid) ? "未取得" : sid;
+
+                var dialog = new SettingsWindow(
+                    modelChoices: GetComboBoxItemTexts(ModelComboBox),
+                    reasoningChoices: GetComboBoxItemTexts(ReasoningEffortComboBox),
+                    profileChoices: GetComboBoxItemTexts(ProfileComboBox),
+                    modelText: ModelComboBox?.Text ?? string.Empty,
+                    reasoningText: ReasoningEffortComboBox?.Text ?? string.Empty,
+                    profileText: ProfileComboBox?.Text ?? string.Empty,
+                    bgColorHex: BgColorTextBox?.Text ?? string.Empty,
+                    fgColorHex: FgColorTextBox?.Text ?? string.Empty,
+                    sessionId: sidText)
+                {
+                    Owner = this
+                };
+
+                if (dialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                if (dialog.RequestModelRefresh)
+                {
+                    continue;
+                }
+
+                if (ModelComboBox != null) ModelComboBox.Text = dialog.ModelText;
+                if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = dialog.ReasoningEffortText;
+                if (ProfileComboBox != null) ProfileComboBox.Text = dialog.ProfileText;
+                if (BgColorTextBox != null) BgColorTextBox.Text = dialog.BgColorHex;
+                if (FgColorTextBox != null) FgColorTextBox.Text = dialog.FgColorHex;
+
+                if (SessionComboBox.SelectedItem is SessionInfo activeSession)
+                {
+                    ApplyModelFromUiToSession(activeSession);
+                    ApplyReasoningEffortFromUiToSession(activeSession);
+                    ApplyProfileFromUiToSession(activeSession);
+                    RememberRecentModel(activeSession.Model);
+                    SaveSessions();
+                }
+
+                ApplyColorsButton_OnClick(this, new RoutedEventArgs());
+                SaveUiSettings();
+
+                if (dialog.RequestStatusSend)
+                {
+                    StatusButton_OnClick(this, new RoutedEventArgs());
+                }
+
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                $"設定画面の表示に失敗しました。\n{ex.Message}",
+                "Codex GUI",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
     }
 
@@ -3219,7 +3412,7 @@ public partial class MainWindow : Window
         if (shouldIncludeRevitIntro)
         {
             var builder = new StringBuilder();
-            builder.AppendLine(RevitIntroInstruction);
+            builder.AppendLine(BuildEffectiveInitialPrompt());
             var workRoot = ResolveWorkRoot();
             if (!string.IsNullOrWhiteSpace(workRoot))
             {
@@ -4912,6 +5105,12 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             // 復元失敗は無視
         }
     }
+}
+
+public class InitialPromptSettings
+{
+    public string? UserAppendPrompt { get; set; }
+    public DateTime? UpdatedUtc { get; set; }
 }
 
 public class UiSettings

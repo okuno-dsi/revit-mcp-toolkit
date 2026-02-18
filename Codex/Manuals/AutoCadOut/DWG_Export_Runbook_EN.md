@@ -6,7 +6,7 @@ Purpose
 Prerequisites
 - Revit + RevitMCP add‑in running on `5210` (verify: `Invoke-RestMethod http://127.0.0.1:5210/debug`).
 - Optional: AutoCadMCP on `5251` (for automatic DWG merge via accoreconsole). If not running, the runbook still generates a `command.txt` you can submit later.
-- Repo checked out at `VS2022/Ver431`.
+- Repo checked out at `Revit_MCP`.
 
 One‑Shot (Recommended)
 - Latest Project_* auto‑detected under `Codex/Work`:
@@ -16,7 +16,7 @@ pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 
 - Specify project folder explicitly:
 ```
 pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656" `
+  -ProjectDir "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 - Auto‑merge in AutoCAD (requires AutoCadMCP at 5251):
@@ -37,9 +37,9 @@ Optional (COM merge, AutoCAD running)
   - Example:
 ```
 python Tools/AutoCad/merge_dwgs_by_map_com.py \
-  --source-dir "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg" \
-  --out-dwg "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg\MERGED_DWG_COM.dwg" \
-  --map-csv "%USERPROFILE%\Documents\VS2022\Ver602\Codex\Projects\\dwg\layermap.csv"
+  --source-dir "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\dwg" \
+  --out-dwg "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\dwg\MERGED_DWG_COM.dwg" \
+  --map-csv "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\dwg\layermap.csv"
 ```
 
 What the Script Does (High Level)
@@ -88,7 +88,7 @@ Prerequisites
 Run
 ```
 pwsh -File Codex/Scripts/Reference/merge_bg_from_seed.ps1 \
-  -ExportDir "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250" \
+  -ExportDir "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250" \
   -Locale ja-JP
 ```
 
@@ -100,7 +100,7 @@ Verification (optional)
 - Dump layer names via Core Console to confirm the presence of `B` and `G` layers:
 ```
 pwsh -File Codex/Scripts/Reference/list_dwg_layers_coreconsole.ps1 \
-  -DwgPath "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
+  -DwgPath "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" \
   -Locale ja-JP
 ```
 - A `layers.txt` is written next to the DWG or reported in output.
@@ -135,6 +135,9 @@ Troubleshooting
   - Include layer-list jobs too: add `-IncludeLayerList`
 - One‑liner (ad‑hoc):
   - `Get-ChildItem "$env:TEMP/CadJobs" -Recurse -Filter console_*.txt | Sort LastWriteTime -Descending | Select -First 10 | Copy-Item -Destination ".../Export_YYYYMMDD_HHMMSS/AccoreLogs" -Force`
+
+
+
 
 
 

@@ -1,7 +1,7 @@
 Param(
   [int]$RevitPort = 5210,
   [string]$AutoCadRpcUrl = "http://127.0.0.1:5251/rpc",
-  [string]$DWGExportDir = "$env:USERPROFILE/Documents/VS2022/Ver351/Codex/DWGExport",
+  [string]$DWGExportDir = "$env:USERPROFILE\\Documents\\Revit_MCP\\Codex\\DWGExport",
   [string]$ExportRoot = "C:/Exports/DWG_ByComment",
   [string]$AccorePath = "C:/Program Files/Autodesk/AutoCAD 2026/accoreconsole.exe",
   [string]$SeedDwg = "",

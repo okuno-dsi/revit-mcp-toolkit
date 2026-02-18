@@ -32,7 +32,7 @@ namespace RevitMCPAddin.Commands.ViewOps
 
             try
             {
-                // �� �C��: ����`�� ParamsAsJObject() ���g�킸�A�f���� JObject ��
+                //  C: ` ParamsAsJObject() g킸Af JObject 
                 var p = (JObject)(cmd.Params ?? new JObject());
 
                 var srcId = Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("srcViewId"));
@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                     }
                     catch { }
 
-                    // �� �C��: Phase / Phase Filter �� BuiltInParameter ���𐳂���
+                    //  C: Phase / Phase Filter  BuiltInParameter 𐳂
                     try
                     {
                         var ph = src.get_Parameter(BuiltInParameter.VIEW_PHASE);

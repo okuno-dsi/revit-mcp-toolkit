@@ -3,10 +3,10 @@ AutoCad MCP Server ? English Manual
 Overview
 
 - Purpose: Headless AutoCAD merge automation with a tiny JSON?RPC server.
-- Key flow: Accepts a request �� stages a job �� generates a `.scr` �� runs `accoreconsole.exe` (optional, headless) �� writes merged DWG.
+- Key flow: Accepts a request  stages a job  generates a `.scr`  runs `accoreconsole.exe` (optional, headless)  writes merged DWG.
 - Typical use case: Bind XREFs, then merge layers from each source file into a deterministic per?file destination naming.
 
-What�fs Included
+Whatfs Included
 
 - Minimal ASP.NET server with endpoints for health, JSON?RPC, and result lookup.
 - Script builder that emits AutoLISP/ActiveX helpers and a merge template.
@@ -27,7 +27,7 @@ Run the Server
 - `dotnet run -c Release --project AutoCadMcpServer`
 
 2) Health check
-- `GET http://127.0.0.1:5251/health` �� `{ "ok": true }`
+- `GET http://127.0.0.1:5251/health`  `{ "ok": true }`
 
 3) Port note
 - If `5251` is busy, run with: `dotnet run -c Release --project AutoCadMcpServer --urls http://127.0.0.1:5252`
@@ -41,7 +41,7 @@ JSON?RPC Endpoint
 
 Example (via file path body)
 
-- Body: `%USERPROFILE%\Documents\VS2022\Ver421\Codex\Projects\\AutoCadOut\command.txt`
+- Body: `%USERPROFILE%\Documents\Revit_MCP\Projects\AutoCadOut\command.txt`
 
 Example (raw JSON body)
 
@@ -76,7 +76,7 @@ Request Parameters
 - `rename`:
   - `include`: list of source layer names to merge (e.g., `A-WALL-____-MCUT`).
   - `format`: destination layer format; placeholders: `{old}`, `{stem}`.
-    - Example: `{old}_{stem}` �� `A-WALL-____-MCUT_walls_A`.
+    - Example: `{old}_{stem}`  `A-WALL-____-MCUT_walls_A`.
 - `accore` (optional to run headless):
   - `path`: full path to `accoreconsole.exe`.
   - `seed`: seed DWG to open; if missing/unavailable, the server uses `Projects/AutoCadOut/seed.dwg` or the first input DWG.
@@ -110,7 +110,7 @@ What the Server Does
 
 Result Lookup
 
-- `GET /result/{jobId}` �� reports `<jobId>/out/merged.dwg` existence and paths.
+- `GET /result/{jobId}`  reports `<jobId>/out/merged.dwg` existence and paths.
 
 Manual Run Helper (optional)
 
@@ -288,6 +288,7 @@ Reference Core Console Script (per-file rename)
   - A `relayer` LISP that renames layers by wildcard while skipping `0` and `DEFPOINTS`.
   - `INSERT`+`EXPLODE` per input DWG at the origin, followed by a per-file suffix (e.g. `_seed_beam`, `_wall`) on matching layer names.
   - PURGE/AUDIT and a final `SAVEAS` to the requested output path.
+
 
 
 

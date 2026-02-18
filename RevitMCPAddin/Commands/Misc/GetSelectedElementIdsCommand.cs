@@ -97,13 +97,57 @@ namespace RevitMCPAddin.Commands.Misc
                 SelectionStash.Set(ids, docPath, docTitle, viewId, AppServices.CurrentDocKey);
             }
 
+            var browserElementIds = new System.Collections.Generic.List<int>();
+            var modelElementIds = new System.Collections.Generic.List<int>();
+            var missingElementIds = new System.Collections.Generic.List<int>();
+            foreach (var idInt in (ids ?? new System.Collections.Generic.List<int>()))
+            {
+                var eid = Autodesk.Revit.DB.ElementIdCompat.From(idInt);
+                var e = doc.GetElement(eid);
+                if (e == null)
+                {
+                    missingElementIds.Add(idInt);
+                    continue;
+                }
+
+                // Project Browser items are typically view/sheet/schedule/family/type.
+                bool browserLike = (e is Autodesk.Revit.DB.Family)
+                                   || (e is ElementType)
+                                   || (e is View);
+                if (browserLike) browserElementIds.Add(idInt);
+                else modelElementIds.Add(idInt);
+            }
+
+            string selectionKind = "Unknown";
+            if (browserElementIds.Count > 0 && modelElementIds.Count == 0) selectionKind = "ProjectBrowser";
+            else if (browserElementIds.Count == 0 && modelElementIds.Count > 0) selectionKind = "Model";
+            else if (browserElementIds.Count > 0 && modelElementIds.Count > 0) selectionKind = "Mixed";
+            else if ((ids?.Count ?? 0) == 0)
+            {
+                var av = uidoc.ActiveView;
+                if (av != null && av.ViewType == ViewType.ProjectBrowser) selectionKind = "ProjectBrowserNonElementOrNone";
+                else selectionKind = "None";
+            }
+
             var snapOut = SelectionStash.GetSnapshot();
             return new
             {
                 ok = true,
                 elementIds = ids ?? new System.Collections.Generic.List<int>(),
                 count = ids?.Count ?? 0,
+                selectionKind,
+                isProjectBrowserActive = (uidoc.ActiveView != null && uidoc.ActiveView.ViewType == ViewType.ProjectBrowser),
+                browserElementIds,
+                modelElementIds,
+                missingElementIds,
+                classificationCounts = new
+                {
+                    browser = browserElementIds.Count,
+                    model = modelElementIds.Count,
+                    missing = missingElementIds.Count
+                },
                 source,
+                selectionSource = source,
                 liveError = string.IsNullOrWhiteSpace(liveError) ? null : liveError,
                 observedAtUtc = snapOut.ObservedUtc,
                 revision = snapOut.Revision,

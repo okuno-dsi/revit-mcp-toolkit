@@ -54,7 +54,7 @@ The tool is built as a normal .NET 6 console app and can be run directly with `d
 From the `Codex\IfcCli` directory:
 
 ```powershell
-cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli
+cd %USERPROFILE%\\Documents\\Revit_MCP\\Codex\IfcCli
 dotnet build -c Release
 ```
 
@@ -68,7 +68,7 @@ Notes:
 From the release output directory:
 
 ```powershell
-cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli\bin\Release\net6.0
+cd %USERPROFILE%\\Documents\\Revit_MCP\\Codex\IfcCli\bin\Release\net6.0
 .\IfcCli.exe --help
 ```
 
@@ -546,3 +546,6 @@ The design aims to be straightforward to extend:
   - Use `IfcModel.EntitiesByType` / `EntitiesById` and `System.Text.Json`.
 
 Because Unicode decoding is centralised in `Unwrap`, all new code that reads STRING arguments will automatically benefit from correct Japanese and other extended characters.  
+
+
+

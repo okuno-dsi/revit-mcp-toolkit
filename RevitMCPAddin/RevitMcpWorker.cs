@@ -262,6 +262,7 @@ namespace RevitMCPAddin
 
                 // 選択要素
                 new GetSelectedElementIdsCommand(),
+                new GetProjectBrowserSelectionCommand(),
                 new StashSelectionCommand(),
                 new RestoreSelectionCommand(),
                 new GetLastSelectionCommand(),
@@ -340,6 +341,7 @@ namespace RevitMCPAddin
                 new CreateElementSectionBoxDebugCommand(),
                 new DebugSectionViewSectionBoxCommand(),
                 new DebugElementViewCropCommand(),
+                new CropPlanViewToElementCommand(),
                 new ViewOrbitHandler(),
                 new ViewPanHandler(),
                 new ViewResetOriginHandler(),
@@ -470,6 +472,8 @@ namespace RevitMCPAddin
                 new MoveGridCommand(),
                 new DeleteGridCommand(),
                 new AdjustGridExtentsCommand(),
+                new SetGridBubblesVisibilityCommand(),
+                new SetGridSegmentsAroundElementInViewCommand(),
 
                 // Material
                 new GetMaterialsCommand(),
@@ -553,6 +557,7 @@ namespace RevitMCPAddin
                 new AlignDimensionCommand(),
                 new UpdateDimensionFormatCommand(),
                 new GetDimensionTypesCommand(),
+                new ApplyColumnGridDimensionStandardToViewsCommand(),
 
                 // Workset Ops
                 new GetWorksetsCommand(),

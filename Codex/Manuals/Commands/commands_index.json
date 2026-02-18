@@ -1633,6 +1633,11 @@
     "importance": "normal",
     "kind": "read"
   },
+  "get_project_browser_selection": {
+    "category": "Other",
+    "importance": "normal",
+    "kind": "read"
+  },
   "get_selected_element_ids": {
     "category": "Other",
     "importance": "normal",

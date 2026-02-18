@@ -8,6 +8,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -25,8 +26,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
             var doc = uiapp.ActiveUIDocument.Document;
-            var p = (JObject)cmd.Params;
-            int viewId = p.Value<int>("viewId");
+            var p = (cmd.Params as JObject) ?? new JObject();
+            int viewId = p.Value<int?>("viewId") ?? uiapp.ActiveUIDocument.ActiveView.Id.IntValue();
 
             var view = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(viewId)) as View;
             if (view == null)
@@ -71,21 +72,103 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 return new { ok = true, viewId = view.Id.IntValue(), totalCount, elementIds = ids };
             }
 
-            var dims = paged.Select(dim => new
+            var dims = new List<object>();
+            foreach (var dim in paged)
             {
-                elementId = dim.Id.IntValue(),
-                name = dim.Name,
-                typeId = dim.GetTypeId().IntValue(),
-                references = includeRefs ? dim.References?.Cast<Reference>().Select(r => r.ElementId.IntValue()).ToList() : null,
-                value = includeValue ? dim.ValueString : null, // Revit書式済み
-                origin = includeOrigin ? new
+                List<int> refs = null;
+                if (includeRefs)
                 {
-                    x = UnitHelper.FtToMm(dim.Origin.X),
-                    y = UnitHelper.FtToMm(dim.Origin.Y),
-                    z = UnitHelper.FtToMm(dim.Origin.Z)
-                } : null,
-                style = doc.GetElement(dim.GetTypeId())?.Name ?? ""
-            }).ToList();
+                    try
+                    {
+                        refs = dim.References?.Cast<Reference>().Select(r => r.ElementId.IntValue()).ToList();
+                    }
+                    catch
+                    {
+                        refs = null;
+                    }
+                }
+
+                string value = null;
+                if (includeValue)
+                {
+                    try { value = dim.ValueString; } catch { value = null; }
+                }
+
+                object originObj = null;
+                bool hasOrigin = false;
+                if (includeOrigin)
+                {
+                    XYZ o = null;
+                    try
+                    {
+                        o = dim.Origin;
+                    }
+                    catch
+                    {
+                        // SpotDimension などで Origin が例外になるケースがある
+                    }
+
+                    if (o == null)
+                    {
+                        try
+                        {
+                            var c = dim.Curve;
+                            if (c != null)
+                            {
+                                o = c.Evaluate(0.5, true);
+                            }
+                        }
+                        catch
+                        {
+                            // curve 取得不可は継続
+                        }
+                    }
+
+                    if (o == null)
+                    {
+                        try
+                        {
+                            var bb = dim.get_BoundingBox(view) ?? dim.get_BoundingBox(null);
+                            if (bb != null)
+                            {
+                                o = (bb.Min + bb.Max) * 0.5;
+                            }
+                        }
+                        catch
+                        {
+                            // bbox 取得不可は継続
+                        }
+                    }
+
+                    if (o != null)
+                    {
+                        hasOrigin = true;
+                        originObj = new
+                        {
+                            x = UnitHelper.FtToMm(o.X),
+                            y = UnitHelper.FtToMm(o.Y),
+                            z = UnitHelper.FtToMm(o.Z)
+                        };
+                    }
+                }
+
+                int segmentCount = 0;
+                try { segmentCount = dim.NumberOfSegments; } catch { segmentCount = 0; }
+
+                dims.Add(new
+                {
+                    elementId = dim.Id.IntValue(),
+                    name = dim.Name,
+                    typeId = dim.GetTypeId().IntValue(),
+                    references = refs,
+                    value, // Revit書式済み
+                    origin = originObj,
+                    hasOrigin,
+                    segmentCount,
+                    dimensionClass = dim.GetType().Name,
+                    style = doc.GetElement(dim.GetTypeId())?.Name ?? ""
+                });
+            }
 
             return new { ok = true, viewId = view.Id.IntValue(), totalCount, items = dims };
         }
@@ -509,6 +592,636 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 .ToList();
 
             return new { ok = true, totalCount, types };
+        }
+    }
+
+    /// <summary>
+    /// source ビューの「柱外形↔通り芯」寸法配置（X/Yオフセット・タイプ）をテンプレート化し、
+    /// target ビュー群へ同一ルールで適用する。
+    /// 対象ビューは既定で "^1/2_COL_(\\d+)$" に一致するビュー名。
+    /// </summary>
+    public class ApplyColumnGridDimensionStandardToViewsCommand : IRevitCommandHandler
+    {
+        public string CommandName => "apply_column_grid_dimension_standard_to_views";
+
+        private sealed class AxisTemplate
+        {
+            public string Axis = ""; // "X" or "Y"
+            public int DimensionTypeId;
+            public double OffsetFt;  // axis=X => Y offset, axis=Y => X offset
+            public int WidthDimensionTypeId;
+            public double? WidthOffsetFt; // axis=X => Y offset, axis=Y => X offset
+        }
+
+        private sealed class FaceBundle
+        {
+            public Reference LeftRef;
+            public Reference RightRef;
+            public Reference BottomRef;
+            public Reference TopRef;
+            public double LeftX;
+            public double RightX;
+            public double BottomY;
+            public double TopY;
+        }
+
+        private sealed class GridPick
+        {
+            public Grid VerticalGrid;
+            public double VerticalX;
+            public Grid HorizontalGrid;
+            public double HorizontalY;
+        }
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var uidoc = uiapp?.ActiveUIDocument;
+            var doc = uidoc?.Document;
+            if (doc == null || uidoc == null) return new { ok = false, msg = "No active document." };
+
+            var p = (cmd.Params as JObject) ?? new JObject();
+            int sourceViewId = p.Value<int?>("sourceViewId") ?? uidoc.ActiveView.Id.IntValue();
+            string viewNameRegex = p.Value<string>("targetViewNameRegex") ?? @"^1/2_COL_(\d+)$";
+            bool replaceExisting = p.Value<bool?>("replaceExisting") ?? true;
+            bool includeSourceView = p.Value<bool?>("includeSourceView") ?? false;
+
+            var sourceView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceViewId)) as View;
+            if (sourceView == null) return new { ok = false, msg = $"source view not found: {sourceViewId}" };
+            if (!(sourceView is ViewPlan)) return new { ok = false, msg = "source view must be plan-like view." };
+
+            if (!TryResolveColumnIdFromView(sourceView, viewNameRegex, out int sourceColumnId))
+            {
+                return new { ok = false, msg = "source view name does not include column id by regex." };
+            }
+
+            var sourceColumn = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceColumnId)) as FamilyInstance;
+            if (sourceColumn == null)
+            {
+                return new { ok = false, msg = $"source column not found: {sourceColumnId}" };
+            }
+
+            if (!TryGetElementCenter(sourceColumn, sourceView, out XYZ srcCenter))
+            {
+                return new { ok = false, msg = "source column center not found." };
+            }
+
+            if (!TryExtractAxisTemplates(doc, sourceView, sourceColumnId, srcCenter, out AxisTemplate tx, out AxisTemplate ty))
+            {
+                return new { ok = false, msg = "source view dimension template (X/Y) not found." };
+            }
+
+            var regex = new Regex(viewNameRegex, RegexOptions.Compiled);
+            var targetViews = new FilteredElementCollector(doc)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => !v.IsTemplate && (includeSourceView || v.Id != sourceView.Id))
+                .Where(v => regex.IsMatch(v.Name))
+                .Where(v => v is ViewPlan)
+                .OrderBy(v => v.Name)
+                .ToList();
+
+            var rows = new List<object>();
+            int okCount = 0;
+            int ngCount = 0;
+
+            var originalActiveView = uidoc.ActiveView;
+            foreach (var tv in targetViews)
+            {
+                try
+                {
+                    // Annotation を確実に対象ビューへ作るため、対象ビューを順次アクティブ化
+                    if (uidoc.ActiveView == null || uidoc.ActiveView.Id != tv.Id)
+                    {
+                        try { uidoc.ActiveView = tv; }
+                        catch { /* ignore; continue with explicit view anyway */ }
+                    }
+
+                    using (var txOne = new Transaction(doc, "Apply Column Grid Dimension Standard"))
+                    {
+                        txOne.Start();
+
+                        if (!TryResolveColumnIdFromView(tv, viewNameRegex, out int colId))
+                        {
+                            rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = "column id parse failed" });
+                            ngCount++;
+                            txOne.RollBack();
+                            continue;
+                        }
+
+                        var col = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(colId)) as FamilyInstance;
+                        if (col == null)
+                        {
+                            rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = $"column not found: {colId}" });
+                            ngCount++;
+                            txOne.RollBack();
+                            continue;
+                        }
+
+                        if (!TryGetElementCenter(col, tv, out XYZ c))
+                        {
+                            rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = "column center not found" });
+                            ngCount++;
+                            txOne.RollBack();
+                            continue;
+                        }
+
+                        if (!TryPickNearestOrthogonalGrids(doc, tv, c, out GridPick gp))
+                        {
+                            rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = "vertical/horizontal grid not found in view" });
+                            ngCount++;
+                            txOne.RollBack();
+                            continue;
+                        }
+
+                        if (!TryGetFaceBundle(col, tv, out FaceBundle fb))
+                        {
+                            rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = "column face references not found" });
+                            ngCount++;
+                            txOne.RollBack();
+                            continue;
+                        }
+
+                        int deleted = 0;
+                        if (replaceExisting)
+                        {
+                            deleted = DeleteTargetDimensions(doc, tv, colId);
+                        }
+
+                        int created = 0;
+                        created += CreateAxisDimensionX(doc, tv, fb, gp, c, tx);
+                        created += CreateAxisDimensionY(doc, tv, fb, gp, c, ty);
+
+                        rows.Add(new
+                        {
+                            viewId = tv.Id.IntValue(),
+                            viewName = tv.Name,
+                            columnId = colId,
+                            ok = true,
+                            deleted,
+                            created,
+                            typeX = tx.DimensionTypeId,
+                            typeY = ty.DimensionTypeId
+                        });
+                        okCount++;
+                        txOne.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = ex.Message });
+                    ngCount++;
+                }
+            }
+
+            if (originalActiveView != null && uidoc.ActiveView != null && uidoc.ActiveView.Id != originalActiveView.Id)
+            {
+                try { uidoc.ActiveView = originalActiveView; }
+                catch { /* ignore */ }
+            }
+
+            return new
+            {
+                ok = ngCount == 0,
+                sourceViewId = sourceView.Id.IntValue(),
+                sourceViewName = sourceView.Name,
+                targetCount = targetViews.Count,
+                okCount,
+                ngCount,
+                results = rows
+            };
+        }
+
+        private static bool TryResolveColumnIdFromView(View v, string pattern, out int columnId)
+        {
+            columnId = 0;
+            if (v == null) return false;
+            var m = Regex.Match(v.Name ?? "", pattern);
+            if (!m.Success || m.Groups.Count < 2) return false;
+            return int.TryParse(m.Groups[1].Value, out columnId);
+        }
+
+        private static bool TryGetElementCenter(Element e, View v, out XYZ center)
+        {
+            center = null;
+            if (e is FamilyInstance fi && fi.Location is LocationPoint lp && lp.Point != null)
+            {
+                center = lp.Point;
+                return true;
+            }
+
+            var bb = e.get_BoundingBox(v) ?? e.get_BoundingBox(null);
+            if (bb == null) return false;
+            center = (bb.Min + bb.Max) * 0.5;
+            return true;
+        }
+
+        private static bool TryExtractAxisTemplates(Document doc, View sourceView, int sourceColumnId, XYZ sourceCenter, out AxisTemplate tx, out AxisTemplate ty)
+        {
+            tx = null;
+            ty = null;
+            var dims = new FilteredElementCollector(doc, sourceView.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+
+            foreach (var d in dims)
+            {
+                var refs = new List<Reference>();
+                try
+                {
+                    if (d.References != null) refs = d.References.Cast<Reference>().ToList();
+                }
+                catch { continue; }
+
+                if (refs.Count < 3) continue;
+                int colRefCount = refs.Count(r => r.ElementId != null && r.ElementId.IntValue() == sourceColumnId);
+                if (colRefCount < 2) continue;
+
+                var gridRef = refs.FirstOrDefault(r =>
+                {
+                    if (r.ElementId == null) return false;
+                    var ge = doc.GetElement(r.ElementId);
+                    return ge is Grid;
+                });
+                if (gridRef == null) continue;
+
+                var grid = doc.GetElement(gridRef.ElementId) as Grid;
+                if (grid == null) continue;
+                if (!TryGetGridLine(grid, sourceView, out Line gl)) continue;
+
+                if (!TryGetDimensionOriginSafe(d, sourceView, out XYZ o)) continue;
+
+                bool vertical = Math.Abs(gl.Direction.Y) >= Math.Abs(gl.Direction.X);
+                if (vertical)
+                {
+                    if (tx == null)
+                    {
+                        tx = new AxisTemplate
+                        {
+                            Axis = "X",
+                            DimensionTypeId = d.GetTypeId().IntValue(),
+                            OffsetFt = o.Y - sourceCenter.Y
+                        };
+                    }
+                }
+                else
+                {
+                    if (ty == null)
+                    {
+                        ty = new AxisTemplate
+                        {
+                            Axis = "Y",
+                            DimensionTypeId = d.GetTypeId().IntValue(),
+                            OffsetFt = o.X - sourceCenter.X
+                        };
+                    }
+                }
+            }
+
+            // 柱外形寸法（柱↔柱、grid なし）も抽出して再現する
+            foreach (var d in dims)
+            {
+                var refs = new List<Reference>();
+                try
+                {
+                    if (d.References != null) refs = d.References.Cast<Reference>().ToList();
+                }
+                catch { continue; }
+
+                if (refs.Count < 2) continue;
+                bool hasGrid = refs.Any(r => r.ElementId != null && (doc.GetElement(r.ElementId) is Grid));
+                if (hasGrid) continue;
+
+                int colRefCount = refs.Count(r => r.ElementId != null && r.ElementId.IntValue() == sourceColumnId);
+                if (colRefCount < 2) continue;
+                bool allColumn = refs.All(r => r.ElementId != null && r.ElementId.IntValue() == sourceColumnId);
+                if (!allColumn) continue;
+
+                if (!TryGetDimensionOriginSafe(d, sourceView, out XYZ o)) continue;
+                double dx = Math.Abs(o.X - sourceCenter.X);
+                double dy = Math.Abs(o.Y - sourceCenter.Y);
+
+                // 水平寸法線(=X方向寸法)は Y オフセットが支配的
+                if (dy >= dx)
+                {
+                    if (tx != null && !tx.WidthOffsetFt.HasValue)
+                    {
+                        tx.WidthOffsetFt = o.Y - sourceCenter.Y;
+                        tx.WidthDimensionTypeId = d.GetTypeId().IntValue();
+                    }
+                }
+                else
+                {
+                    if (ty != null && !ty.WidthOffsetFt.HasValue)
+                    {
+                        ty.WidthOffsetFt = o.X - sourceCenter.X;
+                        ty.WidthDimensionTypeId = d.GetTypeId().IntValue();
+                    }
+                }
+            }
+
+            return tx != null && ty != null;
+        }
+
+        private static bool TryGetGridLine(Grid g, View v, out Line line)
+        {
+            line = null;
+            try
+            {
+                var cs = g.GetCurvesInView(DatumExtentType.ViewSpecific, v);
+                if (cs != null && cs.Count > 0)
+                {
+                    line = cs[0] as Line;
+                    if (line != null) return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                var cs = g.GetCurvesInView(DatumExtentType.Model, v);
+                if (cs != null && cs.Count > 0)
+                {
+                    line = cs[0] as Line;
+                    if (line != null) return true;
+                }
+            }
+            catch { }
+
+            line = g.Curve as Line;
+            return line != null;
+        }
+
+        private static bool TryPickNearestOrthogonalGrids(Document doc, View v, XYZ center, out GridPick gp)
+        {
+            gp = null;
+            var grids = new FilteredElementCollector(doc, v.Id)
+                .OfClass(typeof(Grid))
+                .Cast<Grid>()
+                .ToList();
+            if (grids.Count == 0) return false;
+
+            Grid bestV = null; double bestVD = double.MaxValue; double bestVX = 0;
+            Grid bestH = null; double bestHD = double.MaxValue; double bestHY = 0;
+
+            foreach (var g in grids)
+            {
+                if (!TryGetGridLine(g, v, out Line ln)) continue;
+                var d = ln.Direction.Normalize();
+                var p0 = ln.GetEndPoint(0);
+
+                bool vertical = Math.Abs(d.Y) >= Math.Abs(d.X);
+                if (vertical)
+                {
+                    double x = p0.X;
+                    double dist = Math.Abs(center.X - x);
+                    if (dist < bestVD) { bestVD = dist; bestV = g; bestVX = x; }
+                }
+                else
+                {
+                    double y = p0.Y;
+                    double dist = Math.Abs(center.Y - y);
+                    if (dist < bestHD) { bestHD = dist; bestH = g; bestHY = y; }
+                }
+            }
+
+            if (bestV == null || bestH == null) return false;
+            gp = new GridPick { VerticalGrid = bestV, VerticalX = bestVX, HorizontalGrid = bestH, HorizontalY = bestHY };
+            return true;
+        }
+
+        private static bool TryGetFaceBundle(FamilyInstance col, View v, out FaceBundle fb)
+        {
+            fb = null;
+            var opt = new Options
+            {
+                ComputeReferences = true,
+                IncludeNonVisibleObjects = true,
+                View = v
+            };
+            var ge = col.get_Geometry(opt);
+            if (ge == null) return false;
+
+            bool hasL = false, hasR = false, hasB = false, hasT = false;
+            double lx = 0, rx = 0, by = 0, ty = 0;
+            Reference lr = null, rr = null, br = null, tr = null;
+
+            Action<GeometryElement> walk = null;
+            walk = (elem) =>
+            {
+                foreach (var go in elem)
+                {
+                    if (go is GeometryInstance gi)
+                    {
+                        var inst = gi.GetInstanceGeometry();
+                        if (inst != null) walk(inst);
+                        continue;
+                    }
+                    if (go is Solid s && s.Faces.Size > 0)
+                    {
+                        foreach (Face f in s.Faces)
+                        {
+                            var pf = f as PlanarFace;
+                            if (pf == null || pf.Reference == null) continue;
+
+                            XYZ n = pf.FaceNormal;
+                            if (Math.Abs(n.Z) > 0.2) continue; // plan 寸法対象
+
+                            var bb = pf.GetBoundingBox();
+                            if (bb == null) continue;
+                            var uv = (bb.Min + bb.Max) * 0.5;
+                            var c = pf.Evaluate(uv);
+
+                            if (Math.Abs(n.X) >= Math.Abs(n.Y))
+                            {
+                                if (n.X < 0)
+                                {
+                                    if (!hasL || c.X < lx) { hasL = true; lx = c.X; lr = pf.Reference; }
+                                }
+                                else
+                                {
+                                    if (!hasR || c.X > rx) { hasR = true; rx = c.X; rr = pf.Reference; }
+                                }
+                            }
+                            else
+                            {
+                                if (n.Y < 0)
+                                {
+                                    if (!hasB || c.Y < by) { hasB = true; by = c.Y; br = pf.Reference; }
+                                }
+                                else
+                                {
+                                    if (!hasT || c.Y > ty) { hasT = true; ty = c.Y; tr = pf.Reference; }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            walk(ge);
+            if (!(hasL && hasR && hasB && hasT)) return false;
+
+            fb = new FaceBundle
+            {
+                LeftRef = lr,
+                RightRef = rr,
+                BottomRef = br,
+                TopRef = tr,
+                LeftX = lx,
+                RightX = rx,
+                BottomY = by,
+                TopY = ty
+            };
+            return true;
+        }
+
+        private static int DeleteTargetDimensions(Document doc, View v, int colId)
+        {
+            var dims = new FilteredElementCollector(doc, v.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+            int deleted = 0;
+            foreach (var d in dims)
+            {
+                try
+                {
+                    var refs = d.References?.Cast<Reference>().ToList() ?? new List<Reference>();
+                    int colRefCount = refs.Count(r => r.ElementId != null && r.ElementId.IntValue() == colId);
+                    bool hasGrid = refs.Any(r =>
+                    {
+                        if (r.ElementId == null) return false;
+                        return doc.GetElement(r.ElementId) is Grid;
+                    });
+                    bool allColumn = refs.Count >= 2 && refs.All(r => r.ElementId != null && r.ElementId.IntValue() == colId);
+                    if ((colRefCount >= 2 && hasGrid) || allColumn)
+                    {
+                        doc.Delete(d.Id);
+                        deleted++;
+                    }
+                }
+                catch { }
+            }
+            return deleted;
+        }
+
+        private static int CreateAxisDimensionX(Document doc, View v, FaceBundle fb, GridPick gp, XYZ center, AxisTemplate t)
+        {
+            int created = 0;
+
+            var ra = new ReferenceArray();
+            ra.Append(fb.LeftRef);
+            ra.Append(new Reference(gp.VerticalGrid));
+            ra.Append(fb.RightRef);
+
+            double y = center.Y + t.OffsetFt;
+            double z = center.Z;
+            double minX = Math.Min(fb.LeftX, Math.Min(gp.VerticalX, fb.RightX)) - UnitHelper.MmToFt(100.0);
+            double maxX = Math.Max(fb.LeftX, Math.Max(gp.VerticalX, fb.RightX)) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(minX, y, z), new XYZ(maxX, y, z));
+
+            var d = doc.Create.NewDimension(v, ln, ra);
+            if (t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) d.ChangeTypeId(tp.Id);
+            }
+            if (d != null) created++;
+
+            if (t.WidthOffsetFt.HasValue)
+            {
+                var rwa = new ReferenceArray();
+                rwa.Append(fb.LeftRef);
+                rwa.Append(fb.RightRef);
+                double wy = center.Y + t.WidthOffsetFt.Value;
+                var wln = Line.CreateBound(new XYZ(minX, wy, z), new XYZ(maxX, wy, z));
+                var wd = doc.Create.NewDimension(v, wln, rwa);
+                int wTypeId = t.WidthDimensionTypeId > 0 ? t.WidthDimensionTypeId : t.DimensionTypeId;
+                if (wd != null && wTypeId > 0)
+                {
+                    var wtp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wTypeId)) as DimensionType;
+                    if (wtp != null) wd.ChangeTypeId(wtp.Id);
+                }
+                if (wd != null) created++;
+            }
+            return created;
+        }
+
+        private static int CreateAxisDimensionY(Document doc, View v, FaceBundle fb, GridPick gp, XYZ center, AxisTemplate t)
+        {
+            int created = 0;
+
+            var ra = new ReferenceArray();
+            ra.Append(fb.BottomRef);
+            ra.Append(new Reference(gp.HorizontalGrid));
+            ra.Append(fb.TopRef);
+
+            double x = center.X + t.OffsetFt;
+            double z = center.Z;
+            double minY = Math.Min(fb.BottomY, Math.Min(gp.HorizontalY, fb.TopY)) - UnitHelper.MmToFt(100.0);
+            double maxY = Math.Max(fb.BottomY, Math.Max(gp.HorizontalY, fb.TopY)) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(x, minY, z), new XYZ(x, maxY, z));
+
+            var d = doc.Create.NewDimension(v, ln, ra);
+            if (t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) d.ChangeTypeId(tp.Id);
+            }
+            if (d != null) created++;
+
+            if (t.WidthOffsetFt.HasValue)
+            {
+                var rwa = new ReferenceArray();
+                rwa.Append(fb.BottomRef);
+                rwa.Append(fb.TopRef);
+                double wx = center.X + t.WidthOffsetFt.Value;
+                var wln = Line.CreateBound(new XYZ(wx, minY, z), new XYZ(wx, maxY, z));
+                var wd = doc.Create.NewDimension(v, wln, rwa);
+                int wTypeId = t.WidthDimensionTypeId > 0 ? t.WidthDimensionTypeId : t.DimensionTypeId;
+                if (wd != null && wTypeId > 0)
+                {
+                    var wtp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wTypeId)) as DimensionType;
+                    if (wtp != null) wd.ChangeTypeId(wtp.Id);
+                }
+                if (wd != null) created++;
+            }
+            return created;
+        }
+
+        private static bool TryGetDimensionOriginSafe(Dimension dim, View view, out XYZ o)
+        {
+            o = null;
+            try
+            {
+                o = dim.Origin;
+                if (o != null) return true;
+            }
+            catch { }
+
+            try
+            {
+                var c = dim.Curve;
+                if (c != null)
+                {
+                    o = c.Evaluate(0.5, true);
+                    if (o != null) return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                var bb = dim.get_BoundingBox(view) ?? dim.get_BoundingBox(null);
+                if (bb != null)
+                {
+                    o = (bb.Min + bb.Max) * 0.5;
+                    return true;
+                }
+            }
+            catch { }
+            return false;
         }
     }
 }

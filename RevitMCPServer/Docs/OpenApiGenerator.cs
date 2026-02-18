@@ -35,7 +35,7 @@ namespace RevitMcpServer.Docs
             var schemas = (Dictionary<string, object?>)((Dictionary<string, object?>)root["components"]!)["schemas"]!;
             EnsureCommonSchemas(schemas);
 
-            // Router 由来（サーバ内/Abstractions 側）
+            // Router RiT[o/Abstractions j
             foreach (var kv in router.GetAllCommands())
             {
                 var method = kv.Key;
@@ -44,14 +44,14 @@ namespace RevitMcpServer.Docs
                 AddRpcPath(paths, schemas, method, resultRef, null);
             }
 
-            // Add-in マニフェスト由来（tags を OpenAPI にも反映）
+            // Add-in }jtFXgRitags  OpenAPI ﾉＧj
             foreach (var m in extras)
             {
                 var resultRef = BuildResponseSchemaFromDict(m.Name, m.ResultSchema, schemas);
                 AddRpcPath(paths, schemas, m.Name, resultRef, m.Tags ?? new string[0]);
             }
 
-            // 非RPC 経路（ポーリング・メタ）
+            // RPC oHi|[OE^j
             AddNonRpcPaths(paths, schemas);
 
             return JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true });
@@ -64,7 +64,7 @@ namespace RevitMcpServer.Docs
             AtomicWrite(Path.Combine(outputDir, "openapi.json"), json);
         }
 
-        // ---------- 内部: パス生成 ----------
+        // ---------- : pX ----------
         private static void AddRpcPath(Dictionary<string, object?> paths, Dictionary<string, object?> schemas,
                                        string method, Dictionary<string, object?> resultSchemaRef, string[]? tags)
         {

@@ -16,7 +16,7 @@ Tested with:
 
 - Windows 11, .NET SDK 8/9 installed
 - Python 3.10+
-- Repo layout under `VS2022/Ver431`
+- Repo layout under `Revit_MCP`
 
 ---
 
@@ -53,7 +53,7 @@ Playbook forwards JSON‑RPC to a specific Revit MCP instance and records/replay
 Example (forwarding to the primary Revit instance at 5210):
 
 ````powershell
-dotnet run --project "%USERPROFILE%\Documents\VS2022\Ver431\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
+dotnet run --project "%USERPROFILE%\\Documents\\Revit_MCP\\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
 ````
 
 Health check:
@@ -78,7 +78,7 @@ The proxy logs every request/response to JSONL while transparently forwarding to
 Run in the `ChatRevit` folder:
 
 ````powershell
-Set-Location "%USERPROFILE%\Documents\VS2022\Ver431\ChatRevit"
+Set-Location "%USERPROFILE%\Documents\Revit_MCP\ChatRevit"
 python .\proxy_mcp_logger.py --listen 127.0.0.1:5221 --upstream http://127.0.0.1:5209 --logdir .\logs
 ````
 
@@ -129,13 +129,13 @@ For frequently used read‑only commands like `get_project_info` and `get_open_d
 - Cache script:
 
 ````powershell
-python "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit_info.py" --proxy http://127.0.0.1:5221 --revit-port 5211 --out-dir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Logs" --ttl-sec 0
+python "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Scripts\cache_revit_info.py" --proxy http://127.0.0.1:5221 --revit-port 5211 --out-dir "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Logs" --ttl-sec 0
 ````
 
 - Use cached data (concise summary):
 
 ````powershell
-powershell -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_project_and_documents_cached.ps1" -Port 5211 -Proxy http://127.0.0.1:5221 -OutDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Logs"
+powershell -File "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Scripts\get_project_and_documents_cached.ps1" -Port 5211 -Proxy http://127.0.0.1:5221 -OutDir "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Logs"
 ````
 
 - Force refresh when needed:
@@ -168,13 +168,13 @@ Outputs are saved under `Codex/Projects/<ProjectName>_<Port>/Logs` as `project_i
 2) Start Playbook (forward to 5210):
 
 ````powershell
-dotnet run --project "%USERPROFILE%\Documents\VS2022\Ver431\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
+dotnet run --project "%USERPROFILE%\\Documents\\Revit_MCP\\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
 ````
 
 3) Start Proxy (listen 5221):
 
 ````powershell
-Set-Location "%USERPROFILE%\Documents\VS2022\Ver431\ChatRevit"
+Set-Location "%USERPROFILE%\Documents\Revit_MCP\ChatRevit"
 python .\proxy_mcp_logger.py --listen 127.0.0.1:5221 --upstream http://127.0.0.1:5209 --logdir .\logs
 ````
 
@@ -206,5 +206,8 @@ Close the windows you launched, or from PowerShell:
 ````powershell
 Get-NetTCPConnection -LocalPort 5209,5221 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ````
+
+
+
 
 

@@ -1,6 +1,6 @@
 # @feature: Helpers: robust path normalization (abs/rel, slash, case) | keywords: 壁, スペース, ビュー, DWG
 param(
-  [string]$Root = "%USERPROFILE%\Documents\VS2022\Ver431\RevitMCPAddin",
+  [string]$Root = "%USERPROFILE%\\Documents\\Revit_MCP\\RevitMCPAddin",
   [string]$OutCsv = "Projects/Logs/performance_status_cs.csv"
 )
 
@@ -172,6 +172,9 @@ else {
   $sorted | ConvertTo-Csv -NoTypeInformation | Write-Output
   Write-Host ("Generated {0} rows (dry-run)" -f ($sorted.Count)) -ForegroundColor Yellow
 }
+
+
+
 
 
 

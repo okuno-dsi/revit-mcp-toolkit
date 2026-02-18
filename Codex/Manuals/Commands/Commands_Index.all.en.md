@@ -354,6 +354,7 @@ Notes:
   - `get_railing_type_parameters` — read
   - `get_railing_types` — read
   - `get_railings` — read
+  - `get_project_browser_selection` — read
   - `get_sanitary_fixture_types` — read
   - `get_sanitary_fixtures` — read
   - `get_selected_element_ids` — read

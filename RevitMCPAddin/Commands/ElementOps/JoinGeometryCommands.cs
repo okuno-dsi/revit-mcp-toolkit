@@ -40,7 +40,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (doc == null) return new { ok = false, msg = "No active document." };
             var p = cmd.Params as JObject ?? new JObject();
             var (a, b) = JoinUtil.ResolvePair(doc, p);
-            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA �� elementIdB/uniqueIdB ���w�肵�Ă��������B" };
+            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA  elementIdB/uniqueIdB w肵ĂB" };
 
             try
             {
@@ -68,7 +68,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (doc == null) return new { ok = false, msg = "No active document." };
             var p = cmd.Params as JObject ?? new JObject();
             var (a, b) = JoinUtil.ResolvePair(doc, p);
-            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA �� elementIdB/uniqueIdB ���w�肵�Ă��������B" };
+            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA  elementIdB/uniqueIdB w肵ĂB" };
 
             try
             {
@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (doc == null) return new { ok = false, msg = "No active document." };
             var p = cmd.Params as JObject ?? new JObject();
             var (a, b) = JoinUtil.ResolvePair(doc, p);
-            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA �� elementIdB/uniqueIdB ���w�肵�Ă��������B" };
+            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA  elementIdB/uniqueIdB w肵ĂB" };
             bool joined = false;
             try { joined = JoinGeometryUtils.AreElementsJoined(doc, a, b); } catch { }
             return new { ok = true, joined, a = a.Id.IntValue(), b = b.Id.IntValue() };
@@ -113,7 +113,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (doc == null) return new { ok = false, msg = "No active document." };
             var p = cmd.Params as JObject ?? new JObject();
             var (a, b) = JoinUtil.ResolvePair(doc, p);
-            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA �� elementIdB/uniqueIdB ���w�肵�Ă��������B" };
+            if (a == null || b == null) return new { ok = false, msg = "elementIdA/uniqueIdA  elementIdB/uniqueIdB w肵ĂB" };
 
             try
             {
@@ -145,7 +145,7 @@ namespace RevitMCPAddin.Commands.ElementOps
             if (doc == null) return new { ok = false, msg = "No active document." };
             var p = cmd.Params as JObject ?? new JObject();
             var a = JoinUtil.ResolveByKeys(doc, p, "elementId", "uniqueId");
-            if (a == null) return new { ok = false, msg = "elementId �܂��� uniqueId ���w�肵�Ă��������B" };
+            if (a == null) return new { ok = false, msg = "elementId ܂ uniqueId w肵ĂB" };
 
             var joinedIds = new List<int>();
             var dependentIds = new List<int>();

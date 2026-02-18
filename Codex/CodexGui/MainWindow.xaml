@@ -348,149 +348,164 @@
                             FontFamily="Consolas"/>
              </Grid>
 
-            <!-- Model / Reasoning / Profile -->
-            <StackPanel Grid.Row="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Left"
-                        Margin="0,4,0,0">
-                <TextBlock Text="モデル:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="ModelComboBox"
-                          Width="170"
-                          Margin="0,0,4,0"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          LostKeyboardFocus="ModelComboBox_OnLostKeyboardFocus"
-                          ToolTip="Codex モデル名（例: gpt-4.1, gpt-4.1-mini など）。空欄=デフォルト。"/>
-                <Button x:Name="ClearModelButton"
-                        Content="Default"
-                        Width="70"
-                        Margin="0,0,8,0"
-                        Click="ClearModelButton_OnClick"
-                        ToolTip="モデル指定をクリアします（空欄=デフォルト）。"/>
-                <Button x:Name="RefreshModelsButton"
-                        Content="Refresh"
-                        Width="70"
-                        Margin="0,0,12,0"
-                        Click="RefreshModelsButton_OnClick"
-                        ToolTip="~/.codex/config.toml を再読込して、モデル候補を更新します。"/>
+            <!-- Simplified controls + opacity + hidden advanced setting controls -->
+            <Grid Grid.Row="2" Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="320"/>
+                </Grid.ColumnDefinitions>
 
-                <TextBlock Text="推論:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="ReasoningEffortComboBox"
-                          Width="100"
-                          Margin="0,0,4,0"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          LostKeyboardFocus="ReasoningEffortComboBox_OnLostKeyboardFocus"
-                          ToolTip="model_reasoning_effort（例: low/medium/high/xhigh）。空欄=デフォルト。"/>
-                <Button x:Name="ClearReasoningEffortButton"
-                        Content="Default"
-                        Width="70"
-                        Margin="0,0,12,0"
-                        Click="ClearReasoningEffortButton_OnClick"
-                        ToolTip="推論レベル指定をクリアします（空欄=デフォルト）。"/>
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                    <Button x:Name="InitialPromptSettingsButton"
+                            Content="初期設定"
+                            Width="90"
+                            Margin="0,0,8,0"
+                            Click="InitialPromptSettingsButton_OnClick"
+                            ToolTip="初回送信時の固定初期プロンプトと、ユーザー追加分を設定します。"/>
+                    <Button x:Name="OpenSettingsButton"
+                            Content="設定"
+                            Width="70"
+                            Click="OpenSettingsButton_OnClick"
+                            ToolTip="モデル/推論/Profile/色/Session ID などの詳細設定を開きます。"/>
+                </StackPanel>
 
-                <TextBlock Text="Profile:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ComboBox x:Name="ProfileComboBox"
-                          Width="90"
-                          Margin="0,0,4,0"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          LostKeyboardFocus="ProfileComboBox_OnLostKeyboardFocus"
-                          ToolTip="Codex プロファイル名（例: fast/live/safe）。空欄=デフォルト。"/>
-                <Button x:Name="ClearProfileButton"
-                        Content="Default"
-                        Width="70"
-                        Margin="0,0,12,0"
-                        Click="ClearProfileButton_OnClick"
-                        ToolTip="プロファイル指定をクリアします（空欄=デフォルト）。"/>
+                <WrapPanel Grid.Column="1"
+                           Orientation="Horizontal"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0">
+                    <TextBlock Text="Opacity" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <Slider x:Name="OpacitySlider"
+                            Width="150"
+                            Minimum="0.1"
+                            Maximum="1.0"
+                            Value="0.9"
+                            TickFrequency="0.05"
+                            IsSnapToTickEnabled="True"
+                            ValueChanged="OpacitySlider_OnValueChanged"/>
+                    <TextBlock Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat='{}{0:F2}'}"
+                               VerticalAlignment="Center" Margin="4,0,16,0" FontSize="10"/>
 
-                <Button x:Name="StatusButton" Content="Status" Width="70"
-                        Click="StatusButton_OnClick"
-                        ToolTip="Codex 側のステータス取得用プロンプトを送信します"/>
-            </StackPanel>
+                    <TextBlock Text="BG" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Collapsed"/>
+                    <TextBox x:Name="BgColorTextBox" Width="90" Text="#122445" Margin="0,0,8,0" Visibility="Collapsed"/>
+                    <TextBlock Text="FG" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Collapsed"/>
+                    <TextBox x:Name="FgColorTextBox" Width="90" Text="#C0C0C0" Margin="0,0,8,0" Visibility="Collapsed"/>
+                    <Button x:Name="ApplyColorsButton" Content="Apply" Width="70" Click="ApplyColorsButton_OnClick" Visibility="Collapsed"/>
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="60,0,0,0"
+                                Visibility="Collapsed">
+                        <TextBlock Text="Session ID:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="10"/>
+                        <TextBlock x:Name="SessionIdTextBlock"
+                                   VerticalAlignment="Center"
+                                   FontSize="10"
+                                   Foreground="Gray"/>
+                        <Button x:Name="ShowSessionIdButton"
+                                Content="ID表示"
+                                Width="90"
+                                Height="20"
+                                Margin="8,0,0,0"
+                                Padding="6,0"
+                                VerticalAlignment="Center"
+                                Click="ShowSessionIdButton_OnClick"
+                                ToolTip="Codex セッションIDを表示します（コピー可）"/>
+                    </StackPanel>
+                </WrapPanel>
 
-            <!-- Opacity and Colors -->
-            <StackPanel Grid.Row="3"
-                        Orientation="Vertical"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,4,0,0">
-                <!-- Session ID display (above opacity slider) -->
-                 <!-- Opacity and Colors -->
-                 <Grid Margin="0,2,0,0">
-                     <Grid.ColumnDefinitions>
-                         <ColumnDefinition Width="*"/>
-                         <!-- Reserve space for status/progress to avoid shifting other controls -->
-                         <ColumnDefinition Width="320"/>
-                     </Grid.ColumnDefinitions>
- 
-                     <WrapPanel Grid.Column="0"
-                                 Orientation="Horizontal"
-                                 HorizontalAlignment="Left">
-                         <TextBlock Text="Opacity" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                         <Slider x:Name="OpacitySlider"
-                                 Width="150"
-                                 Minimum="0.1"
-                                 Maximum="1.0"
-                                 Value="0.9"
-                                 TickFrequency="0.05"
-                                 IsSnapToTickEnabled="True"
-                                 ValueChanged="OpacitySlider_OnValueChanged"/>
-                         <TextBlock Text="{Binding ElementName=OpacitySlider, Path=Value, StringFormat='{}{0:F2}'}"
-                                    VerticalAlignment="Center" Margin="4,0,16,0" FontSize="10"/>
- 
-                         <TextBlock Text="BG" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                         <TextBox x:Name="BgColorTextBox" Width="90" Text="#122445" Margin="0,0,8,0"/>
-                         <TextBlock Text="FG" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                         <TextBox x:Name="FgColorTextBox" Width="90" Text="#C0C0C0" Margin="0,0,8,0"/>
-                         <Button x:Name="ApplyColorsButton" Content="Apply" Width="70" Click="ApplyColorsButton_OnClick"/>
-                         <StackPanel Orientation="Horizontal"
-                                     VerticalAlignment="Center"
-                                     Margin="60,0,0,0">
-                             <TextBlock Text="Session ID:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="10"/>
-                             <TextBlock x:Name="SessionIdTextBlock"
-                                        VerticalAlignment="Center"
-                                        FontSize="10"
-                                        Foreground="Gray"/>
-                             <Button x:Name="ShowSessionIdButton"
-                                     Content="ID表示"
-                                     Width="90"
-                                     Height="20"
-                                     Margin="8,0,0,0"
-                                     Padding="6,0"
-                                     VerticalAlignment="Center"
-                                     Click="ShowSessionIdButton_OnClick"
-                                     ToolTip="Codex セッションIDを表示します（コピー可）"/>
-                         </StackPanel>
-                     </WrapPanel>
- 
-                     <!-- Busy time indicator + RevitMCP progress (from %LOCALAPPDATA%\\RevitMCP\\progress\\progress_<port>.jsonl) -->
-                     <StackPanel Grid.Column="1"
-                                 Orientation="Horizontal"
-                                 HorizontalAlignment="Right"
-                                 VerticalAlignment="Center">
-                         <ProgressBar x:Name="RevitProgressBar"
-                                      Width="120"
-                                      Height="8"
-                                      Margin="0,0,10,0"
-                                      Minimum="0"
-                                      Maximum="100"
-                                      IsIndeterminate="True"
-                                      VerticalAlignment="Center"
-                                      Visibility="Collapsed"/>
- 
-                         <TextBlock x:Name="RevitProgressTextBlock"
-                                    Margin="0,0,0,0"
-                                    FontSize="12"
-                                    FontFamily="Consolas"
-                                    TextWrapping="NoWrap"
-                                    TextTrimming="CharacterEllipsis"
-                                    MaxWidth="170"
-                                    Foreground="#FF7A7A7A"
-                                    VerticalAlignment="Center"
-                                    Visibility="Collapsed"/>
-                     </StackPanel>
-                 </Grid>
-             </StackPanel>
+                <!-- Busy time indicator + RevitMCP progress (from %LOCALAPPDATA%\\RevitMCP\\progress\\progress_<port>.jsonl) -->
+                <StackPanel Grid.Column="3"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <ProgressBar x:Name="RevitProgressBar"
+                                 Width="120"
+                                 Height="8"
+                                 Margin="0,0,10,0"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 IsIndeterminate="True"
+                                 VerticalAlignment="Center"
+                                 Visibility="Collapsed"/>
+
+                    <TextBlock x:Name="RevitProgressTextBlock"
+                               Margin="0,0,0,0"
+                               FontSize="12"
+                               FontFamily="Consolas"
+                               TextWrapping="NoWrap"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="170"
+                               Foreground="#FF7A7A7A"
+                               VerticalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </StackPanel>
+
+                <!-- Keep existing controls in the visual tree for compatibility; managed from Settings dialog -->
+                <StackPanel x:Name="AdvancedSettingsHiddenPanel"
+                            Grid.ColumnSpan="4"
+                            Visibility="Collapsed"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Left">
+                    <TextBlock Text="モデル:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="ModelComboBox"
+                              Width="170"
+                              Margin="0,0,4,0"
+                              IsEditable="True"
+                              IsTextSearchEnabled="False"
+                              LostKeyboardFocus="ModelComboBox_OnLostKeyboardFocus"
+                              ToolTip="Codex モデル名（例: gpt-4.1, gpt-4.1-mini など）。空欄=デフォルト。"/>
+                    <Button x:Name="ClearModelButton"
+                            Content="Default"
+                            Width="70"
+                            Margin="0,0,8,0"
+                            Click="ClearModelButton_OnClick"
+                            ToolTip="モデル指定をクリアします（空欄=デフォルト）。"/>
+                    <Button x:Name="RefreshModelsButton"
+                            Content="Refresh"
+                            Width="70"
+                            Margin="0,0,12,0"
+                            Click="RefreshModelsButton_OnClick"
+                            ToolTip="~/.codex/config.toml を再読込して、モデル候補を更新します。"/>
+
+                    <TextBlock Text="推論:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="ReasoningEffortComboBox"
+                              Width="100"
+                              Margin="0,0,4,0"
+                              IsEditable="True"
+                              IsTextSearchEnabled="False"
+                              LostKeyboardFocus="ReasoningEffortComboBox_OnLostKeyboardFocus"
+                              ToolTip="model_reasoning_effort（例: low/medium/high/xhigh）。空欄=デフォルト。"/>
+                    <Button x:Name="ClearReasoningEffortButton"
+                            Content="Default"
+                            Width="70"
+                            Margin="0,0,12,0"
+                            Click="ClearReasoningEffortButton_OnClick"
+                            ToolTip="推論レベル指定をクリアします（空欄=デフォルト）。"/>
+
+                    <TextBlock Text="Profile:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox x:Name="ProfileComboBox"
+                              Width="90"
+                              Margin="0,0,4,0"
+                              IsEditable="True"
+                              IsTextSearchEnabled="False"
+                              LostKeyboardFocus="ProfileComboBox_OnLostKeyboardFocus"
+                              ToolTip="Codex プロファイル名（例: fast/live/safe）。空欄=デフォルト。"/>
+                    <Button x:Name="ClearProfileButton"
+                            Content="Default"
+                            Width="70"
+                            Margin="0,0,12,0"
+                            Click="ClearProfileButton_OnClick"
+                            ToolTip="プロファイル指定をクリアします（空欄=デフォルト）。"/>
+
+                    <Button x:Name="StatusButton" Content="Status" Width="70"
+                            Click="StatusButton_OnClick"
+                            ToolTip="Codex 側のステータス取得用プロンプトを送信します"/>
+                </StackPanel>
+            </Grid>
          </Grid>
         </Grid>
 

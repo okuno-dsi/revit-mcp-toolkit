@@ -269,6 +269,7 @@ Commands grouped into broader feature areas.
 - [get_roof_type_info](get_roof_type_info.md)
 - [get_sanitary_fixture_types](get_sanitary_fixture_types.md)
 - [get_sanitary_fixtures](get_sanitary_fixtures.md)
+- [get_project_browser_selection](get_project_browser_selection.md)
 - [get_selected_element_ids](get_selected_element_ids.md)
 - [get_site_overview](get_site_overview.md)
 - [get_site_subregions](get_site_subregions.md)

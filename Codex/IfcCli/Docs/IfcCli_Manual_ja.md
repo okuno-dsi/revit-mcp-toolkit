@@ -50,7 +50,7 @@ Codex リポジトリ内のパス（例）:
 ### 3.1 ビルド
 
 ```powershell
-cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli
+cd %USERPROFILE%\\Documents\\Revit_MCP\\Codex\IfcCli
 dotnet build -c Release
 ```
 
@@ -62,7 +62,7 @@ dotnet build -c Release
 ### 3.2 実行
 
 ```powershell
-cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli\bin\Release\net6.0
+cd %USERPROFILE%\\Documents\\Revit_MCP\\Codex\IfcCli\bin\Release\net6.0
 .\IfcCli.exe --help
 ```
 
@@ -526,3 +526,6 @@ CLI コマンドは、すべてデコード済みの文字列を直接扱えま�
 
 文字列の Unicode デコードはすべて `Unwrap` に集約されています。
 IFC の STRING 引数を読み取る新しいコードは、そのまま Unicode（日本語含む）を扱えます。
+
+
+

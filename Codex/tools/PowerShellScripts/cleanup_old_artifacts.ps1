@@ -3,10 +3,14 @@ param(
   [switch]$Execute,
   [switch]$IncludeLocalRevitMcp = $true,
   [switch]$IncludeRepoWork = $true,
-  [string]$RepoRoot = $PSScriptRoot | Split-Path -Parent
+  [string]$RepoRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+  $RepoRoot = Split-Path -Parent $PSScriptRoot
+}
 
 function Get-NewestWriteTime([string]$Path) {
   $newest = (Get-Item -LiteralPath $Path -Force).LastWriteTime

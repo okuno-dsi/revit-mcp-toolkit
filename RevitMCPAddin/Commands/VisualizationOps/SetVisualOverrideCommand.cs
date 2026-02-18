@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var doc = uiapp.ActiveUIDocument.Document;
             var p = (JObject)cmd.Params;
 
-            // �r���[�����i����݊�: viewId ������/0 �̏ꍇ�̓A�N�e�B�u�O���t�B�b�N�r���[���̗p�j
+            // r[i݊: viewId /0 ̏ꍇ̓ANeBuOtBbNr[̗pj
             int reqViewId = p.Value<int?>("viewId") ?? 0;
             View view = null;
             ElementId viewId = ElementId.InvalidElementId;
@@ -34,13 +34,13 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             }
             if (view == null)
             {
-                // ActiveGraphicalView �� null �̏ꍇ�� ActiveView (��O���t�B�b�N�͏��O)
+                // ActiveGraphicalView  null ̏ꍇ ActiveView (OtBbN͏O)
                 view = uiapp.ActiveUIDocument?.ActiveGraphicalView
                     ?? (uiapp.ActiveUIDocument?.ActiveView is View av && av.ViewType != ViewType.ProjectBrowser ? av : null);
                 if (view != null) viewId = view.Id;
             }
 
-            // �I�v�V����: �����I�Ɉ��S��3D�r���[���쐬���ēK�p
+            // IvV: IɈS3Dr[쐬ēKp
             bool autoWorkingView = p.Value<bool?>("autoWorkingView") ?? true;
             if (view == null && autoWorkingView)
             {
@@ -64,12 +64,12 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                     catch (Exception ex)
                     {
                         tx.RollBack();
-                        // �Ō�̎�i: �����I�G���[�ő��ԋp�iUI�X�^�b�N�������j
+                        // Ō̎i: IG[őԋpiUIX^bNj
                         return new
                         {
                             ok = false,
                             errorCode = "ERR_NO_VIEW",
-                            msg = "�K�p��r���[�������ł��܂���ł����BviewId ���w�肵�Ă��������B",
+                            msg = "Kpr[ł܂łBviewId w肵ĂB",
                             detail = ex.Message
                         };
                     }
@@ -81,11 +81,11 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 {
                     ok = false,
                     errorCode = "ERR_NO_VIEW",
-                    msg = "�K�p��r���[�������ł��܂���ł����BviewId ���w�肵�Ă��������B"
+                    msg = "Kpr[ł܂łBviewId w肵ĂB"
                 };
             }
 
-            // ========== View Template ���o�Fdetach�I�v�V���� ==========
+            // ========== View Template oFdetachIvV ==========
             bool templateApplied = view.ViewTemplateId != ElementId.InvalidElementId;
             int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntValue() : null;
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? false;
@@ -110,7 +110,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             }
             if (templateApplied)
             {
-                // View Template �K�p�r���[�ł͕`��ύX���s���Ȃ���
+                // View Template Kpr[ł͕`ύXsȂ
                 return new
                 {
                     ok = true,
@@ -129,7 +129,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 };
             }
 
-            // �v�fID�i�P��/�����j
+            // vfIDiP/j
             var elementIds = new List<ElementId>();
             if (p["elementId"] != null)
             {
@@ -141,10 +141,10 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             }
             else
             {
-                throw new InvalidOperationException("�p�����[�^ 'elementId' �܂��� 'elementIds' ���w�肵�Ă��������B");
+                throw new InvalidOperationException("p[^ 'elementId' ܂ 'elementIds' w肵ĂB");
             }
 
-            // �F�E���ߓx�i�ȗ����͐�, 40%�j
+            // FEߓxiȗ͐, 40%j
             byte r = (byte)(p.Value<int?>("r") ?? 255);
             byte g = (byte)(p.Value<int?>("g") ?? 0);
             byte b = (byte)(p.Value<int?>("b") ?? 0);
@@ -155,31 +155,31 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             var lineColor = ParseRgbColor(p["lineRgb"], baseColor);
             var fillColor = ParseRgbColor(p["fillRgb"], baseColor);
 
-            // Solid Fill �p�^�[���i�L���b�V�����p�j
+            // Solid Fill p^[iLbVpj
             var solidPatternId = SolidFillCache.GetOrBuild(doc);
 
             var ogs = new OverrideGraphicSettings();
-            // ��
+            // 
             ogs.SetProjectionLineColor(lineColor);
             ogs.SetCutLineColor(lineColor);
-            // Surface�i�O�i�E�w�i�j
+            // SurfaceiOiEwij
             ogs.SetSurfaceForegroundPatternId(solidPatternId);
             ogs.SetSurfaceForegroundPatternColor(fillColor);
             ogs.SetSurfaceForegroundPatternVisible(true);
             ogs.SetSurfaceBackgroundPatternId(solidPatternId);
             ogs.SetSurfaceBackgroundPatternColor(fillColor);
             ogs.SetSurfaceBackgroundPatternVisible(true);
-            // Cut�i�O�i�E�w�i�j
+            // CutiOiEwij
             ogs.SetCutForegroundPatternId(solidPatternId);
             ogs.SetCutForegroundPatternColor(fillColor);
             ogs.SetCutForegroundPatternVisible(true);
             ogs.SetCutBackgroundPatternId(solidPatternId);
             ogs.SetCutBackgroundPatternColor(fillColor);
             ogs.SetCutBackgroundPatternVisible(true);
-            // ���ߓx
+            // ߓx
             ogs.SetSurfaceTransparency(transparency);
 
-            // �o�b�`�K�p + Regenerate/Refresh
+            // ob`Kp + Regenerate/Refresh
             int batchSize = Math.Max(50, Math.Min(5000, p.Value<int?>("batchSize") ?? 800));
             int maxMillisPerTx = Math.Max(500, Math.Min(10000, p.Value<int?>("maxMillisPerTx") ?? 3000));
             int startIndex = Math.Max(0, p.Value<int?>("startIndex") ?? 0);

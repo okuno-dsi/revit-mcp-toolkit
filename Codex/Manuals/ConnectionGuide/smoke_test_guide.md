@@ -121,5 +121,5 @@ python ..\\..\\NVIDIA-Nemotron-v3\\tool\\revit_agent_cli.py --port 5210 --method
 ---
 
 **更新日:** 2025-10-07  
-**作成者:** RevitMCP 開発チーム（奥野 哲也 + おちゃん）
+**作成者:** RevitMCP 開発チーム
 

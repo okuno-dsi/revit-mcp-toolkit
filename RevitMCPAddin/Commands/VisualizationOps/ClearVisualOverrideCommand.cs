@@ -16,11 +16,11 @@ namespace RevitMCPAddin.Commands.ViewOps
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
             var doc = uiapp?.ActiveUIDocument?.Document;
-            if (doc == null) return new { ok = false, msg = "�A�N�e�B�u�h�L�������g������܂���B" };
+            if (doc == null) return new { ok = false, msg = "ANeBuhLg܂B" };
 
             var p = (JObject)cmd.Params;
 
-            // �r���[�����iviewId ���w��/0 �� �A�N�e�B�u�O���t�B�b�N�r���[�j
+            // r[iviewId w/0  ANeBuOtBbNr[j
             int reqViewId = p.Value<int?>("viewId") ?? 0;
             View view = null;
             ElementId viewId = ElementId.InvalidElementId;
@@ -62,7 +62,7 @@ namespace RevitMCPAddin.Commands.ViewOps
                         return new
                         {
                             ok = false,
-                            msg = "�K�p��r���[�������ł��܂���ł����BviewId ���w�肵�Ă��������B",
+                            msg = "Kpr[ł܂łBviewId w肵ĂB",
                             detail = ex.Message
                         };
                     }
@@ -73,11 +73,11 @@ namespace RevitMCPAddin.Commands.ViewOps
                 return new
                 {
                     ok = false,
-                    msg = "�K�p��r���[�������ł��܂���ł����BviewId ���w�肵�Ă��������B"
+                    msg = "Kpr[ł܂łBviewId w肵ĂB"
                 };
             }
 
-            // View Template �Ή�
+            // View Template Ή
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? false;
             bool templateApplied = view.ViewTemplateId != ElementId.InvalidElementId;
             int? templateViewId = templateApplied ? (int?)view.ViewTemplateId.IntValue() : null;
@@ -101,7 +101,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             }
             if (templateApplied)
             {
-                // View Template �K�p�r���[�ł͕`��ύX���s���Ȃ���
+                // View Template Kpr[ł͕`ύXsȂ
                 return new
                 {
                     ok = true,
@@ -130,7 +130,7 @@ namespace RevitMCPAddin.Commands.ViewOps
             {
                 ids.Add(Autodesk.Revit.DB.ElementIdCompat.From(p.Value<int>("elementId")));
             }
-            if (ids.Count == 0) return new { ok = false, msg = "elementId(s) ������܂���B" };
+            if (ids.Count == 0) return new { ok = false, msg = "elementId(s) ܂B" };
 
             var ogsEmpty = new OverrideGraphicSettings();
             int count = 0, skipped = 0;

@@ -35,6 +35,7 @@
   <!-- SDK default globs include subfolders; prevent CaptureAgent sources from being compiled into the server assembly. -->
   <ItemGroup>
     <Compile Remove="CaptureAgent\**\*.cs" />
+    <Content Remove="CaptureAgent\**\*" />
     <None Remove="CaptureAgent\**\*" />
     <EmbeddedResource Remove="CaptureAgent\**\*" />
   </ItemGroup>
@@ -43,6 +44,12 @@
   <ItemGroup>
     <Content Remove="publish\**\*" />
     <None Remove="publish\**\*" />
+    <Content Remove="publish_sc\**\*" />
+    <None Remove="publish_sc\**\*" />
+    <Content Remove="publish_sc_*\**\*" />
+    <None Remove="publish_sc_*\**\*" />
+    <Content Remove="_publish*\**\*" />
+    <None Remove="_publish*\**\*" />
   </ItemGroup>
 
   <Target Name="CopyCaptureAgentToServerOutput" AfterTargets="Build">

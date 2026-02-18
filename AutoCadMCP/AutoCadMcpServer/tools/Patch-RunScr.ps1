@@ -28,7 +28,7 @@ for($i=0;$i -lt $lines.Count;$i++){
   $line = $lines[$i]
   if($line -match '^\\(command\\s+\"_\\.-LAYER\"\\s+\"_MERGE\"\\s+\"[^\"]+\"\\s+\"([^\"]+)\"'){
     $dst = $matches[1]
-    $out.Add("(command \"_.-LAYER\" \"_THAW\" \"$dst\" \"_UNLOCK\" \"$dst\" \"\")")
+    $out.Add(('(command "_.-LAYER" "_THAW" "{0}" "_UNLOCK" "{0}" "")' -f $dst))
   }
   if($line -match '^\\(command\\s+\"_\\.-LAYER\"\\s+\"_MERGE\"' -and $line -notmatch '\"Y\"\\s+\"\"\\)\\s*$'){
     if($line -match '\"Y\"\\)\\s*$'){ $line = $line.TrimEnd(')') + ' "")' }
@@ -39,4 +39,3 @@ for($i=0;$i -lt $lines.Count;$i++){
 
 Set-Content -Path $ScriptPath -Value ($out -join "`r`n") -Encoding UTF8
 Write-Host "Patched: $ScriptPath"
-

@@ -3,11 +3,9 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
-## 重要: 推奨ユーザーフォルダ構成の変更（Big Change）
-- 旧: `Work/` 直下運用 → **新: `Projects/<ProjectName>_<ProjectID>/` 配下に統一**。
-- 既定ルート: `%USERPROFILE%\\Documents\\Revit_MCP`（legacy: `Codex_MCP`）。
-- 作業ログ/中間ファイル/スクリプト出力は **すべて `Projects/<...>` 配下**に集約。
-- 詳細: `WORK_RULES.md` / `START_HERE.md` / `Manuals/README.md` を参照。
+### Big Change: 推奨ユーザーフォルダ構成の刷新
+- 新ルート: `C:\Users\<user>\Documents\Revit_MCP`
+- `Projects` の実体を上記ルート直下へ統一（`Revit_MCP\Codex\Projects` ではありません）。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -15,8 +13,9 @@
 - レイアウト検査/更新・再生成・削除/移動など、**既存鉄筋の扱い**も拡張。
 
 ### Python Runner / スクリプト運用
-- **プロジェクト単位フォルダ**への保存、Dedent、自動ポート引き渡し、Library/検索、MCPコマンド強調など、運用性を改善。
+- Python Runner UX（初期導入）: **既定保存先の統一**、**出力の見やすさ改善**、**MCPコマンド名の強調表示**。
 - CodexGUI → Python Runner への**安全なスクリプト受け渡し**を整備。
+- 専用Pythonスクリプトでの実行フローを明記し、**作業効率化**を推奨。
 
 ### 要素探索・空間要素の補正
 - 要素検索/構造化クエリ、カテゴリ解決（曖昧語の候補提示）など**探索系を強化**。
@@ -31,6 +30,42 @@
 - 実行ログやデバッグ情報の整理・安定化。
 
 ---
+
+## 2026-02-17 Add-in: sheet view replacement alignment for different scales
+
+### 目的
+- シート上で縮尺が異なるビュー同士を差し替える際に、グリッド交点基準で確実に位置合わせできるようにする。
+
+### 変更概要
+- `replace_view_on_sheet` に `alignByGridIntersection` オプションを追加。
+  - `referenceViewportId` と `gridA/gridB` でアンカー交点を指定。
+  - 参照Viewportと新Viewportで同一モデル点をシート座標へ投影し、差分だけ新Viewport中心を補正。
+- レスポンスに `alignWarning` と `alignment`（`anchorModelMm`, `deltaSheetMm`, before/after center）を追加。
+- マニュアル（EN/JA）へ「スケール差対応の位置合わせロジック」を追記。
+
+### 詳細
+
+## 2026-02-18 Manual/Script: column coreline workflow packaging
+
+### 目的
+- 柱芯線図の反復作業を、運用可能なRunbook + Python Runnerサンプルとして固定化する。
+- DLL差し替えや配布手順を除外し、実務手順のみを明確化する。
+
+### 変更概要
+- Runbook追加:
+  - `Manuals/Runbooks/Column_Coreline_Workflow_PythonRunner_JA.md`
+- Python Runnerサンプル追加:
+  - `Codex/PythonRunnerScripts/column_grid_coreline_workflow_sample.py`
+- Manuals索引更新:
+  - `Manuals/README.md`
+  - `Codex/PythonRunnerScripts/README.md`
+
+### 対応内容（スクリプト）
+- 通り芯だけビュー作成
+- 柱別ビュー作成（柱外周 +100mm トリミング）
+- 柱別ビューで通り芯長さ調整（柱中心基準）
+- 通り芯記号（バブル）非表示化
+- 1/100（柱）+ 1/200（通り芯）でシート重ね配置（グリッド交点アンカー整合）
 
 ## 2026-02-04 Add-in: parallel safety + idempotency + stable ordering
 
@@ -150,6 +185,9 @@
 - Add-in: `DynamoRunner` を追加（Dynamo 反射ロード、実行、出力取得）。
 - Add-in: `dynamo.run_script` に `hardKillRevit` / `hardKillDelayMs` を追加（無人実行向け）。強制終了前にスナップショット/同期/保存/再起動を試行し、保存がブロックされる場合は UI スレッドでリトライ。強制終了前にサーバー停止と停止確認もログ化。
 - Manual: Dynamo コマンドの EN/JA 手順書を追加し、README に追記。
+
+### 注意
+- Dynamo 実行は環境依存の課題が多いため、現時点では**推奨しません**。
 
 ## 2026-01-20 Add-in: Dialog auto-dismiss + dialog capture/OCR
 
@@ -685,6 +723,13 @@
 - `get_selected_element_ids` で、柱+梁が選択されていることを確認
 - `rebar_apply_plan` を `dryRun:true` で実行 → `dryRun:false` で作成
 
+## 2025-12-23 Documentation + Add-in: command index refresh
+
+### 変更概要
+- コマンド索引（EN/JSON）と FullManual/FullManual_ja を更新。
+- Add-in: material asset / set wall top to overhead / agent bootstrap / describe / search / get context / view系コマンドを追加・更新。
+- ルーティング/マニフェスト/worker を更新し、confirm token・用語マッピングの基盤を整備。
+
 ## 2025-12-24 — Rollback時の警告詳細を必ず記録（failureHandling/Router強化）
 
 ### 目的
@@ -964,6 +1009,36 @@
 ### 変更概要
 - place_roof_brace_from_prompt に brace type フィルタ条件を追加（未指定なら全件自動検出）。
 - 条件: contains/exclude/family/typeName を AND で評価。
+
+### 詳細
+
+---
+
+## 2026-02-16 Selection Source Classification + Durable Sender Auto Dispatch
+
+### 目的
+- 選択取得で「モデル選択か、プロジェクトブラウザ選択か」を機械判定できるようにする。
+- Python 側送信ユーティリティで、軽量 Read は低遅延化しつつ、Write/重処理は durable で安全に実行する。
+
+### 実装
+- `get_project_browser_selection` を追加（分類: families/familyTypes/views/sheets/schedules/others/missing）。
+  - 返却に `selectionSource` を追加（`live`/`stash`）。
+- `get_selected_element_ids` を拡張。
+  - `selectionKind`, `browserElementIds`, `modelElementIds`, `missingElementIds`, `classificationCounts`, `selectionSource` を返却。
+- `send_revit_command_durable.py` を拡張。
+  - `--dispatch auto|durable|direct` を追加。
+  - `auto` では軽量 Read コマンドを `/rpc` 直実行、その他は `/enqueue`→`/job` の durable 実行。
+
+### 変更ファイル（主）
+- `RevitMCPAddin/Commands/Misc/GetProjectBrowserSelectionCommand.cs`
+- `RevitMCPAddin/Commands/Misc/GetSelectedElementIdsCommand.cs`
+- `RevitMCPAddin/RevitMcpWorker.cs`
+- `RevitMCPAddin/RevitMCPAddin.csproj`
+- `Codex/Scripts/Reference/send_revit_command_durable.py`
+- `Codex/Manuals/FullManual/get_selected_element_ids.md`
+- `Codex/Manuals/FullManual_ja/get_selected_element_ids.md`
+- `Codex/Manuals/FullManual/get_project_browser_selection.md` (new)
+- `Codex/Manuals/FullManual_ja/get_project_browser_selection.md` (new)
 
 ### 詳細
 

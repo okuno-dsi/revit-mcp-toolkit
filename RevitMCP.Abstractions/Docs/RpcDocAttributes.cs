@@ -4,7 +4,7 @@ using System;
 
 namespace RevitMCP.Abstractions.Docs
 {
-    /// <summary>コマンドの概要・タグを付ける</summary>
+    /// <summary>R}hﾌ概vE^Ot</summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public sealed class RpcDocAttribute : Attribute
     {
@@ -17,7 +17,7 @@ namespace RevitMCP.Abstractions.Docs
         }
     }
 
-    /// <summary>DTO プロパティに説明・必須・例を付与</summary>
+    /// <summary>DTO vpeBﾉ職K{Et^</summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class RpcFieldAttribute : Attribute
     {

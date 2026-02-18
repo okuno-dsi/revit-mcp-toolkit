@@ -65,8 +65,8 @@ Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://127.0.0.1:5201/rpc -
 
 - Revit で選択ID取得 → UniqueId 解決
 ```
-python .\Ver342TEST\Codex\send_revit_command.py --port 5210 --command get_selected_element_ids --output-file .\selected_ids.json
-python .\Ver342TEST\Codex\send_revit_command.py --port 5210 --command get_element_info --params '{"elementIds":[<ID1>,<ID2>],"rich":true}' --output-file .\selected_info.json
+python .\Codex\Scripts\Reference\send_revit_command_durable.py --port 5210 --command get_selected_element_ids --output-file .\selected_ids.json
+python .\Codex\Scripts\Reference\send_revit_command_durable.py --port 5210 --command get_element_info --params '{"elementIds":[<ID1>,<ID2>],"rich":true}' --output-file .\selected_info.json
 ```
 
 - RhinoMCP で取り込み（通常経路）
@@ -77,14 +77,14 @@ Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://127.0.0.1:5200/rpc -
 
 - フォールバック1：Revit からメッシュ取得 → Rhino プラグインへ直送
 ```
-python .\Ver342TEST\Codex\send_revit_command.py --port 5210 --command get_instance_geometry --params '{"uniqueId":"<UniqueId>"}' --output-file .\geom.json
+python .\Codex\Scripts\Reference\send_revit_command_durable.py --port 5210 --command get_instance_geometry --params '{"uniqueId":"<UniqueId>"}' --output-file .\geom.json
 <geom.json の result をそのまま params として>
 Invoke-WebRequest -UseBasicParsing -Method POST -Uri http://127.0.0.1:5201/rpc -Body '{"jsonrpc":"2.0","id":1,"method":"rhino_import_snapshot","params":<result>}' -ContentType 'application/json; charset=utf-8'
 ```
 
 - フォールバック2：BBox 代理ジオメトリ（mm→ft 変換） → Rhino プラグインへ直送
 ```
-python .\Ver342TEST\Codex\send_revit_command.py --port 5210 --command get_element_info --params '{"uniqueIds":["<UniqueId>"],"rich":true}' --output-file .\info.json
+python .\Codex\Scripts\Reference\send_revit_command_durable.py --port 5210 --command get_element_info --params '{"uniqueIds":["<UniqueId>"],"rich":true}' --output-file .\info.json
 # info.json の bboxMm(min/max) を feet に変換して、vertices + intIndices を組み立て params として rhino_import_snapshot に POST
 ```
 

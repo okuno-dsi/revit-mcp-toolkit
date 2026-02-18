@@ -176,7 +176,7 @@ function Get-WallTypeGroups([int]$viewId){
         try{ $tn = [string]$e.parameters.'Type Name'.value }catch{}
       }
       if([string]::IsNullOrWhiteSpace($tn)){
-        try{ $tn = [string]$e.parameters.'�^�C�v��'.value }catch{}
+        try{ $tn = [string]$e.parameters.'タイプ名'.value }catch{}
       }
       if([string]::IsNullOrWhiteSpace($tn)){ $tn = 'WT' }
       $stem = Sanitize-Stem $tn

@@ -33,7 +33,7 @@ pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210
 ```
 - Specify a project folder explicitly:
 ```
-pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656"
+pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 -ProjectDir "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\Project_5211_20251021_125656"
 ```
 - Merge in AutoCAD automatically (requires AutoCadMCP running at 5251):
 ```
@@ -65,7 +65,7 @@ pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 
 - Explicit project folder:
 ```
 pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 `
-  -ProjectDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Projects\\Project_5211_20251021_125656" `
+  -ProjectDir "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\Project_5211_20251021_125656" `
   -Smoke -MaxWaitSec 120 -JobTimeoutSec 120
 ```
 
@@ -76,6 +76,9 @@ pwsh -File Codex/Scripts/Reference/export_walls_by_type_snapshot.ps1 -Port 5210 
 
 Expected outputs under `.../DWG/`:
 - `seed.dwg` (all walls hidden), `walls_<TYPE>.dwg` per wall type, `command.txt`, and `Merged/walls_types_merged.dwg` when auto-merged.
+
+
+
 
 
 

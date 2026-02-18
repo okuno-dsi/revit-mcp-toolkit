@@ -472,6 +472,7 @@ Commands grouped by their first verb token.
 - [get_sanitary_fixtures](get_sanitary_fixtures.md)
 - [get_schedule_data](get_schedule_data.md)
 - [get_schedules](get_schedules.md)
+- [get_project_browser_selection](get_project_browser_selection.md)
 - [get_selected_element_ids](get_selected_element_ids.md)
 - [get_sheets](get_sheets.md)
 - [get_site_overview](get_site_overview.md)

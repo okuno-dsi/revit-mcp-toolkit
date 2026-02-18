@@ -31,7 +31,7 @@ The process is executed with a single command in the shell, which starts `accore
 This is the command used to initiate the entire process from the command line.
 
 ```powershell
-& "C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" /i "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" /s "%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\load_and_run.scr"
+& "C:\Program Files\Autodesk\AutoCAD 2026\accoreconsole.exe" /i "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250\Merged_B_G.dwg" /s "%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250\load_and_run.scr"
 ```
 
 -   `/i`: Specifies the input drawing file.
@@ -53,9 +53,9 @@ CMDDIA
 0
 _.SETVAR
 TRUSTEDPATHS
-"%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250;%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\bin\x64\Release\net8.0-windows"
+"%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250;%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250\bin\x64\Release\net8.0-windows"
 NETLOAD
-"%USERPROFILE%\Documents\VS2022\Ver501\Codex\Projects\\AutoCadOut\Export_20251102_134250\bin\x64\Release\net8.0-windows\LayerLister.dll"
+"%USERPROFILE%\\Documents\\Revit_MCP\\Projects\\AutoCadOut\Export_20251102_134250\bin\x64\Release\net8.0-windows\LayerLister.dll"
 LISTLAYERS
 ```
 
@@ -101,4 +101,7 @@ public class LayerLister
 ```
 
 This approach provides a highly efficient and automatable way to extract data from DWG files, bypassing the slower, more interactive standard AutoCAD commands.
+
+
+
 

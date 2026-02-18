@@ -16,6 +16,7 @@
 **/publish_out/
 publish/
 publish_out/
+Codex/CodexGui/publish_sc*/
 
 # NuGet (classic packages folder)
 **/packages/
@@ -125,6 +126,7 @@ Codex/git_igonore_items_list.md
 **/tmp_*
 *.bak_*
 *.bak.*
+Codex/Scripts/**/Output/
 
 /RevitMCPAddin/python/
 

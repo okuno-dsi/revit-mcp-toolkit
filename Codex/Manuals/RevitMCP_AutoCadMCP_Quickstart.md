@@ -136,7 +136,7 @@ pwsh -File Tools/AutoCad/Run_MergeByDXF.ps1 -SourceDir Projects/AutoCadOut -OutD
 ```
 
 - 事前に TrustedPaths を AutoCAD に設定（GUI: オプション→ファイル→信頼できる位置）
-  - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\VS2022\Ver421\Codex\Projects\\AutoCadOut`
+  - 例: `C:\Temp\CadOut; %USERPROFILE%\Documents\Revit_MCP\Projects\AutoCadOut`
 
 C) COM経由（AutoCAD起動中、最も直感的）
 - スクリプト: `Tools/AutoCad/merge_dwgs_by_map_com.py`

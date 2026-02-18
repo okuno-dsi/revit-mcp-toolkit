@@ -21,6 +21,17 @@ This folder is the curated entry point for Revit MCP work: guides, commands, hel
 - AutoRebar（柱）: コンクリート隣接（構造柱/構造基礎）を考慮した上下端の軸方向被り + 柱帯筋の `base/head`（中間高さ 2分割）対応（同ドキュメント参照）
 - Build fix: `rename_floor_types_by_thickness` / `create_walls` / `delete_walls` がビルドに含まれるよう復旧
 
+## New (2026-02-17)
+- `replace_view_on_sheet` にスケール差対応の位置合わせを追記。
+  - `alignByGridIntersection`（`referenceViewportId` + `gridA/gridB`）で、グリッド交点アンカー基準のシート位置合わせが可能。
+  - 詳細: `Manuals/Commands/Replace_View_On_Sheet_EN.md`, `Manuals/FullManual/replace_view_on_sheet.md`, `Manuals/FullManual_ja/replace_view_on_sheet.md`
+
+## New (2026-02-18)
+- 柱芯線図の運用Runbookを追加（DLL/配布手順を除外した実務フロー）。
+  - `Manuals/Runbooks/Column_Coreline_Workflow_PythonRunner_JA.md`
+- Python Runner用サンプルを追加。
+  - `Scripts/PythonRunnerScripts/column_grid_coreline_workflow_sample.py`
+
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：
   - Python 出力は **` ```python ``` ブロックのみ**保存対象。

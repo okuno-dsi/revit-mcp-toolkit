@@ -36,7 +36,7 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 : uidoc.ActiveGraphicalView ?? uidoc.ActiveView as View;
             if (v == null) return new { ok = false, code = "NO_VIEW", msg = "Target view could not be resolved." };
 
-            // View Template �K�p�r���[�̏ꍇ�͕`��ύX���s���Ȃ���
+            // View Template Kpr[̏ꍇ͕`ύXsȂ
             bool templateApplied = v.ViewTemplateId != ElementId.InvalidElementId;
             int? templateViewId = templateApplied ? (int?)v.ViewTemplateId.IntValue() : null;
             bool detachTemplate = p.Value<bool?>("detachViewTemplate") ?? true;

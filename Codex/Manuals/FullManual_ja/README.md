@@ -582,6 +582,7 @@
 
 ## Misc
 - [get_element_info](get_element_info.md)
+- [get_project_browser_selection](get_project_browser_selection.md)
 - [get_selected_element_ids](get_selected_element_ids.md)
 - [get_last_selection](get_last_selection.md)
 - [lookup_element](lookup_element.md)

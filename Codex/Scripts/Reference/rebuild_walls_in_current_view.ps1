@@ -1,10 +1,10 @@
-$ErrorActionPreference = 'Stop'
-
 param(
   [int]$Port = 5210,
   [int]$JobTimeoutSec = 300,
   [switch]$DryRun
 )
+
+$ErrorActionPreference = 'Stop'
 
 function Send-Queued {
   param([string]$Method, [hashtable]$Params, [int]$TimeoutSec = 600)
@@ -107,4 +107,3 @@ $summary = [pscustomobject]@{
   created = $created
 }
 $summary | ConvertTo-Json -Depth 10
-

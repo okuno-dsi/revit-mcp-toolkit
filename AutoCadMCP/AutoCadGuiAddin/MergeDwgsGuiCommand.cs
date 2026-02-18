@@ -1,11 +1,11 @@
 // ============================================================================
-// File: MergeDwgsGuiCommand.cs  (GUIê—p: acmgd + acdbmgd)
-// Purpose: GUIã‚Å•¡”DWG‚ğ“‡‚µAƒtƒ@ƒCƒ‹–¼‚ğƒŒƒCƒ„–¼‚É•t‰Á‚µ‚Äæ‚è‚Ş
+// File: MergeDwgsGuiCommand.cs  (GUIp: acmgd + acdbmgd)
+// Purpose: GUIÅ•DWGğ“At@CCÉ•tÄè
 // Target : .NET 8, AutoCAD GUI
-// Notes  : accoremgd/Core ‚ÍˆêØQÆ‚µ‚È‚¢
-//          DuplicateRecordCloning ‚Í Replace ‚ğg—p
-//          ValidateSymbolName ‚Í—áŠO‚Å”»’èi–ß‚è’l‚Í voidj
-//          V‹Œ DoMergePublic ‚Ì—¼ƒVƒOƒlƒ`ƒƒ‚ğ’ñ‹Ÿ
+// Notes  : accoremgd/Core ÍˆØQÆ‚È‚
+//          DuplicateRecordCloning  Replace gp
+//          ValidateSymbolName Í—OÅ”iß‚l voidj
+//          V DoMergePublic Ì—VOl`
 // ============================================================================
 
 #nullable enable
@@ -15,8 +15,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using AcAp = Autodesk.AutoCAD.ApplicationServices.Application; // © GUI Application (acmgd)
-using AcDoc = Autodesk.AutoCAD.ApplicationServices.Document;   // © GUI Document (acmgd)
+using AcAp = Autodesk.AutoCAD.ApplicationServices.Application; //  GUI Application (acmgd)
+using AcDoc = Autodesk.AutoCAD.ApplicationServices.Document;   //  GUI Document (acmgd)
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -55,7 +55,7 @@ namespace MergeDwgsPlugin
                     .DefaultIfEmpty().Where(s => !string.IsNullOrWhiteSpace(s)),
                 StringComparer.OrdinalIgnoreCase);
 
-            // íœŠO
+            // íO
             excludes.Add("0");
             excludes.Add("DEFPOINTS");
 
@@ -82,10 +82,10 @@ namespace MergeDwgsPlugin
                         srcDb.ReadDwgFile(inPath, FileShare.Read, true, "");
                         srcDb.CloseInput(true);
 
-                        // ƒ\[ƒXDB‘¤‚ÅƒŒƒCƒ„‰ü–¼ ¨ ƒNƒ[ƒ“‚É‚Í–Ú“I‚ÌƒŒƒCƒ„–¼‚Å“ü‚Á‚Ä‚­‚é
+                        // \[XDBÅƒC  N[É‚Í–Ú“IÌƒCÅ“Ä‚
                         PreRenameLayersInSource(srcDb, fmt, stem, includes, excludes, progress);
 
-                        // ƒ‚ƒfƒ‹‹óŠÔ‘S‘Ì‚ğƒ^[ƒQƒbƒg‚ÖƒNƒ[ƒ“
+                        // fÔ‘SÌ‚^[QbgÖƒN[
                         CloneModelSpaceToTarget(srcDb, tdb, progress);
                     }
                 }
@@ -125,7 +125,7 @@ namespace MergeDwgsPlugin
             IEnumerable<string> include,
             HashSet<string> exclude)
         {
-            // ‹Œˆø” ¨ VJson ‚Ö‹l‚ß‘Ö‚¦
+            //   VJson Ö‹lß‘Ö‚
             var p = new JsonObject
             {
                 ["seed"] = seed ?? string.Empty,
@@ -159,7 +159,7 @@ namespace MergeDwgsPlugin
         // Internals
         // =====================================================================
 
-        /// <summary>ƒ^[ƒQƒbƒg}–Ê‚ğ—pˆÓiseed ‚ª‚ ‚ê‚ÎŠJ‚­A–³‚¯‚ê‚ÎŒ»—p/V‹KjB</summary>
+        /// <summary>^[Qbg}Ê‚pÓiseed ÎŠJAÎŒp/VKjB</summary>
         private static TargetDocScope EnsureTargetDrawing(string seed, Action<string>? progress, out AcDoc targetDoc)
         {
             var dm = AcAp.DocumentManager;
@@ -168,14 +168,14 @@ namespace MergeDwgsPlugin
             {
                 progress?.Invoke($"Opening seed drawing: {seed}");
 
-                // Šù‚ÉŠJ‚¢‚Ä‚¢‚ê‚Î‚»‚ê‚ğg‚¤
+                // ÉŠJÄ‚Î‚g
                 var opened = dm.Cast<AcDoc>().FirstOrDefault(d =>
                     string.Equals(d.Name, seed, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(d.Database.Filename, seed, StringComparison.OrdinalIgnoreCase));
 
                 if (opened is null)
                 {
-                    // V‹K‚ÉŠJ‚­
+                    // VKÉŠJ
                     var doc = dm.Open(seed, forReadOnly: false);
                     dm.MdiActiveDocument = doc;
                     targetDoc = doc;
@@ -190,12 +190,12 @@ namespace MergeDwgsPlugin
             }
             else
             {
-                // Šù‘¶MDI‚ª‚ ‚ê‚Î‚»‚ê‚ğg‚¢A–³‚¯‚ê‚ÎV‹Kƒeƒ“ƒvƒŒ[ƒg
+                // MDIÎ‚gAÎVKev[g
                 var cur = dm.MdiActiveDocument;
                 if (cur is null)
                 {
                     progress?.Invoke("Creating a new drawing...");
-                    var doc = dm.Add(""); // Šù’èƒeƒ“ƒvƒŒ[ƒg
+                    var doc = dm.Add(""); // ev[g
                     dm.MdiActiveDocument = doc;
                     targetDoc = doc;
                     return new TargetDocScope(docActivated: true);
@@ -211,12 +211,12 @@ namespace MergeDwgsPlugin
             public TargetDocScope(bool docActivated) => _docActivated = docActivated;
             public void Dispose()
             {
-                // •K—v‚È‚çŒ³‚ÌMDI‚É–ß‚·“™‚ÌŒã•Ğ•t‚¯‚ğ‚±‚±‚É
+                // KvÈ‚çŒ³MDIÉ–ß‚ÌŒĞ•t
             }
         }
 
         /// <summary>
-        /// ƒ\[ƒXDB“à‚ÌƒŒƒCƒ„–¼‚ğ {old}/{stem} ‚ÅƒŠƒl[ƒ€‚µ‚Ä‚©‚çƒNƒ[ƒ“B
+        /// \[XDBÌƒC {old}/{stem} Åƒl[Ä‚N[B
         /// </summary>
         private static void PreRenameLayersInSource(
             Database srcDb,
@@ -229,7 +229,7 @@ namespace MergeDwgsPlugin
             using var tr = srcDb.TransactionManager.StartTransaction();
             var lt = (LayerTable)tr.GetObject(srcDb.LayerTableId, OpenMode.ForRead);
 
-            // ƒƒCƒ‹ƒhƒJ[ƒh ¨ Regex
+            // ChJ[h  Regex
             var incMatchers = includes?.Select(WildcardToRegex).ToArray() ?? Array.Empty<Regex>();
             var excMatchers = excludes?.Select(WildcardToRegex).ToArray() ?? Array.Empty<Regex>();
 
@@ -238,12 +238,12 @@ namespace MergeDwgsPlugin
                 var ltr = (LayerTableRecord)tr.GetObject(lid, OpenMode.ForRead);
                 var oldName = ltr.Name;
 
-                // œŠO
+                // O
                 if (string.Equals(oldName, "0", StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.Equals(oldName, "DEFPOINTS", StringComparison.OrdinalIgnoreCase)) continue;
                 if (MatchesAny(oldName, excMatchers)) continue;
 
-                // include ƒ`ƒFƒbƒNi["*"] ‚È‚çítruej
+                // include `FbNi["*"] È‚ítruej
                 if (incMatchers.Length > 0 && !MatchesAny(oldName, incMatchers))
                     continue;
 
@@ -252,13 +252,13 @@ namespace MergeDwgsPlugin
                     .Replace("{stem}", stem, StringComparison.Ordinal);
 
                 if (string.Equals(newName, oldName, StringComparison.Ordinal))
-                    continue; // •ÏX‚È‚µ
+                    continue; // ÏXÈ‚
 
-                // ‹L†C³•ŒŸØiValidateSymbolName ‚Í voidF—áŠO‚Å”»’èj
+                // LCØiValidateSymbolName  voidFOÅ”j
                 var repaired = SymbolUtilityServices.RepairSymbolName(newName, false);
                 try
                 {
-                    SymbolUtilityServices.ValidateSymbolName(repaired, false); // © —áŠOo‚½‚ç catch
+                    SymbolUtilityServices.ValidateSymbolName(repaired, false); //  Oo catch
                 }
                 catch (Autodesk.AutoCAD.Runtime.Exception ex)
                 {
@@ -267,7 +267,7 @@ namespace MergeDwgsPlugin
                         $"Invalid layer name after rename: '{newName}' ({ex.Message})");
                 }
 
-                // Rename À{
+                // Rename {
                 ltr.UpgradeOpen();
                 ltr.Name = repaired;
             }
@@ -276,10 +276,10 @@ namespace MergeDwgsPlugin
             progress?.Invoke($"Renamed layers in source ({stem}).");
         }
 
-        /// <summary>ƒ\[ƒX‚ÌModelSpace‘SƒGƒ“ƒeƒBƒeƒB‚ğƒ^[ƒQƒbƒg‚ÖƒNƒ[ƒ“B</summary>
+        /// <summary>\[XModelSpaceSGeBeB^[QbgÖƒN[B</summary>
         private static void CloneModelSpaceToTarget(Database srcDb, Database targetDb, Action<string>? progress)
         {
-            // src: ModelSpace ‚Ì‘SIDûW
+            // src: ModelSpace Ì‘SIDW
             using var trSrc = srcDb.TransactionManager.StartTransaction();
             var btSrc = (BlockTable)trSrc.GetObject(srcDb.BlockTableId, OpenMode.ForRead);
             var msId = btSrc[BlockTableRecord.ModelSpace];
@@ -289,7 +289,7 @@ namespace MergeDwgsPlugin
             foreach (ObjectId id in ms) ids.Add(id);
             trSrc.Commit();
 
-            // tgt: ModelSpace‚ÖƒNƒ[ƒ“
+            // tgt: ModelSpaceÖƒN[
             using var trTgt = targetDb.TransactionManager.StartTransaction();
             var btTgt = (BlockTable)trTgt.GetObject(targetDb.BlockTableId, OpenMode.ForRead);
             var msTgt = (BlockTableRecord)trTgt.GetObject(btTgt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
@@ -299,7 +299,7 @@ namespace MergeDwgsPlugin
                 ids,
                 msTgt.ObjectId,
                 map,
-                DuplicateRecordCloning.Replace, // © Merge ‚Í‘¶İ‚µ‚È‚¢
+                DuplicateRecordCloning.Replace, //  Merge Í‘İ‚È‚
                 deferTranslation: false);
 
             trTgt.Commit();
@@ -307,7 +307,7 @@ namespace MergeDwgsPlugin
             progress?.Invoke("Cloned ModelSpace entities.");
         }
 
-        /// <summary>–¢g—pƒVƒ“ƒ{ƒ‹‚ğƒp[ƒWB</summary>
+        /// <summary>gpV{p[WB</summary>
         private static void PurgeUnused(Database db)
         {
             using var tr = db.TransactionManager.StartTransaction();
@@ -328,7 +328,7 @@ namespace MergeDwgsPlugin
             tr.Commit();
 
             db.Purge(toPurge);
-            // •K—v‚È‚ç‚±‚±‚ÅX‚ÉŒÂ•Ê‚Ì•s—vBlock‚ğíœA“™‚ğ’Ç‰Á
+            // KvÈ‚ç‚±ÅXÉŒÂ•Ê‚Ì•svBlockíœAÇ‰
         }
 
         // ---------- Helpers ----------

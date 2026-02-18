@@ -3,6 +3,7 @@
 Purpose
 - Replace an existing placed view (or schedule) on a sheet with another view, while preserving the sheet location, and optionally rotation and scale.
 - Typical use: swap floor plan versions on a sheet without manually re‑placing and aligning the viewport.
+- Supports scale-different alignment by anchoring to a model grid intersection and aligning in sheet space.
 
 Command
 - Method name: `replace_view_on_sheet`
@@ -37,6 +38,15 @@ Location / rotation / scale options
   - If `true`, attempts to set `newView.Scale` to `oldView.Scale` (non‑schedule views only).
   - If the API rejects the scale change, the command still succeeds and returns a `scaleWarning` message.
 
+Scale-aware grid-anchor alignment options
+- `alignByGridIntersection` (object, optional)
+  - `{ referenceViewportId:int, gridA:string, gridB:string, enabled?:bool }`
+  - `referenceViewportId`: existing viewport on the same sheet used as the alignment reference.
+  - `gridA` / `gridB`: two grid names whose intersection is used as anchor in model space.
+  - `enabled`: optional explicit switch (`true`/`false`).
+- Compatibility shortcut fields are also accepted at top level:
+  - `referenceViewportId`, `gridA`, `gridB`
+
 Behavior
 - Existing placement:
   - If `viewportId` is given:
@@ -48,6 +58,12 @@ Behavior
 - Position:
   - Default: inferred from the old placement center (`Viewport.GetBoxCenter()` or schedule `Point`).
   - Can be overridden via `keepLocation:false` + `centerOnSheet` / `location`.
+- Grid-anchor alignment (viewport only):
+  - After creating the new viewport, the command can align by the same model anchor across viewports:
+    - Resolve model anchor from `gridA` x `gridB`.
+    - Project anchor to sheet for both `referenceViewportId` and new viewport.
+    - Move new viewport by sheet delta so both anchor positions match.
+  - This makes alignment robust even when view scales are different.
 - Replacement:
   - Deletes the old `Viewport` / `ScheduleSheetInstance` within one transaction.
   - Creates a new placement:
@@ -57,7 +73,10 @@ Behavior
 
 Result
 - On success:
-  - `{ ok:true, sheetId, oldViewId, newViewId, usedLocationFromOld, copyRotation, copyScale, scaleWarning, result }`
+  - `{ ok:true, sheetId, oldViewId, newViewId, usedLocationFromOld, copyRotation, copyScale, scaleWarning, alignWarning, alignment, result }`
+  - `alignWarning`: warning text when anchor-align was requested but could not be applied.
+  - `alignment`: details when applied:
+    - `anchorModelMm`, `deltaSheetMm`, `newViewportCenterBeforeMm`, `newViewportCenterAfterMm`
   - `result` is:
     - Schedules: `{ kind:"schedule", scheduleInstanceId, sheetId, viewId }`
     - Viewports: `{ kind:"viewport", viewportId, sheetId, viewId }`
@@ -93,3 +112,20 @@ Examples
 }
 ```
 
+- Replace and align to a grid intersection across different scales:
+
+```json
+{
+  "method": "replace_view_on_sheet",
+  "params": {
+    "viewportId": 5785889,
+    "newViewId": 4383347,
+    "alignByGridIntersection": {
+      "referenceViewportId": 5785884,
+      "gridA": "X1",
+      "gridB": "Y3",
+      "enabled": true
+    }
+  }
+}
+```

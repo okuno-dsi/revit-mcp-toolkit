@@ -12,6 +12,10 @@
 - プロジェクト専用・一時的 → Projects/<ProjectName>_<docKey>/python_script
 - AI が参照するテンプレ/検証用 → Scripts/Reference
 
+追加サンプル:
+- `column_grid_coreline_workflow_sample.py`
+  - 柱芯線図向け（通り芯ビュー作成、柱別トリミング、通り芯長さ調整、通り芯記号非表示、シート重ね配置）
+
 
 
 

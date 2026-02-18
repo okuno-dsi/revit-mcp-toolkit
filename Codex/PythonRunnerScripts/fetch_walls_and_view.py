@@ -136,7 +136,7 @@ def main():
     ap.add_argument("--proxy", type=str, default="http://127.0.0.1:5221")
     ap.add_argument("--revit-port", type=int, default=5211)
     ap.add_argument("--out-dir", type=str, default=os.path.join("C:", "Users", os.environ.get("USERNAME", "user"),
-                    "Documents", "VS2022", "Ver431", "Codex", "Manuals", "Logs"))
+                    "Documents", "Revit_MCP", "Codex", "Manuals", "Logs"))
     ap.add_argument("--page-size", type=int, default=500)
     ap.add_argument("--ids-limit", type=int, default=200000)
     args = ap.parse_args()
@@ -184,3 +184,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -35,7 +35,7 @@ namespace RevitMcpServer.Config
     {
         public RevitMcpServer.Ai.AiProvider Provider { get; set; } = RevitMcpServer.Ai.AiProvider.None;
         public string? Model { get; set; }
-        public string? ApiKey { get; set; } // ¦Œ´‘¥‚ÍŠÂ‹«•Ï”—Dæ
+        public string? ApiKey { get; set; } // ÍŠÂ‹ÏD
     }
 
     public sealed class ServerSettings

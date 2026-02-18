@@ -161,7 +161,7 @@ Pull Request 歓迎です。手順は `CONTRIBUTING.md` を参照してくださ
 
 ## クレジット
 
-Created by 奥野哲也 and GPT series (2025) / 99.9％バイブコーディング
+Created by RevitMCP Contributors (2025) / 99.9％バイブコーディング
 
 ---
 

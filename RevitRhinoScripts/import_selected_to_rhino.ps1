@@ -41,7 +41,7 @@ function Resolve-RepoPath([string]$rel) {
 
 function Invoke-RevitJsonRpc([string]$Method, $Params) {
   $py = 'python'
-  $scriptPath = Resolve-RepoPath 'Ver342TEST\Codex\send_revit_command.py'
+  $scriptPath = Resolve-RepoPath 'Codex\Scripts\Reference\send_revit_command_durable.py'
   if (-not (Test-Path $scriptPath)) { throw "Revit client script not found: $scriptPath" }
   $tmp = Join-Path $env:TEMP ("revit_" + $Method + "_" + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + ".json")
   $args = @('-X','utf8', $scriptPath, '--port', $RevitPort, '--command', $Method, '--output-file', $tmp)

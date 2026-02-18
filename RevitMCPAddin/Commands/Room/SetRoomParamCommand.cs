@@ -1,5 +1,5 @@
 // ================================================================
-// File: Commands/Room/SetRoomParamCommand.cs  (UnitHelper�����)
+// File: Commands/Room/SetRoomParamCommand.cs  (UnitHelper)
 // ================================================================
 using System;
 using Autodesk.Revit.DB;
@@ -38,8 +38,8 @@ namespace RevitMCPAddin.Commands.Room
                 tx.Start();
                 try
                 {
-                    // ����: ���O�ύX�iparam���̃��[�J���C�Y/�p�ꗼ�Ή��j
-                    if (paramName.Equals("���O", StringComparison.OrdinalIgnoreCase) ||
+                    // : OύXiparam̃[JCY/pꗼΉj
+                    if (paramName.Equals("O", StringComparison.OrdinalIgnoreCase) ||
                         paramName.Equals("Name", StringComparison.OrdinalIgnoreCase))
                     {
                         room.Name = valToken.Value<string>() ?? string.Empty;

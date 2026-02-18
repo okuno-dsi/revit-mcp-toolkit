@@ -1,9 +1,9 @@
 param(
   [string[]]$Inputs = @(
-    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_A.dwg",
-    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_B.dwg",
-    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_C.dwg",
-    "$env:USERPROFILE/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_D.dwg"
+    "$env:USERPROFILE\\Documents\\Revit_MCP\\Codex\\Work\\AutoCadOut\\walls_A.dwg",
+    "$env:USERPROFILE\\Documents\\Revit_MCP\\Codex\\Work\\AutoCadOut\\walls_B.dwg",
+    "$env:USERPROFILE\\Documents\\Revit_MCP\\Codex\\Work\\AutoCadOut\\walls_C.dwg",
+    "$env:USERPROFILE\\Documents\\Revit_MCP\\Codex\\Work\\AutoCadOut\\walls_D.dwg"
   ),
   [string[]]$Include = @('A-WALL-____-MCUT'),
   [string]$StagingRoot = 'C:/Temp/CadJobs/Staging'
@@ -25,7 +25,7 @@ foreach($p in $Inputs){
 $attachLines = @()
 foreach($p in (Get-ChildItem -Path (Join-Path $jobDir 'in') -Filter *.dwg -File)){
   $pp = $p.FullName.Replace('\\','/')
-  $attachLines += "(command \"_.-XREF\" \"ATTACH\" \"$pp\" \"0,0,0\" \"1\" \"1\" \"0\")"
+  $attachLines += ('(command "_.-XREF" "ATTACH" "{0}" "0,0,0" "1" "1" "0")' -f $pp)
 }
 
 $mergeLines = @()
@@ -34,7 +34,7 @@ foreach($p in (Get-ChildItem -Path (Join-Path $jobDir 'in') -Filter *.dwg -File)
   foreach($old in $Include){
     $src = "$stem`$0$$old"
     $dst = "${old}_${stem}"
-    $mergeLines += "(merge-one-layer-AX \"$src\" \"$dst\")"
+    $mergeLines += ('(merge-one-layer-AX "{0}" "{1}")' -f $src, $dst)
   }
 }
 
@@ -84,7 +84,7 @@ $footer = @(
   '(command "_.-PURGE" "A" "*" "N")',
   '(command "_.-PURGE" "R" "*" "N")',
   '(command "_AUDIT" "Y")',
-  ("(command \"_.SAVEAS\" \"2018\" \"" + (Join-Path $jobDir 'out\merged.dwg').Replace('\\','/') + "\")"),
+  ('(command "_.SAVEAS" "2018" "{0}")' -f (Join-Path $jobDir 'out\merged.dwg').Replace('\\','/')),
   '(princ)'
 )
 

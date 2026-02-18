@@ -29,7 +29,7 @@ namespace RevitMcpServer.Docs
 
             var methods = (List<object?>)root["methods"]!;
 
-            // Router 由来
+            // Router R
             foreach (var kv in router.GetAllCommands())
             {
                 var cmd = kv.Value;
@@ -54,7 +54,7 @@ namespace RevitMcpServer.Docs
                 });
             }
 
-            // Add-in マニフェスト 由来
+            // Add-in }jtFXg R
             foreach (var m in extras)
             {
                 methods.Add(new Dictionary<string, object?>

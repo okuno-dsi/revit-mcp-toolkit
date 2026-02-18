@@ -3,6 +3,8 @@
 Purpose: enable any automation agent to connect to Revit MCP reliably and safely.
 
 Critical Notes (Read First)
+- Source-of-truth repo: use the GitHub clone as the current master.  
+  If you keep rescue snapshots, treat them as reference-only and never overwrite the master without an explicit diff review.
 - Read first: `Manuals/RevitMCP_Client_Dev_Guide.md` (client transport rules, queued handling, unwrap rules)
 - Work rules: always use `Projects/<RevitFileName>_<docKey>/...` for all outputs, temp files, and scripts (no files directly under `Projects/`).
 - Prefer canonical command names (`*.*` namespaced). Legacy names remain callable but are `deprecated` aliases.

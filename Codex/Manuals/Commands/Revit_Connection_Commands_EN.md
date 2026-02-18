@@ -12,13 +12,13 @@ Get-NetTCPConnection -LocalPort 5209,5210,5211,5212,5221 -State Listen |
 ## Start Playbook (port 5209 → Revit 5210)
 
 ````powershell
-dotnet run --project "%USERPROFILE%\Documents\VS2022\Ver431\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
+dotnet run --project "%USERPROFILE%\\Documents\\Revit_MCP\\McpPlaybookServer\src\McpPlaybookServer" -- --port 5209 --forward http://127.0.0.1:5210
 ````
 
 ## Start Proxy (port 5221 → Playbook 5209)
 
 ````powershell
-Set-Location "%USERPROFILE%\Documents\VS2022\Ver431\ChatRevit"
+Set-Location "%USERPROFILE%\Documents\Revit_MCP\ChatRevit"
 python .\proxy_mcp_logger.py --listen 127.0.0.1:5221 --upstream http://127.0.0.1:5209 --logdir .\logs
 ````
 
@@ -45,7 +45,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:5221/t/5211/rpc" -Method Post -ContentT
 ## Tail Proxy Logs
 
 ````powershell
-Get-Content "%USERPROFILE%\Documents\VS2022\Ver431\ChatRevit\logs\$(Get-Date -Format yyyy-MM-dd)_mcp.jsonl" -Tail 50 -Wait
+Get-Content "%USERPROFILE%\Documents\Revit_MCP\ChatRevit\logs\$(Get-Date -Format yyyy-MM-dd)_mcp.jsonl" -Tail 50 -Wait
 ````
 
 ## Stop Playbook and Proxy
@@ -53,4 +53,7 @@ Get-Content "%USERPROFILE%\Documents\VS2022\Ver431\ChatRevit\logs\$(Get-Date -Fo
 ````powershell
 Get-NetTCPConnection -LocalPort 5209,5221 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ````
+
+
+
 

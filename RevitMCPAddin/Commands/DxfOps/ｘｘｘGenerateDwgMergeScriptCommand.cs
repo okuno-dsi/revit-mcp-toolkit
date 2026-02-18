@@ -60,7 +60,7 @@ namespace RevitMCPAddin.Commands.DxfOps
                 W("._SETVAR QAFLAGS 2");
                 W("._SETVAR NOMUTT 1");
                 W($"._SETVAR REFPATHTYPE {NormalizeRefPathType(refPathType)}");
-                // š C³: ”äŠr®‚Ì \" ‚ğíœiC# ‚Ì®‚Æ‚µ‚Ä•]‰¿‚³‚¹‚éj
+                //  C: r \" íœiC# ÌÆ‚Ä•]j
                 W($"._SETVAR BINDTYPE {(NormalizeBindType(bindType) == "Insert" ? 1 : 0)}");
                 if (!string.IsNullOrWhiteSpace(trustedPaths))
                 {
@@ -144,9 +144,9 @@ namespace RevitMCPAddin.Commands.DxfOps
                 return new { ok = false, error = ex.GetType().Name, msg = ex.Message };
             }
 
-            // ƒtƒH[ƒ‹ƒoƒbƒNi“’B‚µ‚È‚¢‚ªu’l‚ğ•Ô‚³‚È‚¢ƒR[ƒhƒpƒXvŒx‚ğ—}~j
+            // tH[obNiBÈ‚ulÔ‚È‚R[hpXvx}~j
             // ReSharper disable once HeuristicUnreachableCode
-            // ‚ ‚é‚¢‚Í #pragma warning disable CS0161 ‚ğg‚¤è‚à‚ ‚è‚Ü‚·
+            // é‚¢ #pragma warning disable CS0161 gÜ‚
             return new { ok = false, error = "UNREACHABLE", msg = "Unexpected flow." };
         }
 

@@ -97,7 +97,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                         }
                     }
 
-                    // �\�Ȃ疾���I�ɕ���iRevit�͕��[�v�����ҁj
+                    // \Ȃ疾IɕiRevit͕[vҁj
                     if (firstStart != null && lastEnd != null && !firstStart.IsAlmostEqualTo(lastEnd))
                     {
                         loop.Append(Line.CreateBound(lastEnd, firstStart));
@@ -112,8 +112,8 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                 {
                     tx.Start();
 
-                    // 1) �܂� Revit 2023 �ɑ��݂���\�������� CurveLoop �I�[�o�[���[�h�𔽎˂ŒT��
-                    //    (�o�[�W�����ɂ�葶�݂��Ȃ��P�[�X������)
+                    // 1) ܂ Revit 2023 ɑ݂\ CurveLoop I[o[[h𔽎˂ŒT
+                    //    (o[Wɂ葶݂ȂP[X)
                     var t = typeof(Autodesk.Revit.DB.RevisionCloud);
                     MethodInfo mCurveLoop = t.GetMethod(
                         "Create",
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                     }
                     else
                     {
-                        // 2) CurveLoop�ł������ꍇ�́A�ŏ��̃��[�v�� Curve[] �ɗ��Ƃ��ĕʃI�[�o�[���[�h���g�p
+                        // 2) CurveLoopłꍇ́Aŏ̃[v Curve[] ɗƂĕʃI[o[[hgp
                         var flat = new List<Curve>();
                         foreach (var c in curveLoops.First()) flat.Add(c);
 
@@ -153,7 +153,7 @@ namespace RevitMCPAddin.Commands.RevisionCloud
                             }
                             else
                             {
-                                // (Document, View, IList<Curve>) �� �ォ��p�����[�^�� Revision �ݒ�
+                                // (Document, View, IList<Curve>)  ォp[^ Revision ݒ
                                 var m3 = t.GetMethod("Create",
                                     new[] { typeof(Document), typeof(View), typeof(IList<Curve>) });
 

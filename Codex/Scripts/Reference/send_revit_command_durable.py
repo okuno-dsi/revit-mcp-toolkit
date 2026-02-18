@@ -5,7 +5,7 @@ import argparse
 import os
 import sys
 from datetime import datetime
-from typing import Any, Dict, Tuple, Optional, Mapping
+from typing import Any, Dict, Tuple, Optional, Mapping, Set
 
 POLLING_INTERVAL_SECONDS = 0.5
 # Note: effective max attempts is decided dynamically (see decide_max_attempts)
@@ -14,6 +14,20 @@ HEADERS = {
     "Content-Type": "application/json; charset=utf-8",
     "Accept-Charset": "utf-8",
     "Accept": "application/json"
+}
+
+# Keep this list tight. In auto mode, only these commands go direct (/rpc).
+LIGHT_READ_COMMANDS: Set[str] = {
+    "help.ping_server",
+    "help.get_context",
+    "help.list_commands",
+    "help.search_commands",
+    "help.describe_command",
+    "doc.get_project_info",
+    "doc.get_project_summary",
+    "doc.get_project_units",
+    "element.get_selected_element_ids",
+    "element.get_project_browser_selection",
 }
 
 class RevitMcpError(Exception):
@@ -80,9 +94,153 @@ def _normalize_params(params: Dict[str, Any]) -> Dict[str, Any]:
     return params
 
 
+def _is_light_read_command(method: str) -> bool:
+    if not method:
+        return False
+    m = (method or "").strip()
+    return m in LIGHT_READ_COMMANDS
+
+
+def _poll_result(
+    sess: requests.Session,
+    base: str,
+    *,
+    job_id: Optional[str],
+    timeout: Tuple[float, float],
+    max_wait_seconds: Optional[float],
+    max_poll_attempts: int,
+    method: str
+) -> Dict[str, Any]:
+    get_result_url = f"{base}/get_result"
+
+    attempts = 0
+    attempts_limit = max_poll_attempts or DEFAULT_MAX_POLLING_ATTEMPTS
+    if isinstance(max_wait_seconds, (int, float)) and max_wait_seconds > 0:
+        try:
+            # Approximate attempts based on average 0.5s to keep behavior similar
+            attempts_limit = max(1, int(max_wait_seconds / 0.5))
+        except Exception:
+            attempts_limit = DEFAULT_MAX_POLLING_ATTEMPTS
+
+    job_url = f"{base}/job/{job_id}" if job_id else None
+    etag: Optional[str] = None
+    while attempts < attempts_limit:
+        # Build conditional headers
+        h = dict(HEADERS)
+        if etag:
+            h["If-None-Match"] = etag
+        try:
+            if job_url:
+                gr = sess.get(job_url, headers=h, timeout=timeout)
+            else:
+                # fallback to legacy get_result when no jobId was provided (compat)
+                gr = sess.get(get_result_url, headers=h, timeout=timeout)
+        except requests.RequestException as e:
+            raise RevitMcpError("get_result", f"HTTP request failed: {e}")
+
+        # Suggested backoff from server
+        retry_after = gr.headers.get("Retry-After")
+        try:
+            next_sleep = float(retry_after) if retry_after is not None else _poll_interval(attempts)
+        except Exception:
+            next_sleep = _poll_interval(attempts)
+
+        if gr.status_code == 304:
+            # Not modified; continue with backoff
+            attempts += 1
+            time.sleep(next_sleep)
+            continue
+        if gr.status_code in (202, 204):
+            attempts += 1
+            time.sleep(next_sleep)
+            continue
+        if gr.status_code >= 400:
+            data_err = _json_or_raise(gr, "get_result")
+            _raise_if_jsonrpc_error(data_err, "get_result")
+            raise RevitMcpError("get_result", f"HTTP {gr.status_code} {gr.reason}", http_status=gr.status_code, payload=data_err)
+
+        # capture ETag for subsequent conditional requests
+        etag = gr.headers.get("ETag") or etag
+
+        data_res = _json_or_raise(gr, "get_result")
+        # When hitting /job/{id}, the payload is a raw row dict
+        if job_url and isinstance(data_res, Mapping) and data_res.get("state"):
+            st = data_res.get("state")
+            if st == "SUCCEEDED":
+                rjson = data_res.get("result_json")
+                if isinstance(rjson, str) and rjson.strip():
+                    try:
+                        return json.loads(rjson)
+                    except json.JSONDecodeError:
+                        return {"ok": True, "result": rjson}
+                return {"ok": True}
+            if st in ("FAILED", "TIMEOUT", "DEAD"):
+                msg = data_res.get("error_msg") or st
+                raise RevitMcpError("get_result", str(msg), payload=data_res)
+            attempts += 1
+            time.sleep(next_sleep)
+            continue
+
+        _raise_if_jsonrpc_error(data_res, "get_result")
+        if isinstance(data_res, Mapping) and "ok" in data_res:
+            if data_res.get("ok") is True:
+                return data_res
+            msg = data_res.get("error") or data_res.get("msg") or "Command failed"
+            raise RevitMcpError("get_result", str(msg), payload=data_res)
+        if isinstance(data_res, Mapping):
+            return data_res
+        raise RevitMcpError("get_result", f"Unexpected payload shape: {data_res!r}")
+
+    total_wait = attempts * 0.5  # approximate for message
+    raise RevitMcpError("get_result", f"Polling timed out for '{method}' after {total_wait:.1f} sec.")
+
+
+def _send_direct_request(
+    sess: requests.Session,
+    base: str,
+    method: str,
+    params: Dict[str, Any],
+    *,
+    timeout: Tuple[float, float],
+    max_wait_seconds: Optional[float],
+    max_poll_attempts: int
+) -> Dict[str, Any]:
+    rpc_url = f"{base}/rpc"
+    payload = {"jsonrpc": "2.0", "method": method, "params": _normalize_params(params or {}), "id": int(time.time() * 1000)}
+    try:
+        r = sess.post(rpc_url, json=payload, timeout=timeout)
+    except requests.RequestException as e:
+        raise RevitMcpError("rpc", f"HTTP request failed: {e}")
+    if r.status_code >= 400:
+        data = _json_or_raise(r, "rpc")
+        _raise_if_jsonrpc_error(data, "rpc")
+        raise RevitMcpError("rpc", f"HTTP {r.status_code} {r.reason}", http_status=r.status_code, payload=data)
+
+    data = _json_or_raise(r, "rpc")
+    _raise_if_jsonrpc_error(data, "rpc")
+
+    # JSON-RPC envelope
+    result_obj = data.get("result") if isinstance(data, Mapping) else data
+    if isinstance(result_obj, Mapping) and result_obj.get("queued"):
+        job_id = result_obj.get("jobId") or result_obj.get("job_id")
+        if not job_id:
+            raise RevitMcpError("rpc", "queued=true but jobId missing", payload={"result": result_obj})
+        return _poll_result(
+            sess,
+            base,
+            job_id=job_id,
+            timeout=timeout,
+            max_wait_seconds=max_wait_seconds,
+            max_poll_attempts=max_poll_attempts,
+            method=method
+        )
+    return result_obj if isinstance(result_obj, Mapping) else {"ok": True, "result": result_obj}
+
+
 def send_request(port: int, method: str, params: Optional[Dict[str, Any]] = None, *, force: bool = False,
                  timeout: Tuple[float, float] = (3.0, 120.0), max_wait_seconds: Optional[float] = None,
-                 job_timeout_sec: Optional[int] = None, max_poll_attempts: int = DEFAULT_MAX_POLLING_ATTEMPTS) -> Dict[str, Any]:
+                 job_timeout_sec: Optional[int] = None, max_poll_attempts: int = DEFAULT_MAX_POLLING_ATTEMPTS,
+                 dispatch_mode: str = "auto") -> Dict[str, Any]:
     if params is None:
         params = {}
     base = f"http://localhost:{port}"
@@ -93,6 +251,22 @@ def send_request(port: int, method: str, params: Optional[Dict[str, Any]] = None
     # HTTP keep-alive session
     with requests.Session() as sess:
         sess.headers.update(HEADERS)
+
+        dispatch = (dispatch_mode or "auto").strip().lower()
+        if dispatch not in ("auto", "durable", "direct"):
+            dispatch = "auto"
+
+        use_direct = (dispatch == "direct") or (dispatch == "auto" and _is_light_read_command(method))
+        if use_direct:
+            return _send_direct_request(
+                sess,
+                base,
+                method,
+                params or {},
+                timeout=timeout,
+                max_wait_seconds=max_wait_seconds,
+                max_poll_attempts=max_poll_attempts
+            )
 
         # enqueue
         post_params = {"force": 1} if force else {}
@@ -119,88 +293,15 @@ def send_request(port: int, method: str, params: Optional[Dict[str, Any]] = None
         job_id = None
         if isinstance(data, Mapping):
             job_id = data.get("jobId") or data.get("job_id")
-
-    # poll via durable job endpoint for reliability
-        attempts = 0
-        attempts_limit = max_poll_attempts or DEFAULT_MAX_POLLING_ATTEMPTS
-        if isinstance(max_wait_seconds, (int, float)) and max_wait_seconds > 0:
-            try:
-                # Approximate attempts based on average 0.5s to keep behavior similar
-                attempts_limit = max(1, int(max_wait_seconds / 0.5))
-            except Exception:
-                attempts_limit = DEFAULT_MAX_POLLING_ATTEMPTS
-
-        job_url = f"{base}/job/{job_id}" if job_id else None
-        etag: Optional[str] = None
-        while attempts < attempts_limit:
-            # Build conditional headers
-            h = dict(HEADERS)
-            if etag:
-                h["If-None-Match"] = etag
-            try:
-                if job_url:
-                    gr = sess.get(job_url, headers=h, timeout=timeout)
-                else:
-                    # fallback to legacy get_result when no jobId was provided (compat)
-                    gr = sess.get(get_result_url, headers=h, timeout=timeout)
-            except requests.RequestException as e:
-                raise RevitMcpError("get_result", f"HTTP request failed: {e}")
-
-            # Suggested backoff from server
-            retry_after = gr.headers.get("Retry-After")
-            try:
-                next_sleep = float(retry_after) if retry_after is not None else _poll_interval(attempts)
-            except Exception:
-                next_sleep = _poll_interval(attempts)
-
-            if gr.status_code == 304:
-                # Not modified; continue with backoff
-                attempts += 1
-                time.sleep(next_sleep)
-                continue
-            if gr.status_code in (202, 204):
-                attempts += 1
-                time.sleep(next_sleep)
-                continue
-            if gr.status_code >= 400:
-                data_err = _json_or_raise(gr, "get_result")
-                _raise_if_jsonrpc_error(data_err, "get_result")
-                raise RevitMcpError("get_result", f"HTTP {gr.status_code} {gr.reason}", http_status=gr.status_code, payload=data_err)
-
-            # capture ETag for subsequent conditional requests
-            etag = gr.headers.get("ETag") or etag
-
-            data_res = _json_or_raise(gr, "get_result")
-            # When hitting /job/{id}, the payload is a raw row dict
-            if job_url and isinstance(data_res, Mapping) and data_res.get("state"):
-                st = data_res.get("state")
-                if st == "SUCCEEDED":
-                    rjson = data_res.get("result_json")
-                    if isinstance(rjson, str) and rjson.strip():
-                        try:
-                            return json.loads(rjson)
-                        except json.JSONDecodeError:
-                            return {"ok": True, "result": rjson}
-                    return {"ok": True}
-                if st in ("FAILED", "TIMEOUT", "DEAD"):
-                    msg = data_res.get("error_msg") or st
-                    raise RevitMcpError("get_result", str(msg), payload=data_res)
-                attempts += 1
-                time.sleep(next_sleep)
-                continue
-
-            _raise_if_jsonrpc_error(data_res, "get_result")
-            if isinstance(data_res, Mapping) and "ok" in data_res:
-                if data_res.get("ok") is True:
-                    return data_res
-                msg = data_res.get("error") or data_res.get("msg") or "Command failed"
-                raise RevitMcpError("get_result", str(msg), payload=data_res)
-            if isinstance(data_res, Mapping):
-                return data_res
-            raise RevitMcpError("get_result", f"Unexpected payload shape: {data_res!r}")
-
-        total_wait = attempts * 0.5  # approximate for message
-        raise RevitMcpError("get_result", f"Polling timed out for '{method}' after {total_wait:.1f} sec.")
+        return _poll_result(
+            sess,
+            base,
+            job_id=job_id,
+            timeout=timeout,
+            max_wait_seconds=max_wait_seconds,
+            max_poll_attempts=max_poll_attempts,
+            method=method
+        )
 
 def main():
     parser = argparse.ArgumentParser(description="Send a durable JSON-RPC command to Revit MCP server.")
@@ -213,6 +314,8 @@ def main():
     parser.add_argument("--timeout-sec", type=int, default=None, help="Server-side job timeout (seconds) to set on enqueue.")
     parser.add_argument("--wait-seconds", type=float, default=None)
     parser.add_argument("--max-attempts", type=int, default=None, help="Override polling attempts (otherwise time-window defaults apply).")
+    parser.add_argument("--dispatch", choices=["auto", "durable", "direct"], default="auto",
+                        help="Dispatch mode. auto=light read commands via /rpc, others durable /enqueue.")
     args = parser.parse_args()
 
     def decide_max_attempts() -> int:
@@ -260,7 +363,8 @@ def main():
             force=args.force,
             max_wait_seconds=args.wait_seconds,
             job_timeout_sec=args.timeout_sec,
-            max_poll_attempts=max_attempts
+            max_poll_attempts=max_attempts,
+            dispatch_mode=args.dispatch
         )
         if args.output_file:
             outp = os.path.abspath(args.output_file)

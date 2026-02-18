@@ -2,6 +2,7 @@
 
 - カテゴリ: ViewOps / ViewSheet
 - 目的: シート上に既に配置されているビュー（または集計表）を、別のビューに入れ替えます。位置はそのまま維持することができ、必要に応じて回転・縮尺も引き継げます。
+- 目的: シート上に既に配置されているビュー（または集計表）を、別のビューに入れ替えます。位置はそのまま維持することができ、必要に応じて回転・縮尺も引き継げます。さらに、スケールが異なるビュー同士でも「グリッド交点」を基準に位置合わせできます。
 
 ## 概要
 
@@ -48,6 +49,15 @@
 | copyRotation | bool | いいえ | true | 旧 Viewport の `Rotation` を新しい Viewport にコピーします。 |
 | copyScale | bool | いいえ | false | true の場合、旧ビューの `View.Scale` を新しいビューに適用します（集計表ビューは対象外）。 |
 
+スケール差対応の位置合わせ（グリッド交点アンカー）
+
+| 名前 | 型 | 必須 | 説明 |
+|------|----|------|------|
+| alignByGridIntersection | object | いいえ | `{ referenceViewportId, gridA, gridB, enabled? }` を指定すると、グリッド交点を基準に新旧Viewportの位置合わせを行います。 |
+| referenceViewportId | int | 条件付き | 参照元のViewport ID。 |
+| gridA / gridB | string | 条件付き | モデル上の交点を作るグリッド名（例: `X1` と `Y3`）。 |
+| enabled | bool | いいえ | 明示的にオン/オフを指定したい場合に使用。 |
+
 ### 挙動の詳細
 
 1. 置き換え対象の特定
@@ -67,6 +77,11 @@
 5. 回転・縮尺のコピー（任意）
    - `copyRotation:true` かつ旧配置が Viewport の場合、旧 Viewport の `Rotation` を新しい Viewport にセットします。
    - `copyScale:true` の場合、旧ビューの `Scale` を新しいビューに設定します（API が許可しない場合は失敗せず、警告メッセージを返します）。
+6. グリッド交点アンカーでの位置合わせ（任意）
+   - `alignByGridIntersection` が指定されている場合、`gridA` x `gridB` の交点（モデル座標）を取得します。
+   - 参照Viewport (`referenceViewportId`) と新Viewportの両方で、この交点をシート座標へ投影します。
+   - 投影差分（sheet delta）だけ新Viewport中心を移動し、交点位置が一致するように調整します。
+   - これにより、ビュー縮尺が異なる場合でも座標合わせが可能です。
 
 ## レスポンス
 
@@ -82,11 +97,36 @@
   "copyRotation": true,
   "copyScale": false,
   "scaleWarning": null,
+  "alignWarning": null,
+  "alignment": {
+    "anchorModelMm": { "x": 0.0, "y": 0.0, "z": 0.0 },
+    "deltaSheetMm": { "x": -25.795, "y": -61.927 }
+  },
   "result": {
     "kind": "viewport",
     "viewportId": 999,
     "sheetId": 12345,
     "viewId": 222
+  }
+}
+```
+
+### 3) スケール差がある2つのビューを、グリッド交点で位置合わせして差し替え
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "replace_view_on_sheet",
+  "params": {
+    "viewportId": 5785889,
+    "newViewId": 4383347,
+    "alignByGridIntersection": {
+      "referenceViewportId": 5785884,
+      "gridA": "X1",
+      "gridB": "Y3",
+      "enabled": true
+    }
   }
 }
 ```
@@ -139,4 +179,3 @@
 - `place_view_on_sheet` : ビューを新規にシートへ配置
 - `remove_view_from_sheet` : シートからビュー／集計表を取り除く
 - `get_view_placements` : あるビューがどのシートにどのように配置されているかを取得
-

@@ -27,10 +27,10 @@ This note clarifies that no changes are required to the Revit add‑in or the Re
 1) Create/refresh caches
 
 ````powershell
-python "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit_info.py" `
+python "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Scripts\cache_revit_info.py" `
   --proxy http://127.0.0.1:5221 `
   --revit-port 5211 `
-  --out-dir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Logs" `
+  --out-dir "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Logs" `
   --ttl-sec 0  # set >0 (e.g. 600) to reuse within TTL
 ````
 
@@ -41,10 +41,10 @@ python "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\cache_revit_
 2) Read cached data (concise summary)
 
 ````powershell
-pwsh -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_project_and_documents_cached.ps1" `
+pwsh -File "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Scripts\get_project_and_documents_cached.ps1" `
   -Port 5211 `
   -Proxy http://127.0.0.1:5221 `
-  -OutDir "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Logs"
+  -OutDir "%USERPROFILE%\\Documents\\Revit_MCP\\Codex\Manuals\Logs"
 ````
 
 - Options:
@@ -95,6 +95,9 @@ pwsh -File "%USERPROFILE%\Documents\VS2022\Ver431\Codex\Manuals\Scripts\get_proj
   - `Codex/Scripts/Reference/cache_revit_info.py`
   - `Codex/Scripts/Reference/get_project_and_documents_cached.ps1`
 - Quickstart: `Codex/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md` (see “Caching” section)
+
+
+
 
 
 

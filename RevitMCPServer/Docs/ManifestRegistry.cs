@@ -10,7 +10,7 @@ using System.Text.Json;
 namespace RevitMcpServer.Docs
 {
     /// <summary>
-    /// Add-in ����o�^�����R�}���h�ژ^�i�}�j�t�F�X�g�j��ێ��E�i�������郌�W�X�g���B
+    /// Add-in o^R}hژ^i}jtFXgjێEi郌WXgB
     /// </summary>
     public static class ManifestRegistry
     {
@@ -18,7 +18,7 @@ namespace RevitMcpServer.Docs
         private static readonly Dictionary<string, DocMethod> _methods =
             new Dictionary<string, DocMethod>(StringComparer.OrdinalIgnoreCase);
 
-        // �L���b�V���t�@�C���̕ۑ���iProgram.cs ����N�����ɐݒ�j
+        // LbVt@C̕ۑiProgram.cs Nɐݒj
         private static string _cachePath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "manifest-cache.json");
 
         public static void ConfigureCachePath(string? path)
@@ -53,7 +53,7 @@ namespace RevitMcpServer.Docs
                     if (m.ResultSchema == null) m.ResultSchema = new Dictionary<string, object?> { ["type"] = "object" };
                     if (m.Tags == null) m.Tags = new string[0];
                     m.Name = nm;
-                    _methods[m.Name] = m; // �����͏㏑��
+                    _methods[m.Name] = m; // ͏㏑
                 }
             }
         }
@@ -63,7 +63,7 @@ namespace RevitMcpServer.Docs
             lock (_lock) { return new List<DocMethod>(_methods.Values); }
         }
 
-        /// <summary>�L���b�V���t�@�C�����烍�[�h�i�N�����j�B</summary>
+        /// <summary>LbVt@C烍[hiNjB</summary>
         public static void LoadFromDisk()
         {
             try
@@ -78,11 +78,11 @@ namespace RevitMcpServer.Docs
             }
             catch
             {
-                // ���Ă��Ă��N���p��
+                // ĂĂNp
             }
         }
 
-        /// <summary>���݂̓��e���L���b�V���t�@�C���֕ۑ��i/manifest/register �̓s�x�j�B</summary>
+        /// <summary>݂̓eLbVt@C֕ۑi/manifest/register ̓sxjB</summary>
         public static void SaveToDisk()
         {
             try
@@ -98,7 +98,7 @@ namespace RevitMcpServer.Docs
             }
             catch
             {
-                // �ۑ����s�͒v���ł͂Ȃ�
+                // ۑs͒vł͂Ȃ
             }
         }
     }

@@ -61,7 +61,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             var def = workVs?.Definition;
                             try { def.IsItemized = true; } catch { /* versions */ }
                             try { def.ShowGrandTotal = false; } catch { /* 2023/2024 */ }
-                            TrySetPropertyIfExists(def, "ShowGrandTotals", false); // ������API���h��ɔ���
+                            TrySetPropertyIfExists(def, "ShowGrandTotals", false); // APIhɔ
 
                             try
                             {
@@ -70,7 +70,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             }
                             catch { /* ignore */ }
 
-                            // �ύX���f
+                            // ύXf
                             doc.Regenerate();
                         }
                         catch { /* ignore */ }
@@ -78,7 +78,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     }
                 }
 
-                // ---------- �ǂݎ�蒼�O�� Regenerate �𖾎��i��肱�ڂ��h�~�j ----------
+                // ---------- ǂݎ蒼O Regenerate 𖾎i肱ڂh~j ----------
                 using (var tx = new Transaction(doc, "ExportScheduleToCsv - Regenerate"))
                 {
                     tx.Start();
@@ -95,12 +95,12 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     return ResultUtil.Err("The schedule Body section has no rows/columns to export.");
                 }
 
-                // �g�����܂܁h�l�擾�̂��߁AViewSchedule.GetCellText ��D�悷��
-                // �Z�������� 0..NumberOfRows-1 / 0..NumberOfColumns-1 �� 0 ��_�ň���
+                // g܂܁hl擾̂߁AViewSchedule.GetCellText D悷
+                // Z 0..NumberOfRows-1 / 0..NumberOfColumns-1  0 _ň
                 int rows = bodySec.NumberOfRows;
                 int cols = bodySec.NumberOfColumns;
 
-                // ---------- �w�b�_1�s�̍\�z�i�\���� �� ��`��(Hidden���O) �� Header�Z�N�V�����j ----------
+                // ---------- wb_1s̍\zi\  `(HiddenO)  HeaderZNVj ----------
                 string[] headerRow = Array.Empty<string>();
                 if (includeHeader)
                 {
@@ -112,10 +112,10 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     {
                         string header = string.Empty;
 
-                        // 1) Body�ŏ�i(0�s��)��񌩏o�����Ƃ��Ď����i�Č��ɂ�肱���Ɍ��o��������j
+                        // 1) Bodyŏi(0s)񌩏oƂĎiČɂ肱Ɍoj
                         try { header = workVs.GetCellText(SectionType.Body, 0, c) ?? ""; } catch { header = ""; }
 
-                        // 2) ���Ȃ��ꍇ�� Definition �̖��O�iHidden�͍̗p���Ȃ��j
+                        // 2) Ȃꍇ Definition ̖OiHidden͍̗pȂj
                         if (string.IsNullOrWhiteSpace(header) && c < fieldOrder.Count)
                         {
                             try
@@ -127,7 +127,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             catch { /* ignore */ }
                         }
 
-                        // 3) ����ł���Ȃ�AHeader�Z�N�V������������T��
+                        // 3) łȂAHeaderZNVT
                         if (string.IsNullOrWhiteSpace(header))
                         {
                             try
@@ -147,13 +147,13 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     }
                 }
 
-                // ---------- �{�́F�\��������iGetCellText 3�����D��A�ی��� TableSectionData.GetCellText�j ----------
+                // ---------- {́F\iGetCellText 3DAی TableSectionData.GetCellTextj ----------
                 var bodyTab = ReadSectionDisplay(workVs, bodySec, SectionType.Body);
 
                 if (fillBlanks && bodyTab.Length > 0)
                     FillBlanksDownwards(bodyTab);
 
-                // ---------- �����o���iUTF-8 BOM / �w��̉��s�R�[�h�j ----------
+                // ---------- oiUTF-8 BOM / w̉sR[hj ----------
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
@@ -169,7 +169,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         sw.WriteLine(string.Join(delimiter, row.Select(EscapeCsv)));
                 }
 
-                // ---------- �ꎞ�r���[�Еt�� ----------
+                // ---------- ꎞr[Еt ----------
                 CleanupTemp(doc, tempId);
 
                 return new { ok = true, path, units = UnitHelper.DefaultUnitsMeta() };
@@ -198,15 +198,15 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             if (sec == null) return false;
             try
             {
-                // 0��_�̍s�񐔂ŕ]��
+                // 0_̍s񐔂ŕ]
                 return sec.NumberOfRows > 0 && sec.NumberOfColumns > 0;
             }
             catch { return false; }
         }
 
         /// <summary>
-        /// �g�����܂܁h�\���������D�悵�ăZ�N�V������ǂݎ��B
-        /// �D��: ViewSchedule.GetCellText(section, r, c) / �ی�: TableSectionData.GetCellText(rowAbs, colAbs)
+        /// g܂܁h\D悵ăZNVǂݎB
+        /// D: ViewSchedule.GetCellText(section, r, c) / ی: TableSectionData.GetCellText(rowAbs, colAbs)
         /// </summary>
         private static string[][] ReadSectionDisplay(ViewSchedule vs, TableSectionData sec, SectionType sectionType)
         {
@@ -214,7 +214,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             int cols = sec.NumberOfColumns;
             var table = new string[rows][];
 
-            // Absolute index�i�ی��p�j
+            // Absolute indexiیpj
             int r0 = sec.FirstRowNumber;
             int c0 = sec.FirstColumnNumber;
 

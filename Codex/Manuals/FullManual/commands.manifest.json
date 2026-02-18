@@ -4279,6 +4279,20 @@
         "properties": {}
       },
       "category": "Misc",
+      "name": "get_project_browser_selection",
+      "resultSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true
+      }
+    },
+    {
+      "feature": "Elements",
+      "paramsSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "category": "Misc",
       "name": "get_selected_element_ids",
       "resultSchema": {
         "type": "object",

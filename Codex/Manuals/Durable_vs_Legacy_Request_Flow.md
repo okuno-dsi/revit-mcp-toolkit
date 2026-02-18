@@ -9,6 +9,10 @@ This document compares the “durable” job-based sender and the traditional (l
 ## Overview
 - Legacy flow polls a global queue via `GET /get_result` after `POST /enqueue`.
 - Durable flow receives a per-job identifier from `POST /enqueue` and polls `GET /job/{jobId}`, enabling stronger correlation and better scalability.
+- Current sender supports dispatch mode:
+  - `--dispatch auto` (default): lightweight read commands go direct via `/rpc`, others go durable via `/enqueue`.
+  - `--dispatch durable`: force durable flow for all commands.
+  - `--dispatch direct`: force direct `/rpc` flow.
 
 ## Transport and Endpoints
 - Common
@@ -61,11 +65,11 @@ This document compares the “durable” job-based sender and the traditional (l
 - Durable (recommended when `/job/{id}` is available)
   - Ping
     ```bash
-    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server --wait-seconds 120 --timeout-sec 120
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server --dispatch auto --wait-seconds 120 --timeout-sec 120
     ```
   - Get project info (save result)
     ```bash
-    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_project_info --wait-seconds 120 --timeout-sec 120 --output-file Projects/<ProjectName>_<Port>/Logs/get_project_info_5210.json
+    python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_project_info --dispatch auto --wait-seconds 120 --timeout-sec 120 --output-file Projects/<ProjectName>_<Port>/Logs/get_project_info_5210.json
     ```
 - Legacy (fallback/compatibility)
   - Ping
@@ -80,7 +84,7 @@ This document compares the “durable” job-based sender and the traditional (l
 ## Operational Notes
 - Keep `params: {}` in requests even when no parameters are required.
 - Use `--force` or `/enqueue?force=1` if a conflicting job is already running.
-- Prefer durable sender by default when the server exposes `/job/{jobId}`; otherwise, fall back to the legacy sender.
+- Prefer `--dispatch auto` for normal operation (fast read commands + durable writes/long tasks).
 - For retries/backoff on busy/timeout conditions, you can also use the resilient wrapper `Tools/mcp_safe.py`.
 
 ## Observation (This Workspace)

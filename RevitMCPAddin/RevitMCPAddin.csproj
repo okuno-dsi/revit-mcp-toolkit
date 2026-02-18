@@ -76,10 +76,14 @@
   <!-- Build-time copy of server exe into $(OutputPath)server/ (dev convenience) -->
   <Target Name="CopyRevitMcpServerExe" AfterTargets="Build">
     <PropertyGroup>
-      <ServerExeSource Condition="Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish\RevitMCPServer.exe</ServerExeSource>
-      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe</ServerExeSource>
-      <ServerRootSource Condition="Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish</ServerRootSource>
-      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0</ServerRootSource>
+      <!-- Prefer self-contained publish output (win-x64) to avoid host runtime dependency differences across PCs. -->
+      <ServerExeSource Condition="Exists('..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="Exists('..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\publish_sc\win-x64</ServerRootSource>
+
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish\RevitMCPServer.exe</ServerExeSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish</ServerRootSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\bin\x64\Release\net8.0-windows\win-x64</ServerRootSource>
     </PropertyGroup>
     <Message Text="[RevitMCP] Copy server exe: '$(ServerExeSource)' -&gt; '$(OutputPath)server\RevitMCPServer.exe'" Importance="High" Condition=" '$(ServerExeSource)'!='' " />
     <MakeDir Directories="$(OutputPath)server" Condition=" '$(ServerExeSource)'!='' " />
@@ -90,6 +94,8 @@
       <ServerFiles Include="$(ServerRootSource)\**\*.*"
                    Condition=" '$(ServerRootSource)'!='' and Exists('$(ServerRootSource)') "
                    Exclude="$(ServerRootSource)\publish\**\*.*;
+                            $(ServerRootSource)\publish_sc\**\*.*;
+                            $(ServerRootSource)\publish_sc_*\**\*.*;
                             $(ServerRootSource)\capture-agent\**\*.*;
                             $(ServerRootSource)\CaptureAgent\**\*.*;
                             $(ServerRootSource)\tessdata\**\*.*;
@@ -320,6 +326,8 @@
     <Compile Include="Commands\Export\ExportDxfCustomLayersCommand.cs" />
     <Compile Include="Commands\Export\ExportViewMeshCommand.cs" />
     <Compile Include="Commands\GridOps\GridCommnds.cs" />
+    <Compile Include="Commands\GridOps\SetGridBubblesVisibilityCommand.cs" />
+    <Compile Include="Commands\GridOps\SetGridSegmentsAroundElementInViewCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetProjectCategoriesCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetProjectInfoCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetFillPatternsCommand.cs" />
@@ -427,6 +435,7 @@
     <Compile Include="Commands\ViewOps\CreateInteriorElevationCommand.cs" />
     <Compile Include="Commands\ViewOps\CreateInteriorElevationFacingWallCommand.cs" />
     <Compile Include="Commands\ViewOps\DebugElementViewCropCommand.cs" />
+    <Compile Include="Commands\ViewOps\CropPlanViewToElementCommand.cs" />
     <Compile Include="Commands\ViewOps\CreateElementSectionBoxDebugCommand.cs" />
     <Compile Include="Commands\ViewOps\DebugSectionViewSectionBoxCommand.cs" />
     <Compile Include="Commands\ViewOps\DuplicateViewSimpleCommand.cs" />
@@ -718,6 +727,7 @@
     <Compile Include="Commands\ElementOps\Window\RenameWindowTypeCommand.cs" />
     <Compile Include="Commands\ElementOps\Window\UpdateWindowParameterCommand.cs" />
     <Compile Include="Commands\Misc\GetSelectedElementIdsCommand.cs" />
+    <Compile Include="Commands\Misc\GetProjectBrowserSelectionCommand.cs" />
     <Compile Include="Commands\Misc\GetLastSelectionCommand.cs" />
     <Compile Include="Commands\ElementOps\GetInstancesGeometryCommand.cs" />
     <Compile Include="Commands\RevisionCloud\CreateDefaultRevisionCommand.cs" />

@@ -126,7 +126,7 @@ function Get-WallTypeGroups([int]$viewId){
         try{ $tn = [string]$e.parameters.'Type Name'.value }catch{}
       }
       if([string]::IsNullOrWhiteSpace($tn)){
-        try{ $tn = [string]$e.parameters.'�^�C�v��'.value }catch{}
+        try{ $tn = [string]$e.parameters.'タイプ名'.value }catch{}
       }
       if([string]::IsNullOrWhiteSpace($tn)){ $tn = 'WT' }
       if(-not $groups.ContainsKey($tn)){ $groups[$tn] = New-Object System.Collections.Generic.List[int] }
