@@ -1,39 +1,85 @@
 # Revit MCP Connection Quickstart (Port 5210)
 
-- Verify port: `Test-NetConnection localhost -Port 5210` => TcpTestSucceeded True
-- Ping: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command ping_server`
+## Preferred check: Model Context Protocol over HTTP
+
+Use the standard MCP endpoint first. The Revit automation server now exposes `/mcp` for `initialize`, `tools/list`, and `tools/call`.
+
+```powershell
+$base = 'http://127.0.0.1:5210/mcp'
+$protocol = '2025-11-05'
+
+$initBody = @{
+  jsonrpc = '2.0'
+  id = 1
+  method = 'initialize'
+  params = @{
+    protocolVersion = $protocol
+    capabilities = @{}
+    clientInfo = @{ name = 'manual-check'; version = '1.0' }
+  }
+} | ConvertTo-Json -Depth 10 -Compress
+
+$init = Invoke-WebRequest -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Accept = 'application/json, text/event-stream'
+  'MCP-Protocol-Version' = $protocol
+} -Body $initBody
+
+$sessionId = $init.Headers['MCP-Session-Id']
+
+Invoke-WebRequest -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  'MCP-Protocol-Version' = $protocol
+  'MCP-Session-Id' = $sessionId
+} -Body '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' | Out-Null
+
+Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  'MCP-Protocol-Version' = $protocol
+  'MCP-Session-Id' = $sessionId
+} -Body '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+
+Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  'MCP-Protocol-Version' = $protocol
+  'MCP-Session-Id' = $sessionId
+} -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_open_documents","arguments":{}}}'
+```
+
+Success criteria:
+- `initialize` returns `protocolVersion`, `capabilities.tools`, and `serverInfo`
+- `tools/list` returns one or more tools
+- `tools/call` for `get_open_documents` returns document information without transport errors
+
+Optional compatibility checks:
+- `resources/list`:
+```powershell
+Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  'MCP-Protocol-Version' = $protocol
+  'MCP-Session-Id' = $sessionId
+} -Body '{"jsonrpc":"2.0","id":4,"method":"resources/list","params":{}}'
+```
+- `prompts/list`:
+```powershell
+Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  'MCP-Protocol-Version' = $protocol
+  'MCP-Session-Id' = $sessionId
+} -Body '{"jsonrpc":"2.0","id":5,"method":"prompts/list","params":{}}'
+```
+
+## Legacy check: durable RPC
+
+The legacy `/rpc` and `/job` endpoints remain available for existing scripts.
+
+- Verify port: `Test-NetConnection localhost -Port 5210` => `TcpTestSucceeded True`
 - Bootstrap: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command agent_bootstrap --output-file Logs/agent_bootstrap.json`
- - Tip: You can set `REVIT_MCP_PORT` to override the default port when scripts are run without `-Port`.
 - List elements in active view (ids):
   `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_elements_in_view --params "{\"viewId\": <activeViewId>, \"_shape\":{\"idsOnly\":true,\"page\":{\"limit\":200}}}" --output-file Logs/elements_in_view.json`
-- Save/Restore view state when changing visibility:
-  - Save: `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command save_view_state --params "{}" --output-file Logs/view_state.json`
-  - Restore: prepare a payload with the captured `state` and run `restore_view_state`.
-- Optional write (requires add-in support and confirmation):
-  1) Preflight: `Scripts/Reference/set_visual_override_safe.ps1 -Port 5210 -ElementId <id>`
-  2) The script runs `smoke_test` then executes with `__smoke_ok:true`.
-  - Parameter update (safe): `Scripts/Reference/update_wall_parameter_safe.ps1 -Port 5210 -ElementId <id> -Param Comments -Value "Test via smoke"`
-  - Create Room (Durable): `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command create_room --params '{"levelName":"1FL","x":1500,"y":1500,"__smoke_ok":true}'`
-    - Defaults: `autoTag=true`, `strictEnclosure=true`, `checkExisting=true`; response may be `mode:"existing"` with `elementId` when a room already covers the point.
 
-- Duplicate active view safely (idempotent):
-  - Resolve current view id/name, then:
-    `python Scripts/Reference/send_revit_command_durable.py --port 5210 --command duplicate_view --params '{"desiredName":"<Base> Copy","onNameConflict":"returnExisting","idempotencyKey":"dup:<baseUid>:<Base> Copy"}'`
-  - For a specific view: include `viewId` in params.
+## Notes
 
-Notes
-- Some environments may not expose `smoke_test`; fallback to read-only steps and explicit `__smoke_ok:true` for writes as permitted.
-- Default units: Length=mm, Angle=deg. Server converts internally.
-- Important: Never send `viewId: 0` or `elementId: 0`.
-  - `agent_bootstrap.json` saved by Scripts/test_connection.ps1 is a JSON-RPC envelope.
-  - Read the active view ID from `result.result.environment.activeViewId`.
-  - `Logs/elements_in_view.json` stores rows at `result.result.rows`.
-  - The helper scripts validate IDs and will stop with a clear error if an ID is missing/invalid.
- - Safe write execution: prefer the `*_safe.ps1` scripts, which run `smoke_test` first. Use `-DryRun` to preview payloads, `-Force` to continue on warnings.
-
-
-
-
-
-
-
+- Product name: `Revit MCP`
+- Protocol name: `Model Context Protocol`
+- Prefer `/mcp` for new clients
+- Keep `/rpc` and `/job/{id}` only for backward compatibility
+- `/sse`, `/messages`, `/swagger` are not provided in the current server profile
+- Use `/docs/openapi.json` or `/docs/openrpc.json` for machine-readable API docs
+- Default units remain `Length=mm`, `Angle=deg`; the server converts internally
+- Important: never send `viewId: 0` or `elementId: 0`
+- Safe write execution for legacy scripts still prefers the `*_safe.ps1` wrappers

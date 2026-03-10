@@ -242,6 +242,7 @@
     <Compile Include="Commands\AnnotationOps\TextNoteUnitsHelper.cs" />
     <Compile Include="Commands\AnnotationOps\UpdateTextNoteParameterCommand.cs" />
     <Compile Include="Commands\Area\CombinedAreaCommands.cs" />
+    <Compile Include="Commands\Area\AreaCalcCommands.cs" />
     <Compile Include="Commands\Area\AreaBoundaryMaterialCoreCenterCommands.cs" />
     <Compile Include="Commands\Area\CreateAreasFromRoomsByMaterialCoreCenterCommand.cs" />
     <Compile Include="Commands\BridgeControl\StartBridgeCommand.cs" />

@@ -1,6 +1,8 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
@@ -61,17 +63,73 @@ namespace RevitMCPAddin.Commands.ParamOps
 
                 // ---- Shared parameter file ----
                 var app = doc.Application;
+                string configuredPath =
+                    (p.Value<string>("sharedParametersFilename") ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(configuredPath))
+                    configuredPath = (p.Value<string>("sharedParameterFilePath") ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(configuredPath))
+                    configuredPath = (p.Value<string>("sharedParameterFile") ?? string.Empty).Trim();
+
                 string spFile = app.SharedParametersFilename;
+
+                // Optional explicit path from payload.
+                if (!string.IsNullOrWhiteSpace(configuredPath))
+                {
+                    try
+                    {
+                        EnsureSharedParameterFile(configuredPath);
+                        app.SharedParametersFilename = configuredPath;
+                        spFile = app.SharedParametersFilename;
+                    }
+                    catch (Exception ex)
+                    {
+                        return ResultUtil.Err(new
+                        {
+                            msg = "Failed to configure shared parameter file from payload path.",
+                            detail = new { configuredPath, error = ex.Message }
+                        });
+                    }
+                }
+
+                // Auto-bootstrap when not configured in Revit options.
                 if (string.IsNullOrWhiteSpace(spFile))
                 {
-                    return ResultUtil.Err(new
+                    try
                     {
-                        msg = "Shared parameter file is not configured.",
-                        detail = new { sharedParametersFilename = spFile }
-                    });
+                        var root = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                            "RevitMCP");
+                        Directory.CreateDirectory(root);
+                        var autoPath = Path.Combine(root, "revitmcp_shared_parameters.txt");
+                        EnsureSharedParameterFile(autoPath);
+                        app.SharedParametersFilename = autoPath;
+                        spFile = app.SharedParametersFilename;
+                    }
+                    catch (Exception ex)
+                    {
+                        return ResultUtil.Err(new
+                        {
+                            msg = "Shared parameter file is not configured and auto-bootstrap failed.",
+                            detail = new { sharedParametersFilename = spFile, error = ex.Message }
+                        });
+                    }
                 }
 
                 var defFile = app.OpenSharedParameterFile();
+                if (defFile == null)
+                {
+                    // One retry with forced rewrite in case file is malformed.
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(spFile))
+                        {
+                            EnsureSharedParameterFile(spFile, forceRewrite: true);
+                            defFile = app.OpenSharedParameterFile();
+                        }
+                    }
+                    catch { /* ignore and report below */ }
+                }
+
                 if (defFile == null)
                 {
                     return ResultUtil.Err(new
@@ -306,6 +364,45 @@ namespace RevitMCPAddin.Commands.ParamOps
             {
                 return ResultUtil.Err($"Add shared project parameter failed: {ex.Message}");
             }
+        }
+
+        private static void EnsureSharedParameterFile(string path, bool forceRewrite = false)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new InvalidOperationException("Shared parameter file path is empty.");
+
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+                Directory.CreateDirectory(dir);
+
+            if (!forceRewrite && File.Exists(path))
+            {
+                try
+                {
+                    var text = File.ReadAllText(path);
+                    if (!string.IsNullOrWhiteSpace(text)
+                        && text.Contains("*META")
+                        && text.Contains("*GROUP")
+                        && text.Contains("*PARAM"))
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Fall through and rewrite.
+                }
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("# Revit shared parameter file generated by RevitMCP");
+            sb.AppendLine("# Do not remove required header sections.");
+            sb.AppendLine("*META\tVERSION\tMINVERSION");
+            sb.AppendLine("META\t2\t1");
+            sb.AppendLine("*GROUP\tID\tNAME");
+            sb.AppendLine("*PARAM\tGUID\tNAME\tDATATYPE\tDATACATEGORY\tGROUP\tVISIBLE\tDESCRIPTION\tUSERMODIFIABLE\tHIDEWHENNOVALUE");
+
+            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         }
 
         private static Definition FindDefinition(DefinitionGroup group, string name, Guid? guid)

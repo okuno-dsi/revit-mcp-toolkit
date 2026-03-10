@@ -28,6 +28,19 @@ app.MapPost("/teach/start", (HttpRequest req) => {
 
 app.MapPost("/teach/stop", () => teach.Stop());
 
+// MCP passthrough (Streamable HTTP)
+app.MapMethods("/mcp", new[] { "OPTIONS" }, async (HttpRequest req, HttpResponse res) =>
+{
+    var forwardUrl = $"{forwardBase}/mcp";
+    await Proxy.ForwardOptionsAsync(http, req, res, forwardUrl);
+});
+
+app.MapPost("/mcp", async (HttpRequest req, HttpResponse res) =>
+{
+    var forwardUrl = $"{forwardBase}/mcp";
+    await Proxy.ForwardPostAsync(http, req, res, forwardUrl, teach);
+});
+
 // Proxy RPC to RevitMcpServer and record normalized entry
 app.MapPost("/rpc", async (HttpRequest req, HttpResponse res) =>
 {
@@ -156,9 +169,11 @@ static class Proxy
             mt.CharSet = "utf-8";
             content.Headers.ContentType = mt;
         }
-        CopyHeaders(req.Headers, content.Headers);
+        using var forward = new HttpRequestMessage(HttpMethod.Post, url);
+        forward.Content = content;
+        CopyRequestHeaders(req.Headers, forward.Headers, forward.Content.Headers);
 
-        using var fwd = await http.PostAsync(url, content);
+        using var fwd = await http.SendAsync(forward, HttpCompletionOption.ResponseContentRead);
         await WriteResponseAsync(res, fwd);
 
         if (teach != null){
@@ -169,13 +184,15 @@ static class Proxy
     public static async Task ForwardGetAsync(HttpClient http, HttpRequest req, HttpResponse res, string url)
     {
         using var forward = new HttpRequestMessage(HttpMethod.Get, url);
-        foreach (var h in req.Headers)
-        {
-            if (string.Equals(h.Key, "Host", StringComparison.OrdinalIgnoreCase)) continue;
-            if (string.Equals(h.Key, "Connection", StringComparison.OrdinalIgnoreCase)) continue;
-            if (string.Equals(h.Key, "Content-Length", StringComparison.OrdinalIgnoreCase)) continue;
-            try { forward.Headers.TryAddWithoutValidation(h.Key, h.Value.ToArray()); } catch {}
-        }
+        CopyRequestHeaders(req.Headers, forward.Headers, null);
+        using var fwd = await http.SendAsync(forward, HttpCompletionOption.ResponseContentRead);
+        await WriteResponseAsync(res, fwd);
+    }
+
+    public static async Task ForwardOptionsAsync(HttpClient http, HttpRequest req, HttpResponse res, string url)
+    {
+        using var forward = new HttpRequestMessage(HttpMethod.Options, url);
+        CopyRequestHeaders(req.Headers, forward.Headers, null);
         using var fwd = await http.SendAsync(forward, HttpCompletionOption.ResponseContentRead);
         await WriteResponseAsync(res, fwd);
     }
@@ -183,23 +200,46 @@ static class Proxy
     private static async Task WriteResponseAsync(HttpResponse res, HttpResponseMessage fwd)
     {
         res.StatusCode = (int)fwd.StatusCode;
-        if (fwd.Headers.ETag != null) res.Headers["ETag"] = fwd.Headers.ETag.ToString();
-        if (fwd.Headers.RetryAfter != null) res.Headers["Retry-After"] = fwd.Headers.RetryAfter.ToString();
+        foreach (var h in fwd.Headers)
+        {
+            if (string.Equals(h.Key, "Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.Equals(h.Key, "Connection", StringComparison.OrdinalIgnoreCase)) continue;
+            res.Headers[h.Key] = h.Value.ToArray();
+        }
+        foreach (var h in fwd.Content.Headers)
+        {
+            if (string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.Equals(h.Key, "Content-Length", StringComparison.OrdinalIgnoreCase)) continue;
+            res.Headers[h.Key] = h.Value.ToArray();
+        }
         res.ContentType = fwd.Content.Headers.ContentType?.ToString() ?? "application/json; charset=utf-8";
         var text = await fwd.Content.ReadAsStringAsync();
         await res.WriteAsync(text);
     }
 
-    private static void CopyHeaders(IHeaderDictionary src, System.Net.Http.Headers.HttpContentHeaders dst)
+    private static void CopyRequestHeaders(
+        IHeaderDictionary src,
+        System.Net.Http.Headers.HttpRequestHeaders reqHeaders,
+        System.Net.Http.Headers.HttpContentHeaders? contentHeaders)
     {
         foreach (var h in src)
         {
             var key = h.Key;
-            if (string.Equals(key, "Content-Type", StringComparison.OrdinalIgnoreCase)) continue;
             if (string.Equals(key, "Host", StringComparison.OrdinalIgnoreCase)) continue;
             if (string.Equals(key, "Content-Length", StringComparison.OrdinalIgnoreCase)) continue;
             if (string.Equals(key, "Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) continue;
-            try { dst.TryAddWithoutValidation(key, h.Value.ToArray()); } catch {}
+            if (string.Equals(key, "Connection", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (string.Equals(key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+            {
+                if (contentHeaders != null)
+                {
+                    try { contentHeaders.TryAddWithoutValidation(key, h.Value.ToArray()); } catch { }
+                }
+                continue;
+            }
+
+            try { reqHeaders.TryAddWithoutValidation(key, h.Value.ToArray()); } catch { }
         }
     }
 }

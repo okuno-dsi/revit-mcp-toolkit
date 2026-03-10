@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Name>Smart Open (Rich)</Name>
+    <Assembly>SmartOpen\SmartOpen.dll</Assembly>
+    <AddInId>8D83C886-B739-4ACD-A9DB-2B4F7A49631B</AddInId>
+    <FullClassName>SmartOpen.Command</FullClassName>
+    <VendorId>OCN</VendorId>
+    <VendorDescription>Smart Open Rich for Revit</VendorDescription>
+    <Text>Smart Open (Rich)</Text>
+  </AddIn>
+  
+</RevitAddIns>

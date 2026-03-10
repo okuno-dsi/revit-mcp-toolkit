@@ -10,6 +10,7 @@ public partial class SettingsWindow : Window
     public string ModelText => (ModelComboBox.Text ?? string.Empty).Trim();
     public string ReasoningEffortText => (ReasoningComboBox.Text ?? string.Empty).Trim();
     public string ProfileText => (ProfileComboBox.Text ?? string.Empty).Trim();
+    public string ExecutionModeText => (ExecutionModeComboBox.Text ?? string.Empty).Trim();
     public string BgColorHex => (BgColorTextBox.Text ?? string.Empty).Trim();
     public string FgColorHex => (FgColorTextBox.Text ?? string.Empty).Trim();
     public bool RequestStatusSend { get; private set; }
@@ -19,9 +20,11 @@ public partial class SettingsWindow : Window
         IEnumerable<string> modelChoices,
         IEnumerable<string> reasoningChoices,
         IEnumerable<string> profileChoices,
+        IEnumerable<string> executionModeChoices,
         string modelText,
         string reasoningText,
         string profileText,
+        string executionModeText,
         string bgColorHex,
         string fgColorHex,
         string sessionId)
@@ -31,10 +34,12 @@ public partial class SettingsWindow : Window
         ModelComboBox.ItemsSource = NormalizeChoices(modelChoices);
         ReasoningComboBox.ItemsSource = NormalizeChoices(reasoningChoices);
         ProfileComboBox.ItemsSource = NormalizeChoices(profileChoices);
+        ExecutionModeComboBox.ItemsSource = NormalizeChoices(executionModeChoices);
 
         ModelComboBox.Text = modelText ?? string.Empty;
         ReasoningComboBox.Text = reasoningText ?? string.Empty;
         ProfileComboBox.Text = profileText ?? string.Empty;
+        ExecutionModeComboBox.Text = executionModeText ?? string.Empty;
         BgColorTextBox.Text = bgColorHex ?? string.Empty;
         FgColorTextBox.Text = fgColorHex ?? string.Empty;
         SessionIdTextBox.Text = string.IsNullOrWhiteSpace(sessionId) ? "未取得" : sessionId;
@@ -74,6 +79,11 @@ public partial class SettingsWindow : Window
     private void ProfileDefaultButton_OnClick(object sender, RoutedEventArgs e)
     {
         ProfileComboBox.Text = string.Empty;
+    }
+
+    private void ExecutionModeDefaultButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        ExecutionModeComboBox.Text = string.Empty;
     }
 
     private void ShowSessionIdButton_OnClick(object sender, RoutedEventArgs e)

@@ -265,31 +265,71 @@ namespace RevitMCPAddin.Commands.Area
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
             var doc = uiapp.ActiveUIDocument.Document;
-            var p = (JObject)cmd.Params;
+            var p = (JObject)cmd.Params ?? new JObject();
             bool refreshView = p.Value<bool?>("refreshView") ?? false;
 
-            var idsArr = p["areaIds"] as JArray;
+            // Accept areaIds / elementIds / items for compatibility.
+            var idsArr =
+                (p["areaIds"] as JArray) ??
+                (p["elementIds"] as JArray) ??
+                (p["items"] as JArray);
+
             if (idsArr != null && idsArr.Count > 0)
             {
                 int startIndex = Math.Max(0, p.Value<int?>("startIndex") ?? 0);
                 int batchSize = Math.Max(1, p.Value<int?>("batchSize") ?? 50);
                 int maxMillis = Math.Max(0, p.Value<int?>("maxMillisPerTx") ?? 100);
                 var sw = Stopwatch.StartNew();
-                int processed = 0; int nextIndex = startIndex;
-                using (var tx = new Transaction(doc, "Move Areas (batch)"))
+                int processed = 0;
+                int nextIndex = startIndex;
+                int deleted = 0;
+                int skippedNotFound = 0;
+                int skippedNotArea = 0;
+
+                using (var tx = new Transaction(doc, "Delete Area(s) (batch)"))
                 {
                     tx.Start();
+                    TxnUtil.ConfigureProceedWithWarnings(tx);
                     for (int i = startIndex; i < idsArr.Count; i++)
                     {
-                        var it = idsArr[i] as JObject ?? new JObject();
-                        var areaEl = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(it.Value<int>("areaId"))) as ArchArea;
+                        int id;
+                        var token = idsArr[i];
+                        if (token.Type == JTokenType.Object)
+                        {
+                            var it = (JObject)token;
+                            id = it.Value<int?>("areaId")
+                                 ?? it.Value<int?>("elementId")
+                                 ?? 0;
+                        }
+                        else
+                        {
+                            id = token.Value<int>();
+                        }
+
+                        if (id <= 0)
+                        {
+                            skippedNotFound++;
+                            processed++;
+                            nextIndex = i + 1;
+                            if (processed >= batchSize) break;
+                            if (maxMillis > 0 && sw.ElapsedMilliseconds >= maxMillis) break;
+                            continue;
+                        }
+
+                        var e = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(id));
+                        var areaEl = e as ArchArea;
                         if (areaEl != null)
                         {
-                            var dxFt = UnitHelper.MmToFt(it.Value<double>("dx"));
-                            var dyFt = UnitHelper.MmToFt(it.Value<double>("dy"));
-                            var dzFt = UnitHelper.MmToFt(it.Value<double>("dz"));
-                            try { ElementTransformUtils.MoveElement(doc, areaEl.Id, new XYZ(dxFt, dyFt, dzFt)); } catch { }
+                            try
+                            {
+                                doc.Delete(areaEl.Id);
+                                deleted++;
+                            }
+                            catch { /* ignore per-item failure */ }
                         }
+                        else if (e == null) skippedNotFound++;
+                        else skippedNotArea++;
+
                         processed++; nextIndex = i + 1;
                         if (processed >= batchSize) break;
                         if (maxMillis > 0 && sw.ElapsedMilliseconds >= maxMillis) break;
@@ -298,18 +338,42 @@ namespace RevitMCPAddin.Commands.Area
                 }
                 if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
                 bool completed = nextIndex >= idsArr.Count;
-                return new { ok = true, countDeleted = processed, completed, nextIndex = completed ? (int?)null : nextIndex };
+                return new
+                {
+                    ok = true,
+                    requested = idsArr.Count,
+                    deleted,
+                    skippedNotFound,
+                    skippedNotArea,
+                    processed,
+                    completed,
+                    nextIndex = completed ? (int?)null : nextIndex
+                };
             }
 
-            int id = p.Value<int>("areaId");
+            int idSingle =
+                p.Value<int?>("areaId")
+                ?? p.Value<int?>("elementId")
+                ?? 0;
+            if (idSingle <= 0) return new { ok = false, msg = "areaId (or elementId) is required." };
+
+            var eSingle = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(idSingle));
+            var areaSingle = eSingle as ArchArea;
+            if (areaSingle == null)
+            {
+                if (eSingle == null) return new { ok = false, msg = $"Area not found: {idSingle}" };
+                return new { ok = false, msg = $"Element is not Area: {idSingle}" };
+            }
+
             using (var tx = new Transaction(doc, "Delete Area"))
             {
                 tx.Start();
-                doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(id));
+                TxnUtil.ConfigureProceedWithWarnings(tx);
+                doc.Delete(areaSingle.Id);
                 tx.Commit();
             }
             if (refreshView) { try { uiapp?.ActiveUIDocument?.RefreshActiveView(); } catch { } }
-            return new { ok = true };
+            return new { ok = true, deleted = 1, areaId = idSingle };
         }
     }
 

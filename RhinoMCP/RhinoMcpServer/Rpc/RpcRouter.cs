@@ -5,6 +5,26 @@ namespace RhinoMcpServer.Rpc
 {
     public static class RpcRouter
     {
+        public static IReadOnlyList<string> ListMethods() => _methods;
+
+        private static readonly string[] _methods = new[]
+        {
+            "rhino_import_snapshot",
+            "rhino_get_selection",
+            "rhino_commit_transform",
+            "rhino_lock_objects",
+            "rhino_unlock_objects",
+            "rhino_refresh_from_revit",
+            "rhino_import_by_ids",
+            "import_3dm",
+            "list_revit_objects",
+            "find_by_element",
+            "collect_boxes",
+            "convert_3dm_version",
+            "inspect_3dm",
+            "merge_3dm_files"
+        };
+
         public static Task<object> RouteAsync(string method, JObject p)
         {
             return method switch

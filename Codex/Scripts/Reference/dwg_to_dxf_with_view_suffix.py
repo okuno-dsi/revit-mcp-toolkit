@@ -12,7 +12,7 @@
 
 使い方の例:
 
-    cd %USERPROFILE%\\Documents\\Revit_MCP\\Codex
+    cd %USERPROFILE%/Documents/VS2022/Ver551/Codex
     python Scripts/Reference/dwg_to_dxf_with_view_suffix.py ^
         --input-dir Projects/DWG_4F_Walls ^
         --pattern *.dwg ^
@@ -267,9 +267,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
 
 
 

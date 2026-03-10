@@ -2,9 +2,16 @@
 
 This folder is the curated entry point for Revit MCP work: guides, commands, helper scripts, and logs.
 
+Naming note:
+- `Revit MCP` is the product name used in this repository.
+- `Model Context Protocol` is the standard protocol exposed at `/mcp`.
+- Legacy `/rpc` and `/job/{id}` endpoints remain available for backward compatibility.
+- Current MCP compatibility methods: `resources/list|read`, `prompts/list|get`, `logging/setLevel`, `notifications/cancelled`.
+- Not exposed in current profile: `/sse`, `/messages`, `/swagger` (use `/docs/openapi.json` or `/docs/openrpc.json`).
+
 ## Ready-to-Start (Start Here)
 - Read: `START_HERE.md` at repo root for the shortest path to begin.
-- Quickstart: `Manuals/ConnectionGuide/QUICKSTART.md` (port check, ping, bootstrap).
+- Quickstart: `Manuals/ConnectionGuide/QUICKSTART.md` (MCP initialize, tools/list, tools/call, plus legacy RPC fallback).
 - Work rules: `WORK_RULES.md` (use `Projects/<ProjectName>_<ProjectID>/` for per‑project work).
 - Helper scripts (PowerShell):
   - `Scripts/Reference/test_connection.ps1` — connectivity + bootstrap

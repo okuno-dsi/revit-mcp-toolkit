@@ -82,7 +82,7 @@
 ---
 
 ## クレジット
-- Created by **RevitMCP Contributors** (2025)
+- Created by the **RevitMCP contributors** and **GPT series** (2025)
 
 ---
 

@@ -18,6 +18,7 @@ using RevitMcpServer.Infra; // Logging
 using RevitMcpServer.Persistence; // SqliteConnectionFactory
 using RevitMcpServer.Chat; // ChatStore
 using RevitMcpServer.Capture; // CaptureService
+using RevitMcpServer.Mcp; // MCP adapter
 
 // ----------------------------- Bootstrap -----------------------------
 var builder = WebApplication.CreateBuilder(args);
@@ -48,6 +49,7 @@ builder.Services.AddSingleton<JobIndex>();
 builder.Services.AddSingleton<ChatRootState>();
 builder.Services.AddSingleton<ChatStore>();
 builder.Services.AddSingleton<CaptureService>();
+builder.Services.AddSingleton<McpSessionStore>();
 
 var app = builder.Build();
 
@@ -73,7 +75,7 @@ try { RevitMcpServer.Docs.ManifestRegistry.LoadFromDisk(); } catch { }
 try { RevitMcpServer.Docs.CapabilitiesGenerator.TryWriteDefault(RevitMcpServer.Docs.ManifestRegistry.GetAll()); } catch { }
 
 // ----------------------------- Root -----------------------------
-app.MapGet("/", () => Results.Json(new { ok = true, port = chosenPort, message = "Revit MCP Server (SSR disabled)" }));
+app.MapGet("/", () => Results.Json(new { ok = true, port = chosenPort, message = "Revit Automation Server (legacy RPC + MCP)", mcpEndpoint = "/mcp", legacyRpcEndpoint = "/rpc" }));
 
 // ----------------------------- Health -----------------------------
 app.MapGet("/health", () => Results.Json(new { ok = true, port = chosenPort, time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }));
@@ -253,8 +255,170 @@ app.MapGet("/docs/commands.md", () =>
     }
 });
 
-// ----------------------------- JSON-RPC Bridge -----------------------------
+
 var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull };
+
+// ----------------------------- MCP Streamable HTTP -----------------------------
+app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
+{
+    ctx.Response.Headers["Allow"] = "POST, OPTIONS";
+    ctx.Response.Headers[McpAdapter.ProtocolHeader] = McpAdapter.DefaultProtocolVersion;
+    return Results.NoContent();
+});
+
+app.MapPost("/mcp", async (HttpContext ctx, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture, McpSessionStore sessions) =>
+{
+    var request = await ReadMcpRequestAsync(ctx.Request);
+    if (request.ErrorResult != null)
+        return Results.Json(request.ErrorResult, jsonOpts, statusCode: 400);
+
+    var sessionId = ctx.Request.Headers[McpAdapter.SessionHeader].ToString();
+    var protocolVersion = request.ProtocolVersion ?? McpAdapter.DefaultProtocolVersion;
+    var method = request.Method ?? string.Empty;
+    var id = request.Id;
+
+    if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
+    {
+        var session = sessions.Create(protocolVersion);
+        ctx.Response.Headers[McpAdapter.SessionHeader] = session.SessionId;
+        ctx.Response.Headers[McpAdapter.ProtocolHeader] = session.ProtocolVersion;
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, McpAdapter.CreateInitializeResult(session.ProtocolVersion)), jsonOpts);
+    }
+
+    if (!sessions.TryGet(sessionId, out var sessionState))
+    {
+        var error = McpAdapter.CreateJsonRpcError(id, -32001, "Missing or invalid MCP session. Call initialize first.");
+        return Results.Json(error, jsonOpts, statusCode: 400);
+    }
+
+    ctx.Response.Headers[McpAdapter.SessionHeader] = sessionState.SessionId;
+    ctx.Response.Headers[McpAdapter.ProtocolHeader] = sessionState.ProtocolVersion;
+
+    if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
+    {
+        sessions.MarkInitialized(sessionState.SessionId);
+        return Results.NoContent();
+    }
+
+    if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { }), jsonOpts);
+
+    if (!sessionState.IsInitialized)
+    {
+        var error = McpAdapter.CreateJsonRpcError(id, -32002, "Session not initialized. Send notifications/initialized after initialize.");
+        return Results.Json(error, jsonOpts, statusCode: 400);
+    }
+
+    if (string.Equals(method, "resources/list", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { resources = Array.Empty<object>() }), jsonOpts);
+    }
+
+    if (string.Equals(method, "resources/read", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = ExtractStringProperty(request.Params, "uri");
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            var error = McpAdapter.CreateJsonRpcError(id, -32602, "resources/read requires params.uri.");
+            return Results.Json(error, jsonOpts, statusCode: 400);
+        }
+
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { contents = Array.Empty<object>() }), jsonOpts);
+    }
+
+    if (string.Equals(method, "prompts/list", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { prompts = Array.Empty<object>() }), jsonOpts);
+    }
+
+    if (string.Equals(method, "prompts/get", StringComparison.OrdinalIgnoreCase))
+    {
+        var name = ExtractStringProperty(request.Params, "name");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            var error = McpAdapter.CreateJsonRpcError(id, -32602, "prompts/get requires params.name.");
+            return Results.Json(error, jsonOpts, statusCode: 400);
+        }
+
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new
+        {
+            description = $"Prompt '{name}' is not registered on this server.",
+            messages = Array.Empty<object>()
+        }), jsonOpts);
+    }
+
+    if (string.Equals(method, "logging/setLevel", StringComparison.OrdinalIgnoreCase))
+    {
+        var level = ExtractStringProperty(request.Params, "level") ?? "info";
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { accepted = true, level }), jsonOpts);
+    }
+
+    if (string.Equals(method, "tools/list", StringComparison.OrdinalIgnoreCase))
+    {
+        var tools = McpToolCatalog.Build(docsRouter ?? new RevitMCP.Abstractions.Rpc.RpcRouter(), RevitMcpServer.Docs.ManifestRegistry.GetAll())
+            .Select(x => new { name = x.Name, description = x.Description, inputSchema = x.InputSchema })
+            .ToList();
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, new { tools }), jsonOpts);
+    }
+
+    if (string.Equals(method, "tools/call", StringComparison.OrdinalIgnoreCase))
+    {
+        var toolName = ExtractStringProperty(request.Params, "name");
+        if (string.IsNullOrWhiteSpace(toolName))
+        {
+            var error = McpAdapter.CreateJsonRpcError(id, -32602, "tools/call requires params.name.");
+            return Results.Json(error, jsonOpts, statusCode: 400);
+        }
+
+        JsonElement? toolArgs = null;
+        if (request.Params.HasValue && request.Params.Value.ValueKind == JsonValueKind.Object
+            && request.Params.Value.TryGetProperty("arguments", out var argsEl)
+            && argsEl.ValueKind == JsonValueKind.Object)
+        {
+            toolArgs = argsEl.Clone();
+        }
+
+        JsonNode? payload;
+        bool isError;
+
+        if (IsRevitStatusMethod(toolName))
+        {
+            payload = SerializeToJsonNode(await BuildRevitStatusAsync(durable, serverStartedUtc));
+            isError = IsToolPayloadError(payload);
+        }
+        else if (chat.IsChatMethod(toolName))
+        {
+            payload = SerializeToJsonNode(await chat.ExecuteAsync(toolName, toolArgs));
+            isError = IsToolPayloadError(payload);
+        }
+        else if (capture.IsCaptureMethod(toolName))
+        {
+            payload = SerializeToJsonNode(await capture.ExecuteAsync(toolName, toolArgs));
+            isError = IsToolPayloadError(payload);
+        }
+        else
+        {
+            var rpcId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id!;
+            var paramsJson = (toolArgs.HasValue && toolArgs.Value.ValueKind != JsonValueKind.Undefined) ? toolArgs.Value.ToString() : "{}";
+            var jobId = await durable.EnqueueAsync(toolName, paramsJson, null, rpcId, 100, 60);
+            index.Put(rpcId, jobId);
+            var awaited = await AwaitMcpJobAsync(durable, jobId, TimeSpan.FromSeconds(65));
+            payload = awaited.Payload;
+            isError = awaited.IsError;
+        }
+
+        return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, McpAdapter.CreateToolCallResult(payload, isError)), jsonOpts);
+    }
+
+    if (string.Equals(method, "notifications/cancelled", StringComparison.OrdinalIgnoreCase))
+        return Results.NoContent();
+
+    if (method.StartsWith("notifications/", StringComparison.OrdinalIgnoreCase))
+        return Results.NoContent();
+
+    return Results.Json(McpAdapter.CreateJsonRpcError(id, -32601, $"Method '{method}' not found."), jsonOpts, statusCode: 404);
+});
+// ----------------------------- JSON-RPC Bridge -----------------------------
 
 // Enqueue via /rpc/{method}
 app.MapPost("/rpc/{method}", async (HttpContext ctx, string method, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture) =>
@@ -561,6 +725,124 @@ catch { /* best-effort */ }
 
 app.Run();
 
+static async Task<(string? Id, string Method, JsonElement? Params, string? ProtocolVersion, object? ErrorResult)> ReadMcpRequestAsync(HttpRequest request)
+{
+    string body;
+    using (var reader = new StreamReader(request.Body, Encoding.UTF8))
+        body = await reader.ReadToEndAsync();
+
+    if (string.IsNullOrWhiteSpace(body))
+        return (null, string.Empty, null, null, McpAdapter.CreateJsonRpcError(null, -32700, "Request body is required."));
+
+    try
+    {
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            return (null, string.Empty, null, null, McpAdapter.CreateJsonRpcError(null, -32600, "JSON-RPC request object is required."));
+
+        string? id = null;
+        string method = string.Empty;
+        JsonElement? prm = null;
+        string? protocolVersion = request.Headers[McpAdapter.ProtocolHeader].ToString();
+
+        if (root.TryGetProperty("id", out var idEl)) id = idEl.ToString();
+        if (root.TryGetProperty("method", out var methodEl) && methodEl.ValueKind == JsonValueKind.String) method = methodEl.GetString() ?? string.Empty;
+        if (root.TryGetProperty("params", out var paramsEl)) prm = paramsEl.Clone();
+        if (string.IsNullOrWhiteSpace(protocolVersion)) protocolVersion = ExtractStringProperty(prm, "protocolVersion");
+
+        if (string.IsNullOrWhiteSpace(method))
+            return (id, string.Empty, prm, protocolVersion, McpAdapter.CreateJsonRpcError(id, -32600, "JSON-RPC method is required."));
+
+        return (id, method, prm, protocolVersion, null);
+    }
+    catch (Exception ex)
+    {
+        return (null, string.Empty, null, null, McpAdapter.CreateJsonRpcError(null, -32700, "Invalid JSON.", new { detail = ex.Message }));
+    }
+}
+
+static string? ExtractStringProperty(JsonElement? element, string propertyName)
+{
+    if (!element.HasValue || element.Value.ValueKind != JsonValueKind.Object)
+        return null;
+
+    if (!element.Value.TryGetProperty(propertyName, out var prop) || prop.ValueKind != JsonValueKind.String)
+        return null;
+
+    return prop.GetString();
+}
+
+static JsonNode? SerializeToJsonNode(object? value)
+{
+    if (value == null)
+        return null;
+
+    try
+    {
+        return JsonSerializer.SerializeToNode(value, value.GetType(), new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+    }
+    catch
+    {
+        return JsonValue.Create(value.ToString());
+    }
+}
+
+static bool IsToolPayloadError(JsonNode? payload)
+{
+    if (payload is not JsonObject obj)
+        return false;
+
+    if (obj["ok"] is JsonValue okValue)
+    {
+        try { return !okValue.GetValue<bool>(); } catch { }
+    }
+
+    return obj["error"] != null;
+}
+
+static async Task<(JsonNode? Payload, bool IsError)> AwaitMcpJobAsync(DurableQueue durable, string jobId, TimeSpan timeout)
+{
+    var deadline = DateTimeOffset.UtcNow.Add(timeout);
+
+    while (DateTimeOffset.UtcNow < deadline)
+    {
+        var row = await durable.GetAsync(jobId);
+        if (row is IDictionary<string, object?> dict)
+        {
+            var state = Convert.ToString(dict.TryGetValue("state", out var stateObj) ? stateObj : null) ?? string.Empty;
+            if (string.Equals(state, "SUCCEEDED", StringComparison.OrdinalIgnoreCase))
+            {
+                var resultJson = Convert.ToString(dict.TryGetValue("result_json", out var resultObj) ? resultObj : null);
+                var payload = McpAdapter.UnwrapRpcResult(resultJson) ?? SerializeToJsonNode(new { ok = true, jobId });
+                return (payload, IsToolPayloadError(payload));
+            }
+
+            if (string.Equals(state, "FAILED", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(state, "TIMEOUT", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(state, "DEAD", StringComparison.OrdinalIgnoreCase))
+            {
+                var payload = SerializeToJsonNode(new
+                {
+                    ok = false,
+                    jobId,
+                    state,
+                    errorCode = Convert.ToString(dict.TryGetValue("error_code", out var codeObj) ? codeObj : null),
+                    errorMessage = Convert.ToString(dict.TryGetValue("error_msg", out var msgObj) ? msgObj : null)
+                });
+                return (payload, true);
+            }
+        }
+
+        await Task.Delay(250);
+    }
+
+    return (SerializeToJsonNode(new { ok = false, jobId, state = "TIMEOUT", errorMessage = "Timed out waiting for MCP tool call result." }), true);
+}
 // ----------------------------- Helpers -----------------------------
 static JsonNode SafeParseOrEmpty(string? json)
 {

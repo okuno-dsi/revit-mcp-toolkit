@@ -61,11 +61,85 @@ namespace RevitMCPAddin.UI.PythonRunner
             public string? lastScript { get; set; }
         }
 
+        private sealed class ArgsProfileConfig
+        {
+            public Dictionary<string, Dictionary<string, string>> scripts { get; set; } = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        }
+
         public static string GetConfigPath()
         {
             var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP");
             Directory.CreateDirectory(baseDir);
             return Path.Combine(baseDir, "python_runner_paths.json");
+        }
+
+        public static string GetArgsProfilePath()
+        {
+            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP");
+            Directory.CreateDirectory(baseDir);
+            return Path.Combine(baseDir, "python_runner_args_profiles.json");
+        }
+
+        public static Dictionary<string, string> LoadArgsProfile(string scriptKey)
+        {
+            if (string.IsNullOrWhiteSpace(scriptKey)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var path = GetArgsProfilePath();
+                if (!File.Exists(path)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var json = File.ReadAllText(path, Encoding.UTF8);
+                if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var cfg = JsonConvert.DeserializeObject<ArgsProfileConfig>(json);
+                if (cfg?.scripts == null) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (!cfg.scripts.TryGetValue(scriptKey, out var row) || row == null)
+                    return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, string>(row, StringComparer.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        public static void SaveArgsProfile(string scriptKey, IDictionary<string, string> values)
+        {
+            if (string.IsNullOrWhiteSpace(scriptKey)) return;
+            try
+            {
+                var path = GetArgsProfilePath();
+                ArgsProfileConfig cfg;
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        cfg = JsonConvert.DeserializeObject<ArgsProfileConfig>(File.ReadAllText(path, Encoding.UTF8)) ?? new ArgsProfileConfig();
+                    }
+                    catch
+                    {
+                        cfg = new ArgsProfileConfig();
+                    }
+                }
+                else
+                {
+                    cfg = new ArgsProfileConfig();
+                }
+
+                var clean = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (values != null)
+                {
+                    foreach (var kv in values)
+                    {
+                        if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                        clean[kv.Key.Trim()] = kv.Value ?? string.Empty;
+                    }
+                }
+                cfg.scripts[scriptKey] = clean;
+                File.WriteAllText(path, JsonConvert.SerializeObject(cfg, Formatting.Indented), Encoding.UTF8);
+            }
+            catch
+            {
+                // ignore
+            }
         }
 
         public static List<string> LoadUserRoots()

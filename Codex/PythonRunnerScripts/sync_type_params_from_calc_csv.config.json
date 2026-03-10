@@ -1,0 +1,447 @@
+{
+  "version": 1,
+  "description": "level+symbol で電算CSVをRevitタイプ属性へ差分同期する設定",
+  "conflictPolicy": "skip",
+  "kinds": {
+    "columns": {
+      "enabled": true,
+      "label": "構造柱",
+      "placementSections": [
+        "柱配置"
+      ],
+      "placementLevelKey": "階",
+      "placementSymbolKey": "符号",
+      "sectionCandidates": [
+        "RC柱断面",
+        "S柱断面",
+        "SRC柱断面"
+      ],
+      "sectionLevelKey": "階",
+      "sectionSymbolKey": "柱符号",
+      "listTypesCommand": "get_structural_column_types",
+      "updateCommand": "update_structural_column_type_parameter",
+      "symbolParamCandidates": [
+        "符号",
+        "タイプ名",
+        "typeName"
+      ],
+      "paramMap": [
+        {
+          "revit": "符号",
+          "csv": [
+            "柱符号"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "断面形状",
+          "csv": [
+            "コンクリート_形状"
+          ],
+          "converter": "shape_rc_column"
+        },
+        {
+          "revit": "B",
+          "csv": [
+            "コンクリート_Dx"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "D",
+          "csv": [
+            "コンクリート_Dy"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "柱頭主筋X1段筋太径本数",
+          "csv": [
+            "主筋本数_柱頭X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱頭主筋Y1段筋太径本数",
+          "csv": [
+            "主筋本数_柱頭Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚主筋X1段筋太径本数",
+          "csv": [
+            "主筋本数_柱脚X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚主筋Y1段筋太径本数",
+          "csv": [
+            "主筋本数_柱脚Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱頭主筋太径",
+          "csv": [
+            "主筋径_柱頭X",
+            "主筋径_柱頭Y"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱脚主筋太径",
+          "csv": [
+            "主筋径_柱脚X",
+            "主筋径_柱脚Y"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱頭主筋太径種別",
+          "csv": [
+            "主筋材料_柱頭X",
+            "主筋材料_柱頭Y"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "柱脚主筋太径種別",
+          "csv": [
+            "主筋材料_柱脚X",
+            "主筋材料_柱脚Y"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "柱頭芯鉄筋X太径本数",
+          "csv": [
+            "芯鉄筋本数_柱頭X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱頭芯鉄筋Y太径本数",
+          "csv": [
+            "芯鉄筋本数_柱頭Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚芯鉄筋X太径本数",
+          "csv": [
+            "芯鉄筋本数_柱脚X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚芯鉄筋Y太径本数",
+          "csv": [
+            "芯鉄筋本数_柱脚Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱頭芯鉄筋太径",
+          "csv": [
+            "芯鉄筋径_柱頭X",
+            "芯鉄筋径_柱頭Y"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱脚芯鉄筋太径",
+          "csv": [
+            "芯鉄筋径_柱脚X",
+            "芯鉄筋径_柱脚Y"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱頭芯鉄筋太径種別",
+          "csv": [
+            "芯鉄筋材料_柱頭X"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "柱脚芯鉄筋太径種別",
+          "csv": [
+            "芯鉄筋材料_柱脚X"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "柱頭芯鉄筋X方向かぶり厚",
+          "csv": [
+            "芯鉄筋位置_柱頭X"
+          ],
+          "converter": "nonneg_num"
+        },
+        {
+          "revit": "柱頭芯鉄筋Y方向かぶり厚",
+          "csv": [
+            "芯鉄筋位置_柱頭Y"
+          ],
+          "converter": "nonneg_num"
+        },
+        {
+          "revit": "柱脚芯鉄筋X方向かぶり厚",
+          "csv": [
+            "芯鉄筋位置_柱脚X"
+          ],
+          "converter": "nonneg_num"
+        },
+        {
+          "revit": "柱脚芯鉄筋Y方向かぶり厚",
+          "csv": [
+            "芯鉄筋位置_柱脚Y"
+          ],
+          "converter": "nonneg_num"
+        },
+        {
+          "revit": "柱頭フープX本数",
+          "csv": [
+            "帯筋本数_X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚フープX本数",
+          "csv": [
+            "帯筋本数_X"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱頭フープY本数",
+          "csv": [
+            "帯筋本数_Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚フープY本数",
+          "csv": [
+            "帯筋本数_Y"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "柱脚フープ径",
+          "csv": [
+            "帯筋径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱脚フープピッチ",
+          "csv": [
+            "帯筋ピッチ"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "柱頭フープ径",
+          "csv": [
+            "帯筋径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "柱頭フープピッチ",
+          "csv": [
+            "帯筋ピッチ"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "柱頭フープ種別",
+          "csv": [
+            "帯筋材料"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "柱脚フープ種別",
+          "csv": [
+            "帯筋材料"
+          ],
+          "converter": "str"
+        }
+      ]
+    },
+    "frames": {
+      "enabled": true,
+      "label": "構造フレーム",
+      "placementSections": [
+        "大梁配置",
+        "小梁配置"
+      ],
+      "placementLevelKey": "層",
+      "placementSymbolKey": "符号",
+      "sectionCandidates": [
+        "RC梁断面",
+        "S梁断面",
+        "SRC梁断面",
+        "RC小梁断面",
+        "S小梁断面"
+      ],
+      "sectionLevelKey": "層",
+      "sectionSymbolKey": "梁符号",
+      "listTypesCommand": "get_structural_frame_types",
+      "updateCommand": "update_structural_frame_type_parameter",
+      "symbolParamCandidates": [
+        "符号",
+        "タイプ名",
+        "typeName"
+      ],
+      "paramMap": [
+        {
+          "revit": "符号",
+          "csv": [
+            "梁符号"
+          ],
+          "converter": "str"
+        },
+        {
+          "revit": "B",
+          "csv": [
+            "コンクリート_中央b",
+            "b"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "D",
+          "csv": [
+            "コンクリート_中央D",
+            "D"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "始点側上端1段筋太径本数",
+          "csv": [
+            "主筋本数_左上",
+            "主筋上端_左端_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "中央上端1段筋太径本数",
+          "csv": [
+            "主筋本数_中央上",
+            "主筋上端_中央_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "終点側上端1段筋太径本数",
+          "csv": [
+            "主筋本数_右上",
+            "主筋上端_右端_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "始点側下端1段筋太径本数",
+          "csv": [
+            "主筋本数_左下",
+            "主筋下端_左端_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "中央下端1段筋太径本数",
+          "csv": [
+            "主筋本数_中央下",
+            "主筋下端_中央_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "終点側下端1段筋太径本数",
+          "csv": [
+            "主筋本数_右下",
+            "主筋下端_右端_本数"
+          ],
+          "converter": "count"
+        },
+        {
+          "revit": "始点側主筋太径",
+          "csv": [
+            "主筋径_左上",
+            "主筋上端_左端_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "中央主筋太径",
+          "csv": [
+            "主筋径_中央上",
+            "主筋上端_中央_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "終点側主筋太径",
+          "csv": [
+            "主筋径_右上",
+            "主筋上端_右端_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "始点側あばら筋径",
+          "csv": [
+            "あばら筋左端_径",
+            "あばら筋_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "中央あばら筋径",
+          "csv": [
+            "あばら筋中央_径",
+            "あばら筋_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "終点側あばら筋径",
+          "csv": [
+            "あばら筋右端_径",
+            "あばら筋_径"
+          ],
+          "converter": "bar_dia"
+        },
+        {
+          "revit": "始点側あばら筋ピッチ",
+          "csv": [
+            "あばら筋左端_ピッチ",
+            "あばら筋_ピッチ"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "中央あばら筋ピッチ",
+          "csv": [
+            "あばら筋中央_ピッチ",
+            "あばら筋_ピッチ"
+          ],
+          "converter": "num"
+        },
+        {
+          "revit": "終点側あばら筋ピッチ",
+          "csv": [
+            "あばら筋右端_ピッチ",
+            "あばら筋_ピッチ"
+          ],
+          "converter": "num"
+        }
+      ]
+    }
+  }
+}

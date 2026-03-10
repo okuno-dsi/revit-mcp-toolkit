@@ -1,4 +1,4 @@
-// ================================================================
+﻿// ================================================================
 // Command: import_rebar_types_from_document
 // Purpose: Import RebarBarType / RebarHookType (and optionally RebarShape)
 //          from a source .rvt/.rte into the active document.
@@ -105,8 +105,7 @@ namespace RevitMCPAddin.Commands.Rebar
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2024\Templates\Default_M_ENG.rte");
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2023\Templates\Default_M_JPN.rte");
                 candidates.Add(@"C:\ProgramData\Autodesk\RVT 2023\Templates\Default_M_ENU.rte");
-                var userDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                candidates.Add(Path.Combine(userDocs, "Revit_MCP", "Templates", "CustomRebarTemplate.rte"));
+                candidates.Add(@"C:\Users\<user>\Documents\意匠テンプレートVER2024_rev1.15.rte");
             }
 
             var tried = new JArray();
@@ -301,3 +300,4 @@ namespace RevitMCPAddin.Commands.Rebar
         }
     }
 }
+

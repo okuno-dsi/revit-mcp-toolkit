@@ -21,12 +21,62 @@
 """
 
 import os
+import re
 import json
 import time
 import math
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+try:
+    import requests  # type: ignore
+except Exception:
+    import urllib.request
+    import urllib.error
+
+    class _Resp:
+        def __init__(self, status_code: int, text: str, reason: str = ""):
+            self.status_code = status_code
+            self.text = text
+            self.reason = reason or ""
+
+        def json(self) -> Any:
+            return json.loads(self.text) if self.text else {}
+
+        def raise_for_status(self) -> None:
+            if int(self.status_code) >= 400:
+                raise RuntimeError(f"HTTP {self.status_code} {self.reason}: {self.text}")
+
+    class _RequestsCompat:
+        @staticmethod
+        def post(url: str, json: Optional[Dict[str, Any]] = None, timeout: float = 30) -> "_Resp":
+            payload = (json or {})
+            data = __import__("json").dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url=url,
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    raw = r.read().decode("utf-8", errors="replace")
+                    return _Resp(getattr(r, "status", 200), raw, getattr(r, "reason", ""))
+            except urllib.error.HTTPError as e:
+                raw = (e.read().decode("utf-8", errors="replace") if e.fp else str(e))
+                return _Resp(int(e.code), raw, str(e.reason))
+
+        @staticmethod
+        def get(url: str, timeout: float = 30) -> "_Resp":
+            req = urllib.request.Request(url=url, method="GET")
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    raw = r.read().decode("utf-8", errors="replace")
+                    return _Resp(getattr(r, "status", 200), raw, getattr(r, "reason", ""))
+            except urllib.error.HTTPError as e:
+                raw = (e.read().decode("utf-8", errors="replace") if e.fp else str(e))
+                return _Resp(int(e.code), raw, str(e.reason))
+
+    requests = _RequestsCompat()  # type: ignore
 
 
 # --------------------------
@@ -38,7 +88,8 @@ USE_ACTIVE_VIEW_IF_NOT_FOUND = True
 
 # 既存テンプレート名（空なら未適用）
 GRID_TEMPLATE_NAME = "通り心だけ"
-COLUMN_TEMPLATE_NAME = "構造柱ビュー"
+COLUMN_TEMPLATE_NAME = "柱芯線図用ビュー"
+COLUMN_VIEW_TYPE_NAME = "柱芯線図"
 
 # 柱ビュー設定
 COLUMN_MARGIN_MM = 100.0          # 柱外周 +100mm
@@ -46,6 +97,11 @@ COLUMN_SCALE = 100
 GRID_SCALE = 200
 GRID_HALF_LENGTH_MM = 1000.0      # 柱中心から±1000mm
 HIDE_GRID_BUBBLES = True
+PLACE_STRUCTURAL_COLUMN_TAG = True
+TAG_OFFSET_RIGHT_MM = 100.0
+TAG_OFFSET_UP_MM = 150.0
+TAG_ADD_LEADER = False
+PREFERRED_COLUMN_TAG_TYPE_NAME = "符号"
 
 # シート配置
 CREATE_SHEET = True
@@ -171,6 +227,40 @@ def get_active_view_context(rpc: RpcClient) -> Dict[str, Any]:
     }
 
 
+def sanitize_view_name_token(name: str) -> str:
+    s = str(name or "").strip()
+    if not s:
+        return "LEVEL"
+    s = re.sub(r"[\\/:{}\[\]\|;<>?`~\"]", "_", s)
+    s = re.sub(r"\s+", "_", s).strip("_")
+    return s or "LEVEL"
+
+
+def get_element_level_name(rpc: RpcClient, element_id: int) -> Optional[str]:
+    if int(element_id or 0) <= 0:
+        return None
+    try:
+        res = rpc.call_any(
+            ["element.get_element_info", "get_element_info"],
+            {"elementIds": [int(element_id)]},
+        )
+        rows = get_list(res, ["elements", "items", "rows"])
+        if not rows:
+            return None
+        row = rows[0] or {}
+        level_name = str(row.get("level") or row.get("levelName") or "").strip()
+        return level_name or None
+    except Exception:
+        return None
+
+
+def resolve_source_level_label(rpc: RpcClient, source_view_name: str, source_column_id: int) -> str:
+    lv = get_element_level_name(rpc, source_column_id)
+    if lv:
+        return sanitize_view_name_token(lv)
+    return sanitize_view_name_token(source_view_name or "LEVEL")
+
+
 def resolve_view_by_name_or_active(rpc: RpcClient, view_name: str) -> Dict[str, Any]:
     if not view_name.strip():
         c = get_active_view_context(rpc)
@@ -197,7 +287,7 @@ def resolve_view_by_name_or_active(rpc: RpcClient, view_name: str) -> Dict[str, 
 def template_exists(rpc: RpcClient, template_name: str) -> bool:
     if not template_name.strip():
         return False
-    resp = rpc.call_any(["view.get_views", "get_views"], {})
+    resp = rpc.call_any(["view.get_views", "get_views"], {"includeTemplates": True})
     views = get_list(resp, ["views", "items"])
     for v in views:
         if (v.get("name") or "").strip().lower() == template_name.strip().lower():
@@ -213,6 +303,18 @@ def try_apply_template(rpc: RpcClient, view_id: int, template_name: str) -> Dict
         ["view.set_view_template", "set_view_template"],
         {"viewId": int(view_id), "templateName": template_name},
     )
+
+
+def try_set_view_type_by_name(rpc: RpcClient, view_id: int, view_type_name: str) -> Dict[str, Any]:
+    if not str(view_type_name or "").strip():
+        return {"ok": False, "skipped": True, "msg": "view type name empty"}
+    try:
+        return rpc.call_any(
+            ["view.set_view_type", "set_view_type"],
+            {"viewId": int(view_id), "newViewTypeName": str(view_type_name).strip()},
+        )
+    except Exception as ex:
+        return {"ok": False, "msg": str(ex)}
 
 
 def collect_columns_in_view(rpc: RpcClient, view_id: int) -> List[int]:
@@ -309,6 +411,21 @@ def set_view_scale(rpc: RpcClient, view_id: int, scale: int) -> Dict[str, Any]:
     return last
 
 
+def set_crop_region_visibility_off(rpc: RpcClient, view_id: int) -> Dict[str, Any]:
+    tries = [
+        {"viewId": int(view_id), "paramName": "トリミング領域を表示", "value": False, "detachViewTemplate": True},
+        {"viewId": int(view_id), "paramName": "Crop Region Visible", "value": False, "detachViewTemplate": True},
+    ]
+    last = {"ok": False, "msg": "crop visibility param not found"}
+    for t in tries:
+        r = rpc.call_any(["view.set_view_parameter", "set_view_parameter"], t)
+        if isinstance(r, dict) and r.get("ok"):
+            return r
+        if isinstance(r, dict):
+            last = r
+    return last
+
+
 def keep_only_categories(rpc: RpcClient, view_id: int, category_ids: List[int]) -> Dict[str, Any]:
     return rpc.call_any(
         ["view.set_category_visibility_bulk", "set_category_visibility_bulk"],
@@ -358,6 +475,158 @@ def set_grid_bubbles_hidden(rpc: RpcClient, view_id: int) -> Dict[str, Any]:
     )
 
 
+def get_column_bbox_mm(rpc: RpcClient, element_id: int) -> Optional[Dict[str, float]]:
+    bb = rpc.call_any(
+        ["element.get_bounding_box", "get_bounding_box"],
+        {"elementId": int(element_id)},
+    )
+    boxes = bb.get("boxes") or []
+    if not boxes:
+        return None
+    row = boxes[0]
+    if not row.get("ok"):
+        return None
+    bbox = row.get("boundingBox") or {}
+    mn = bbox.get("min") or {}
+    mx = bbox.get("max") or {}
+    try:
+        return {
+            "minX": float(mn.get("x")),
+            "minY": float(mn.get("y")),
+            "minZ": float(mn.get("z")),
+            "maxX": float(mx.get("x")),
+            "maxY": float(mx.get("y")),
+            "maxZ": float(mx.get("z")),
+        }
+    except Exception:
+        return None
+
+
+def get_tag_symbol_types(rpc: RpcClient, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    res = rpc.call_any(["view.get_tag_symbols", "get_tag_symbols"], params)
+    return get_list(res, ["types", "items"])
+
+
+def resolve_structural_column_tag_type(rpc: RpcClient) -> Optional[Dict[str, Any]]:
+    queries: List[Dict[str, Any]] = [
+        {"categoryNames": ["構造柱タグ", "Structural Column Tags"], "count": 300},
+        {"nameContains": "構造柱", "count": 500},
+        {"nameContains": "柱", "count": 500},
+        {"nameContains": "Structural Column", "count": 500},
+        {"nameContains": "Column", "count": 500},
+    ]
+    merged: Dict[int, Dict[str, Any]] = {}
+    for q in queries:
+        try:
+            for t in get_tag_symbol_types(rpc, q):
+                tid = int(t.get("typeId") or 0)
+                if tid > 0 and tid not in merged:
+                    merged[tid] = t
+        except Exception:
+            continue
+    if not merged:
+        return None
+
+    def score(t: Dict[str, Any]) -> int:
+        cat = str(t.get("categoryName") or "").lower()
+        fam = str(t.get("familyName") or "").lower()
+        typ = str(t.get("typeName") or "").lower()
+        txt = f"{fam} {typ}"
+        s = 0
+        if ("tag" in cat) or ("タグ" in cat):
+            s += 10
+        if ("column" in cat) or ("柱" in cat):
+            s += 14
+        if ("structural" in cat) or ("構造" in cat):
+            s += 8
+        if ("column" in txt) or ("柱" in txt):
+            s += 5
+        return s
+
+    preferred = []
+    pref = (PREFERRED_COLUMN_TAG_TYPE_NAME or "").strip().lower()
+    if pref:
+        for t in merged.values():
+            typ = str(t.get("typeName") or "").strip().lower()
+            if pref == typ:
+                preferred.append(t)
+
+    pool = preferred if preferred else list(merged.values())
+    best = max(pool, key=score)
+    return best if score(best) > 0 else None
+
+
+def delete_existing_tags_for_host_in_view(rpc: RpcClient, view_id: int, host_element_id: int) -> Dict[str, Any]:
+    try:
+        res = rpc.call_any(["view.get_tags_in_view", "get_tags_in_view"], {"viewId": int(view_id), "count": 1200})
+    except Exception as ex:
+        return {"ok": False, "msg": str(ex), "deletedCount": 0}
+
+    tags = get_list(res, ["tags", "items"])
+    target_tag_ids: List[int] = []
+    for t in tags:
+        hid = int(t.get("hostElementId") or 0)
+        tid = int(t.get("tagId") or 0)
+        if hid == int(host_element_id) and tid > 0:
+            target_tag_ids.append(tid)
+
+    deleted = 0
+    errors: List[Dict[str, Any]] = []
+    for tid in target_tag_ids:
+        try:
+            rr = rpc.call_any(["view.delete_tag", "delete_tag"], {"tagId": int(tid)})
+            if rr.get("ok"):
+                deleted += 1
+            else:
+                errors.append({"tagId": tid, "msg": rr.get("msg")})
+        except Exception as ex:
+            errors.append({"tagId": tid, "msg": str(ex)})
+    return {"ok": len(errors) == 0, "deletedCount": deleted, "errors": errors}
+
+
+def place_structural_column_tag_top_right(
+    rpc: RpcClient,
+    view_id: int,
+    host_element_id: int,
+    tag_type_id: int,
+    dx_mm: float,
+    dy_mm: float,
+    add_leader: bool,
+) -> Dict[str, Any]:
+    if tag_type_id <= 0:
+        return {"ok": False, "msg": "構造柱タグ typeId を解決できません。"}
+
+    bbox = get_column_bbox_mm(rpc, host_element_id)
+    if not bbox:
+        return {"ok": False, "msg": "柱BoundingBoxを取得できません。"}
+
+    deleted = delete_existing_tags_for_host_in_view(rpc, view_id, host_element_id)
+    loc = {
+        "x": round(bbox["maxX"] + float(dx_mm), 3),
+        "y": round(bbox["maxY"] + float(dy_mm), 3),
+        "z": round(bbox["maxZ"], 3),
+    }
+    created = rpc.call_any(
+        ["view.create_tag", "create_tag"],
+        {
+            "viewId": int(view_id),
+            "hostElementId": int(host_element_id),
+            "typeId": int(tag_type_id),
+            "location": loc,
+            "addLeader": bool(add_leader),
+            "orientation": "Horizontal",
+        },
+    )
+    return {
+        "ok": bool(created.get("ok")),
+        "tagId": created.get("tagId"),
+        "typeId": int(tag_type_id),
+        "locationMm": loc,
+        "deletedExistingTags": deleted,
+        "raw": created,
+    }
+
+
 def duplicate_view(rpc: RpcClient, source_view_id: int, desired_name: str) -> Dict[str, Any]:
     return rpc.call_any(
         ["view.duplicate_view", "duplicate_view"],
@@ -403,18 +672,38 @@ def main() -> int:
     if len(grids) < 2:
         raise RuntimeError("グリッドが不足しています。")
 
+    source_level_label = resolve_source_level_label(rpc, source_view_name, column_ids[0])
+    name_prefix = f"{source_level_label}_{sanitize_view_name_token(source_view_name)}"
+
     summary: Dict[str, Any] = {
         "ok": True,
         "sourceViewId": source_view_id,
         "sourceViewName": source_view_name,
+        "sourceLevelLabel": source_level_label,
+        "namePrefix": name_prefix,
         "columnCount": len(column_ids),
         "gridTemplate": GRID_TEMPLATE_NAME,
         "columnTemplate": COLUMN_TEMPLATE_NAME,
+        "columnViewTypeName": COLUMN_VIEW_TYPE_NAME,
         "items": [],
     }
+    resolved_tag_type = None
+    if PLACE_STRUCTURAL_COLUMN_TAG:
+        resolved_tag_type = resolve_structural_column_tag_type(rpc)
+    summary["structuralColumnTagType"] = (
+        {
+            "ok": True,
+            "typeId": int(resolved_tag_type.get("typeId") or 0),
+            "typeName": resolved_tag_type.get("typeName"),
+            "familyName": resolved_tag_type.get("familyName"),
+            "categoryName": resolved_tag_type.get("categoryName"),
+        }
+        if isinstance(resolved_tag_type, dict)
+        else {"ok": False, "msg": "構造柱タグタイプを検出できませんでした。"}
+    )
 
     # A) 通り芯だけビュー
-    gdup = duplicate_view(rpc, source_view_id, f"{source_view_name}_GRID_BASE")
+    gdup = duplicate_view(rpc, source_view_id, f"{name_prefix}_GRID_BASE")
     grid_view_id = int(gdup.get("viewId") or gdup.get("elementId") or 0)
     if grid_view_id <= 0:
         raise RuntimeError("通り芯ビューの複写に失敗しました。")
@@ -436,7 +725,7 @@ def main() -> int:
     for cid in column_ids:
         item: Dict[str, Any] = {"columnId": cid, "ok": True}
         try:
-            dup = duplicate_view(rpc, source_view_id, f"{source_view_name}_COL_{cid}")
+            dup = duplicate_view(rpc, source_view_id, f"{name_prefix}_COL_{cid}")
             col_view_id = int(dup.get("viewId") or dup.get("elementId") or 0)
             if col_view_id <= 0:
                 raise RuntimeError("柱ビュー複写失敗")
@@ -444,32 +733,51 @@ def main() -> int:
             item["viewId"] = col_view_id
 
             # テンプレートがあれば優先。なければカテゴリ keep_only で代替。
-            if col_template_exists:
-                t = try_apply_template(rpc, col_view_id, COLUMN_TEMPLATE_NAME)
-                item["columnTemplateApplied"] = bool(t.get("ok"))
-            if not item.get("columnTemplateApplied"):
-                keep_only_categories(rpc, col_view_id, [OST_STRUCTURAL_COLUMNS, OST_GRIDS])
+            item["columnTemplateApplied"] = False
+            item["viewTypeSet"] = try_set_view_type_by_name(rpc, col_view_id, COLUMN_VIEW_TYPE_NAME)
+            keep_only_categories(rpc, col_view_id, [OST_STRUCTURAL_COLUMNS, OST_GRIDS])
 
             item["crop"] = crop_plan_to_element(rpc, col_view_id, cid, COLUMN_MARGIN_MM)
+            item["cropVisibleOff"] = set_crop_region_visibility_off(rpc, col_view_id)
             item["scale"] = set_view_scale(rpc, col_view_id, COLUMN_SCALE)
 
             others = [x for x in column_ids if x != cid]
-            item["hideOthers"] = rpc.call_any(
-                ["view.hide_elements_in_view", "hide_elements_in_view"],
-                {
-                    "viewId": int(col_view_id),
-                    "elementIds": others,
-                    "detachViewTemplate": True,
-                    "refreshView": True,
-                    "batchSize": 800,
-                    "maxMillisPerTx": 4000,
-                    "failureHandling": {"enabled": True, "mode": "rollback", "confirmProceed": True},
-                },
-            )
+            if others:
+                item["hideOthers"] = rpc.call_any(
+                    ["view.hide_elements_in_view", "hide_elements_in_view"],
+                    {
+                        "viewId": int(col_view_id),
+                        "elementIds": others,
+                        "detachViewTemplate": True,
+                        "refreshView": True,
+                        "batchSize": 800,
+                        "maxMillisPerTx": 4000,
+                        "failureHandling": {"enabled": True, "mode": "rollback", "confirmProceed": True},
+                    },
+                )
+            else:
+                item["hideOthers"] = {"ok": True, "skipped": True, "msg": "no other columns"}
 
             item["gridSegments"] = set_grid_segments_around_column(rpc, col_view_id, cid, GRID_HALF_LENGTH_MM)
             if HIDE_GRID_BUBBLES:
                 item["gridBubbles"] = set_grid_bubbles_hidden(rpc, col_view_id)
+
+            if PLACE_STRUCTURAL_COLUMN_TAG:
+                tid = int((resolved_tag_type or {}).get("typeId") or 0)
+                item["columnTag"] = place_structural_column_tag_top_right(
+                    rpc=rpc,
+                    view_id=col_view_id,
+                    host_element_id=cid,
+                    tag_type_id=tid,
+                    dx_mm=TAG_OFFSET_RIGHT_MM,
+                    dy_mm=TAG_OFFSET_UP_MM,
+                    add_leader=TAG_ADD_LEADER,
+                )
+
+            if col_template_exists:
+                t = try_apply_template(rpc, col_view_id, COLUMN_TEMPLATE_NAME)
+                item["columnTemplateApplied"] = bool(t.get("ok"))
+                item["columnTemplateApplyRaw"] = t
 
             cx, cy = get_column_center_mm(rpc, cid)
             anchor = choose_nearest_grid_pair(grids, cx, cy)
@@ -545,4 +853,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

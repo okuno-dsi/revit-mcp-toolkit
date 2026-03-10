@@ -1,12 +1,34 @@
 # Revit MCP クライアント開発ガイド
 
-Revit MCP（Model Coordination Platform / Automation Server）と通信する Python クライアント実装のための注意点と、共通ユーティリティの標準例をまとめています。これまでの実運用で判明した失敗パターンを踏まえ、再発防止のために必ず参照してください。
+Revit MCP と通信する Python クライアント実装のための注意点と、共通ユーティリティの標準例をまとめています。ここでの `Revit MCP` は製品名です。標準プロトコルとしては `Model Context Protocol` を指し、推奨エンドポイントは `/mcp` です。既存の `/rpc` と `/job/{id}` はレガシー互換経路として維持されます。
+
+## 0) 現行 /mcp 実装メモ（2026-03-09）
+
+- 実装済み:
+  - `initialize`
+  - `notifications/initialized`
+  - `ping`
+  - `resources/list`
+  - `resources/read`
+  - `prompts/list`
+  - `prompts/get`
+  - `logging/setLevel`
+  - `tools/list`
+  - `tools/call`
+  - `notifications/cancelled`
+- 未実装（404）:
+  - `/sse`
+  - `/messages`
+  - `/swagger`
+- 定義取得:
+  - `/docs/openapi.json`
+  - `/docs/openrpc.json`
 
 ## 1) 実装上の重要な注意点（再発防止チェックリスト）
 
 - 通信エンドポイント
-  - `/rpc` と `/jsonrpc` は環境により有効・無効が異なります。
-  - どちらが有効かを軽いヘルスチェックで自動判別すること（`/rpc` 固定を想定しない）。
+  - 新規クライアントは標準 MCP の `/mcp` を優先し、`initialize` → `notifications/initialized` → `tools/list` / `tools/call` の順で利用すること。
+  - `/rpc` と `/jsonrpc` はレガシー互換用です。既存スクリプトを維持する場合のみ自動判別してください（`/rpc` 固定を想定しない）。
 - queued 応答の必須対応
   - `result.queued == true` の場合は `jobId` を取り、`/job/{id}` をポーリングする。
   - `202` / `204` は待機を意味するためリトライ。

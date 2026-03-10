@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Collections.Concurrent;
 using AutoCadMcpServer.Router;
 using AutoCadMcpServer.Core;
 
@@ -220,6 +221,163 @@ app.MapGet("/result/{jobId}", (string jobId) =>
     return Results.NotFound(new { ok = false, msg = "Job not found" });
 });
 
+var mcpSessions = new AutoCadMcpSessionStore();
+var mcpJsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
+{
+    ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = AutoCadMcpProtocol.DefaultProtocolVersion;
+    return Results.Ok();
+});
+
+app.MapPost("/mcp", async (HttpContext ctx) =>
+{
+    JsonObject request;
+    try
+    {
+        using var sr = new StreamReader(ctx.Request.Body, Encoding.UTF8);
+        var raw = await sr.ReadToEndAsync();
+        var stripped = JsonCommentStripper.Strip(raw ?? string.Empty);
+        request = JsonNode.Parse(stripped) as JsonObject
+            ?? throw new Exception("JSON-RPC request object is required.");
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(AutoCadMcpProtocol.Error(null, -32700, "Invalid JSON.", new { detail = ex.Message }), mcpJsonOpts);
+    }
+
+    var idNode = request["id"];
+    var method = request["method"]?.GetValue<string>() ?? string.Empty;
+    var prm = request["params"] as JsonObject ?? new JsonObject();
+    var sessionId = ctx.Request.Headers[AutoCadMcpProtocol.SessionHeader].ToString();
+
+    if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
+    {
+        var protocolVersion = prm["protocolVersion"]?.GetValue<string>()
+            ?? ctx.Request.Headers[AutoCadMcpProtocol.ProtocolHeader].ToString()
+            ?? AutoCadMcpProtocol.DefaultProtocolVersion;
+        var session = mcpSessions.Create(protocolVersion);
+        ctx.Response.Headers[AutoCadMcpProtocol.SessionHeader] = session.SessionId;
+        ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = session.ProtocolVersion;
+        return Results.Json(
+            AutoCadMcpProtocol.Success(idNode, AutoCadMcpProtocol.InitializeResult(session.ProtocolVersion)),
+            mcpJsonOpts);
+    }
+
+    if (!mcpSessions.TryGet(sessionId, out var state))
+    {
+        return Results.Json(
+            AutoCadMcpProtocol.Error(idNode, -32001, "Missing or invalid MCP session. Call initialize first."),
+            mcpJsonOpts);
+    }
+
+    ctx.Response.Headers[AutoCadMcpProtocol.SessionHeader] = state.SessionId;
+    ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = state.ProtocolVersion;
+
+    if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
+    {
+        mcpSessions.MarkInitialized(state.SessionId);
+        return Results.Json(AutoCadMcpProtocol.Success(idNode, new { }), mcpJsonOpts);
+    }
+
+    if (!state.IsInitialized)
+    {
+        return Results.Json(
+            AutoCadMcpProtocol.Error(idNode, -32002, "Session not initialized. Send notifications/initialized after initialize."),
+            mcpJsonOpts);
+    }
+
+    if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(AutoCadMcpProtocol.Success(idNode, new { }), mcpJsonOpts);
+    }
+
+    if (string.Equals(method, "tools/list", StringComparison.OrdinalIgnoreCase))
+    {
+        var tools = AutoCadRpcMethodCatalog.Methods
+            .Select(name => new
+            {
+                name,
+                description = $"AutoCAD RPC method '{name}'",
+                inputSchema = new
+                {
+                    type = "object",
+                    additionalProperties = true
+                }
+            })
+            .Append(new
+            {
+                name = "mcp.status",
+                description = "Return server and MCP session status.",
+                inputSchema = new
+                {
+                    type = "object",
+                    additionalProperties = false
+                }
+            })
+            .ToArray();
+
+        return Results.Json(AutoCadMcpProtocol.Success(idNode, new { tools }), mcpJsonOpts);
+    }
+
+    if (string.Equals(method, "tools/call", StringComparison.OrdinalIgnoreCase))
+    {
+        var toolName = prm["name"]?.GetValue<string>();
+        var toolArgs = prm["arguments"] as JsonObject ?? new JsonObject();
+        if (string.IsNullOrWhiteSpace(toolName))
+            return Results.Json(AutoCadMcpProtocol.Error(idNode, -32602, "tools/call requires params.name."), mcpJsonOpts);
+
+        JsonNode payload;
+        var isError = false;
+        try
+        {
+            if (string.Equals(toolName, "mcp.status", StringComparison.OrdinalIgnoreCase))
+            {
+                payload = JsonSerializer.SerializeToNode(new
+                {
+                    ok = true,
+                    service = "AutoCadMcpServer",
+                    mcp = new
+                    {
+                        sessionId = state.SessionId,
+                        protocolVersion = state.ProtocolVersion,
+                        initialized = state.IsInitialized
+                    }
+                })!;
+            }
+            else
+            {
+                var rpcReq = new AutoCadMcpServer.Router.JsonRpcReq(
+                    "2.0",
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    toolName!,
+                    toolArgs);
+                var result = await RpcRouter.Dispatch(rpcReq, app.Logger, app.Configuration);
+                payload = JsonSerializer.SerializeToNode(result) ?? new JsonObject();
+            }
+        }
+        catch (RpcError ex)
+        {
+            isError = true;
+            payload = JsonSerializer.SerializeToNode(new { ok = false, code = ex.Code, msg = ex.Message, data = ex.Data })!;
+        }
+        catch (Exception ex)
+        {
+            isError = true;
+            payload = JsonSerializer.SerializeToNode(new { ok = false, code = 500, msg = ex.Message })!;
+        }
+
+        return Results.Json(
+            AutoCadMcpProtocol.Success(idNode, AutoCadMcpProtocol.ToolResult(payload, isError)),
+            mcpJsonOpts);
+    }
+
+    return Results.Json(
+        AutoCadMcpProtocol.Error(idNode, -32601, $"Method '{method}' not found."),
+        mcpJsonOpts,
+        statusCode: 404);
+});
+
 app.Run("http://127.0.0.1:5251");
 
 namespace AutoCadMcpServer.Router
@@ -264,5 +422,136 @@ internal static class JsonCommentStripper
         }
         return sb.ToString();
     }
+}
+
+internal static class AutoCadRpcMethodCatalog
+{
+    public static readonly string[] Methods = new[]
+    {
+        "merge_dwgs",
+        "merge_dwgs_perfile_rename",
+        "merge_dwgs_dxf_textmap",
+        "probe_accoreconsole",
+        "purge_audit",
+        "consolidate_layers",
+        "health",
+        "version"
+    };
+}
+
+internal static class AutoCadMcpProtocol
+{
+    public const string SessionHeader = "MCP-Session-Id";
+    public const string ProtocolHeader = "MCP-Protocol-Version";
+    public const string DefaultProtocolVersion = "2025-11-05";
+
+    public static object InitializeResult(string protocolVersion) => new
+    {
+        protocolVersion,
+        capabilities = new
+        {
+            tools = new { listChanged = false },
+            resources = new { subscribe = false, listChanged = false },
+            prompts = new { listChanged = false }
+        },
+        serverInfo = new { name = "AutoCadMcpServer", version = "1.0.0" },
+        instructions = "Use tools/list then tools/call with AutoCAD RPC method names."
+    };
+
+    public static object ToolResult(JsonNode payload, bool isError) => new
+    {
+        content = new object[]
+        {
+            new
+            {
+                type = "text",
+                text = payload.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
+            }
+        },
+        structuredContent = payload,
+        isError
+    };
+
+    public static object Success(JsonNode? idNode, object? result) => new
+    {
+        jsonrpc = "2.0",
+        id = NormalizeId(idNode),
+        result
+    };
+
+    public static object Error(JsonNode? idNode, int code, string message, object? data = null) => new
+    {
+        jsonrpc = "2.0",
+        id = NormalizeId(idNode),
+        error = new { code, message, data }
+    };
+
+    private static object? NormalizeId(JsonNode? idNode)
+    {
+        if (idNode is null) return null;
+        if (idNode is JsonValue v)
+        {
+            if (v.TryGetValue<long>(out var n)) return n;
+            if (v.TryGetValue<double>(out var d)) return d;
+            if (v.TryGetValue<bool>(out var b)) return b;
+            if (v.TryGetValue<string>(out var s))
+            {
+                if (long.TryParse(s, out var n2)) return n2;
+                return s;
+            }
+        }
+        return idNode.ToJsonString();
+    }
+}
+
+internal sealed class AutoCadMcpSessionStore
+{
+    private readonly ConcurrentDictionary<string, AutoCadMcpSessionState> _sessions =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public AutoCadMcpSessionState Create(string protocolVersion)
+    {
+        var s = new AutoCadMcpSessionState
+        {
+            SessionId = Guid.NewGuid().ToString("N"),
+            ProtocolVersion = string.IsNullOrWhiteSpace(protocolVersion)
+                ? AutoCadMcpProtocol.DefaultProtocolVersion
+                : protocolVersion,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            LastSeenAtUtc = DateTimeOffset.UtcNow,
+            IsInitialized = false
+        };
+        _sessions[s.SessionId] = s;
+        return s;
+    }
+
+    public bool TryGet(string? sessionId, out AutoCadMcpSessionState state)
+    {
+        if (!string.IsNullOrWhiteSpace(sessionId) && _sessions.TryGetValue(sessionId, out state!))
+        {
+            state.LastSeenAtUtc = DateTimeOffset.UtcNow;
+            return true;
+        }
+        state = null!;
+        return false;
+    }
+
+    public bool MarkInitialized(string sessionId)
+    {
+        if (!TryGet(sessionId, out var s))
+            return false;
+        s.IsInitialized = true;
+        s.LastSeenAtUtc = DateTimeOffset.UtcNow;
+        return true;
+    }
+}
+
+internal sealed class AutoCadMcpSessionState
+{
+    public string SessionId { get; set; } = "";
+    public string ProtocolVersion { get; set; } = AutoCadMcpProtocol.DefaultProtocolVersion;
+    public bool IsInitialized { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset LastSeenAtUtc { get; set; }
 }
 

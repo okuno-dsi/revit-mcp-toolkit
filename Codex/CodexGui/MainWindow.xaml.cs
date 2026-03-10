@@ -46,6 +46,7 @@ public partial class MainWindow : Window
     private static string? _currentModelForProcess;
     private static string? _currentReasoningEffortForProcess;
     private static string? _currentProfileForProcess;
+    private static string? _currentExecutionModeForProcess;
     private static bool _currentIsStatusRequestForProcess;
     private static string[]? _currentImagePathsForProcess;
     private static Process? _currentPwshProcess;
@@ -109,6 +110,13 @@ public partial class MainWindow : Window
         "fast",
         "live",
         "safe"
+    };
+
+    private const string DefaultExecutionMode = "policy_auto";
+    private static readonly string[] BuiltInExecutionModePresets =
+    {
+        "policy_auto",
+        "legacy_yolo"
     };
 
     private string? _codexConfigDefaultModel;
@@ -347,7 +355,8 @@ public partial class MainWindow : Window
                             Id = Guid.NewGuid().ToString("N"),
                             Name = "Session 1",
                             CodexSessionId = null,
-                            LastUsedUtc = DateTime.UtcNow
+                            LastUsedUtc = DateTime.UtcNow,
+                            ExecutionMode = DefaultExecutionMode
                         };
                         EnsurePromptHistoryInitialized(session);
                         _sessions.Add(session);
@@ -538,6 +547,7 @@ public partial class MainWindow : Window
                 foreach (var s in _sessions)
                 {
                     EnsurePromptHistoryInitialized(s);
+                    s.ExecutionMode = NormalizeExecutionMode(s.ExecutionMode);
                 }
             }
         }
@@ -752,7 +762,8 @@ public partial class MainWindow : Window
                     ProjectId = ctx.DocGuid,
                     ProjectName = ctx.DocTitle,
                     CodexSessionId = null,
-                    LastUsedUtc = DateTime.UtcNow
+                    LastUsedUtc = DateTime.UtcNow,
+                    ExecutionMode = DefaultExecutionMode
                 };
                 EnsurePromptHistoryInitialized(session);
                 _sessions.Add(session);
@@ -1645,7 +1656,8 @@ public partial class MainWindow : Window
             ProjectId = projectId,
             ProjectName = projectName,
             CodexSessionId = null,
-            LastUsedUtc = DateTime.UtcNow
+            LastUsedUtc = DateTime.UtcNow,
+            ExecutionMode = DefaultExecutionMode
         };
         EnsurePromptHistoryInitialized(session);
         _sessions.Add(session);
@@ -1672,6 +1684,7 @@ public partial class MainWindow : Window
 
         if (SessionComboBox.SelectedItem is SessionInfo session)
         {
+            session.ExecutionMode = NormalizeExecutionMode(session.ExecutionMode);
             if (ModelComboBox != null) ModelComboBox.Text = session.Model ?? string.Empty;
             if (ReasoningEffortComboBox != null) ReasoningEffortComboBox.Text = session.ReasoningEffort ?? string.Empty;
             if (ProfileComboBox != null) ProfileComboBox.Text = session.Profile ?? string.Empty;
@@ -1772,6 +1785,38 @@ public partial class MainWindow : Window
     {
         var profileText = (ProfileComboBox?.Text ?? string.Empty).Trim();
         session.Profile = string.IsNullOrWhiteSpace(profileText) ? null : profileText;
+    }
+
+    private static string NormalizeExecutionMode(string? mode)
+    {
+        var t = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(t))
+        {
+            return DefaultExecutionMode;
+        }
+
+        foreach (var m in BuiltInExecutionModePresets)
+        {
+            if (string.Equals(t, m, StringComparison.OrdinalIgnoreCase))
+            {
+                return m;
+            }
+        }
+
+        return DefaultExecutionMode;
+    }
+
+    private static List<string> GetExecutionModeChoices()
+    {
+        var list = new List<string>();
+        foreach (var raw in BuiltInExecutionModePresets)
+        {
+            var t = (raw ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(t)) continue;
+            if (list.Any(x => string.Equals(x, t, StringComparison.OrdinalIgnoreCase))) continue;
+            list.Add(t);
+        }
+        return list;
     }
 
     private void ModelComboBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -1972,9 +2017,11 @@ public partial class MainWindow : Window
                     modelChoices: GetComboBoxItemTexts(ModelComboBox),
                     reasoningChoices: GetComboBoxItemTexts(ReasoningEffortComboBox),
                     profileChoices: GetComboBoxItemTexts(ProfileComboBox),
+                    executionModeChoices: GetExecutionModeChoices(),
                     modelText: ModelComboBox?.Text ?? string.Empty,
                     reasoningText: ReasoningEffortComboBox?.Text ?? string.Empty,
                     profileText: ProfileComboBox?.Text ?? string.Empty,
+                    executionModeText: NormalizeExecutionMode(session?.ExecutionMode),
                     bgColorHex: BgColorTextBox?.Text ?? string.Empty,
                     fgColorHex: FgColorTextBox?.Text ?? string.Empty,
                     sessionId: sidText)
@@ -2003,6 +2050,7 @@ public partial class MainWindow : Window
                     ApplyModelFromUiToSession(activeSession);
                     ApplyReasoningEffortFromUiToSession(activeSession);
                     ApplyProfileFromUiToSession(activeSession);
+                    activeSession.ExecutionMode = NormalizeExecutionMode(dialog.ExecutionModeText);
                     RememberRecentModel(activeSession.Model);
                     SaveSessions();
                 }
@@ -3468,6 +3516,8 @@ public partial class MainWindow : Window
             AppendSystemMessage($"model: {modelLabel}");
             var effortLabel = string.IsNullOrWhiteSpace(session.ReasoningEffort) ? "(default)" : session.ReasoningEffort;
             AppendSystemMessage($"reasoning_effort: {effortLabel}");
+            var execModeLabel = NormalizeExecutionMode(session.ExecutionMode);
+            AppendSystemMessage($"execution_mode: {execModeLabel}");
 
             startedUtc = DateTimeOffset.UtcNow;
             try
@@ -3616,6 +3666,8 @@ public partial class MainWindow : Window
         argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentReasoningEffortForProcess ?? string.Empty)).Append('"');
         argsBuilder.Append(" -Profile ");
         argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentProfileForProcess ?? string.Empty)).Append('"');
+        argsBuilder.Append(" -ExecutionMode ");
+        argsBuilder.Append('"').Append(EscapePwshDoubleQuotedArg(_currentExecutionModeForProcess ?? DefaultExecutionMode)).Append('"');
 
         if (_currentImagePathsForProcess != null && _currentImagePathsForProcess.Length > 0)
         {
@@ -3672,6 +3724,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             _currentModelForProcess = session.Model ?? string.Empty;
             _currentReasoningEffortForProcess = session.ReasoningEffort ?? string.Empty;
             _currentProfileForProcess = session.Profile ?? string.Empty;
+            _currentExecutionModeForProcess = NormalizeExecutionMode(session.ExecutionMode);
             _currentIsStatusRequestForProcess = isStatusRequest;
             _currentImagePathsForProcess = (!isStatusRequest && imagePaths != null && imagePaths.Count > 0)
                 ? imagePaths.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray()
@@ -3856,6 +3909,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
         }
         finally
         {
+            _currentExecutionModeForProcess = null;
             _currentImagePathsForProcess = null;
             _currentPwshProcess = null;
             try
@@ -5152,6 +5206,13 @@ public class SessionInfo
     public string? ReasoningEffort { get; set; }
 
     public string? Profile { get; set; }
+
+    /// <summary>
+    /// Codex 実行モード:
+    /// - policy_auto: 自動実行（workspace-write制約）
+    /// - legacy_yolo: 従来の full-access yolo
+    /// </summary>
+    public string? ExecutionMode { get; set; } = "policy_auto";
 
     public List<string>? PromptHistory { get; set; }
 

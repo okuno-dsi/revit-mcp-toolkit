@@ -14,6 +14,7 @@
 # Build / publish outputs
 **/publish/
 **/publish_out/
+**/publish_sc*/
 publish/
 publish_out/
 Codex/CodexGui/publish_sc*/

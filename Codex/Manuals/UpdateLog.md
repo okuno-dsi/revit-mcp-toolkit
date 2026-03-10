@@ -3,9 +3,10 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
-### Big Change: 推奨ユーザーフォルダ構成の刷新
-- 新ルート: `C:\Users\<user>\Documents\Revit_MCP`
-- `Projects` の実体を上記ルート直下へ統一（`Revit_MCP\Codex\Projects` ではありません）。
+### 正式MCP応答への修正（今回の目玉）
+- `/mcp` が **正式な MCP 応答**として扱えるよう、`resources/*`、`prompts/*`、`logging/setLevel`、`notifications/cancelled` に対応。
+- これにより、MCP クライアント側が期待する標準的な初期化・能力宣言・補助メソッドに、従来より素直に応答できるようになりました。
+- 前回まで「MCP対応」と案内していましたが、実際には `tools/*` 中心の互換動作に寄っており、**正式な MCP 応答としては不足がありました**。説明が不正確だった点はお詫びします。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -13,9 +14,8 @@
 - レイアウト検査/更新・再生成・削除/移動など、**既存鉄筋の扱い**も拡張。
 
 ### Python Runner / スクリプト運用
-- Python Runner UX（初期導入）: **既定保存先の統一**、**出力の見やすさ改善**、**MCPコマンド名の強調表示**。
+- **プロジェクト単位フォルダ**への保存、Dedent、自動ポート引き渡し、Library/検索、MCPコマンド強調など、運用性を改善。
 - CodexGUI → Python Runner への**安全なスクリプト受け渡し**を整備。
-- 専用Pythonスクリプトでの実行フローを明記し、**作業効率化**を推奨。
 
 ### 要素探索・空間要素の補正
 - 要素検索/構造化クエリ、カテゴリ解決（曖昧語の候補提示）など**探索系を強化**。
@@ -31,6 +31,125 @@
 
 ---
 
+## 2026-03-09 Add-in: 正式MCP応答対応の拡張（/mcp）
+
+### 目的
+- AIエージェントや汎用MCPクライアントで、`tools/*` 以外を期待する実装でも接続時に停止しにくくする。
+- 既存の `/mcp` 基本動作を維持しつつ、**正式な MCP 応答に必要な最小セット**を追加する。
+- 前回まで MCP と表現していた実装が、実際には標準的な MCP 応答として不足していた点を是正する。
+
+### 変更概要
+- `/mcp` に server-local メソッドを追加:
+  - `resources/list`
+  - `resources/read`（`params.uri` 必須）
+  - `prompts/list`
+  - `prompts/get`（`params.name` 必須）
+  - `logging/setLevel`
+  - `notifications/cancelled`
+- `initialize` の `capabilities` に以下を追加:
+  - `resources`
+  - `prompts`
+  - `logging`
+- 既存メソッド（`initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping`）は維持。
+- レガシー経路（`/rpc` / `/job/{id}`）は維持。
+
+### 案内の訂正
+- これまでの版でも `/mcp` エンドポイント自体は存在していましたが、MCP クライアントが期待する応答群が不足していました。
+- そのため、「MCP」と案内していた内容は厳密には不十分でした。今回の更新で、ようやく **正式な MCP 応答に近い形**へ整理できました。
+- この点に気づくのが遅れ、従来の説明が分かりにくかったことをお詫びします。
+
+### 注意点
+- `GET/POST /sse` と `POST /messages` は未実装（404）。
+- `GET /swagger` も未実装（404）。
+- API定義は `GET /docs/openapi.json` と `GET /docs/openrpc.json` を使用。
+
+### 反映マニュアル
+- `Manuals/RevitMCP_Client_Dev_Guide.md`
+- `Manuals/ConnectionGuide/QUICKSTART.md`
+- `Manuals/ConnectionGuide/02_重要_環境設定と接続確認.md`
+
+## 2026-02-24 Script/Runbook: 柱芯線図の構造柱タグ（右上）配置
+
+### 目的
+- 柱芯線図で、各柱ビューの右上に構造柱タグを確実に表示する。
+
+### 変更概要
+- Python Runner スクリプト:
+  - `column_grid_coreline_full_auto.py`
+  - `column_grid_coreline_workflow_sample.py`
+  - `view.get_tag_symbols` で構造柱タグタイプを解決し、
+    各 `*_COL_*` ビューで既存タグを置換して右上へ再配置する処理を追加。
+  - 追加設定:
+    - `PLACE_STRUCTURAL_COLUMN_TAG`
+    - `TAG_OFFSET_RIGHT_MM`
+    - `TAG_OFFSET_UP_MM`
+    - `TAG_ADD_LEADER`
+- Runbook:
+  - 右上タグ配置ルールと確認項目を追記。
+
+### 追加修正
+- タグ既定位置を `X+250mm, Y+150mm` に変更。
+- `column_grid_coreline_full_auto.py` で、source寸法が無い場合でも
+  `allowDefaultTemplateWhenSourceMissing=true` と既定オフセット（600/1000/600）で
+  寸法生成を継続するよう修正。
+- 柱ビューの「トリミング領域を表示」をOFF化する処理を追加。
+- 柱テンプレート判定を `includeTemplates=true` で安定化。
+
+## 2026-02-24 Add-in + Runbook: 柱芯線図ワークフロー安定化
+
+### 目的
+- 柱芯線図の自動作成で発生した停止・クラッシュ要因を除去し、再現性を上げる。
+- Python Runner 実行手順を 5 本試験 → 30 本本番の安全運用へ統一する。
+
+### 変更概要
+- Add-in（寸法展開）:
+  - `view.apply_column_grid_dimension_standard_to_views` の実装で、`ActiveView` 切替を廃止。
+  - ビュー切替由来の不安定化を回避。
+- Runbook/Script運用:
+  - テンプレート検出を `view.get_views(includeTemplates=true)` 前提に明文化。
+  - テンプレート適用順序を「通り芯調整・寸法処理の後」に固定。
+  - `hide_elements_in_view` は空対象時にスキップする運用を明記。
+  - `requests` 依存が無い環境向けに `urllib` フォールバック運用を明記。
+- 検証:
+  - 5 本実行と 30 本実行の両方で正常完了（クラッシュなし）を確認。
+
+### 反映マニュアル
+- `Manuals/Runbooks/Column_Coreline_Workflow_FullAuto_JA.md`
+- `Manuals/Runbooks/Column_Coreline_Workflow_PythonRunner_JA.md`
+
+## 2026-02-24 Add-in: area edge text center placement
+
+### 目的
+- 求積コマンドの辺長注記を、線分中心と文字中心で一致させる。
+- 縮尺変更時にも注記位置の追従性を高める。
+
+### 変更概要
+- `AreaCalcCommands` に以下の設定を追加:
+  - `lengthTextCenterAtSegment`（default: `true`）
+  - `lengthTextHorizontalAlignment`（`left|center|right`, default: `center`）
+- `TextNote.Create` を `TextNoteOptions` 指定に変更し、`center` を標準化。
+- 既定動作を「線分中心配置 + 水平中央揃え」に変更。
+
+### 反映マニュアル
+- `Manuals/Commands/Area_Calc_Edge_Text_Placement_JA.md`
+- `Manuals/Commands/README.md`
+
+## 2026-02-24 Add-in: area calc triangulation support
+
+### 目的
+- 求積コマンドで三角形分割による面積算定を可能にする。
+- 長方形は頂点追加なしで2三角形に分割して求積する。
+
+### 変更概要
+- `AreaCalcCommands` に ear clipping ベースの三角形分割を実装。
+- 面積計算を `ΣTri` へ切替（失敗ループのみ shoelace フォールバック）。
+- レスポンスに `triangleCount` を追加。
+- 境界が直線の場合は端点のみ採用し、不要な頂点増加を抑制。
+
+### 反映マニュアル
+- `Manuals/Commands/Area_Calc_Triangulation_JA.md`
+- `Manuals/Commands/README.md`
+
 ## 2026-02-17 Add-in: sheet view replacement alignment for different scales
 
 ### 目的
@@ -44,6 +163,7 @@
 - マニュアル（EN/JA）へ「スケール差対応の位置合わせロジック」を追記。
 
 ### 詳細
+- `Manuals/ChangeLog_20260217.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-02-18 Manual/Script: column coreline workflow packaging
 
@@ -55,10 +175,10 @@
 - Runbook追加:
   - `Manuals/Runbooks/Column_Coreline_Workflow_PythonRunner_JA.md`
 - Python Runnerサンプル追加:
-  - `Codex/PythonRunnerScripts/column_grid_coreline_workflow_sample.py`
+  - `Scripts/PythonRunnerScripts/column_grid_coreline_workflow_sample.py`
 - Manuals索引更新:
   - `Manuals/README.md`
-  - `Codex/PythonRunnerScripts/README.md`
+  - `Scripts/PythonRunnerScripts/README.md`
 
 ### 対応内容（スクリプト）
 - 通り芯だけビュー作成
@@ -79,6 +199,7 @@
 - 要素配列の **安定ソート**（elementId/id/hostElementId 優先）。
 
 ### 詳細
+- `Manuals/ChangeLog_20260204.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-02-02 Codex GUI: session display + log restore + safe install
 
@@ -96,6 +217,7 @@
 - 安全インストール用 `install_codexgui_safe.ps1` を追加（設定/ログを上書きしない）。
 
 ### 詳細
+- `Manuals/ChangeLog_20260202.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-01-28 Add-in + CodexGUI: Python script handoff (CodexGUI → Python Runner)
 
@@ -185,9 +307,6 @@
 - Add-in: `DynamoRunner` を追加（Dynamo 反射ロード、実行、出力取得）。
 - Add-in: `dynamo.run_script` に `hardKillRevit` / `hardKillDelayMs` を追加（無人実行向け）。強制終了前にスナップショット/同期/保存/再起動を試行し、保存がブロックされる場合は UI スレッドでリトライ。強制終了前にサーバー停止と停止確認もログ化。
 - Manual: Dynamo コマンドの EN/JA 手順書を追加し、README に追記。
-
-### 注意
-- Dynamo 実行は環境依存の課題が多いため、現時点では**推奨しません**。
 
 ## 2026-01-20 Add-in: Dialog auto-dismiss + dialog capture/OCR
 
@@ -358,6 +477,7 @@
   - 読み込み時に重複キーは `ja` フレーズをマージ、無効な `BuiltInCategory` は警告付きでドロップ（ベストエフォート）。
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260114.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/GlossaryJaService.cs`
 - `RevitMCPAddin/Commands/MetaOps/HelpSuggestHandler.cs`
 - `RevitMCPAddin/glossary_ja.json`
@@ -377,6 +497,7 @@
   - ビューテンプレートが適用されているビューでは、上書きが効かないため `VIEW_TEMPLATE_LOCK` として中断（または `detachViewTemplate=true` で解除して実行）。
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260114.md`（同日追記: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/AnnotationOps/DrawColoredLineSegmentsCommand.cs`
 - `RevitMCPAddin/RevitMcpWorker.cs`
 - `RevitMCPAddin/RevitMCPAddin.csproj`
@@ -470,6 +591,7 @@
 - `set_visual_override` / `batch_set_visual_override` で、線色と塗りつぶし色を別指定できるようにしました（`lineRgb` / `fillRgb`）。
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/SetVisualOverrideCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/BatchSetVisualOverrideCommand.cs`
@@ -490,6 +612,7 @@
 - ビューテンプレートが適用されているビューはロックされることがあるため、`detachViewTemplate=true`（またはテンプレートビューを直接指定）に対応しました。
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/ViewFilterOps/ViewFilterCommands.cs`
 - `Manuals/FullManual/view_filter.list.md`
 - `Manuals/FullManual/view_filter.upsert.md`
@@ -518,6 +641,7 @@
   - alias→canonical を一覧で確認する場合: `GET /debug/capabilities?includeDeprecated=1&grouped=1`
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260109.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPServer/Program.cs`
 - `RevitMCPServer/Engine/DurableQueue.cs`
 - `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
@@ -611,6 +735,7 @@
 - `RebarBarClearanceTable.json` の径→中心間(mm) を基準に判定し、必要なら違反ペアを返します（`includePairs=true`）。
 
 ### 実装変更（主なファイル）
+- `Manuals/ChangeLog_20260107.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/RebarAutoModelService.cs`
 - `RevitMCPAddin/RebarMapping.json`
 - `RevitMCPAddin/RebarBarClearanceTable.json`
@@ -722,13 +847,6 @@
 ### テスト方法（例）
 - `get_selected_element_ids` で、柱+梁が選択されていることを確認
 - `rebar_apply_plan` を `dryRun:true` で実行 → `dryRun:false` で作成
-
-## 2025-12-23 Documentation + Add-in: command index refresh
-
-### 変更概要
-- コマンド索引（EN/JSON）と FullManual/FullManual_ja を更新。
-- Add-in: material asset / set wall top to overhead / agent bootstrap / describe / search / get context / view系コマンドを追加・更新。
-- ルーティング/マニフェスト/worker を更新し、confirm token・用語マッピングの基盤を整備。
 
 ## 2025-12-24 — Rollback時の警告詳細を必ず記録（failureHandling/Router強化）
 
@@ -1011,6 +1129,7 @@
 - 条件: contains/exclude/family/typeName を AND で評価。
 
 ### 詳細
+- Manuals/ChangeLog_20260206.md
 
 ---
 
@@ -1041,4 +1160,30 @@
 - `Codex/Manuals/FullManual_ja/get_project_browser_selection.md` (new)
 
 ### 詳細
+- Manuals/ChangeLog_20260216.md
+
+---
+
+## 2026-02-25 柱芯線図スクリプト改善（ビュータイプ固定 + レベル名付き命名）
+
+### 目的
+- 柱芯線図の各柱ビューを専用ビュータイプ `柱芯線図` に揃える。
+- 生成ビュー名に元レベル名を含め、後工程で識別しやすくする。
+
+### 変更概要
+- `column_grid_coreline_full_auto.py`
+  - 柱ビュー作成後に `view.set_view_type`（`newViewTypeName="柱芯線図"`）を適用。
+  - 生成名プレフィックスを `CGA_<level>_<timestamp>` に変更。
+  - `sourceLevelLabel` / `columnViewTypeName` / `items[].viewTypeSet` を出力JSONへ追加。
+- `column_grid_coreline_workflow_sample.py`
+  - 柱ビュー作成後に `view.set_view_type`（`newViewTypeName="柱芯線図"`）を適用。
+  - 生成名プレフィックスを `<level>_<sourceViewName>` に変更。
+  - `sourceLevelLabel` / `namePrefix` / `columnViewTypeName` / `items[].viewTypeSet` を出力JSONへ追加。
+
+### Runbook整理
+- `Column_Coreline_Workflow_FullAuto_JA.md`
+  - ビュー命名規則（レベル名含む）と `COLUMN_VIEW_TYPE_NAME` を追記。
+- `Column_Coreline_Workflow_PythonRunner_JA.md`
+  - 事前準備に「ビュータイプ `柱芯線図`」を追加。
+  - 命名規則とビュータイプ適用確認項目を追記。
 

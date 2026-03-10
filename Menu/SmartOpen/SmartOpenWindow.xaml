@@ -1,0 +1,171 @@
+<Window x:Class="SmartOpen.SmartOpenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Smart Open (Rich)" Height="720" Width="1120"
+        MinWidth="980" MinHeight="640" WindowStartupLocation="CenterOwner"
+        Loaded="Window_Loaded">
+
+  <!-- Window-wide resources（必要ならここにグローバルスタイル） -->
+  <Window.Resources>
+  </Window.Resources>
+
+  <DockPanel>
+
+    <!-- Top toolbar -->
+    <Border DockPanel.Dock="Top" BorderBrush="#DDD" BorderThickness="0,0,0,1" Padding="6,4">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+        <TextBlock Text="Folder:" Margin="0,6,6,0" VerticalAlignment="Center"/>
+        <TextBox x:Name="TxtFolder" Width="420" Margin="0,0,2,0" VerticalAlignment="Center"
+                 ToolTip="対象フォルダのパス" />
+        <!-- Folder history dropdown -->
+        <ToggleButton x:Name="BtnFolderHistDrop" Content="▼" Width="24" Margin="0,0,6,0"/>
+        <Popup x:Name="FolderHistoryPopup"
+               PlacementTarget="{Binding ElementName=BtnFolderHistDrop}"
+               IsOpen="{Binding IsChecked, ElementName=BtnFolderHistDrop, Mode=TwoWay}"
+               StaysOpen="False">
+          <Border Background="White" BorderBrush="#DDD" BorderThickness="1">
+            <StackPanel x:Name="FolderHistoryPanel" MinWidth="360"/>
+          </Border>
+        </Popup>
+
+        <!-- Split Browse Button: triangle shows mode menu, main executes -->
+        <Grid Margin="0,0,8,0" VerticalAlignment="Center">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="28" />
+          </Grid.ColumnDefinitions>
+
+          <!-- Main button executes the selected browser mode -->
+          <Button x:Name="BtnBrowseMain" Content="Browser" Padding="12,4"
+                  Click="BtnBrowseMain_Click" />
+
+          <!-- Triangle button shows selection menu only -->
+          <ToggleButton x:Name="BtnBrowseDrop" Grid.Column="1" Content="▼" Width="28" />
+
+          <!-- Mode selection popup (no immediate action) -->
+          <Popup x:Name="BrowseModePopup"
+                 PlacementTarget="{Binding ElementName=BtnBrowseDrop}"
+                 IsOpen="{Binding IsChecked, ElementName=BtnBrowseDrop, Mode=TwoWay}"
+                 StaysOpen="False">
+            <Border Background="White" BorderBrush="#DDD" BorderThickness="1">
+              <StackPanel>
+                <MenuItem Header="Windows Explorer を既定にする" Click="BrowseWithExplorer_Click"/>
+                <MenuItem Header="リッチブラウザを既定にする" Click="BrowseWithRich_Click"/>
+              </StackPanel>
+            </Border>
+          </Popup>
+        </Grid>
+
+        <TextBlock Text="Filter:" Margin="8,6,4,0" VerticalAlignment="Center"/>
+        <ComboBox x:Name="CmbFilter" Width="120" Margin="0,0,6,0" IsEditable="True"
+                  VerticalAlignment="Center">
+          <ComboBoxItem Content="*" IsSelected="True"/>
+          <ComboBoxItem Content="*.rvt"/>
+          <ComboBoxItem Content="*.rte"/>
+        </ComboBox>
+
+        <!-- History size option -->
+        <TextBlock Text="履歴数:" Margin="8,6,4,0" VerticalAlignment="Center"/>
+        <TextBox x:Name="TxtHistorySize" Width="42" VerticalAlignment="Center" TextAlignment="Right"
+                 ToolTip="保持するフォルダ履歴の最大数"/>
+
+        <Button x:Name="BtnReload" Content="Reload" Click="BtnReload_Click" Margin="0,0,8,0"/>
+
+        <!-- Localized checkboxes -->
+        <CheckBox x:Name="ChkAudit" Content="監査 (Audit)" Margin="8,0,0,0">
+          <CheckBox.ToolTip>
+            ファイルを開く前にモデルを検査・修復します（時間がかかります）
+          </CheckBox.ToolTip>
+        </CheckBox>
+        <CheckBox x:Name="ChkDetach" Content="中央モデルから分離 (Detach)" Margin="12,0,0,0">
+          <CheckBox.ToolTip>
+            中央モデルから分離して開きます（ワークセットを破棄）
+          </CheckBox.ToolTip>
+        </CheckBox>
+
+      </StackPanel>
+    </Border>
+
+    <!-- Bottom Open/Cancel -->
+    <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="8">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button x:Name="BtnOpen" Content="Open" Width="120" Margin="0,0,8,0" IsDefault="True" Click="BtnOpen_Click"/>
+        <Button Content="Cancel" Width="120" IsCancel="True"/>
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Main 3 columns -->
+    <Grid>
+
+      <!-- Column definitions (Property 要素は先頭/末尾に) -->
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="5" />
+        <ColumnDefinition Width="380" MinWidth="340"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Grid-level resources (Property 要素は先頭/末尾に) -->
+      <Grid.Resources>
+        <Style x:Key="CenterText" TargetType="TextBlock">
+          <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+      </Grid.Resources>
+
+      <!-- Left: files grid -->
+      <DataGrid x:Name="FilesGrid" Grid.Column="0"
+                AutoGenerateColumns="False" IsReadOnly="True"
+                SelectionMode="Single" SelectionChanged="FilesGrid_SelectionChanged">
+        <DataGrid.Resources>
+          <Style TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Padding" Value="4,0,4,0"/>
+          </Style>
+        </DataGrid.Resources>
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Name" Binding="{Binding Name}" MinWidth="180" Width="*" />
+          <DataGridTextColumn Header="Size" Binding="{Binding SizeMB}" Width="80"
+                              ElementStyle="{StaticResource CenterText}"/>
+          <DataGridTextColumn Header="Modified" Binding="{Binding Modified}" Width="160" />
+          <DataGridTextColumn Header="Build" Binding="{Binding Build}" Width="70"
+                              ElementStyle="{StaticResource CenterText}"/>
+          <DataGridCheckBoxColumn Header="WS" Binding="{Binding IsWorkshared}" Width="60"/>
+          <DataGridCheckBoxColumn Header="Central" Binding="{Binding IsCentral}" Width="70"/>
+          <DataGridTextColumn Header="Links" Binding="{Binding LinkCount}" Width="70">
+            <DataGridTextColumn.HeaderStyle>
+              <Style TargetType="DataGridColumnHeader">
+                <Setter Property="ToolTip"
+                        Value="TransmissionData 上の外部参照件数（Revitリンク・CAD・画像・IFCなど。アンロードも含む）"/>
+              </Style>
+            </DataGridTextColumn.HeaderStyle>
+          </DataGridTextColumn>
+          <DataGridTextColumn Header="Path" Binding="{Binding DirPath}" MinWidth="200" Width="280"/>
+        </DataGrid.Columns>
+      </DataGrid>
+
+      <!-- Splitter -->
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
+                    Background="#EEE" ResizeBehavior="PreviousAndNext"/>
+
+      <!-- Right: details (thumbnail on top) -->
+      <Border Grid.Column="2" BorderBrush="#DDD" BorderThickness="1,0,0,0" Padding="10">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Orientation="Vertical">
+
+            <!-- Thumbnail -->
+            <Border BorderBrush="#CCC" BorderThickness="1" Padding="4" Margin="0,0,0,8">
+              <Image x:Name="PreviewImage" Width="256" Height="256"
+                     Stretch="Uniform" HorizontalAlignment="Center"/>
+            </Border>
+
+            <!-- Summary -->
+            <TextBlock x:Name="TxtSummary" TextWrapping="Wrap" Margin="0,0,0,8"/>
+            <Button Content="エクスプローラーで表示" Width="180" Click="RevealInExplorer_Click"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+
+    </Grid>
+
+  </DockPanel>
+</Window>

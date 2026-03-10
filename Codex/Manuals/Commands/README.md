@@ -10,6 +10,8 @@ Files
 - commands_index.json — Machine‑readable map: { method: { category, importance, kind } }.
  - Rename_Types_By_Parameter_EN.md — Bulk rename types by parameter value (prefix/suffix rules, tokens, paging).
  - Rename_Types_Bulk_EN.md — Explicit mapping (typeId/uniqueId → newName) high‑throughput bulk rename.
+ - Area_Calc_Edge_Text_Placement_JA.md — Area求積の辺長注記を「線分中心=文字中心」で配置する設定。
+ - Area_Calc_Triangulation_JA.md — Area求積の三角形分割（長方形=2三角形、頂点追加なし）仕様。
 
 Update Steps (when commands are added/removed)
 0. Prefer live capabilities for the current build:

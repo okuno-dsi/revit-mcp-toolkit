@@ -644,6 +644,24 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             string viewNameRegex = p.Value<string>("targetViewNameRegex") ?? @"^1/2_COL_(\d+)$";
             bool replaceExisting = p.Value<bool?>("replaceExisting") ?? true;
             bool includeSourceView = p.Value<bool?>("includeSourceView") ?? false;
+            double? offsetFromFaceMm = p.Value<double?>("offsetFromColumnFaceMm") ?? p.Value<double?>("offsetFromFaceMm");
+            double tierGapMm = p.Value<double?>("secondTierGapMm") ?? p.Value<double?>("tierGapMm") ?? 350.0;
+            bool allowDefaultTemplateWhenSourceMissing = p.Value<bool?>("allowDefaultTemplateWhenSourceMissing") ?? true;
+            string forceAxisXFaceSide = (p.Value<string>("forceAxisXFaceSide") ?? "bottom").Trim();
+            string forceAxisYFaceSide = (p.Value<string>("forceAxisYFaceSide") ?? "left").Trim();
+            bool createCenterGridDimensions = p.Value<bool?>("createCenterGridDimensions") ?? true;
+            string centerGridAxisXSide = (p.Value<string>("centerGridAxisXSide") ?? "top").Trim();
+            string centerGridAxisYSide = (p.Value<string>("centerGridAxisYSide") ?? "right").Trim();
+            double centerGridOffsetMm = p.Value<double?>("centerGridOffsetMm") ?? 600.0;
+            double centerGridSkipZeroToleranceMm = p.Value<double?>("centerGridSkipZeroToleranceMm") ?? 1.0;
+            if (offsetFromFaceMm.HasValue && offsetFromFaceMm.Value < 0.0)
+                return new { ok = false, msg = "offsetFromColumnFaceMm must be >= 0." };
+            if (tierGapMm < 0.0)
+                return new { ok = false, msg = "secondTierGapMm must be >= 0." };
+            if (centerGridOffsetMm < 0.0)
+                return new { ok = false, msg = "centerGridOffsetMm must be >= 0." };
+            if (centerGridSkipZeroToleranceMm < 0.0)
+                return new { ok = false, msg = "centerGridSkipZeroToleranceMm must be >= 0." };
 
             var sourceView = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceViewId)) as View;
             if (sourceView == null) return new { ok = false, msg = $"source view not found: {sourceViewId}" };
@@ -665,9 +683,29 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 return new { ok = false, msg = "source column center not found." };
             }
 
-            if (!TryExtractAxisTemplates(doc, sourceView, sourceColumnId, srcCenter, out AxisTemplate tx, out AxisTemplate ty))
+            bool templateFound = TryExtractAxisTemplates(doc, sourceView, sourceColumnId, srcCenter, out AxisTemplate tx, out AxisTemplate ty);
+            if (!templateFound)
             {
-                return new { ok = false, msg = "source view dimension template (X/Y) not found." };
+                if (!allowDefaultTemplateWhenSourceMissing ||
+                    !TryBuildDefaultAxisTemplates(doc, offsetFromFaceMm, tierGapMm, out tx, out ty))
+                {
+                    return new { ok = false, msg = "source view dimension template (X/Y) not found." };
+                }
+            }
+
+            // offsetFromFace 指定時は、ソース寸法が無くても2段目(柱外形寸法)を必ず作れるよう補完。
+            if (offsetFromFaceMm.HasValue)
+            {
+                if (!tx.WidthOffsetFt.HasValue)
+                {
+                    tx.WidthOffsetFt = tx.OffsetFt;
+                    tx.WidthDimensionTypeId = tx.DimensionTypeId;
+                }
+                if (!ty.WidthOffsetFt.HasValue)
+                {
+                    ty.WidthOffsetFt = ty.OffsetFt;
+                    ty.WidthDimensionTypeId = ty.DimensionTypeId;
+                }
             }
 
             var regex = new Regex(viewNameRegex, RegexOptions.Compiled);
@@ -684,18 +722,10 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             int okCount = 0;
             int ngCount = 0;
 
-            var originalActiveView = uidoc.ActiveView;
             foreach (var tv in targetViews)
             {
                 try
                 {
-                    // Annotation を確実に対象ビューへ作るため、対象ビューを順次アクティブ化
-                    if (uidoc.ActiveView == null || uidoc.ActiveView.Id != tv.Id)
-                    {
-                        try { uidoc.ActiveView = tv; }
-                        catch { /* ignore; continue with explicit view anyway */ }
-                    }
-
                     using (var txOne = new Transaction(doc, "Apply Column Grid Dimension Standard"))
                     {
                         txOne.Start();
@@ -748,8 +778,48 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         }
 
                         int created = 0;
-                        created += CreateAxisDimensionX(doc, tv, fb, gp, c, tx);
-                        created += CreateAxisDimensionY(doc, tv, fb, gp, c, ty);
+                        created += CreateAxisDimensionX(doc, tv, fb, gp, c, tx, offsetFromFaceMm, tierGapMm, forceAxisXFaceSide);
+                        created += CreateAxisDimensionY(doc, tv, fb, gp, c, ty, offsetFromFaceMm, tierGapMm, forceAxisYFaceSide);
+                        if (createCenterGridDimensions)
+                        {
+                            created += CreateCenterGridDimensionX(doc, tv, col, fb, gp, c, tx, centerGridOffsetMm, centerGridAxisXSide, centerGridSkipZeroToleranceMm);
+                            created += CreateCenterGridDimensionY(doc, tv, col, fb, gp, c, ty, centerGridOffsetMm, centerGridAxisYSide, centerGridSkipZeroToleranceMm);
+                        }
+
+                        var st = txOne.Commit();
+                        if (st != TransactionStatus.Committed)
+                        {
+                            rows.Add(new
+                            {
+                                viewId = tv.Id.IntValue(),
+                                viewName = tv.Name,
+                                columnId = colId,
+                                ok = false,
+                                msg = $"transaction status: {st}",
+                                deleted,
+                                created
+                            });
+                            ngCount++;
+                            continue;
+                        }
+
+                        int persisted = CountTargetDimensions(doc, tv, colId);
+                        if (persisted <= 0)
+                        {
+                            rows.Add(new
+                            {
+                                viewId = tv.Id.IntValue(),
+                                viewName = tv.Name,
+                                columnId = colId,
+                                ok = false,
+                                msg = "dimensions were not persisted in target view.",
+                                deleted,
+                                created,
+                                persisted
+                            });
+                            ngCount++;
+                            continue;
+                        }
 
                         rows.Add(new
                         {
@@ -759,11 +829,11 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                             ok = true,
                             deleted,
                             created,
+                            persisted,
                             typeX = tx.DimensionTypeId,
                             typeY = ty.DimensionTypeId
                         });
                         okCount++;
-                        txOne.Commit();
                     }
                 }
                 catch (Exception ex)
@@ -771,12 +841,6 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                     rows.Add(new { viewId = tv.Id.IntValue(), viewName = tv.Name, ok = false, msg = ex.Message });
                     ngCount++;
                 }
-            }
-
-            if (originalActiveView != null && uidoc.ActiveView != null && uidoc.ActiveView.Id != originalActiveView.Id)
-            {
-                try { uidoc.ActiveView = originalActiveView; }
-                catch { /* ignore */ }
             }
 
             return new
@@ -993,6 +1057,9 @@ namespace RevitMCPAddin.Commands.AnnotationOps
         private static bool TryGetFaceBundle(FamilyInstance col, View v, out FaceBundle fb)
         {
             fb = null;
+            if (TryGetFaceBundleFromFamilyReferences(col, v, out fb))
+                return true;
+
             var opt = new Options
             {
                 ComputeReferences = true,
@@ -1076,6 +1143,81 @@ namespace RevitMCPAddin.Commands.AnnotationOps
             return true;
         }
 
+        private static bool TryGetFaceBundleFromFamilyReferences(FamilyInstance col, View v, out FaceBundle fb)
+        {
+            fb = null;
+            if (col == null) return false;
+
+            var leftRef = TryGetFirstRef(col, FamilyInstanceReferenceType.Left);
+            var rightRef = TryGetFirstRef(col, FamilyInstanceReferenceType.Right);
+            var frontRef = TryGetFirstRef(col, FamilyInstanceReferenceType.Front);
+            var backRef = TryGetFirstRef(col, FamilyInstanceReferenceType.Back);
+
+            if (leftRef == null || rightRef == null || frontRef == null || backRef == null) return false;
+            if (ReferenceEquals(leftRef, rightRef) || ReferenceEquals(frontRef, backRef)) return false;
+
+            var bb = SafeGetBoundingBox(col, v);
+            if (bb == null) return false;
+
+            double lx = bb.Min.X, rx = bb.Max.X;
+            double by = bb.Min.Y, ty = bb.Max.Y;
+            var lr = leftRef;
+            var rr = rightRef;
+            var br = frontRef;
+            var tr = backRef;
+
+            if (lx > rx)
+            {
+                var tRef = lr; lr = rr; rr = tRef;
+                var t = lx; lx = rx; rx = t;
+            }
+            if (by > ty)
+            {
+                var tRef = br; br = tr; tr = tRef;
+                var t = by; by = ty; ty = t;
+            }
+
+            fb = new FaceBundle
+            {
+                LeftRef = lr,
+                RightRef = rr,
+                BottomRef = br,
+                TopRef = tr,
+                LeftX = lx,
+                RightX = rx,
+                BottomY = by,
+                TopY = ty
+            };
+            return true;
+        }
+
+        private static Reference TryGetFirstRef(FamilyInstance fi, FamilyInstanceReferenceType t)
+        {
+            try
+            {
+                var refs = fi.GetReferences(t);
+                if (refs != null && refs.Count > 0) return refs[0];
+            }
+            catch { }
+            return null;
+        }
+
+        private static BoundingBoxXYZ SafeGetBoundingBox(Element e, View v)
+        {
+            try
+            {
+                var bb = e.get_BoundingBox(v);
+                if (bb != null) return bb;
+            }
+            catch { }
+            try
+            {
+                return e.get_BoundingBox(null);
+            }
+            catch { }
+            return null;
+        }
+
         private static int DeleteTargetDimensions(Document doc, View v, int colId)
         {
             var dims = new FilteredElementCollector(doc, v.Id)
@@ -1095,7 +1237,8 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                         return doc.GetElement(r.ElementId) is Grid;
                     });
                     bool allColumn = refs.Count >= 2 && refs.All(r => r.ElementId != null && r.ElementId.IntValue() == colId);
-                    if ((colRefCount >= 2 && hasGrid) || allColumn)
+                    bool centerToGrid = (colRefCount == 1 && hasGrid);
+                    if ((colRefCount >= 2 && hasGrid) || allColumn || centerToGrid)
                     {
                         doc.Delete(d.Id);
                         deleted++;
@@ -1104,6 +1247,36 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 catch { }
             }
             return deleted;
+        }
+
+        private static int CountTargetDimensions(Document doc, View v, int colId)
+        {
+            var dims = new FilteredElementCollector(doc, v.Id)
+                .OfClass(typeof(Dimension))
+                .Cast<Dimension>()
+                .ToList();
+            int count = 0;
+            foreach (var d in dims)
+            {
+                try
+                {
+                    var refs = d.References?.Cast<Reference>().ToList() ?? new List<Reference>();
+                    int colRefCount = refs.Count(r => r.ElementId != null && r.ElementId.IntValue() == colId);
+                    bool hasGrid = refs.Any(r =>
+                    {
+                        if (r.ElementId == null) return false;
+                        return doc.GetElement(r.ElementId) is Grid;
+                    });
+                    bool allColumn = refs.Count >= 2 && refs.All(r => r.ElementId != null && r.ElementId.IntValue() == colId);
+                    bool centerToGrid = (colRefCount == 1 && hasGrid);
+                    if ((colRefCount >= 2 && hasGrid) || allColumn || centerToGrid)
+                    {
+                        count++;
+                    }
+                }
+                catch { }
+            }
+            return count;
         }
 
         private static int CreateAxisDimensionX(Document doc, View v, FaceBundle fb, GridPick gp, XYZ center, AxisTemplate t)
@@ -1136,6 +1309,73 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 rwa.Append(fb.RightRef);
                 double wy = center.Y + t.WidthOffsetFt.Value;
                 var wln = Line.CreateBound(new XYZ(minX, wy, z), new XYZ(maxX, wy, z));
+                var wd = doc.Create.NewDimension(v, wln, rwa);
+                int wTypeId = t.WidthDimensionTypeId > 0 ? t.WidthDimensionTypeId : t.DimensionTypeId;
+                if (wd != null && wTypeId > 0)
+                {
+                    var wtp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wTypeId)) as DimensionType;
+                    if (wtp != null) wd.ChangeTypeId(wtp.Id);
+                }
+                if (wd != null) created++;
+            }
+            return created;
+        }
+
+        private static int CreateAxisDimensionX(
+            Document doc, View v, FaceBundle fb, GridPick gp, XYZ center, AxisTemplate t,
+            double? offsetFromFaceMm, double tierGapMm, string faceSideOverride)
+        {
+            int created = 0;
+
+            var ra = new ReferenceArray();
+            ra.Append(fb.LeftRef);
+            ra.Append(new Reference(gp.VerticalGrid));
+            ra.Append(fb.RightRef);
+
+            double firstY;
+            if (offsetFromFaceMm.HasValue)
+            {
+                bool plusSide = ParseAxisSide(faceSideOverride, "X", t.OffsetFt >= 0.0);
+                double d = UnitHelper.MmToFt(offsetFromFaceMm.Value);
+                firstY = plusSide ? (fb.TopY + d) : (fb.BottomY - d);
+            }
+            else
+            {
+                firstY = center.Y + t.OffsetFt;
+            }
+
+            double z = center.Z;
+            double minX = Math.Min(fb.LeftX, Math.Min(gp.VerticalX, fb.RightX)) - UnitHelper.MmToFt(100.0);
+            double maxX = Math.Max(fb.LeftX, Math.Max(gp.VerticalX, fb.RightX)) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(minX, firstY, z), new XYZ(maxX, firstY, z));
+
+            var dmain = doc.Create.NewDimension(v, ln, ra);
+            if (t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) dmain.ChangeTypeId(tp.Id);
+            }
+            if (dmain != null) created++;
+
+            if (t.WidthOffsetFt.HasValue)
+            {
+                var rwa = new ReferenceArray();
+                rwa.Append(fb.LeftRef);
+                rwa.Append(fb.RightRef);
+
+                double secondY;
+                if (offsetFromFaceMm.HasValue)
+                {
+                    bool plusSide = ParseAxisSide(faceSideOverride, "X", t.WidthOffsetFt.Value >= 0.0);
+                    double d2 = UnitHelper.MmToFt(offsetFromFaceMm.Value + tierGapMm);
+                    secondY = plusSide ? (fb.TopY + d2) : (fb.BottomY - d2);
+                }
+                else
+                {
+                    secondY = center.Y + t.WidthOffsetFt.Value;
+                }
+
+                var wln = Line.CreateBound(new XYZ(minX, secondY, z), new XYZ(maxX, secondY, z));
                 var wd = doc.Create.NewDimension(v, wln, rwa);
                 int wTypeId = t.WidthDimensionTypeId > 0 ? t.WidthDimensionTypeId : t.DimensionTypeId;
                 if (wd != null && wTypeId > 0)
@@ -1188,6 +1428,214 @@ namespace RevitMCPAddin.Commands.AnnotationOps
                 if (wd != null) created++;
             }
             return created;
+        }
+
+        private static int CreateAxisDimensionY(
+            Document doc, View v, FaceBundle fb, GridPick gp, XYZ center, AxisTemplate t,
+            double? offsetFromFaceMm, double tierGapMm, string faceSideOverride)
+        {
+            int created = 0;
+
+            var ra = new ReferenceArray();
+            ra.Append(fb.BottomRef);
+            ra.Append(new Reference(gp.HorizontalGrid));
+            ra.Append(fb.TopRef);
+
+            double firstX;
+            if (offsetFromFaceMm.HasValue)
+            {
+                bool plusSide = ParseAxisSide(faceSideOverride, "Y", t.OffsetFt >= 0.0);
+                double d = UnitHelper.MmToFt(offsetFromFaceMm.Value);
+                firstX = plusSide ? (fb.RightX + d) : (fb.LeftX - d);
+            }
+            else
+            {
+                firstX = center.X + t.OffsetFt;
+            }
+
+            double z = center.Z;
+            double minY = Math.Min(fb.BottomY, Math.Min(gp.HorizontalY, fb.TopY)) - UnitHelper.MmToFt(100.0);
+            double maxY = Math.Max(fb.BottomY, Math.Max(gp.HorizontalY, fb.TopY)) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(firstX, minY, z), new XYZ(firstX, maxY, z));
+
+            var dmain = doc.Create.NewDimension(v, ln, ra);
+            if (t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) dmain.ChangeTypeId(tp.Id);
+            }
+            if (dmain != null) created++;
+
+            if (t.WidthOffsetFt.HasValue)
+            {
+                var rwa = new ReferenceArray();
+                rwa.Append(fb.BottomRef);
+                rwa.Append(fb.TopRef);
+
+                double secondX;
+                if (offsetFromFaceMm.HasValue)
+                {
+                    bool plusSide = ParseAxisSide(faceSideOverride, "Y", t.WidthOffsetFt.Value >= 0.0);
+                    double d2 = UnitHelper.MmToFt(offsetFromFaceMm.Value + tierGapMm);
+                    secondX = plusSide ? (fb.RightX + d2) : (fb.LeftX - d2);
+                }
+                else
+                {
+                    secondX = center.X + t.WidthOffsetFt.Value;
+                }
+
+                var wln = Line.CreateBound(new XYZ(secondX, minY, z), new XYZ(secondX, maxY, z));
+                var wd = doc.Create.NewDimension(v, wln, rwa);
+                int wTypeId = t.WidthDimensionTypeId > 0 ? t.WidthDimensionTypeId : t.DimensionTypeId;
+                if (wd != null && wTypeId > 0)
+                {
+                    var wtp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(wTypeId)) as DimensionType;
+                    if (wtp != null) wd.ChangeTypeId(wtp.Id);
+                }
+                if (wd != null) created++;
+            }
+            return created;
+        }
+
+        private static bool ParseAxisSide(string side, string axis, bool fallbackPlus)
+        {
+            if (string.IsNullOrWhiteSpace(side)) return fallbackPlus;
+            var s = side.Trim().ToLowerInvariant();
+            if (axis == "X")
+            {
+                if (s == "top") return true;
+                if (s == "bottom") return false;
+            }
+            else
+            {
+                if (s == "right") return true;
+                if (s == "left") return false;
+            }
+            return fallbackPlus;
+        }
+
+        private static bool TryBuildDefaultAxisTemplates(
+            Document doc,
+            double? offsetFromFaceMm,
+            double tierGapMm,
+            out AxisTemplate tx,
+            out AxisTemplate ty)
+        {
+            tx = null;
+            ty = null;
+            var dt = new FilteredElementCollector(doc)
+                .OfClass(typeof(DimensionType))
+                .Cast<DimensionType>()
+                .OrderBy(t => t.Name ?? "")
+                .FirstOrDefault();
+            if (dt == null) return false;
+
+            double baseMm = offsetFromFaceMm ?? 600.0;
+            double offFt = UnitHelper.MmToFt(baseMm);
+            double widthFt = UnitHelper.MmToFt(baseMm + Math.Max(0.0, tierGapMm));
+
+            tx = new AxisTemplate
+            {
+                Axis = "X",
+                DimensionTypeId = dt.Id.IntValue(),
+                OffsetFt = -offFt, // default: bottom side
+                WidthDimensionTypeId = dt.Id.IntValue(),
+                WidthOffsetFt = -widthFt
+            };
+            ty = new AxisTemplate
+            {
+                Axis = "Y",
+                DimensionTypeId = dt.Id.IntValue(),
+                OffsetFt = -offFt, // default: left side
+                WidthDimensionTypeId = dt.Id.IntValue(),
+                WidthOffsetFt = -widthFt
+            };
+            return true;
+        }
+
+        private static bool TryGetCenterRefs(FamilyInstance col, out Reference centerXRef, out Reference centerYRef)
+        {
+            centerXRef = TryGetFirstRef(col, FamilyInstanceReferenceType.CenterLeftRight);
+            centerYRef = TryGetFirstRef(col, FamilyInstanceReferenceType.CenterFrontBack);
+            return centerXRef != null && centerYRef != null;
+        }
+
+        private static int CreateCenterGridDimensionX(
+            Document doc,
+            View v,
+            FamilyInstance col,
+            FaceBundle fb,
+            GridPick gp,
+            XYZ center,
+            AxisTemplate t,
+            double centerOffsetMm,
+            string centerSide,
+            double zeroTolMm)
+        {
+            if (!TryGetCenterRefs(col, out var centerXRef, out _)) return 0;
+
+            double distMm = UnitHelper.FtToMm(Math.Abs(center.X - gp.VerticalX));
+            if (distMm <= Math.Max(0.0, zeroTolMm)) return 0;
+
+            bool plusSide = ParseAxisSide(centerSide, "X", true); // default top
+            double d = UnitHelper.MmToFt(Math.Max(0.0, centerOffsetMm));
+            double y = plusSide ? (fb.TopY + d) : (fb.BottomY - d);
+
+            double z = center.Z;
+            double minX = Math.Min(center.X, gp.VerticalX) - UnitHelper.MmToFt(100.0);
+            double maxX = Math.Max(center.X, gp.VerticalX) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(minX, y, z), new XYZ(maxX, y, z));
+
+            var ra = new ReferenceArray();
+            ra.Append(centerXRef);
+            ra.Append(new Reference(gp.VerticalGrid));
+
+            var dmain = doc.Create.NewDimension(v, ln, ra);
+            if (dmain != null && t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) dmain.ChangeTypeId(tp.Id);
+            }
+            return dmain != null ? 1 : 0;
+        }
+
+        private static int CreateCenterGridDimensionY(
+            Document doc,
+            View v,
+            FamilyInstance col,
+            FaceBundle fb,
+            GridPick gp,
+            XYZ center,
+            AxisTemplate t,
+            double centerOffsetMm,
+            string centerSide,
+            double zeroTolMm)
+        {
+            if (!TryGetCenterRefs(col, out _, out var centerYRef)) return 0;
+
+            double distMm = UnitHelper.FtToMm(Math.Abs(center.Y - gp.HorizontalY));
+            if (distMm <= Math.Max(0.0, zeroTolMm)) return 0;
+
+            bool plusSide = ParseAxisSide(centerSide, "Y", true); // default right
+            double d = UnitHelper.MmToFt(Math.Max(0.0, centerOffsetMm));
+            double x = plusSide ? (fb.RightX + d) : (fb.LeftX - d);
+
+            double z = center.Z;
+            double minY = Math.Min(center.Y, gp.HorizontalY) - UnitHelper.MmToFt(100.0);
+            double maxY = Math.Max(center.Y, gp.HorizontalY) + UnitHelper.MmToFt(100.0);
+            var ln = Line.CreateBound(new XYZ(x, minY, z), new XYZ(x, maxY, z));
+
+            var ra = new ReferenceArray();
+            ra.Append(centerYRef);
+            ra.Append(new Reference(gp.HorizontalGrid));
+
+            var dmain = doc.Create.NewDimension(v, ln, ra);
+            if (dmain != null && t.DimensionTypeId > 0)
+            {
+                var tp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(t.DimensionTypeId)) as DimensionType;
+                if (tp != null) dmain.ChangeTypeId(tp.Id);
+            }
+            return dmain != null ? 1 : 0;
         }
 
         private static bool TryGetDimensionOriginSafe(Dimension dim, View view, out XYZ o)

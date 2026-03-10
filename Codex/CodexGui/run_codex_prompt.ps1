@@ -46,6 +46,9 @@ param(
 
   [string]$Profile,
 
+  [ValidateSet("policy_auto", "legacy_yolo")]
+  [string]$ExecutionMode = "policy_auto",
+
   [string[]]$ImagePaths,
 
   [switch]$ShowStatus,
@@ -219,6 +222,19 @@ function Ensure-Hashtable([object]$obj) {
   return $ht
 }
 
+function Normalize-ExecutionMode {
+  param([string]$Mode)
+  $m = ''
+  if ($null -ne $Mode) { $m = $Mode }
+  $m = $m.Trim().ToLowerInvariant()
+  if (-not $m) { return 'policy_auto' }
+  switch ($m) {
+    'policy_auto' { return 'policy_auto' }
+    'legacy_yolo' { return 'legacy_yolo' }
+    default { return 'policy_auto' }
+  }
+}
+
 # Model is authoritative when explicitly passed:
 # - non-empty: set model
 # - empty/whitespace: clear model (use backend default)
@@ -238,12 +254,16 @@ if ($hasEffortParam) {
   if ($e) { $effortNormalized = $e } else { $effortNormalized = $null }
 }
 
+$hasExecutionModeParam = $PSBoundParameters.ContainsKey('ExecutionMode')
+$executionModeNormalized = Normalize-ExecutionMode $ExecutionMode
+
 if (-not $map.ContainsKey($SessionId)) {
   $map[$SessionId] = @{
     codexSessionId = $null
     model          = $modelNormalized
     reasoning_effort = $effortNormalized
     profile        = $null
+    execution_mode = $executionModeNormalized
     createdAt      = (Get-Date).ToString('o')
     lastUsedAt     = $null
   }
@@ -256,6 +276,9 @@ if (-not $map.ContainsKey($SessionId)) {
   if ($hasEffortParam) {
     $map[$SessionId].reasoning_effort = $effortNormalized
   }
+  if ($hasExecutionModeParam) {
+    $map[$SessionId].execution_mode = $executionModeNormalized
+  }
 }
 
 if ($PSBoundParameters.ContainsKey('Profile')) {
@@ -266,6 +289,10 @@ if ($PSBoundParameters.ContainsKey('Profile')) {
 
 $entry = $map[$SessionId]
 $codexSessionId = $entry.codexSessionId
+if (-not $entry.execution_mode) {
+  $entry.execution_mode = 'policy_auto'
+}
+$executionModeNormalized = Normalize-ExecutionMode $entry.execution_mode
 
 if ($ShowStatus) {
   $url = 'https://chatgpt.com/codex/settings/usage'
@@ -307,14 +334,28 @@ switch ($Backend) {
       # ignore
     }
 
-    $tokens = @(
-      '--yolo',
-      'exec',
-      '--dangerously-bypass-approvals-and-sandbox',
-      '--sandbox', 'danger-full-access',
-      '--color', 'never',
-      '--skip-git-repo-check'
-    )
+    $tokens = @()
+    switch ($executionModeNormalized) {
+      'legacy_yolo' {
+        $tokens = @(
+          '--yolo',
+          'exec',
+          '--dangerously-bypass-approvals-and-sandbox',
+          '--sandbox', 'danger-full-access',
+          '--color', 'never',
+          '--skip-git-repo-check'
+        )
+      }
+      default {
+        $tokens = @(
+          '--yolo',
+          'exec',
+          '--sandbox', 'workspace-write',
+          '--color', 'never',
+          '--skip-git-repo-check'
+        )
+      }
+    }
     if ($entry.model) {
       $tokens += @('--model', $entry.model)
     }

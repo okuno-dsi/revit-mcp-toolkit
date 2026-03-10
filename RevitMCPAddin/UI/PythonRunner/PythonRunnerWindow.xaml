@@ -10,6 +10,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -87,14 +88,27 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Args" Margin="0,0,6,0"/>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Extra Args" Margin="0,0,6,0"/>
             <TextBox x:Name="TxtArgs" Grid.Column="1" MinWidth="420" Margin="0,0,12,0"/>
-            <Button x:Name="BtnRun" Grid.Column="2" Content="Run" Width="90" Margin="0,0,6,0"/>
-            <Button x:Name="BtnStop" Grid.Column="3" Content="Stop" Width="90" IsEnabled="False"/>
+            <Button x:Name="BtnReloadOptions" Grid.Column="2" Content="Reload Options" Width="120" Margin="0,0,12,0"/>
+            <Button x:Name="BtnCopyOptionSpec" Grid.Column="3" Content="Copy Option Spec" Width="130" Margin="0,0,12,0"/>
+            <Button x:Name="BtnRun" Grid.Column="4" Content="Run" Width="90" Margin="0,0,6,0"/>
+            <Button x:Name="BtnStop" Grid.Column="5" Content="Stop" Width="90" IsEnabled="False"/>
         </Grid>
 
-        <GroupBox Header="Output" Grid.Row="5" Margin="0,0,0,8">
+        <GroupBox Header="Script Options" Grid.Row="5" Margin="0,0,0,8">
+            <DockPanel>
+                <TextBlock x:Name="TxtOptionsInfo" DockPanel.Dock="Top" Foreground="Gray" TextWrapping="Wrap"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180">
+                    <StackPanel x:Name="OptionsPanel" Margin="0,6,0,0"/>
+                </ScrollViewer>
+            </DockPanel>
+        </GroupBox>
+
+        <GroupBox Header="Output" Grid.Row="6" Margin="0,0,0,8">
             <TextBox x:Name="OutputBox"
                      IsReadOnly="True"
                      AcceptsReturn="True"
@@ -105,7 +119,7 @@
                      TextWrapping="NoWrap"/>
         </GroupBox>
 
-        <WrapPanel Grid.Row="6">
+        <WrapPanel Grid.Row="7">
             <Button x:Name="BtnCopyOut" Content="Copy Output" Width="110" Margin="0,0,6,0"/>
             <Button x:Name="BtnClearOut" Content="Clear Output" Width="110"/>
         </WrapPanel>

@@ -162,6 +162,28 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             return any;
         }
 
+        public static View ResolveView(Document doc, JObject p)
+        {
+            if (p.TryGetValue("viewId", out var vidTok))
+            {
+                var v = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(vidTok.Value<int>())) as View;
+                if (v != null) return v;
+            }
+            if (p.TryGetValue("viewName", out var vnameTok))
+            {
+                var name = vnameTok.Value<string>();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    var v = new FilteredElementCollector(doc)
+                        .OfClass(typeof(View))
+                        .Cast<View>()
+                        .FirstOrDefault(x => !x.IsTemplate && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+                    if (v != null) return v;
+                }
+            }
+            return null;
+        }
+
         public static Element ResolveElement(Document doc, JObject p)
         {
             int eid = p.Value<int?>("elementId") ?? 0;
@@ -397,7 +419,10 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
             var p = (JObject)cmd.Params;
 
             var sym = FamUtil.ResolveSymbolByArgs(doc, p);
-            var lvl = FamUtil.ResolveLevel(doc, p);
+            var isDetailComponent = sym?.Category?.Id.IntValue() == (int)BuiltInCategory.OST_DetailComponents;
+            var targetView = FamUtil.ResolveView(doc, p);
+            if (targetView == null && isDetailComponent)
+                targetView = uiapp.ActiveUIDocument?.ActiveGraphicalView;
 
             var loc = p["location"] as JObject;
             if (loc == null) return new { ok = false, msg = "location が必要です（mm）。" };
@@ -422,11 +447,23 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                     host = doc.GetElement(hostUidTok.Value<string>());
 
                 var stype = StructuralType.NonStructural;
-
-                if (host != null)
-                    inst = doc.Create.NewFamilyInstance(pos, sym, host, lvl, stype);
+                if (isDetailComponent)
+                {
+                    if (targetView == null)
+                    {
+                        tx.RollBack();
+                        return new { ok = false, msg = "詳細項目ファミリの作成には viewId または viewName（またはアクティブビュー）が必要です。" };
+                    }
+                    inst = doc.Create.NewFamilyInstance(pos, sym, targetView);
+                }
                 else
-                    inst = doc.Create.NewFamilyInstance(pos, sym, lvl, stype);
+                {
+                    var lvl = FamUtil.ResolveLevel(doc, p);
+                    if (host != null)
+                        inst = doc.Create.NewFamilyInstance(pos, sym, host, lvl, stype);
+                    else
+                        inst = doc.Create.NewFamilyInstance(pos, sym, lvl, stype);
+                }
 
                 // 回転（deg）
                 if (p.TryGetValue("rotationDeg", out var rotTok))
@@ -448,6 +485,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 elementId = inst.Id.IntValue(),
                 uniqueId = inst.UniqueId,
                 typeId = inst.Symbol?.Id.IntValue(),
+                viewId = targetView?.Id.IntValue(),
                 inputUnits = FamUtil.UnitsIn(),
                 internalUnits = FamUtil.UnitsInt()
             };
@@ -868,6 +906,123 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 }
             }
             return new { ok = true, typeId = sym.Id.IntValue(), uniqueId = sym.UniqueId };
+        }
+    }
+
+    // -------------------------
+    // タイプ複製（汎用 FamilySymbol）
+    // -------------------------
+    public class DuplicateFamilyTypeCommand : IRevitCommandHandler
+    {
+        public string CommandName => "duplicate_family_type";
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var doc = uiapp.ActiveUIDocument.Document;
+            var p = (JObject)(cmd.Params ?? new JObject());
+
+            var sourceTypeId = p.Value<int?>("sourceTypeId") ?? p.Value<int?>("typeId") ?? 0;
+            var sourceTypeName = p.Value<string>("typeName");
+            var sourceCategoryName = p.Value<string>("categoryName");
+            var sourceCategoryId = p.Value<int?>("categoryId");
+            var sourceFamilyName = p.Value<string>("familyName");
+            var newName = (p.Value<string>("newName") ?? string.Empty).Trim();
+            var allowExisting = p.Value<bool?>("allowExisting") ?? true;
+
+            if (string.IsNullOrWhiteSpace(newName))
+                return new { ok = false, msg = "newName が必要です。" };
+
+            FamilySymbol source = null;
+            if (sourceTypeId > 0)
+            {
+                source = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(sourceTypeId)) as FamilySymbol;
+            }
+            else if (!string.IsNullOrWhiteSpace(sourceTypeName))
+            {
+                var q = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).WhereElementIsElementType()
+                    .Cast<FamilySymbol>()
+                    .Where(FamUtil.IsLoadableFamilyInstance);
+
+                if (sourceCategoryId.HasValue)
+                    q = q.Where(s => s.Category?.Id.IntValue() == sourceCategoryId.Value);
+                else if (!string.IsNullOrWhiteSpace(sourceCategoryName))
+                    q = q.Where(s => string.Equals(s.Category?.Name ?? string.Empty, sourceCategoryName, StringComparison.OrdinalIgnoreCase));
+
+                if (!string.IsNullOrWhiteSpace(sourceFamilyName))
+                    q = q.Where(s => string.Equals(s.Family?.Name ?? string.Empty, sourceFamilyName, StringComparison.OrdinalIgnoreCase));
+
+                source = q.FirstOrDefault(s => string.Equals(s.Name ?? string.Empty, sourceTypeName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (source == null)
+                return new { ok = false, msg = "source FamilySymbol が解決できません（sourceTypeId または typeName + category/family）。" };
+
+            var existing = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).WhereElementIsElementType()
+                .Cast<FamilySymbol>()
+                .Where(FamUtil.IsLoadableFamilyInstance)
+                .FirstOrDefault(s =>
+                    s.Family != null && source.Family != null &&
+                    s.Family.Id.IntegerValue == source.Family.Id.IntegerValue &&
+                    string.Equals(s.Name ?? string.Empty, newName, StringComparison.OrdinalIgnoreCase));
+
+            if (existing != null && allowExisting)
+            {
+                return new
+                {
+                    ok = true,
+                    reused = true,
+                    typeId = existing.Id.IntValue(),
+                    uniqueId = existing.UniqueId,
+                    typeName = existing.Name ?? string.Empty,
+                    familyName = existing.Family?.Name ?? string.Empty,
+                    categoryName = existing.Category?.Name ?? string.Empty
+                };
+            }
+            if (existing != null && !allowExisting)
+            {
+                return new { ok = false, msg = $"同名タイプが既に存在します: {newName}" };
+            }
+
+            FamilySymbol dup = null;
+            using (var tx = new Transaction(doc, "Duplicate Family Type"))
+            {
+                tx.Start();
+                try
+                {
+                    dup = source.Duplicate(newName) as FamilySymbol;
+                    if (dup == null)
+                    {
+                        dup = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).WhereElementIsElementType()
+                            .Cast<FamilySymbol>()
+                            .FirstOrDefault(s =>
+                                s.Family != null && source.Family != null &&
+                                s.Family.Id.IntegerValue == source.Family.Id.IntegerValue &&
+                                string.Equals(s.Name ?? string.Empty, newName, StringComparison.OrdinalIgnoreCase));
+                    }
+                    tx.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tx.RollBack();
+                    return new { ok = false, msg = ex.Message };
+                }
+            }
+
+            if (dup == null)
+                return new { ok = false, msg = "複製後タイプを取得できませんでした。" };
+
+            return new
+            {
+                ok = true,
+                reused = false,
+                typeId = dup.Id.IntValue(),
+                uniqueId = dup.UniqueId,
+                typeName = dup.Name ?? string.Empty,
+                familyName = dup.Family?.Name ?? string.Empty,
+                categoryName = dup.Category?.Name ?? string.Empty,
+                sourceTypeId = source.Id.IntValue(),
+                sourceTypeName = source.Name ?? string.Empty
+            };
         }
     }
 }

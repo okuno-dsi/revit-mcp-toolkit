@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SmartOpen</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>8.0</LangVersion>
+    <AssemblyName>SmartOpen</AssemblyName>
+    <OutputType>Library</OutputType>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2024\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <!-- Optional: OS thumbnail support via Windows Shell API. Safe via reflection if not present. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <!-- Install to Revit Addins folders after build.
+       - By default, installs to both ProgramData and AppData 2024 folders.
+       - Override by providing a semicolon-separated list in REVIT_ADDINS_ROOTS
+         (env var or MSBuild property), e.g.:
+         dotnet build /p:REVIT_ADDINS_ROOTS="C:\\ProgramData\\Autodesk\\Revit\\Addins\\2024" -->
+  <Target Name="AfterBuild">
+    <PropertyGroup>
+      <DefaultAddinRoots>$(ProgramData)\Autodesk\Revit\Addins\2024;$(AppData)\Autodesk\Revit\Addins\2024</DefaultAddinRoots>
+      <AddinRoots Condition="'$(REVIT_ADDINS_ROOTS)' != ''">$(REVIT_ADDINS_ROOTS)</AddinRoots>
+      <AddinRoots Condition="'$(AddinRoots)' == ''">$(DefaultAddinRoots)</AddinRoots>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <AddinRoot Include="$(AddinRoots)" />
+    </ItemGroup>
+
+  <!-- Properties\Settings を使う場合 -->
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+    <MakeDir Directories="@(AddinRoot->'%(Identity)\SmartOpen')" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="@(AddinRoot->'%(Identity)\SmartOpen\SmartOpen.dll')" />
+    <Copy SourceFiles="SmartOpen.addin" DestinationFiles="@(AddinRoot->'%(Identity)\SmartOpen.addin')" />
+  </Target>
+</Project>

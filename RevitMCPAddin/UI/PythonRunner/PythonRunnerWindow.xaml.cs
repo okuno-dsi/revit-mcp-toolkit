@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -46,10 +47,38 @@ namespace RevitMCPAddin.UI.PythonRunner
         private ScrollViewer? _scriptScrollViewer;
         private bool _suppressLineNumbers;
         private string? _lastInboxPath;
+        private readonly List<ScriptOptionBinding> _optionBindings = new List<ScriptOptionBinding>();
+        private string _lastOptionProfileKey = string.Empty;
 
         private static readonly Regex FeatureLineRx = new Regex("^\\s*#\\s*@feature\\s*:\\s*(?<feature>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex KeywordLineRx = new Regex("^\\s*#\\s*@keywords\\s*:\\s*(?<keywords>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex FeatureInlineRx = new Regex("^\\s*#\\s*@feature\\s*:\\s*(?<feature>[^#|]*)(?:\\|\\s*keywords\\s*:\\s*(?<keywords>.*))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex ArgHintLineRx = new Regex("^\\s*#\\s*@arg\\s*:\\s*(?<spec>.+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly HashSet<string> DefaultHiddenOptionNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "--config"
+        };
+
+        private sealed class ScriptOptionDef
+        {
+            public string Name { get; set; } = string.Empty; // --port
+            public string Label { get; set; } = string.Empty; // port
+            public string Type { get; set; } = "string"; // string|int|float|bool|choice|file|path|dir
+            public string DefaultValue { get; set; } = string.Empty;
+            public string Hint { get; set; } = string.Empty;
+            public string Example { get; set; } = string.Empty;
+            public string[] Choices { get; set; } = Array.Empty<string>();
+            public bool Required { get; set; }
+            public string Action { get; set; } = string.Empty; // store_true/store_false
+            public bool FromHint { get; set; }
+            public bool Hidden { get; set; }
+        }
+
+        private sealed class ScriptOptionBinding
+        {
+            public ScriptOptionDef Def { get; set; } = new ScriptOptionDef();
+            public FrameworkElement? Editor { get; set; }
+        }
 
         public PythonRunnerWindow(string? docTitle = null, string? docKey = null)
         {
@@ -70,6 +99,8 @@ namespace RevitMCPAddin.UI.PythonRunner
             BtnSelectAll.Click += (_, __) => SelectAllScript();
             BtnClearScript.Click += (_, __) => ClearScript();
             BtnResetPaste.Click += (_, __) => ResetAndPaste();
+            BtnReloadOptions.Click += (_, __) => ReloadScriptOptionEditors(preserveCurrentValues: true, addOutput: true);
+            BtnCopyOptionSpec.Click += (_, __) => CopyOptionSpecToClipboard();
             BtnRun.Click += async (_, __) => await RunAsync();
             BtnStop.Click += (_, __) => StopProcess();
             BtnCopyOut.Click += (_, __) => CopyOutput();
@@ -117,10 +148,13 @@ namespace RevitMCPAddin.UI.PythonRunner
                 }
             }
             catch { /* ignore */ }
+
+            ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
         }
 
         protected override void OnClosed(EventArgs e)
         {
+            try { PersistOptionProfile(); } catch { /* ignore */ }
             base.OnClosed(e);
             StopProcess();
         }
@@ -200,6 +234,7 @@ namespace RevitMCPAddin.UI.PythonRunner
                 _currentPath = path;
                 _isDirty = false;
                 UpdateStatus();
+                ReloadScriptOptionEditors(preserveCurrentValues: true, addOutput: false);
                 try { PythonRunnerScriptLibrary.SaveLastScript(path); } catch { /* ignore */ }
                 AppendOutput("Saved: " + path);
             }
@@ -218,6 +253,7 @@ namespace RevitMCPAddin.UI.PythonRunner
         private void ClearScript()
         {
             SetScriptText("");
+            ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
             _isDirty = true;
             UpdateStatus();
         }
@@ -234,6 +270,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             var txt = Clipboard.GetText() ?? "";
             SetScriptText(txt);
             ApplyMetadataFromText(txt);
+            ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
             _isDirty = true;
             UpdateStatus();
         }
@@ -283,6 +320,12 @@ namespace RevitMCPAddin.UI.PythonRunner
                     AppendOutput($"Rewrite: url={urlCount}, args={argCount}, endpoint={endpointCount} -> {port}");
                 }
 
+                ReloadScriptOptionEditors(preserveCurrentValues: true, addOutput: false);
+                if (!ValidateRequiredOptions(out var requiredMsg))
+                {
+                    AppendOutput(requiredMsg);
+                    return;
+                }
                 var runPath = SaveRunCopy(rewrittenPorts);
                 AppendOutput("Run file: " + runPath);
 
@@ -293,13 +336,30 @@ namespace RevitMCPAddin.UI.PythonRunner
                     return;
                 }
 
-                var rawArgs = (TxtArgs?.Text ?? string.Empty).Trim();
-                var rewrittenArgs = RewritePortArgs(rawArgs, port, out var argHits2);
+                var profile = CollectCurrentOptionValues();
+                profile["__extraArgs"] = (TxtArgs?.Text ?? string.Empty).Trim();
+                var profileKey = GetOptionProfileKey(scriptText);
+                if (!string.IsNullOrWhiteSpace(profileKey))
+                {
+                    PythonRunnerScriptLibrary.SaveArgsProfile(profileKey, profile);
+                }
+
+                var optionArgs = BuildArgsFromOptionEditors();
+                var extraArgs = (TxtArgs?.Text ?? string.Empty).Trim();
+                var mergedArgs = string.IsNullOrWhiteSpace(optionArgs)
+                    ? extraArgs
+                    : (string.IsNullOrWhiteSpace(extraArgs) ? optionArgs : (optionArgs + " " + extraArgs));
+                var rewrittenArgs = RewritePortArgs(mergedArgs, port, out var argHits2);
                 if (argHits2 > 0)
                 {
                     AppendOutput($"Rewrite args: {argHits2} -> {port}");
                 }
-                await StartProcessAsync(pythonExe, runPath, port, rewrittenArgs);
+                var sanitizedArgs = RemoveBareBooleanTokens(rewrittenArgs, out var removedBoolTokens);
+                if (removedBoolTokens > 0)
+                {
+                    AppendOutput($"Args cleanup: removed {removedBoolTokens} bare boolean token(s).");
+                }
+                await StartProcessAsync(pythonExe, runPath, port, sanitizedArgs);
             }
             catch (Exception ex)
             {
@@ -406,6 +466,893 @@ namespace RevitMCPAddin.UI.PythonRunner
                 try { _proc.Dispose(); } catch { }
                 _proc = null;
                 _exitTcs = null;
+            }
+        }
+
+        private void ReloadScriptOptionEditors(bool preserveCurrentValues, bool addOutput)
+        {
+            try
+            {
+                var scriptText = GetScriptText();
+                var defs = BuildOptionDefinitions(scriptText);
+                var currentValues = preserveCurrentValues
+                    ? CollectCurrentOptionValues()
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                var profileKey = GetOptionProfileKey(scriptText);
+                var savedValues = string.IsNullOrWhiteSpace(profileKey)
+                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    : PythonRunnerScriptLibrary.LoadArgsProfile(profileKey);
+
+                RenderOptionEditors(defs, currentValues, savedValues);
+
+                if (!preserveCurrentValues && savedValues.TryGetValue("__extraArgs", out var extra))
+                {
+                    TxtArgs.Text = extra ?? string.Empty;
+                }
+
+                _lastOptionProfileKey = profileKey;
+                if (addOutput)
+                {
+                    AppendOutput($"Options loaded: {defs.Count}");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (addOutput)
+                {
+                    AppendOutput("Options parse failed: " + ex.Message);
+                }
+            }
+        }
+
+        private void PersistOptionProfile()
+        {
+            var values = CollectCurrentOptionValues();
+            values["__extraArgs"] = (TxtArgs?.Text ?? string.Empty).Trim();
+            var key = !string.IsNullOrWhiteSpace(_lastOptionProfileKey)
+                ? _lastOptionProfileKey
+                : GetOptionProfileKey(GetScriptText());
+            if (string.IsNullOrWhiteSpace(key)) return;
+            PythonRunnerScriptLibrary.SaveArgsProfile(key, values);
+        }
+
+        private string GetOptionProfileKey(string scriptText)
+        {
+            if (!string.IsNullOrWhiteSpace(_currentPath))
+            {
+                try { return Path.GetFullPath(_currentPath).ToLowerInvariant(); }
+                catch { return _currentPath; }
+            }
+            var hash = ComputeSha256(NormalizeScriptForSave(scriptText ?? string.Empty));
+            return string.IsNullOrWhiteSpace(hash) ? string.Empty : ("hash:" + hash);
+        }
+
+        private Dictionary<string, string> CollectCurrentOptionValues()
+        {
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var binding in _optionBindings)
+            {
+                if (binding == null || binding.Def == null || string.IsNullOrWhiteSpace(binding.Def.Name)) continue;
+                values[binding.Def.Name] = GetOptionEditorValue(binding) ?? string.Empty;
+            }
+            return values;
+        }
+
+        private static string? GetOptionEditorValue(ScriptOptionBinding binding)
+        {
+            if (binding.Editor is CheckBox chk)
+            {
+                return (chk.IsChecked ?? false) ? "true" : "false";
+            }
+            if (binding.Editor is ComboBox cmb)
+            {
+                return (cmb.Text ?? string.Empty).Trim();
+            }
+            if (binding.Editor is TextBox tb)
+            {
+                return (tb.Text ?? string.Empty).Trim();
+            }
+            return null;
+        }
+
+        private void RenderOptionEditors(
+            IList<ScriptOptionDef> defs,
+            IDictionary<string, string> currentValues,
+            IDictionary<string, string> savedValues)
+        {
+            _optionBindings.Clear();
+            OptionsPanel.Children.Clear();
+
+            if (defs == null || defs.Count == 0)
+            {
+                TxtOptionsInfo.Text = "No options detected. Add `argparse` in script or use `# @arg:` hint comments.";
+                return;
+            }
+
+            var visibleDefs = defs.Where(d => d != null && !ShouldHideOption(d)).ToList();
+            var hiddenCount = defs.Count - visibleDefs.Count;
+            if (visibleDefs.Count == 0)
+            {
+                TxtOptionsInfo.Text = hiddenCount > 0
+                    ? $"All detected options are hidden ({hiddenCount}). Use Extra Args when needed."
+                    : "No options detected. Add `argparse` in script or use `# @arg:` hint comments.";
+                return;
+            }
+
+            TxtOptionsInfo.Text = hiddenCount > 0
+                ? $"{visibleDefs.Count} options shown ({hiddenCount} hidden). Values are saved per script and restored automatically."
+                : $"{visibleDefs.Count} options detected. Values are saved per script and restored automatically.";
+
+            foreach (var def in visibleDefs.OrderBy(d => d.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                var labelText = string.IsNullOrWhiteSpace(def.Label) ? def.Name : def.Label;
+                if (def.Required)
+                {
+                    labelText += " *";
+                }
+                var label = new TextBlock
+                {
+                    Text = labelText,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = def.Required ? (def.Name + " (required)") : def.Name,
+                    Foreground = def.Required ? Brushes.Red : Brushes.Black,
+                    FontWeight = def.Required ? FontWeights.Bold : FontWeights.Normal
+                };
+                Grid.SetColumn(label, 0);
+                row.Children.Add(label);
+
+                var value = def.DefaultValue ?? string.Empty;
+                if (savedValues != null && savedValues.TryGetValue(def.Name, out var saved)) value = saved ?? string.Empty;
+                if (currentValues != null && currentValues.TryGetValue(def.Name, out var current)) value = current ?? string.Empty;
+
+                FrameworkElement editor;
+                if (string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var chk = new CheckBox
+                    {
+                        IsChecked = ParseBool(value, ParseBool(def.DefaultValue, false)),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        ToolTip = BuildOptionHint(def)
+                    };
+                    editor = chk;
+                }
+                else if (def.Choices != null && def.Choices.Length > 0)
+                {
+                    var cmb = new ComboBox
+                    {
+                        MinWidth = 220,
+                        IsEditable = true,
+                        ToolTip = BuildOptionHint(def)
+                    };
+                    foreach (var c in def.Choices)
+                        cmb.Items.Add(c);
+                    cmb.Text = value ?? string.Empty;
+                    editor = cmb;
+                }
+                else
+                {
+                    var tb = new TextBox
+                    {
+                        MinWidth = 220,
+                        Text = value ?? string.Empty,
+                        ToolTip = BuildOptionHint(def)
+                    };
+                    editor = tb;
+                }
+
+                if (def.Required)
+                {
+                    if (editor is TextBox reqTb)
+                    {
+                        reqTb.Foreground = Brushes.DarkRed;
+                    }
+                    else if (editor is ComboBox reqCb)
+                    {
+                        reqCb.Foreground = Brushes.DarkRed;
+                    }
+                    else if (editor is CheckBox reqChk)
+                    {
+                        reqChk.Foreground = Brushes.DarkRed;
+                    }
+                }
+
+                Grid.SetColumn(editor, 1);
+                row.Children.Add(editor);
+
+                if (IsPathLikeOption(def) && editor is TextBox pathBox)
+                {
+                    var browse = new Button
+                    {
+                        Content = "...",
+                        Width = 32,
+                        Height = 24,
+                        Margin = new Thickness(6, 0, 8, 0),
+                        ToolTip = "Browse"
+                    };
+                    browse.Click += (_, __) => OpenPathChooserForOption(def, pathBox);
+                    Grid.SetColumn(browse, 2);
+                    row.Children.Add(browse);
+                }
+
+                var hint = new TextBlock
+                {
+                    Text = BuildOptionHint(def),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = Brushes.Gray,
+                    TextWrapping = TextWrapping.Wrap
+                };
+                Grid.SetColumn(hint, 3);
+                row.Children.Add(hint);
+
+                OptionsPanel.Children.Add(row);
+                _optionBindings.Add(new ScriptOptionBinding { Def = def, Editor = editor });
+            }
+        }
+
+        private static bool ParseBool(string? text, bool defaultValue)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return defaultValue;
+            var t = text.Trim().ToLowerInvariant();
+            if (t == "1" || t == "true" || t == "yes" || t == "on") return true;
+            if (t == "0" || t == "false" || t == "no" || t == "off") return false;
+            return defaultValue;
+        }
+
+        private static string BuildOptionHint(ScriptOptionDef def)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(def.Type)) parts.Add("type: " + def.Type);
+            if (def.Required) parts.Add("required");
+            if (!string.IsNullOrWhiteSpace(def.DefaultValue)) parts.Add("default: " + def.DefaultValue);
+            if (def.Choices != null && def.Choices.Length > 0) parts.Add("choices: " + string.Join(", ", def.Choices));
+            if (!string.IsNullOrWhiteSpace(def.Example)) parts.Add("example: " + def.Example);
+            if (!string.IsNullOrWhiteSpace(def.Hint)) parts.Add(def.Hint);
+            return string.Join(" | ", parts.Where(x => !string.IsNullOrWhiteSpace(x)));
+        }
+
+        private static List<ScriptOptionDef> BuildOptionDefinitions(string scriptText)
+        {
+            var fromArgparse = ParseArgparseOptionDefinitions(scriptText);
+            var fromHints = ParseHintOptionDefinitions(scriptText);
+
+            foreach (var kv in fromHints)
+            {
+                if (fromArgparse.TryGetValue(kv.Key, out var existing))
+                {
+                    MergeOption(existing, kv.Value);
+                }
+                else
+                {
+                    fromArgparse[kv.Key] = kv.Value;
+                }
+            }
+
+            return fromArgparse.Values.ToList();
+        }
+
+        private static void MergeOption(ScriptOptionDef target, ScriptOptionDef src)
+        {
+            if (target == null || src == null) return;
+            if (!string.IsNullOrWhiteSpace(src.Label)) target.Label = src.Label;
+            if (!string.IsNullOrWhiteSpace(src.Type)) target.Type = src.Type;
+            if (!string.IsNullOrWhiteSpace(src.DefaultValue)) target.DefaultValue = src.DefaultValue;
+            if (!string.IsNullOrWhiteSpace(src.Example)) target.Example = src.Example;
+            if (!string.IsNullOrWhiteSpace(src.Hint)) target.Hint = src.Hint;
+            if (src.Choices != null && src.Choices.Length > 0) target.Choices = src.Choices;
+            if (!string.IsNullOrWhiteSpace(src.Action)) target.Action = src.Action;
+            if (src.Required) target.Required = true;
+            if (src.FromHint) target.FromHint = true;
+            if (src.Hidden) target.Hidden = true;
+        }
+
+        private static Dictionary<string, ScriptOptionDef> ParseHintOptionDefinitions(string scriptText)
+        {
+            var map = new Dictionary<string, ScriptOptionDef>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(scriptText)) return map;
+
+            foreach (var line in scriptText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+            {
+                var m = ArgHintLineRx.Match(line ?? string.Empty);
+                if (!m.Success) continue;
+                var spec = (m.Groups["spec"].Value ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(spec)) continue;
+
+                var def = ParseHintSpec(spec);
+                if (def == null || string.IsNullOrWhiteSpace(def.Name)) continue;
+                map[def.Name] = def;
+            }
+
+            return map;
+        }
+
+        private static ScriptOptionDef? ParseHintSpec(string spec)
+        {
+            // example:
+            // # @arg: name=--mode; type=choice; default=plan; choices=plan,apply; hint=Execution mode
+            // # @arg: --port; type=int; default=5210; hint=Revit MCP port
+            var def = new ScriptOptionDef { FromHint = true };
+            var tokens = spec.Split(new[] { ';', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => (x ?? string.Empty).Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+            if (tokens.Count == 0) return null;
+
+            foreach (var token in tokens)
+            {
+                var eq = token.IndexOf('=');
+                if (eq > 0)
+                {
+                    var key = token.Substring(0, eq).Trim().ToLowerInvariant();
+                    var val = token.Substring(eq + 1).Trim();
+                    switch (key)
+                    {
+                        case "name":
+                        case "arg":
+                        case "option":
+                            def.Name = NormalizeOptionName(val);
+                            break;
+                        case "type":
+                            def.Type = NormalizeOptionType(val);
+                            break;
+                        case "default":
+                            def.DefaultValue = TrimQuotes(val);
+                            break;
+                        case "hint":
+                        case "help":
+                            def.Hint = TrimQuotes(val);
+                            break;
+                        case "example":
+                        case "eg":
+                            def.Example = TrimQuotes(val);
+                            break;
+                        case "choices":
+                            def.Choices = ParseChoiceValues(val);
+                            if (def.Choices.Length > 0) def.Type = "choice";
+                            break;
+                        case "required":
+                            def.Required = ParseBool(val, false);
+                            break;
+                        case "hidden":
+                            def.Hidden = ParseBool(val, false);
+                            break;
+                        case "ui":
+                            if (string.Equals(TrimQuotes(val), "advanced", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(TrimQuotes(val), "hidden", StringComparison.OrdinalIgnoreCase))
+                            {
+                                def.Hidden = true;
+                            }
+                            break;
+                        case "action":
+                            def.Action = TrimQuotes(val);
+                            if (string.Equals(def.Action, "store_true", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(def.Action, "store_false", StringComparison.OrdinalIgnoreCase))
+                            {
+                                def.Type = "bool";
+                            }
+                            break;
+                    }
+                    continue;
+                }
+
+                if (token.StartsWith("--", StringComparison.Ordinal))
+                {
+                    def.Name = NormalizeOptionName(token);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(def.Name)) return null;
+            if (IsLikelyPathName(def.Name, def.Hint) && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase))
+            {
+                def.Type = "path";
+            }
+            def.Label = def.Name.TrimStart('-');
+            if (string.IsNullOrWhiteSpace(def.Example))
+            {
+                def.Example = BuildOptionExample(def);
+            }
+            return def;
+        }
+
+        private static Dictionary<string, ScriptOptionDef> ParseArgparseOptionDefinitions(string scriptText)
+        {
+            var map = new Dictionary<string, ScriptOptionDef>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(scriptText)) return map;
+
+            foreach (var call in EnumerateAddArgumentCalls(scriptText))
+            {
+                var names = Regex.Matches(call, "['\\\"](?<opt>--[A-Za-z0-9][A-Za-z0-9_-]*)['\\\"]")
+                    .Cast<Match>()
+                    .Select(m => m.Groups["opt"].Value)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (names.Count == 0) continue; // positional args are excluded for now
+                var name = NormalizeOptionName(names[0]);
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                var def = new ScriptOptionDef
+                {
+                    Name = name,
+                    Label = name.TrimStart('-'),
+                    Type = "string",
+                    DefaultValue = string.Empty
+                };
+
+                var action = MatchKeywordQuotedValue(call, "action");
+                if (!string.IsNullOrWhiteSpace(action))
+                {
+                    def.Action = action;
+                    if (string.Equals(action, "store_true", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(action, "store_false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        def.Type = "bool";
+                        def.DefaultValue = string.Equals(action, "store_true", StringComparison.OrdinalIgnoreCase) ? "false" : "true";
+                    }
+                }
+
+                var typeWord = MatchKeywordWordValue(call, "type");
+                if (!string.IsNullOrWhiteSpace(typeWord))
+                {
+                    def.Type = NormalizeOptionType(typeWord);
+                }
+
+                var defaultValue = MatchKeywordScalarValue(call, "default");
+                if (!string.IsNullOrWhiteSpace(defaultValue))
+                {
+                    def.DefaultValue = defaultValue;
+                }
+
+                var required = MatchKeywordScalarValue(call, "required");
+                if (!string.IsNullOrWhiteSpace(required))
+                {
+                    def.Required = ParseBool(required, false);
+                }
+
+                var help = MatchKeywordQuotedValue(call, "help");
+                if (!string.IsNullOrWhiteSpace(help))
+                {
+                    def.Hint = help;
+                }
+
+                var choices = MatchChoicesValues(call);
+                if (choices.Length > 0)
+                {
+                    def.Choices = choices;
+                    def.Type = "choice";
+                    if (string.IsNullOrWhiteSpace(def.DefaultValue))
+                        def.DefaultValue = choices[0];
+                }
+
+                if (IsLikelyPathName(def.Name, def.Hint) && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase))
+                {
+                    def.Type = "path";
+                }
+
+                if (string.IsNullOrWhiteSpace(def.Example))
+                {
+                    def.Example = BuildOptionExample(def);
+                }
+
+                map[name] = def;
+            }
+
+            return map;
+        }
+
+        private static IEnumerable<string> EnumerateAddArgumentCalls(string scriptText)
+        {
+            var start = 0;
+            while (start < scriptText.Length)
+            {
+                var idx = scriptText.IndexOf("add_argument(", start, StringComparison.Ordinal);
+                if (idx < 0) yield break;
+
+                var open = scriptText.IndexOf('(', idx);
+                if (open < 0) yield break;
+
+                var depth = 0;
+                var inSingle = false;
+                var inDouble = false;
+                var escape = false;
+                for (var i = open; i < scriptText.Length; i++)
+                {
+                    var ch = scriptText[i];
+                    if (escape) { escape = false; continue; }
+                    if (ch == '\\') { escape = true; continue; }
+                    if (inSingle) { if (ch == '\'') inSingle = false; continue; }
+                    if (inDouble) { if (ch == '"') inDouble = false; continue; }
+                    if (ch == '\'') { inSingle = true; continue; }
+                    if (ch == '"') { inDouble = true; continue; }
+
+                    if (ch == '(') depth++;
+                    else if (ch == ')')
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            var body = scriptText.Substring(open + 1, i - open - 1);
+                            yield return body;
+                            start = i + 1;
+                            break;
+                        }
+                    }
+
+                    if (i == scriptText.Length - 1)
+                    {
+                        start = scriptText.Length;
+                    }
+                }
+            }
+        }
+
+        private static string MatchKeywordQuotedValue(string text, string key)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(key)) return string.Empty;
+            var q1 = Regex.Match(text, "\\b" + Regex.Escape(key) + "\\s*=\\s*(?:r)?\"(?<v>[^\"]*)\"");
+            if (q1.Success) return q1.Groups["v"].Value;
+            var q2 = Regex.Match(text, "\\b" + Regex.Escape(key) + "\\s*=\\s*(?:r)?'(?<v>[^']*)'");
+            if (q2.Success) return q2.Groups["v"].Value;
+            return string.Empty;
+        }
+
+        private static string MatchKeywordWordValue(string text, string key)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(key)) return string.Empty;
+            var m = Regex.Match(text, "\\b" + Regex.Escape(key) + "\\s*=\\s*(?<v>[A-Za-z_][A-Za-z0-9_]*)");
+            return m.Success ? (m.Groups["v"].Value ?? string.Empty) : string.Empty;
+        }
+
+        private static string MatchKeywordScalarValue(string text, string key)
+        {
+            var quoted = MatchKeywordQuotedValue(text, key);
+            if (!string.IsNullOrWhiteSpace(quoted)) return quoted;
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(key)) return string.Empty;
+
+            var m = Regex.Match(text, "\\b" + Regex.Escape(key) + "\\s*=\\s*(?<v>True|False|None|-?\\d+(?:\\.\\d+)?|[A-Za-z_][A-Za-z0-9_]*)");
+            return m.Success ? (m.Groups["v"].Value ?? string.Empty) : string.Empty;
+        }
+
+        private static string[] MatchChoicesValues(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
+            var m = Regex.Match(text, "\\bchoices\\s*=\\s*(?<v>\\[[^\\]]*\\]|\\([^\\)]*\\))");
+            if (!m.Success) return Array.Empty<string>();
+            return ParseChoiceValues(m.Groups["v"].Value ?? string.Empty);
+        }
+
+        private static string[] ParseChoiceValues(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
+            var values = new List<string>();
+            foreach (Match qm in Regex.Matches(raw, "\"(?<v>[^\"]+)\"|'(?<v>[^']+)'"))
+            {
+                var v = qm.Groups["v"].Value;
+                if (!string.IsNullOrWhiteSpace(v)) values.Add(v.Trim());
+            }
+            if (values.Count > 0) return values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+            var cleaned = raw.Trim().TrimStart('[', '(').TrimEnd(']', ')');
+            foreach (var token in cleaned.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var v = TrimQuotes(token.Trim());
+                if (!string.IsNullOrWhiteSpace(v)) values.Add(v);
+            }
+            return values.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        private static string NormalizeOptionName(string raw)
+        {
+            var v = TrimQuotes(raw ?? string.Empty).Trim();
+            if (v.StartsWith("--", StringComparison.Ordinal)) return v;
+            return string.Empty;
+        }
+
+        private static string NormalizeOptionType(string raw)
+        {
+            var v = TrimQuotes(raw ?? string.Empty).Trim().ToLowerInvariant();
+            if (v == "int" || v == "float" || v == "bool" || v == "choice" || v == "string" || v == "str" || v == "file" || v == "path" || v == "dir" || v == "directory")
+            {
+                if (v == "str") return "string";
+                if (v == "file") return "path";
+                if (v == "directory") return "dir";
+                return v;
+            }
+            return "string";
+        }
+
+        private static string TrimQuotes(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            var v = value.Trim();
+            if (v.Length >= 2)
+            {
+                if ((v.StartsWith("\"", StringComparison.Ordinal) && v.EndsWith("\"", StringComparison.Ordinal)) ||
+                    (v.StartsWith("'", StringComparison.Ordinal) && v.EndsWith("'", StringComparison.Ordinal)))
+                {
+                    v = v.Substring(1, v.Length - 2);
+                }
+            }
+            return v.Trim();
+        }
+
+        private string BuildArgsFromOptionEditors()
+        {
+            var args = new List<string>();
+            foreach (var binding in _optionBindings)
+            {
+                var def = binding.Def;
+                if (def == null || string.IsNullOrWhiteSpace(def.Name)) continue;
+
+                if (string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase))
+                {
+                    var isOn = ParseBool(GetOptionEditorValue(binding), ParseBool(def.DefaultValue, false));
+                    if (string.Equals(def.Action, "store_false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!isOn) args.Add(def.Name);
+                    }
+                    else
+                    {
+                        if (isOn) args.Add(def.Name);
+                    }
+                    continue;
+                }
+
+                var value = (GetOptionEditorValue(binding) ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    if (!string.IsNullOrWhiteSpace(def.DefaultValue))
+                        value = def.DefaultValue;
+                }
+                if (string.IsNullOrWhiteSpace(value)) continue;
+                args.Add(def.Name);
+                args.Add(QuoteArg(value));
+            }
+            return string.Join(" ", args);
+        }
+
+        private static string QuoteArg(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value ?? string.Empty;
+            if (value.IndexOfAny(new[] { ' ', '\t', '"' }) < 0) return value;
+            return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+        }
+
+        private static string RemoveBareBooleanTokens(string argsText, out int removedCount)
+        {
+            removedCount = 0;
+            if (string.IsNullOrWhiteSpace(argsText)) return string.Empty;
+
+            var tokens = Regex.Matches(argsText, "\"(?:\\\\.|[^\"])*\"|'(?:\\\\.|[^'])*'|\\S+")
+                .Cast<Match>()
+                .Select(m => m.Value)
+                .ToList();
+            if (tokens.Count == 0) return argsText;
+
+            var kept = new List<string>(tokens.Count);
+            foreach (var token in tokens)
+            {
+                if (string.Equals(token, "true", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(token, "false", StringComparison.OrdinalIgnoreCase))
+                {
+                    removedCount++;
+                    continue;
+                }
+                kept.Add(token);
+            }
+            return string.Join(" ", kept);
+        }
+
+        private static bool ShouldHideOption(ScriptOptionDef def)
+        {
+            if (def == null) return true;
+            if (def.Hidden) return true;
+            if (string.IsNullOrWhiteSpace(def.Name)) return false;
+            return DefaultHiddenOptionNames.Contains(def.Name.Trim());
+        }
+
+        private static bool IsLikelyPathName(string optionName, string hint)
+        {
+            var key = (optionName ?? string.Empty).ToLowerInvariant();
+            var h = (hint ?? string.Empty).ToLowerInvariant();
+            return key.Contains("path") || key.Contains("file") || key.Contains("csv") || key.Contains("json") || key.Contains("config") || key.Contains("output")
+                || h.Contains("path") || h.Contains("file") || h.Contains("csv") || h.Contains("json") || h.Contains("folder") || h.Contains("directory");
+        }
+
+        private static bool IsPathLikeOption(ScriptOptionDef def)
+        {
+            if (def == null) return false;
+            var t = (def.Type ?? string.Empty).ToLowerInvariant();
+            if (t == "path" || t == "file" || t == "dir" || t == "directory") return true;
+            return IsLikelyPathName(def.Name, def.Hint);
+        }
+
+        private static string BuildOptionExample(ScriptOptionDef def)
+        {
+            if (def == null) return string.Empty;
+            if (!string.IsNullOrWhiteSpace(def.Example)) return def.Example;
+            if (!string.IsNullOrWhiteSpace(def.DefaultValue)) return def.DefaultValue;
+            if (def.Choices != null && def.Choices.Length > 0) return def.Choices[0];
+
+            var n = (def.Name ?? string.Empty).ToLowerInvariant();
+            if (n.Contains("port")) return "5210";
+            if (n.Contains("csv")) return @"C:\work\input.csv";
+            if (n.Contains("json")) return @"C:\work\config.json";
+            if (n.Contains("output")) return @"C:\work\result.json";
+            if (n.Contains("path") || n.Contains("file")) return @"C:\work\file.txt";
+            if (string.Equals(def.Type, "int", StringComparison.OrdinalIgnoreCase)) return "1";
+            if (string.Equals(def.Type, "float", StringComparison.OrdinalIgnoreCase)) return "1.0";
+            if (string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase)) return "true";
+            return "sample";
+        }
+
+        private void OpenPathChooserForOption(ScriptOptionDef def, TextBox target)
+        {
+            if (def == null || target == null) return;
+            try
+            {
+                var mode = (def.Type ?? string.Empty).ToLowerInvariant();
+                var name = (def.Name ?? string.Empty).ToLowerInvariant();
+                var hint = (def.Hint ?? string.Empty).ToLowerInvariant();
+                var initial = (target.Text ?? string.Empty).Trim();
+
+                if (mode == "dir" || mode == "directory" || name.Contains("dir") || hint.Contains("folder") || hint.Contains("directory"))
+                {
+                    using (var dlg = new System.Windows.Forms.FolderBrowserDialog())
+                    {
+                        if (!string.IsNullOrWhiteSpace(initial) && Directory.Exists(initial))
+                            dlg.SelectedPath = initial;
+                        var res = dlg.ShowDialog();
+                        if (res == System.Windows.Forms.DialogResult.OK)
+                            target.Text = dlg.SelectedPath ?? string.Empty;
+                    }
+                    return;
+                }
+
+                var isOutput = name.Contains("output") || hint.Contains("保存先") || hint.Contains("save") || hint.Contains("write");
+                if (isOutput)
+                {
+                    var sfd = new SaveFileDialog
+                    {
+                        Title = "Select output file",
+                        Filter = BuildFileDialogFilter(def),
+                        AddExtension = true
+                    };
+                    if (!string.IsNullOrWhiteSpace(initial))
+                    {
+                        try
+                        {
+                            var full = Path.GetFullPath(initial);
+                            var dir = Path.GetDirectoryName(full);
+                            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                                sfd.InitialDirectory = dir;
+                            sfd.FileName = Path.GetFileName(full);
+                        }
+                        catch { }
+                    }
+                    if (sfd.ShowDialog(this) == true)
+                        target.Text = sfd.FileName ?? string.Empty;
+                    return;
+                }
+
+                var ofd = new OpenFileDialog
+                {
+                    Title = "Select file",
+                    Filter = BuildFileDialogFilter(def),
+                    CheckFileExists = true,
+                    Multiselect = false
+                };
+                if (!string.IsNullOrWhiteSpace(initial))
+                {
+                    try
+                    {
+                        var full = Path.GetFullPath(initial);
+                        var dir = Path.GetDirectoryName(full);
+                        if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                            ofd.InitialDirectory = dir;
+                        if (File.Exists(full))
+                            ofd.FileName = Path.GetFileName(full);
+                    }
+                    catch { }
+                }
+                if (ofd.ShowDialog(this) == true)
+                    target.Text = ofd.FileName ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                AppendOutput("Browse failed: " + ex.Message);
+            }
+        }
+
+        private static string BuildFileDialogFilter(ScriptOptionDef def)
+        {
+            var n = (def?.Name ?? string.Empty).ToLowerInvariant();
+            var h = (def?.Hint ?? string.Empty).ToLowerInvariant();
+            if (n.Contains("csv") || h.Contains("csv")) return "CSV (*.csv)|*.csv|All files (*.*)|*.*";
+            if (n.Contains("json") || h.Contains("json") || n.Contains("config")) return "JSON (*.json)|*.json|All files (*.*)|*.*";
+            if (n.Contains("py") || h.Contains("python")) return "Python (*.py)|*.py|All files (*.*)|*.*";
+            if (n.Contains("xml") || h.Contains("xml")) return "XML (*.xml)|*.xml|All files (*.*)|*.*";
+            return "All files (*.*)|*.*";
+        }
+
+        private bool ValidateRequiredOptions(out string message)
+        {
+            var missing = new List<string>();
+            foreach (var binding in _optionBindings)
+            {
+                var def = binding.Def;
+                if (def == null || !def.Required) continue;
+                if (string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                var value = (GetOptionEditorValue(binding) ?? string.Empty).Trim();
+                if (!string.IsNullOrWhiteSpace(value)) continue;
+                var ex = BuildOptionExample(def);
+                var row = def.Name;
+                if (!string.IsNullOrWhiteSpace(ex))
+                    row += " (example: " + ex + ")";
+                missing.Add(row);
+            }
+
+            if (missing.Count == 0)
+            {
+                message = string.Empty;
+                return true;
+            }
+
+            message = "Required options are missing: " + string.Join("; ", missing);
+            return false;
+        }
+
+        private void CopyOptionSpecToClipboard()
+        {
+            StartOutputGroup();
+            try
+            {
+                ReloadScriptOptionEditors(preserveCurrentValues: true, addOutput: false);
+                var arr = new JArray();
+                foreach (var b in _optionBindings)
+                {
+                    var d = b.Def;
+                    if (d == null) continue;
+                    var item = new JObject
+                    {
+                        ["name"] = d.Name,
+                        ["type"] = d.Type,
+                        ["required"] = d.Required,
+                        ["default"] = d.DefaultValue ?? string.Empty,
+                        ["example"] = BuildOptionExample(d),
+                        ["hint"] = d.Hint ?? string.Empty,
+                        ["value"] = GetOptionEditorValue(b) ?? string.Empty
+                    };
+                    if (d.Choices != null && d.Choices.Length > 0)
+                    {
+                        item["choices"] = new JArray(d.Choices);
+                    }
+                    arr.Add(item);
+                }
+                var root = new JObject
+                {
+                    ["file"] = _currentPath ?? "(unsaved)",
+                    ["optionCount"] = arr.Count,
+                    ["options"] = arr
+                };
+                var txt = root.ToString(Newtonsoft.Json.Formatting.Indented);
+                Clipboard.SetText(txt);
+                AppendOutput("Option spec copied to clipboard.");
+            }
+            catch (Exception ex)
+            {
+                AppendOutput("Copy option spec failed: " + ex.Message);
             }
         }
 
@@ -548,6 +1495,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             var text = File.ReadAllText(path, Encoding.UTF8);
             SetScriptText(text);
             ApplyMetadataFromText(text);
+            ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
             _currentPath = path;
             _isDirty = false;
             UpdateStatus();

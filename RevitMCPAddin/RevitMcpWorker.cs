@@ -730,6 +730,11 @@ namespace RevitMCPAddin
                 new GetAreaCentroidCommand(),
                 new GetAreaMetricsCommand(),
                 new GetAreaGeometryCommand(),
+                // KSG Area Calc (MVP)
+                new AreaCalcEdgeLengthsCommand(),
+                new AreaCalcNumberingCommand(),
+                new AreaCalcWriteValuesCommand(),
+                new AreaCalcRunAllCommand(),
                 new CreateAreaPlanCommand(),
                 new ListAreaSchemesCommand(),
                 new GetAreaSchemesCommand(),
@@ -1077,6 +1082,7 @@ namespace RevitMCPAddin
                 new UpdateFamilyInstanceParameterCommand(),
                 new GetFamilyTypeParametersCommand(),
                 new SetFamilyTypeParameterCommand(),
+                new DuplicateFamilyTypeCommand(),
                 new ChangeFamilyInstanceTypeCommand(),
                 new FlipFamilyInstanceOrientationCommand(),
 
