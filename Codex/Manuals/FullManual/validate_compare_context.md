@@ -6,6 +6,10 @@
 ## Overview
 This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
 
+## Notes
+- Same-port compare no longer uses HTTP self-calls. It is executed locally inside the add-in to avoid self-deadlock.
+- Remote-port compare may complete asynchronously. In durable/job-based flows, the original request can remain pending until the remote comparison finishes in the background.
+
 ## Usage
 - Method: validate_compare_context
 

@@ -17,6 +17,13 @@ builder.Services.ConfigureHttpJsonOptions(opts =>
 {
     opts.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
+builder.Services.AddSingleton<ExcelMcpSessionStore>();
+builder.Services.AddSingleton(_ => ExcelMcpToolRegistry.Load(builder.Environment.ContentRootPath));
+builder.Services.AddSingleton<ExcelMcpToolExecutor>();
+builder.Services.AddHttpClient(ExcelMcpToolExecutor.SelfClientName, client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(3);
+});
 
 LogUtil.Init();
 LogUtil.Info("[ExcelMCP] Building application...");
@@ -835,13 +842,13 @@ app.MapPost("/com/add_sheet", (ComExcelIO.AddSheetRequest req) =>
         object missing = Type.Missing;
         if (!string.IsNullOrWhiteSpace(req.AfterSheetName))
         {
-            dynamic after = null;
+            dynamic? after = null;
             try { after = wb.Worksheets.Item(req.AfterSheetName); wsNew.Move(missing, after); }
             finally { try { if (after != null) Marshal.ReleaseComObject(after); } catch { } }
         }
         else if (!string.IsNullOrWhiteSpace(req.BeforeSheetName))
         {
-            dynamic before = null;
+            dynamic? before = null;
             try { before = wb.Worksheets.Item(req.BeforeSheetName); wsNew.Move(before, missing); }
             finally { try { if (before != null) Marshal.ReleaseComObject(before); } catch { } }
         }
@@ -925,7 +932,7 @@ app.MapPost("/com/sort_range", (ComExcelIO.SortRangeRequest req) =>
                     try { colIndex = ExcelIO.ColumnFromA1(key.ColumnKey!) - ExcelIO.ColumnFromA1("A") + 1; } catch { colIndex = 1; }
                 }
                 if (colIndex <= 0) colIndex = 1;
-                dynamic colRange = null;
+                dynamic? colRange = null;
                 try
                 {
                     colRange = rng.Columns[colIndex];
@@ -2030,208 +2037,7 @@ app.MapPost("/list_charts", (ExcelIO.ListChartsRequest req) =>
     }
 });
 
-var excelMcpSessions = new ExcelMcpSessionStore();
-var excelMcpHttp = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
-var excelMcpJsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-
-app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
-{
-    ctx.Response.Headers[ExcelMcpProtocol.ProtocolHeader] = ExcelMcpProtocol.DefaultProtocolVersion;
-    return Results.Ok();
-});
-
-app.MapPost("/mcp", async (HttpContext ctx) =>
-{
-    JsonObject request;
-    try
-    {
-        using var sr = new StreamReader(ctx.Request.Body);
-        var raw = await sr.ReadToEndAsync();
-        request = JsonNode.Parse(string.IsNullOrWhiteSpace(raw) ? "{}" : raw) as JsonObject
-            ?? throw new Exception("JSON-RPC request object is required.");
-    }
-    catch (Exception ex)
-    {
-        return Results.Json(ExcelMcpProtocol.Error(null, -32700, "Invalid JSON.", new { detail = ex.Message }), excelMcpJsonOpts);
-    }
-
-    var idNode = request["id"];
-    var method = request["method"]?.GetValue<string>() ?? string.Empty;
-    var prm = request["params"] as JsonObject ?? new JsonObject();
-    var sessionId = ctx.Request.Headers[ExcelMcpProtocol.SessionHeader].ToString();
-
-    if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
-    {
-        var protocolVersion = prm["protocolVersion"]?.GetValue<string>()
-            ?? ctx.Request.Headers[ExcelMcpProtocol.ProtocolHeader].ToString()
-            ?? ExcelMcpProtocol.DefaultProtocolVersion;
-        var session = excelMcpSessions.Create(protocolVersion);
-        ctx.Response.Headers[ExcelMcpProtocol.SessionHeader] = session.SessionId;
-        ctx.Response.Headers[ExcelMcpProtocol.ProtocolHeader] = session.ProtocolVersion;
-        return Results.Json(ExcelMcpProtocol.Success(idNode, ExcelMcpProtocol.InitializeResult(session.ProtocolVersion)), excelMcpJsonOpts);
-    }
-
-    if (!excelMcpSessions.TryGet(sessionId, out var state))
-    {
-        return Results.Json(ExcelMcpProtocol.Error(idNode, -32001, "Missing or invalid MCP session. Call initialize first."), excelMcpJsonOpts);
-    }
-
-    ctx.Response.Headers[ExcelMcpProtocol.SessionHeader] = state.SessionId;
-    ctx.Response.Headers[ExcelMcpProtocol.ProtocolHeader] = state.ProtocolVersion;
-
-    if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
-    {
-        excelMcpSessions.MarkInitialized(state.SessionId);
-        return Results.Json(ExcelMcpProtocol.Success(idNode, new { }), excelMcpJsonOpts);
-    }
-
-    if (!state.IsInitialized)
-    {
-        return Results.Json(ExcelMcpProtocol.Error(idNode, -32002, "Session not initialized. Send notifications/initialized after initialize."), excelMcpJsonOpts);
-    }
-
-    if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
-    {
-        return Results.Json(ExcelMcpProtocol.Success(idNode, new { }), excelMcpJsonOpts);
-    }
-
-    if (string.Equals(method, "tools/list", StringComparison.OrdinalIgnoreCase))
-    {
-        var tools = new object[]
-        {
-            new
-            {
-                name = "excel.health",
-                description = "Return ExcelMCP health info.",
-                inputSchema = new { type = "object", additionalProperties = false }
-            },
-            new
-            {
-                name = "excel.list_open_workbooks",
-                description = "List currently open Excel workbooks via COM.",
-                inputSchema = new { type = "object", additionalProperties = false }
-            },
-            new
-            {
-                name = "excel.api_call",
-                description = "Call existing ExcelMCP HTTP endpoint. arguments={path:'/com/read_cells',method:'POST',body:{...}}",
-                inputSchema = new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        path = new { type = "string" },
-                        method = new { type = "string" },
-                        body = new { type = "object" }
-                    },
-                    required = new[] { "path" },
-                    additionalProperties = true
-                }
-            },
-            new
-            {
-                name = "mcp.status",
-                description = "Return MCP session status.",
-                inputSchema = new { type = "object", additionalProperties = false }
-            }
-        };
-
-        return Results.Json(ExcelMcpProtocol.Success(idNode, new { tools }), excelMcpJsonOpts);
-    }
-
-    if (string.Equals(method, "tools/call", StringComparison.OrdinalIgnoreCase))
-    {
-        var toolName = prm["name"]?.GetValue<string>();
-        var toolArgs = prm["arguments"] as JsonObject ?? new JsonObject();
-        if (string.IsNullOrWhiteSpace(toolName))
-            return Results.Json(ExcelMcpProtocol.Error(idNode, -32602, "tools/call requires params.name."), excelMcpJsonOpts);
-
-        JsonNode payload;
-        var isError = false;
-        try
-        {
-            if (string.Equals(toolName, "mcp.status", StringComparison.OrdinalIgnoreCase))
-            {
-                payload = JsonSerializer.SerializeToNode(new
-                {
-                    ok = true,
-                    service = "ExcelMCP",
-                    mcp = new
-                    {
-                        sessionId = state.SessionId,
-                        protocolVersion = state.ProtocolVersion,
-                        initialized = state.IsInitialized
-                    }
-                })!;
-            }
-            else
-            {
-                string path;
-                string httpMethod;
-                JsonNode? bodyNode = null;
-
-                if (string.Equals(toolName, "excel.health", StringComparison.OrdinalIgnoreCase))
-                {
-                    path = "/health";
-                    httpMethod = "GET";
-                }
-                else if (string.Equals(toolName, "excel.list_open_workbooks", StringComparison.OrdinalIgnoreCase))
-                {
-                    path = "/list_open_workbooks";
-                    httpMethod = "GET";
-                }
-                else if (string.Equals(toolName, "excel.api_call", StringComparison.OrdinalIgnoreCase))
-                {
-                    path = toolArgs["path"]?.GetValue<string>() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(path))
-                        return Results.Json(ExcelMcpProtocol.Error(idNode, -32602, "excel.api_call requires arguments.path."), excelMcpJsonOpts);
-                    httpMethod = (toolArgs["method"]?.GetValue<string>() ?? "POST").ToUpperInvariant();
-                    bodyNode = toolArgs["body"]?.DeepClone();
-                }
-                else
-                {
-                    return Results.Json(ExcelMcpProtocol.Error(idNode, -32601, $"Unknown tool: {toolName}"), excelMcpJsonOpts);
-                }
-
-                if (!path.StartsWith("/"))
-                    path = "/" + path;
-                if (path.StartsWith("/mcp", StringComparison.OrdinalIgnoreCase))
-                    return Results.Json(ExcelMcpProtocol.Error(idNode, -32602, "excel.api_call cannot call /mcp recursively."), excelMcpJsonOpts);
-
-                var url = $"{ctx.Request.Scheme}://{ctx.Request.Host}{path}";
-                using var msg = new HttpRequestMessage(new HttpMethod(httpMethod), url);
-                if (!string.Equals(httpMethod, "GET", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(httpMethod, "HEAD", StringComparison.OrdinalIgnoreCase))
-                {
-                    var bodyText = bodyNode?.ToJsonString() ?? "{}";
-                    msg.Content = new StringContent(bodyText, System.Text.Encoding.UTF8, "application/json");
-                }
-
-                using var resp = await excelMcpHttp.SendAsync(msg);
-                var text = await resp.Content.ReadAsStringAsync();
-                JsonNode? parsed;
-                try { parsed = JsonNode.Parse(text); } catch { parsed = JsonValue.Create(text); }
-                payload = JsonSerializer.SerializeToNode(new
-                {
-                    ok = resp.IsSuccessStatusCode,
-                    statusCode = (int)resp.StatusCode,
-                    path,
-                    response = parsed
-                })!;
-                isError = !resp.IsSuccessStatusCode;
-            }
-        }
-        catch (Exception ex)
-        {
-            isError = true;
-            payload = JsonSerializer.SerializeToNode(new { ok = false, code = 500, msg = ex.Message })!;
-        }
-
-        return Results.Json(ExcelMcpProtocol.Success(idNode, ExcelMcpProtocol.ToolResult(payload, isError)), excelMcpJsonOpts);
-    }
-
-    return Results.Json(ExcelMcpProtocol.Error(idNode, -32601, $"Method '{method}' not found."), excelMcpJsonOpts, statusCode: 404);
-});
+app.MapExcelMcpEndpoints();
 
 // Print endpoint overview and URL bindings when started
 app.Lifetime.ApplicationStarted.Register(() =>
@@ -2263,122 +2069,6 @@ app.Lifetime.ApplicationStopped.Register(() => LogUtil.Info("[ExcelMCP] Stopped.
 
 LogUtil.Info("[ExcelMCP] Starting web server...");
 app.Run();
-
-internal static class ExcelMcpProtocol
-{
-    public const string SessionHeader = "MCP-Session-Id";
-    public const string ProtocolHeader = "MCP-Protocol-Version";
-    public const string DefaultProtocolVersion = "2025-11-05";
-
-    public static object InitializeResult(string protocolVersion) => new
-    {
-        protocolVersion,
-        capabilities = new
-        {
-            tools = new { listChanged = false },
-            resources = new { subscribe = false, listChanged = false },
-            prompts = new { listChanged = false }
-        },
-        serverInfo = new { name = "ExcelMCP", version = "1.0.0" },
-        instructions = "Use tools/list then tools/call. Use excel.api_call to invoke existing endpoints."
-    };
-
-    public static object ToolResult(JsonNode payload, bool isError) => new
-    {
-        content = new object[]
-        {
-            new
-            {
-                type = "text",
-                text = payload.ToJsonString(new JsonSerializerOptions { WriteIndented = true })
-            }
-        },
-        structuredContent = payload,
-        isError
-    };
-
-    public static object Success(JsonNode? idNode, object? result) => new
-    {
-        jsonrpc = "2.0",
-        id = NormalizeId(idNode),
-        result
-    };
-
-    public static object Error(JsonNode? idNode, int code, string message, object? data = null) => new
-    {
-        jsonrpc = "2.0",
-        id = NormalizeId(idNode),
-        error = new { code, message, data }
-    };
-
-    private static object? NormalizeId(JsonNode? idNode)
-    {
-        if (idNode is null) return null;
-        if (idNode is JsonValue v)
-        {
-            if (v.TryGetValue<long>(out var n)) return n;
-            if (v.TryGetValue<double>(out var d)) return d;
-            if (v.TryGetValue<bool>(out var b)) return b;
-            if (v.TryGetValue<string>(out var s))
-            {
-                if (long.TryParse(s, out var n2)) return n2;
-                return s;
-            }
-        }
-        return idNode.ToJsonString();
-    }
-}
-
-internal sealed class ExcelMcpSessionStore
-{
-    private readonly ConcurrentDictionary<string, ExcelMcpSessionState> _sessions =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    public ExcelMcpSessionState Create(string protocolVersion)
-    {
-        var s = new ExcelMcpSessionState
-        {
-            SessionId = Guid.NewGuid().ToString("N"),
-            ProtocolVersion = string.IsNullOrWhiteSpace(protocolVersion)
-                ? ExcelMcpProtocol.DefaultProtocolVersion
-                : protocolVersion,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            LastSeenAtUtc = DateTimeOffset.UtcNow,
-            IsInitialized = false
-        };
-        _sessions[s.SessionId] = s;
-        return s;
-    }
-
-    public bool TryGet(string? sessionId, out ExcelMcpSessionState state)
-    {
-        if (!string.IsNullOrWhiteSpace(sessionId) && _sessions.TryGetValue(sessionId, out state!))
-        {
-            state.LastSeenAtUtc = DateTimeOffset.UtcNow;
-            return true;
-        }
-        state = null!;
-        return false;
-    }
-
-    public bool MarkInitialized(string sessionId)
-    {
-        if (!TryGet(sessionId, out var s))
-            return false;
-        s.IsInitialized = true;
-        s.LastSeenAtUtc = DateTimeOffset.UtcNow;
-        return true;
-    }
-}
-
-internal sealed class ExcelMcpSessionState
-{
-    public string SessionId { get; set; } = "";
-    public string ProtocolVersion { get; set; } = ExcelMcpProtocol.DefaultProtocolVersion;
-    public bool IsInitialized { get; set; }
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset LastSeenAtUtc { get; set; }
-}
 
 static class ComUtil
 {
@@ -3172,7 +2862,7 @@ static class ExcelIO
         return match?.Name?.Value ?? string.Empty;
     }
 
-    public static void ApplyValue(IXLCell cell, object v)
+    public static void ApplyValue(IXLCell cell, object? v)
     {
         switch (v)
         {

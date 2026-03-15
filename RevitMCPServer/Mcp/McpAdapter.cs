@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RevitMCP.Abstractions.Rpc;
@@ -15,9 +16,15 @@ namespace RevitMcpServer.Mcp
     {
         public const string SessionHeader = "MCP-Session-Id";
         public const string ProtocolHeader = "MCP-Protocol-Version";
-        public const string DefaultProtocolVersion = "2025-11-05";
+        public const string DefaultProtocolVersion = "2025-11-25";
         public const string ServerName = "RevitMCPServer";
         public const string ServerVersion = "1.0.0";
+        public static readonly string[] SupportedProtocolVersions = new[]
+        {
+            "2025-11-25",
+            "2025-11-05",
+            "2025-03-26"
+        };
 
         public static object CreateInitializeResult(string protocolVersion)
         {
@@ -50,6 +57,42 @@ namespace RevitMcpServer.Mcp
                 },
                 instructions = "Use tools/list to discover available Revit commands. Legacy /rpc and /job endpoints remain available for existing clients."
             };
+        }
+
+        public static bool IsSupportedProtocolVersion(string? protocolVersion)
+        {
+            if (string.IsNullOrWhiteSpace(protocolVersion))
+                return true;
+
+            return SupportedProtocolVersions.Contains(protocolVersion.Trim(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static string NegotiateProtocolVersion(string? requestedProtocolVersion)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedProtocolVersion)
+                && IsSupportedProtocolVersion(requestedProtocolVersion))
+            {
+                return requestedProtocolVersion.Trim();
+            }
+
+            return DefaultProtocolVersion;
+        }
+
+        public static bool IsOriginAllowed(string? origin)
+        {
+            if (string.IsNullOrWhiteSpace(origin))
+                return true;
+
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                return false;
+
+            if (uri.IsLoopback)
+                return true;
+
+            if (IPAddress.TryParse(uri.Host, out var ip))
+                return IPAddress.IsLoopback(ip);
+
+            return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
         }
 
         public static object CreateToolCallResult(JsonNode? payload, bool isError)

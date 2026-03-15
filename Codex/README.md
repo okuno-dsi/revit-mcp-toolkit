@@ -85,6 +85,11 @@ flowchart LR
 - `McpRevitBridge` : ブリッジ関連（役割は要確認）
 - `Codex` : Codex 向け導線/ツール群
 - `tools` : サーバー確認・停止などのユーティリティ
+- `Apps/ExcelMCP` : ExcelMCP 実行物。`ExcelMCP.exe` と `mcp_commands.jsonl` を含む。MCP/HTTP の仕様は `Apps/ExcelMCP/README.md` と `Apps/ExcelMCP/MANUAL_JA.md` を参照
+  - MCP transport: `OPTIONS /mcp`, `GET /mcp`, `POST /mcp`, `DELETE /mcp`
+  - 主要 tools: `excel.sheet_info`, `excel.read_cells`, `excel.write_cells`, `excel.append_rows`, `excel.set_formula`, `excel.format_sheet`, `excel.to_csv`, `excel.to_json`, `excel.list_charts`
+  - 書き込み前確認: `excel.preview_write_cells`, `excel.preview_append_rows`, `excel.preview_set_formula`
+  - ログ既定: `%TEMP%\\ExcelMCP\\logs`
 - `ExcelMCP` / `RhinoMCP` / `AutoCadMCP` : 関連MCP（存在し得る／運用は各ドキュメントに従う）
 
 

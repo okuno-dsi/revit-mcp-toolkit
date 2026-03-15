@@ -83,6 +83,7 @@ using RevitMCPAddin.Commands.WindowOps;
 using RevitMCPAddin.Commands.WorksetOps;
 using RevitMCPAddin.Commands.ZoneOps;
 using RevitMCPAddin.Core;
+using RevitMCPAddin.Core.ResultDelivery;
 using RevitMCPAddin.ExternalEvents;
 using RevitMCPAddin.RevitUI;
 using System;
@@ -99,14 +100,36 @@ namespace RevitMCPAddin
 {
     public class RevitMcpWorker
     {
+        private sealed class DispatchItem
+        {
+            public RequestCommand Command { get; set; } = null!;
+            public string JobId { get; set; } = string.Empty;
+            public int TimeoutMs { get; set; }
+            public DateTime ClaimedAtUtc { get; set; } = DateTime.UtcNow;
+            public string RpcId
+            {
+                get
+                {
+                    try { return Command?.Id != null ? Command.Id.ToString() ?? string.Empty : string.Empty; }
+                    catch { return string.Empty; }
+                }
+            }
+        }
+
         private readonly ExternalEvent _extEvent;
         private readonly RevitCommandExecutor _executor;
         private readonly HttpClient _client;
+        private readonly IResultDeliveryService _resultDelivery;
         private readonly int _port;
         private bool _isRunning;
 
         private readonly System.Threading.CancellationTokenSource _cts = new System.Threading.CancellationTokenSource();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.CancellationTokenSource> _heartbeatMap;
+        private readonly System.Collections.Concurrent.ConcurrentQueue<DispatchItem> _dispatchQueue
+            = new System.Collections.Concurrent.ConcurrentQueue<DispatchItem>();
+        private readonly object _dispatchLock = new object();
+        private int _dispatchInFlight = 0;
+        private DispatchItem? _currentDispatch = null;
 
         private void StartHeartbeat(string rpcId, string jobId)
         {
@@ -155,6 +178,129 @@ namespace RevitMCPAddin
                 }
             }
             catch { }
+        }
+
+        private bool CanClaimFromServer()
+        {
+            if (!_isRunning) return false;
+            if (!_dispatchQueue.IsEmpty) return false;
+            return System.Threading.Volatile.Read(ref _dispatchInFlight) == 0;
+        }
+
+        private void EnqueueDispatch(RequestCommand cmd, string? jobIdHeader)
+        {
+            if (cmd == null) return;
+            var timeoutMs = ResolveOpTimeoutMsFromParams(cmd, 120_000);
+            var item = new DispatchItem
+            {
+                Command = cmd,
+                JobId = jobIdHeader ?? string.Empty,
+                TimeoutMs = timeoutMs,
+                ClaimedAtUtc = DateTime.UtcNow
+            };
+            _dispatchQueue.Enqueue(item);
+            SafeLog($"[WORKER] claimed method={cmd.Command} rpcId={item.RpcId} queued={_dispatchQueue.Count}");
+        }
+
+        private void TryDispatchNext()
+        {
+            if (!_isRunning) return;
+
+            DispatchItem? item = null;
+            lock (_dispatchLock)
+            {
+                if (_dispatchInFlight != 0) return;
+                if (!_dispatchQueue.TryDequeue(out var dequeued)) return;
+                _dispatchInFlight = 1;
+                _currentDispatch = dequeued;
+                item = dequeued;
+            }
+
+            try
+            {
+                if (!_executor.TrySetCommand(item!.Command))
+                {
+                    SafeLog($"[WORKER] executor busy before raise method={item.Command.Command} rpcId={item.RpcId}");
+                    lock (_dispatchLock)
+                    {
+                        _dispatchInFlight = 0;
+                        _currentDispatch = null;
+                    }
+
+                    _dispatchQueue.Enqueue(item);
+                    _ = Task.Run(async () =>
+                    {
+                        try { await Task.Delay(100).ConfigureAwait(false); } catch { }
+                        TryDispatchNext();
+                    });
+                    return;
+                }
+
+                _executor.SetNextTimeoutMs(item.TimeoutMs);
+                if (item.TimeoutMs >= 15_000)
+                {
+                    StartHeartbeat(item.RpcId, item.JobId);
+                }
+
+                SafeLog($"[WORKER] dispatch method={item.Command.Command} rpcId={item.RpcId} queued={_dispatchQueue.Count}");
+                var raiseResult = _extEvent.Raise();
+                if (raiseResult != ExternalEventRequest.Accepted)
+                {
+                    SafeLog($"[WORKER] raise not accepted method={item.Command.Command} rpcId={item.RpcId} status={raiseResult}");
+                    try { _executor.TryClearPendingCommand(item.Command); } catch { }
+                    try { StopHeartbeat(item.RpcId); } catch { }
+                    lock (_dispatchLock)
+                    {
+                        _dispatchInFlight = 0;
+                        _currentDispatch = null;
+                    }
+
+                    _dispatchQueue.Enqueue(item);
+                    _ = Task.Run(async () =>
+                    {
+                        try { await Task.Delay(raiseResult == ExternalEventRequest.Pending ? 100 : 250).ConfigureAwait(false); } catch { }
+                        TryDispatchNext();
+                    });
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeLog($"[WORKER] RAISE FAIL method={item?.Command?.Command} rpcId={item?.RpcId} ex={ex.Message}");
+                try { _executor.TryClearPendingCommand(item?.Command); } catch { }
+                lock (_dispatchLock)
+                {
+                    _dispatchInFlight = 0;
+                    _currentDispatch = null;
+                }
+
+                try { StopHeartbeat(item?.RpcId ?? string.Empty); } catch { }
+                // Try to continue queue consumption from a non-Revit callback context.
+                _ = Task.Run(async () =>
+                {
+                    try { await Task.Delay(100).ConfigureAwait(false); } catch { }
+                    TryDispatchNext();
+                });
+            }
+        }
+
+        private void OnCommandCompleted(CommandExecutionCompleted completed)
+        {
+            try
+            {
+                lock (_dispatchLock)
+                {
+                    _dispatchInFlight = 0;
+                    _currentDispatch = null;
+                }
+
+                SafeLog($"[WORKER] complete method={completed?.CommandName} rpcId={completed?.RpcId} posted={completed?.PostedResult}");
+            }
+            catch { /* ignore */ }
+            finally
+            {
+                _ = Task.Run(() => TryDispatchNext());
+            }
         }
 
         public RevitMcpWorker(UIControlledApplication application, int port)
@@ -215,6 +361,21 @@ namespace RevitMCPAddin
             catch { /* ignore */ }
 
             _heartbeatMap = new System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.CancellationTokenSource>(StringComparer.OrdinalIgnoreCase);
+
+            var resultClient = new HttpClient(new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                UseCookies = false,
+                Proxy = null,
+                UseProxy = false,
+                AllowAutoRedirect = false
+            })
+            {
+                BaseAddress = new Uri($"http://localhost:{_port}/"),
+                Timeout = TimeSpan.FromSeconds(8)
+            };
+            _resultDelivery = new ResultDeliveryService(resultClient, _port, this.StopHeartbeat);
+            AppServices.ResultDelivery = _resultDelivery;
 
 
             // --- コマンドハンドラ登録（元の一覧を維持） ---
@@ -586,6 +747,8 @@ namespace RevitMCPAddin
                 new ExportDxfCustomLayersCommand(),
 
                 // DWG Export
+                new ListDwgExportSetupsCommand(),
+                new GetDwgExportSetupCommand(),
                 new ExportDwgCommand(),
                 new ExportDwgWithWorksetBucketingCommand(),
                 new ExportDwgByParamGroupsCommand(),
@@ -1222,7 +1385,8 @@ namespace RevitMCPAddin
             var router = new CommandRouter(handlerList);
             try { batchHandler.BindRouter(router); } catch { /* best-effort */ }
             _executor = new RevitMCPAddin.ExternalEvents.RevitCommandExecutor(router, _client, RevitMCPAddin.Core.RevitLogger.LogPath);
-            _executor.StopHeartbeatCallback = this.StopHeartbeat;
+            _executor.EnqueueResultCallback = this.EnqueueResultForDelivery;
+            _executor.CommandCompleted = this.OnCommandCompleted;
             _extEvent = ExternalEvent.Create(_executor);
         }
 
@@ -1231,6 +1395,7 @@ namespace RevitMCPAddin
         {
             _isRunning = true;
             LongOpEngine.Initialize(uiapp: null, baseAddress: new Uri($"http://127.0.0.1:{_port}/"));
+            try { _resultDelivery.Start(); } catch (Exception ex) { SafeLog($"[WORKER] result delivery start failed: {ex.Message}"); }
 
             Task.Run(async () =>
             {
@@ -1240,6 +1405,16 @@ namespace RevitMCPAddin
                     bool gotWork = false;
                     int parsedCommandCount = 0;
                     bool usedLongPoll = true;
+
+                    // Always try to advance local FIFO first.
+                    TryDispatchNext();
+
+                    // Do not claim a new server job while another one is pending/processing.
+                    if (!CanClaimFromServer())
+                    {
+                        usedLongPoll = false;
+                        goto AfterExec;
+                    }
 
             try
             {
@@ -1309,19 +1484,9 @@ namespace RevitMCPAddin
                             foreach (var cmd in cmdList)
                             {
                                 if (cmd == null) continue;
-                                _executor.SetCommand(cmd);
-                                var __opMs = ResolveOpTimeoutMsFromParams(cmd, 120_000);
-                                _executor.SetNextTimeoutMs(__opMs);
-                                // start heartbeat only for long ops (>=15s)
-                                if (__opMs >= 15_000)
-                                {
-                                    string __rpcId = null; try { __rpcId = cmd.Id != null ? cmd.Id.ToString() : null; } catch { }
-                                    StartHeartbeat(__rpcId, jobIdHeader);
-                                }
-
-                                SafeLog($"[{DateTime.Now:HH:mm:ss}] SET&RAISE (batch): {cmd.Command} id={cmd.Id}");
-                                _extEvent.Raise();
+                                EnqueueDispatch(cmd, jobIdHeader);
                             }
+                            TryDispatchNext();
                         }
                         else
                         {
@@ -1338,17 +1503,8 @@ namespace RevitMCPAddin
 
                             if (cmd != null)
                             {
-                                _executor.SetCommand(cmd);
-                                var __opMs2 = ResolveOpTimeoutMsFromParams(cmd, 120_000);
-                                TrySetNextTimeoutMs(_executor, __opMs2);
-                                if (__opMs2 >= 15_000)
-                                {
-                                    string __rpcId2 = null; try { __rpcId2 = cmd.Id != null ? cmd.Id.ToString() : null; } catch { }
-                                    StartHeartbeat(__rpcId2, jobIdHeader);
-                                }
-
-                                SafeLog($"[{DateTime.Now:HH:mm:ss}] SET&RAISE: {cmd.Command} id={cmd.Id}");
-                                _extEvent.Raise();
+                                EnqueueDispatch(cmd, jobIdHeader);
+                                TryDispatchNext();
                             }
                             else
                             {
@@ -1429,6 +1585,8 @@ namespace RevitMCPAddin
                     if (owner == me && port > 0)
                     {
                         _client.BaseAddress = new Uri($"http://localhost:{port}/");
+                        try { _resultDelivery.SetBaseAddress($"http://localhost:{port}/"); } catch { }
+                        try { _resultDelivery.UpdatePort(port); } catch { }
                         try { RevitMCPAddin.AppServices.CurrentPort = port; } catch { }
                         SafeLog($"[{DateTime.Now:HH:mm:ss}] WORKER rebind to port {port} via lock.");
                         return;
@@ -1442,6 +1600,15 @@ namespace RevitMCPAddin
         {
             _isRunning = false;
             try { _cts.Cancel(); } catch { }
+            try { _resultDelivery.Stop(); } catch { }
+            if (ReferenceEquals(AppServices.ResultDelivery, _resultDelivery))
+                AppServices.ResultDelivery = null;
+            lock (_dispatchLock)
+            {
+                _dispatchInFlight = 0;
+                _currentDispatch = null;
+            }
+            while (_dispatchQueue.TryDequeue(out _)) { }
         }
 
         private DateTime _lastPerfLog = DateTime.MinValue;
@@ -1625,6 +1792,19 @@ namespace RevitMCPAddin
             }
 
             return @default;
+        }
+
+        private void EnqueueResultForDelivery(string? rpcId, string jsonBody)
+        {
+            var item = new PendingResultItem
+            {
+                RpcId = rpcId ?? string.Empty,
+                HeartbeatKey = rpcId ?? string.Empty,
+                JsonBody = jsonBody ?? string.Empty,
+                CreatedAtUtc = DateTime.UtcNow,
+                Attempt = 0
+            };
+            _resultDelivery.Enqueue(item);
         }
 
         // ============================================================

@@ -14,4 +14,31 @@
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.20.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="mcp_commands.jsonl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="README.md">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="MANUAL_JA.md">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="BUILD_RELEASE.md">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ExcelMCP.IntegrationTests\\**\\*.cs" />
+    <EmbeddedResource Remove="ExcelMCP.IntegrationTests\\**\\*" />
+    <None Remove="ExcelMCP.IntegrationTests\\**\\*" />
+    <Content Remove="ExcelMCP.IntegrationTests\\**\\*" />
+    <Compile Remove="publish\\**\\*.cs" />
+    <EmbeddedResource Remove="publish\\**\\*" />
+    <None Remove="publish\\**\\*" />
+    <Content Remove="publish\\**\\*" />
+  </ItemGroup>
+
 </Project>

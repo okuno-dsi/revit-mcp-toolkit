@@ -1,56 +1,94 @@
 # ExcelMCP
 
-A minimal ASP.NET Core Web API for Excel operations. Originally built to parse grid plans (borders as walls) for Revit; now extended with basic read/write, CSV export, formatting, formulas, and simple chart listing.
+ExcelMCP is an ASP.NET Core Minimal API for Excel operations and MCP-based tool access.
+It provides both direct HTTP endpoints and MCP tools for workbook inspection, read/write operations, export, formatting, and selected COM automation tasks.
 
-- Endpoint: `POST /parse_plan`
-  - body: `{ "excelPath": "C:/path/plan.xlsx", "sheetName": "Sheet1", "cellSizeMeters": 1.0, "useColorMask": false }`
-  - returns: `{ ok, widthCells, heightCells, cellSizeMeters, segmentsDetailed:[{kind,x1,y1,x2,y2,length_m,style}], labels:[{text,x,y}] }`
-- Health: `GET /health`
+## Current MCP Scope
+- Transport: `OPTIONS /mcp`, `GET /mcp`, `POST /mcp`, `DELETE /mcp`
+- Default protocol version: `2025-11-25`
+- Supported protocol versions:
+  - `2025-11-25`
+  - `2025-11-05`
+  - `2025-03-26`
+- Session lifecycle:
+  1. `initialize`
+  2. `notifications/initialized`
+  3. `tools/list` / `tools/call`
+- Notifications do not receive JSON-RPC response bodies.
+- Batch JSON-RPC requests are supported.
 
-## New Endpoints
+## First-Class MCP Tools
+File-based tools are loaded from `mcp_commands.jsonl` and exposed as `excel.*` tools.
+Main tools include:
+- `excel.health`
+- `excel.parse_plan`
+- `excel.sheet_info`
+- `excel.read_cells`
+- `excel.write_cells`
+- `excel.append_rows`
+- `excel.set_formula`
+- `excel.format_sheet`
+- `excel.to_csv`
+- `excel.to_json`
+- `excel.list_charts`
 
+Additional manual tools are registered for COM and MCP support:
+- `excel.list_open_workbooks`
+- `excel.com.activate_workbook`
+- `excel.com.activate_sheet`
+- `excel.com.read_cells`
+- `excel.com.write_cells`
+- `excel.com.append_rows`
+- `excel.com.save_workbook`
+- `excel.com.format_range`
+- `excel.com.add_sheet`
+- `excel.com.delete_sheet`
+- `excel.com.sort_range`
+- `excel.preview_write_cells`
+- `excel.preview_append_rows`
+- `excel.preview_set_formula`
+- `excel.api_call`
+- `mcp.status`
+
+`excel.api_call` remains for compatibility, but new clients should prefer the first-class tools above.
+
+## Core HTTP Endpoints
+- `GET /health`
+- `GET /list_open_workbooks`
 - `POST /sheet_info`
-  - body: `{ "excelPath": "C:/path/book.xlsx" }`
-  - returns: `{ ok, sheets: [{ name, usedRange, firstCell, lastCell, rowCount, columnCount }] }`
-
 - `POST /read_cells`
-  - body: `{ excelPath, sheetName?, rangeA1?, returnRaw: true, returnFormatted: false, includeFormula: false }`
-  - returns: `{ ok, cells: [{ address, row, column, value?, text?, formula?, dataType }] }`
-
 - `POST /write_cells`
-  - body: `{ excelPath, sheetName?, startCell: "A1", values: object[][], treatNullAsClear?: false }`
-  - returns: `{ ok, wroteRows, wroteCols }`
-
 - `POST /append_rows`
-  - body: `{ excelPath, sheetName?, startColumn?: "A", rows: object[][] }`
-  - returns: `{ ok, appendedRows }`
-
 - `POST /set_formula`
-  - body: `{ excelPath, sheetName?, target: "A1"|"A1:B3", formulaA1: "=SUM(A1:A10)" }`
-  - returns: `{ ok, cells }`
-
 - `POST /format_sheet`
-  - body: `{ excelPath, sheetName?, autoFitColumns?, autoFitRows?, columns?: "A:C", rows?: "1:10", columnWidths?: { "A": 15.5 }, rowHeights?: { "2": 22.0 }, widthUnit?: "characters"|"pixels" }`
-  - returns: `{ ok }`
-
 - `POST /to_csv`
-  - body: `{ excelPath, sheetName?, outputCsvPath, delimiter?: ",", quote?: '"', useFormattedText?: false }`
-  - returns: `{ ok, rows, cols, path }`
-
 - `POST /to_json`
-  - body: `{ excelPath, sheetName?, rangeA1?, outputJsonPath, mode?: "records"|"matrix", headerRow?: 1, useFormattedText?: false, indented?: true, emptyAsNull?: true, skipBlankRows?: true }`
-  - returns: `{ ok, mode, rows, cols, path, headerRow? }`
-
 - `POST /list_charts`
-  - body: `{ excelPath }`
-  - returns: `{ ok, charts: [{ sheet, title }] }` (read-only; via OpenXML)
+- `POST /parse_plan`
 
-## Build & Run
+COM endpoints remain available under `/com/*`.
 
-- Build: `dotnet build`
-- Run (dev): `dotnet run --urls http://localhost:5215`
+## Build and Test
+```powershell
+dotnet clean ExcelMCP.sln
+dotnet build ExcelMCP.sln -c Release
+dotnet test ExcelMCP.sln -c Release --no-build
+```
+
+Or run the consolidated release script:
+```powershell
+pwsh .\publish_release.ps1
+```
+
+## Run
+```powershell
+dotnet run --project ExcelMCP --configuration Release --urls http://localhost:5215
+```
 
 ## Notes
-- Uses ClosedXML for Excel I/O. Charts are listed via OpenXML SDK (read-only).
-- Coordinates are meters, origin at bottom-left of scan region.
-- When `useColorMask=true`, the scan window is restricted to cells with non-white fill.
+- File-based Excel I/O uses ClosedXML.
+- Chart listing uses OpenXML SDK.
+- COM endpoints operate on already open Excel workbooks.
+- The canonical release process is documented in `BUILD_RELEASE.md`.
+- `publish_release.ps1` runs clean/build/test/publish in one flow.
+- Japanese operations manual: `MANUAL_JA.md`

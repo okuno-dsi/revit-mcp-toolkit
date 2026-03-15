@@ -9,7 +9,6 @@
 #nullable enable
 using System;
 using System.Net.Http;
-using System.Text;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,15 +16,25 @@ using RevitMCPAddin.Core;
 
 namespace RevitMCPAddin.ExternalEvents
 {
+    public sealed class CommandExecutionCompleted
+    {
+        public string? RpcId { get; set; }
+        public string? CommandName { get; set; }
+        public bool PostedResult { get; set; }
+        public Exception? Exception { get; set; }
+    }
+
     public class RevitCommandExecutor : IExternalEventHandler
     {
         private readonly CommandRouter _router;
-        private readonly HttpClient _client;
+        private readonly object _pendingLock = new object();
 
         private RequestCommand? _pending;
 
-        // Optional: worker-provided callback to stop per-job heartbeat quickly after result is posted
-        public Action<string>? StopHeartbeatCallback { get; set; }
+        // Optional: worker-provided async result delivery enqueue callback (preferred path).
+        public Action<string?, string>? EnqueueResultCallback { get; set; }
+        // Optional: worker notification to continue dispatch serialization.
+        public Action<CommandExecutionCompleted>? CommandCompleted { get; set; }
 
         // --- 追加：次回 1 回だけ適用する待機時間（ms）。明示されなければ既定扱い ---
         private int _nextTimeoutMs = 0; // 0=未指定（UiEventPump 側の既定/従来どおり）
@@ -34,7 +43,7 @@ namespace RevitMCPAddin.ExternalEvents
         public RevitCommandExecutor(CommandRouter router, HttpClient client)
         {
             _router = router ?? throw new ArgumentNullException(nameof(router));
-            _client = client ?? throw new ArgumentNullException(nameof(client));
+            if (client == null) throw new ArgumentNullException(nameof(client));
         }
 
         // 旧シグネチャ（後方互換・traceLogPathは受け取るが使用しない）
@@ -44,7 +53,41 @@ namespace RevitMCPAddin.ExternalEvents
             // NO-OP: ログは RevitLogger に集約するため traceLogPath は使わない
         }
 
-        public void SetCommand(RequestCommand cmd) => _pending = cmd;
+        public void SetCommand(RequestCommand cmd)
+        {
+            lock (_pendingLock)
+            {
+                _pending = cmd;
+            }
+        }
+
+        public bool TrySetCommand(RequestCommand cmd)
+        {
+            if (cmd == null) return false;
+            lock (_pendingLock)
+            {
+                if (_pending != null) return false;
+                _pending = cmd;
+                return true;
+            }
+        }
+
+        public bool TryClearPendingCommand(RequestCommand? expected)
+        {
+            lock (_pendingLock)
+            {
+                if (expected == null)
+                {
+                    if (_pending == null) return false;
+                    _pending = null;
+                    return true;
+                }
+
+                if (!ReferenceEquals(_pending, expected)) return false;
+                _pending = null;
+                return true;
+            }
+        }
 
         /// <summary>
         /// 次回 1 回だけの UiEventPump 待機時間を設定（Worker などから呼ぶ）
@@ -64,14 +107,18 @@ namespace RevitMCPAddin.ExternalEvents
 
             SafeTrace("[EXEC] begin");
 
-            if (_pending == null)
+            RequestCommand? cmd;
+            lock (_pendingLock)
+            {
+                cmd = _pending;
+                _pending = null;
+            }
+
+            if (cmd == null)
             {
                 SafeTrace("[EXEC] no pending cmd");
                 return;
             }
-
-            var cmd = _pending;
-            _pending = null;
 
             SafeTrace($"[EXEC] command={cmd.Command ?? "(null)"} id={(cmd.Id != null ? cmd.Id.ToString() : "null")}");
 
@@ -102,21 +149,45 @@ namespace RevitMCPAddin.ExternalEvents
                 ["result"] = JToken.FromObject(resultObj)
             };
 
+            bool postedResult = false;
+            Exception? postException = null;
+            bool deferredResult = resultObj is DeferredRpcResult;
             try
             {
-                SafeTrace("[EXEC] post_result start");
-                string jsonBody = JsonNetCompat.ToCompactJson(payload);
-                using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                if (deferredResult)
+                {
+                    SafeTrace("[EXEC] post_result deferred");
+                }
+                else
+                {
+                    string rpcId = cmd.Id != null ? cmd.Id.ToString() : null;
+                    string jsonBody = JsonNetCompat.ToCompactJson(payload);
+                    if (EnqueueResultCallback == null)
+                        throw new InvalidOperationException("Result delivery callback is not configured.");
 
-                var res = _client.PostAsync("post_result", content).GetAwaiter().GetResult();
-                SafeTrace($"[EXEC] post_result done: {(int)res.StatusCode}");
-
-                // Proactively stop heartbeat for this rpcId once result is posted
-                try { StopHeartbeatCallback?.Invoke(cmd.Id != null ? cmd.Id.ToString() : null); } catch { /* ignore */ }
+                    EnqueueResultCallback(rpcId, jsonBody);
+                    SafeTrace("[EXEC] post_result queued");
+                    postedResult = true;
+                }
             }
             catch (Exception ex)
             {
+                postException = ex;
                 SafeWarn("[EXEC] post_result exception: " + ex);
+            }
+            finally
+            {
+                try
+                {
+                    CommandCompleted?.Invoke(new CommandExecutionCompleted
+                    {
+                        RpcId = cmd.Id != null ? cmd.Id.ToString() : null,
+                        CommandName = cmd.Command,
+                        PostedResult = postedResult,
+                        Exception = postException
+                    });
+                }
+                catch { /* ignore completion callback errors */ }
             }
 
             // オプション: コマンド記録（失敗しても処理継続）

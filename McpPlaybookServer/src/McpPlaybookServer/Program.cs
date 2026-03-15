@@ -31,14 +31,51 @@ app.MapPost("/teach/stop", () => teach.Stop());
 // MCP passthrough (Streamable HTTP)
 app.MapMethods("/mcp", new[] { "OPTIONS" }, async (HttpRequest req, HttpResponse res) =>
 {
+    if (!McpProxySecurity.IsOriginAllowed(req.Headers["Origin"].ToString()))
+    {
+        res.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+
     var forwardUrl = $"{forwardBase}/mcp";
     await Proxy.ForwardOptionsAsync(http, req, res, forwardUrl);
 });
 
 app.MapPost("/mcp", async (HttpRequest req, HttpResponse res) =>
 {
+    if (!McpProxySecurity.IsOriginAllowed(req.Headers["Origin"].ToString()))
+    {
+        res.StatusCode = StatusCodes.Status403Forbidden;
+        await res.WriteAsync("{\"ok\":false,\"error\":\"origin not allowed\"}");
+        return;
+    }
+
     var forwardUrl = $"{forwardBase}/mcp";
     await Proxy.ForwardPostAsync(http, req, res, forwardUrl, teach);
+});
+
+app.MapGet("/mcp", async (HttpRequest req, HttpResponse res) =>
+{
+    if (!McpProxySecurity.IsOriginAllowed(req.Headers["Origin"].ToString()))
+    {
+        res.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+
+    var forwardUrl = $"{forwardBase}/mcp";
+    await Proxy.ForwardGetAsync(http, req, res, forwardUrl);
+});
+
+app.MapDelete("/mcp", async (HttpRequest req, HttpResponse res) =>
+{
+    if (!McpProxySecurity.IsOriginAllowed(req.Headers["Origin"].ToString()))
+    {
+        res.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+
+    var forwardUrl = $"{forwardBase}/mcp";
+    await Proxy.ForwardDeleteAsync(http, req, res, forwardUrl);
 });
 
 // Proxy RPC to RevitMcpServer and record normalized entry
@@ -189,6 +226,14 @@ static class Proxy
         await WriteResponseAsync(res, fwd);
     }
 
+    public static async Task ForwardDeleteAsync(HttpClient http, HttpRequest req, HttpResponse res, string url)
+    {
+        using var forward = new HttpRequestMessage(HttpMethod.Delete, url);
+        CopyRequestHeaders(req.Headers, forward.Headers, null);
+        using var fwd = await http.SendAsync(forward, HttpCompletionOption.ResponseContentRead);
+        await WriteResponseAsync(res, fwd);
+    }
+
     public static async Task ForwardOptionsAsync(HttpClient http, HttpRequest req, HttpResponse res, string url)
     {
         using var forward = new HttpRequestMessage(HttpMethod.Options, url);
@@ -265,6 +310,26 @@ internal static class NetUtil
             return port >= 1 && port <= 65535;
         }
         return false;
+    }
+}
+
+internal static class McpProxySecurity
+{
+    public static bool IsOriginAllowed(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+            return true;
+
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            return false;
+
+        if (uri.IsLoopback)
+            return true;
+
+        if (System.Net.IPAddress.TryParse(uri.Host, out var ip))
+            return System.Net.IPAddress.IsLoopback(ip);
+
+        return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 }
 

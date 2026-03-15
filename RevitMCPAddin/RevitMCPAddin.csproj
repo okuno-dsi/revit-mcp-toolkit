@@ -76,7 +76,19 @@
   <!-- Build-time copy of server exe into $(OutputPath)server/ (dev convenience) -->
   <Target Name="CopyRevitMcpServerExe" AfterTargets="Build">
     <PropertyGroup>
+      <RevitMcpServerArtifactsRoot>..\Artifacts\RevitMCPServer\Server</RevitMcpServerArtifactsRoot>
       <!-- Prefer self-contained publish output (win-x64) to avoid host runtime dependency differences across PCs. -->
+      <ServerExeSource Condition="Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64</ServerRootSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows</ServerRootSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\x64\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\x64\Release\net8.0-windows\win-x64</ServerRootSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\win-x64\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\win-x64</ServerRootSource>
+      <ServerExeSource Condition="'$(ServerExeSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\RevitMCPServer.exe</ServerExeSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\bin\Release\net8.0-windows</ServerRootSource>
+
       <ServerExeSource Condition="Exists('..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe</ServerExeSource>
       <ServerRootSource Condition="Exists('..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\publish_sc\win-x64</ServerRootSource>
 
@@ -321,6 +333,7 @@
     <Compile Include="Commands\ElementOps\StructuralFoundation\FoundationUnits.cs" />
     <Compile Include="Commands\ElementOps\Wall\GetWallBaselineCommand.cs" />
     <Compile Include="Commands\ElementOps\Window\FlipWindowOrientationCommand.cs" />
+    <Compile Include="Commands\Export\DwgExportSetupCommands.cs" />
     <Compile Include="Commands\Export\ExportDwgByParamGroupsCommand.cs" />
     <Compile Include="Commands\Export\ExportDwgCommand.cs" />
     <Compile Include="Commands\Export\ExportDwgWithWorksetBucketingCommand.cs" />
@@ -539,12 +552,18 @@
     <Compile Include="Core\PortLocator.cs" />
     <Compile Include="Core\ExpectedContextGuard.cs" />
     <Compile Include="Core\ContextTokenService.cs" />
+    <Compile Include="Core\DeferredRpcResult.cs" />
+    <Compile Include="Core\DeferredRpcRunner.cs" />
     <Compile Include="Core\ProceedWithWarningsFailuresPreprocessor.cs" />
     <Compile Include="Core\RequestMeta.cs" />
     <Compile Include="Core\ResponseNormalizer.cs" />
     <Compile Include="Core\ResultEnricher.cs" />
     <Compile Include="Core\ResultShaper.cs" />
     <Compile Include="Core\ResultStore.cs" />
+    <Compile Include="Core\ResultDelivery\PendingResultItem.cs" />
+    <Compile Include="Core\ResultDelivery\IResultDeliveryService.cs" />
+    <Compile Include="Core\ResultDelivery\FileBackedPendingResultStore.cs" />
+    <Compile Include="Core\ResultDelivery\ResultDeliveryService.cs" />
     <Compile Include="Core\ResultUtil.cs" />
     <Compile Include="Core\RpcResultEnvelope.cs" />
     <Compile Include="Core\RevitLogger.cs" />
@@ -880,6 +899,7 @@
   <ItemGroup>
     <Compile Include="Core\SpfCatalog.cs" />
     <Compile Include="Core\Compare\DeepJsonComparer.cs" />
+    <Compile Include="Core\Compare\CompareRpcFacade.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands\ElementOps\GetElementsByCategoryAndLevelCommand.cs" />

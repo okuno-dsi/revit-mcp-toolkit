@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <RevitMcpServerArtifactsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Artifacts\RevitMCPServer\'))</RevitMcpServerArtifactsRoot>
+    <RevitMcpServerBuildRoot>$(RevitMcpServerArtifactsRoot)Server\</RevitMcpServerBuildRoot>
+    <RevitMcpCaptureAgentBuildRoot>$(RevitMcpServerArtifactsRoot)CaptureAgent\</RevitMcpCaptureAgentBuildRoot>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'RevitMCPServer'">
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(RevitMcpServerBuildRoot)bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RevitMcpServerBuildRoot)obj\</BaseIntermediateOutputPath>
+    <PublishDir Condition="'$(PublishDir)' == '' and '$(RuntimeIdentifier)' != ''">$(RevitMcpServerBuildRoot)publish\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</PublishDir>
+    <PublishDir Condition="'$(PublishDir)' == '' and '$(RuntimeIdentifier)' == ''">$(RevitMcpServerBuildRoot)publish\$(Configuration)\$(TargetFramework)\</PublishDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'RevitMcp.CaptureAgent'">
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(RevitMcpCaptureAgentBuildRoot)bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RevitMcpCaptureAgentBuildRoot)obj\</BaseIntermediateOutputPath>
+    <PublishDir Condition="'$(PublishDir)' == '' and '$(RuntimeIdentifier)' != ''">$(RevitMcpCaptureAgentBuildRoot)publish\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</PublishDir>
+    <PublishDir Condition="'$(PublishDir)' == '' and '$(RuntimeIdentifier)' == ''">$(RevitMcpCaptureAgentBuildRoot)publish\$(Configuration)\$(TargetFramework)\</PublishDir>
+  </PropertyGroup>
+</Project>

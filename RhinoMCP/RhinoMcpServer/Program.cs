@@ -178,12 +178,24 @@ var rhinoMcpSessions = new RhinoMcpSessionStore();
 
 app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!RhinoMcpProtocol.IsOriginAllowed(origin))
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
     ctx.Response.Headers[RhinoMcpProtocol.ProtocolHeader] = RhinoMcpProtocol.DefaultProtocolVersion;
-    return Results.Ok();
+    return Results.StatusCode(StatusCodes.Status204NoContent);
 });
 
 app.MapPost("/mcp", async (HttpContext ctx) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!RhinoMcpProtocol.IsOriginAllowed(origin))
+    {
+        return Results.Json(
+            RhinoMcpProtocol.Error(null, -32099, "Origin not allowed for local MCP HTTP endpoint.", new { origin }),
+            statusCode: StatusCodes.Status403Forbidden);
+    }
+
     JObject reqObj;
     try
     {
@@ -200,13 +212,24 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
     var method = reqObj.Value<string>("method") ?? string.Empty;
     var prm = reqObj["params"] as JObject ?? new JObject();
     var sessionId = ctx.Request.Headers[RhinoMcpProtocol.SessionHeader].ToString();
+    var headerProtocolVersion = ctx.Request.Headers[RhinoMcpProtocol.ProtocolHeader].ToString();
+
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion)
+        && !RhinoMcpProtocol.IsSupportedProtocolVersion(headerProtocolVersion))
+    {
+        return Results.Json(
+            RhinoMcpProtocol.Error(idToken, -32600, $"Unsupported {RhinoMcpProtocol.ProtocolHeader} '{headerProtocolVersion}'.", new
+            {
+                supported = RhinoMcpProtocol.SupportedProtocolVersions
+            }),
+            statusCode: StatusCodes.Status400BadRequest);
+    }
 
     if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
     {
-        var protocolVersion = prm.Value<string>("protocolVersion")
-            ?? ctx.Request.Headers[RhinoMcpProtocol.ProtocolHeader].ToString()
-            ?? RhinoMcpProtocol.DefaultProtocolVersion;
-        var session = rhinoMcpSessions.Create(protocolVersion);
+        var protocolVersion = prm.Value<string>("protocolVersion") ?? headerProtocolVersion;
+        var negotiatedProtocolVersion = RhinoMcpProtocol.NegotiateProtocolVersion(protocolVersion);
+        var session = rhinoMcpSessions.Create(negotiatedProtocolVersion);
         ctx.Response.Headers[RhinoMcpProtocol.SessionHeader] = session.SessionId;
         ctx.Response.Headers[RhinoMcpProtocol.ProtocolHeader] = session.ProtocolVersion;
         return Results.Json(RhinoMcpProtocol.Success(idToken, RhinoMcpProtocol.InitializeResult(session.ProtocolVersion)));
@@ -214,21 +237,37 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
 
     if (!rhinoMcpSessions.TryGet(sessionId, out var state))
     {
-        return Results.Json(RhinoMcpProtocol.Error(idToken, -32001, "Missing or invalid MCP session. Call initialize first."));
+        return Results.Json(
+            RhinoMcpProtocol.Error(idToken, -32001, "Missing or invalid MCP session. Call initialize first."),
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     ctx.Response.Headers[RhinoMcpProtocol.SessionHeader] = state.SessionId;
     ctx.Response.Headers[RhinoMcpProtocol.ProtocolHeader] = state.ProtocolVersion;
 
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion)
+        && !string.Equals(headerProtocolVersion, state.ProtocolVersion, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(
+            RhinoMcpProtocol.Error(idToken, -32600, $"{RhinoMcpProtocol.ProtocolHeader} does not match the initialized session.", new
+            {
+                expected = state.ProtocolVersion,
+                actual = headerProtocolVersion
+            }),
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+
     if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
     {
         rhinoMcpSessions.MarkInitialized(state.SessionId);
-        return Results.Json(RhinoMcpProtocol.Success(idToken, new { }));
+        return Results.StatusCode(StatusCodes.Status202Accepted);
     }
 
     if (!state.IsInitialized)
     {
-        return Results.Json(RhinoMcpProtocol.Error(idToken, -32002, "Session not initialized. Send notifications/initialized after initialize."));
+        return Results.Json(
+            RhinoMcpProtocol.Error(idToken, -32002, "Session not initialized. Send notifications/initialized after initialize."),
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
@@ -301,6 +340,12 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
         return Results.Json(RhinoMcpProtocol.Success(idToken, RhinoMcpProtocol.ToolResult(payload, isError)));
     }
 
+    if (string.Equals(method, "notifications/cancelled", StringComparison.OrdinalIgnoreCase))
+        return Results.StatusCode(StatusCodes.Status202Accepted);
+
+    if (method.StartsWith("notifications/", StringComparison.OrdinalIgnoreCase))
+        return Results.StatusCode(StatusCodes.Status202Accepted);
+
     return Results.Json(RhinoMcpProtocol.Error(idToken, -32601, $"Method '{method}' not found."), statusCode: 404);
 });
 
@@ -310,16 +355,20 @@ internal static class RhinoMcpProtocol
 {
     public const string SessionHeader = "MCP-Session-Id";
     public const string ProtocolHeader = "MCP-Protocol-Version";
-    public const string DefaultProtocolVersion = "2025-11-05";
+    public const string DefaultProtocolVersion = "2025-11-25";
+    public static readonly string[] SupportedProtocolVersions = new[]
+    {
+        "2025-11-25",
+        "2025-11-05",
+        "2025-03-26"
+    };
 
     public static object InitializeResult(string protocolVersion) => new
     {
         protocolVersion,
         capabilities = new
         {
-            tools = new { listChanged = false },
-            resources = new { subscribe = false, listChanged = false },
-            prompts = new { listChanged = false }
+            tools = new { listChanged = false }
         },
         serverInfo = new { name = "RhinoMcpServer", version = "1.0.0" },
         instructions = "Use tools/list then tools/call with Rhino RPC method names."
@@ -364,6 +413,42 @@ internal static class RhinoMcpProtocol
             JTokenType.Boolean => id.Value<bool>(),
             _ => id.ToString(Formatting.None)
         };
+    }
+
+    public static bool IsSupportedProtocolVersion(string? protocolVersion)
+    {
+        if (string.IsNullOrWhiteSpace(protocolVersion))
+            return true;
+
+        return SupportedProtocolVersions.Contains(protocolVersion.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static string NegotiateProtocolVersion(string? requestedProtocolVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedProtocolVersion)
+            && IsSupportedProtocolVersion(requestedProtocolVersion))
+        {
+            return requestedProtocolVersion.Trim();
+        }
+
+        return DefaultProtocolVersion;
+    }
+
+    public static bool IsOriginAllowed(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+            return true;
+
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            return false;
+
+        if (uri.IsLoopback)
+            return true;
+
+        if (System.Net.IPAddress.TryParse(uri.Host, out var ip))
+            return System.Net.IPAddress.IsLoopback(ip);
+
+        return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 }
 

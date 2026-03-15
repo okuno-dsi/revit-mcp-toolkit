@@ -2591,10 +2591,14 @@ public partial class MainWindow : Window
 
     private void StopBusyIndicator()
     {
+        var wasBusy = _isBusy || _busyStartUtc != null;
         _isBusy = false;
         _busyStartUtc = null;
-        UpdateTaskbarBusyState(false);
-        FlashTaskbarIfNotActive();
+        if (wasBusy)
+        {
+            UpdateTaskbarBusyState(false);
+            FlashTaskbarIfNotActive();
+        }
 
         // 停止中は 00:00 を赤文字で表示
         BusyIndicatorTextBlock.Text = "00:00";
@@ -2620,6 +2624,28 @@ public partial class MainWindow : Window
         if (!_busyTimer.IsEnabled)
         {
             _busyTimer.Start();
+        }
+    }
+
+    private void NotifyLogicalRunCompletion()
+    {
+        try
+        {
+            if (!_isSending)
+            {
+                return;
+            }
+
+            if (!_isBusy)
+            {
+                return;
+            }
+
+            StopBusyIndicator();
+        }
+        catch
+        {
+            // ignore
         }
     }
 
@@ -3785,6 +3811,7 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
                                 if (Application.Current?.MainWindow is MainWindow mw2)
                                 {
                                     mw2.AppendTraceLine(cleanLine);
+                                    mw2.NotifyLogicalRunCompletion();
                                 }
                             });
 

@@ -6,7 +6,7 @@ Use the standard MCP endpoint first. The Revit automation server now exposes `/m
 
 ```powershell
 $base = 'http://127.0.0.1:5210/mcp'
-$protocol = '2025-11-05'
+$protocol = '2025-11-25'
 
 $initBody = @{
   jsonrpc = '2.0'
@@ -21,22 +21,26 @@ $initBody = @{
 
 $init = Invoke-WebRequest -Uri $base -Method POST -ContentType 'application/json' -Headers @{
   Accept = 'application/json, text/event-stream'
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
 } -Body $initBody
 
 $sessionId = $init.Headers['MCP-Session-Id']
 
 Invoke-WebRequest -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
   'MCP-Session-Id' = $sessionId
 } -Body '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' | Out-Null
 
 Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
   'MCP-Session-Id' = $sessionId
 } -Body '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 
 Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
   'MCP-Session-Id' = $sessionId
 } -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_open_documents","arguments":{}}}'
@@ -44,13 +48,16 @@ Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Heade
 
 Success criteria:
 - `initialize` returns `protocolVersion`, `capabilities.tools`, and `serverInfo`
+- `protocolVersion` is negotiated to a supported server value; unsupported future versions are not echoed back
 - `tools/list` returns one or more tools
 - `tools/call` for `get_open_documents` returns document information without transport errors
+- `notifications/initialized` returns HTTP `202 Accepted` with no JSON-RPC body
 
 Optional compatibility checks:
 - `resources/list`:
 ```powershell
 Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
   'MCP-Session-Id' = $sessionId
 } -Body '{"jsonrpc":"2.0","id":4,"method":"resources/list","params":{}}'
@@ -58,6 +65,7 @@ Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Heade
 - `prompts/list`:
 ```powershell
 Invoke-RestMethod -Uri $base -Method POST -ContentType 'application/json' -Headers @{
+  Origin = 'http://localhost'
   'MCP-Protocol-Version' = $protocol
   'MCP-Session-Id' = $sessionId
 } -Body '{"jsonrpc":"2.0","id":5,"method":"prompts/list","params":{}}'
@@ -78,6 +86,7 @@ The legacy `/rpc` and `/job` endpoints remain available for existing scripts.
 - Protocol name: `Model Context Protocol`
 - Prefer `/mcp` for new clients
 - Keep `/rpc` and `/job/{id}` only for backward compatibility
+- `/mcp` now validates `Origin`; use `http://localhost` or `http://127.0.0.1`
 - `/sse`, `/messages`, `/swagger` are not provided in the current server profile
 - Use `/docs/openapi.json` or `/docs/openrpc.json` for machine-readable API docs
 - Default units remain `Length=mm`, `Angle=deg`; the server converts internally

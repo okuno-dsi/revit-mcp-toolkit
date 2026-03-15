@@ -3,11 +3,6 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
-### 正式MCP応答への修正（今回の目玉）
-- `/mcp` が **正式な MCP 応答**として扱えるよう、`resources/*`、`prompts/*`、`logging/setLevel`、`notifications/cancelled` に対応。
-- これにより、MCP クライアント側が期待する標準的な初期化・能力宣言・補助メソッドに、従来より素直に応答できるようになりました。
-- 前回まで「MCP対応」と案内していましたが、実際には `tools/*` 中心の互換動作に寄っており、**正式な MCP 応答としては不足がありました**。説明が不正確だった点はお詫びします。
-
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
 - 端部/中央の配筋区分、フック、被り厚さ、柱頭/柱脚区分などの**詳細挙動の強化**。
@@ -31,12 +26,99 @@
 
 ---
 
-## 2026-03-09 Add-in: 正式MCP応答対応の拡張（/mcp）
+## 2026-03-12 DWG出力設定の読取コマンド追加
+
+### 目的
+- プロジェクト作成者が保存した DWG 出力設定の内容を確認できるようにする。
+- AutoCAD 側で再調整するために、カテゴリ別レイヤ名・色・線種対応を抽出できるようにする。
+
+### 変更概要
+- `list_dwg_export_setups`
+  - 保存済み DWG/DXF 出力設定名の一覧を取得。
+  - `detail=true` で簡易サマリも取得可能。
+- `get_dwg_export_setup`
+  - 指定設定またはアクティブ設定の内容を取得。
+  - レイヤ表、線種表、必要に応じてフォント表・パターン表を返す。
+
+### 変更ファイル
+- `RevitMCPAddin/Commands/Export/DwgExportSetupCommands.cs` (new)
+- `RevitMCPAddin/RevitMcpWorker.cs`
+- `RevitMCPAddin/RevitMCPAddin.csproj`
+- `Codex/Manuals/FullManual_ja/list_dwg_export_setups.md` (new)
+- `Codex/Manuals/FullManual_ja/get_dwg_export_setup.md` (new)
+
+## 2026-03-11 Add-in: worker安定化（dispatch直列化 / compare同一ポート安全化 / 非同期result配送 / remote compare非同期化）
+
+### 目的
+- 高負荷時のジョブ取りこぼし（claim上書き）を抑止する。
+- Compare系で同一ポート自己呼び出し時にハングする経路を除去する。
+- `post_result` 同期送信によるUIブロックを回避し、サーバー瞬断時の復旧性を上げる。
+
+### 変更概要
+- Dispatch直列化（Worker主導）:
+  - `_dispatchQueue` + `_dispatchInFlight` + `TryDispatchNext()` で 1件ずつ `SetCommand + Raise`。
+  - 実行中は新規 claim を抑制し、完了通知 (`CommandCompleted`) で次ジョブを流す。
+  - `Raise()` が即受理されなかった場合は再キューし、pending 上書きの edge case を抑止。
+- Compare same-port bypass:
+  - `Core/Compare/CompareRpcFacade` を追加。
+  - `validate_compare_context` / `compare_projects_summary` は、同一ポート時にHTTPを使わずローカル実行へ分岐。
+- 非同期 result 配送:
+  - `RevitCommandExecutor` は `post_result` を直接送信せず、配送キューへ投入。
+  - `Core/ResultDelivery/*` を追加（短タイムアウト送信、再試行、ローカル退避、再起動後再送）。
+  - heartbeat停止は「配送成功時」に実行。
+  - shutdown 時は未送達の queued / in-flight 結果を永続化。
+  - port rebind 時は pending result の保存先も追従。
+- Remote compare 非同期化:
+  - remote-port の `validate_compare_context` / `compare_projects_summary` は、Revit UIスレッドで待機せず、バックグラウンド完了後に元ジョブへ結果を返す。
+
+### Revit リボンのビルド表示確認
+- リボン `Build` ボタンは `build_info.txt` を表示値として使用。
+- ビルド表示値は `RevitMCPAddin.csproj` の `GenerateBuildInfo` ターゲットで毎回更新される。
+- 実際の表示値は、ビルド後の以下2ファイルが一致していることを確認する:
+  - `RevitMCPAddin/build_info.txt`
+  - `RevitMCPAddin/bin/x64/Release/build_info.txt`
+- 参照実装:
+  - `RevitMCPAddin/Core/BuildInfo.cs`
+  - `RevitMCPAddin/UI/RibbonPortUi.cs`
+
+
+## 2026-03-11 MCP: HTTP transport準拠強化（Revit / AutoCAD / Rhino / Playbook）
+
+### 目的
+- `/mcp` の HTTP 振る舞いを現行 MCP 仕様に近づける。
+- localhost バインド時の DNS rebinding リスクを下げる。
+- AutoCAD / Rhino の capability advertisement と実装の不一致を解消する。
+
+### 変更概要
+- 共通:
+  - `Origin` ヘッダを検証し、不正値は `403 Forbidden`。
+  - `MCP-Protocol-Version` の未対応値は `400 Bad Request`。
+  - `initialize` は未対応 version をそのまま echo せず、サーバー対応 version にネゴシエート。
+  - `notifications/initialized` と未知 `notifications/*` は `202 Accepted` / body なし。
+- RevitMCPServer:
+  - 既存の `resources/*` / `prompts/*` 実装を維持したまま、transport の返却規約を修正。
+  - 既定 protocol version を `2025-11-25` に更新。
+- AutoCadMcpServer / RhinoMcpServer:
+  - `resources` / `prompts` の advertise を停止し、`tools` のみに修正。
+  - missing / invalid session を `400` で返すよう修正。
+- McpPlaybookServer:
+  - `GET /mcp` / `DELETE /mcp` を proxy passthrough に追加。
+  - `Origin` 検証を追加。
+
+### 注意点
+- Revit は `resources/list|read`, `prompts/list|get`, `logging/setLevel`, `notifications/cancelled` を実装済み。
+- AutoCAD / Rhino は今回、capabilities を実装準拠に絞っただけで、`resources/*` / `prompts/*` 自体は未追加。
+- AutoCAD / Rhino の batch request 対応は今回の範囲外。
+
+### 参照
+- `Manuals/RevitMCP_Client_Dev_Guide.md`
+- `Manuals/ConnectionGuide/QUICKSTART.md`
+
+## 2026-03-09 Add-in: MCP互換メソッド拡張（/mcp）
 
 ### 目的
 - AIエージェントや汎用MCPクライアントで、`tools/*` 以外を期待する実装でも接続時に停止しにくくする。
-- 既存の `/mcp` 基本動作を維持しつつ、**正式な MCP 応答に必要な最小セット**を追加する。
-- 前回まで MCP と表現していた実装が、実際には標準的な MCP 応答として不足していた点を是正する。
+- 既存の `/mcp` 基本動作を維持しつつ、互換性の高い最小セットを追加する。
 
 ### 変更概要
 - `/mcp` に server-local メソッドを追加:
@@ -52,11 +134,6 @@
   - `logging`
 - 既存メソッド（`initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping`）は維持。
 - レガシー経路（`/rpc` / `/job/{id}`）は維持。
-
-### 案内の訂正
-- これまでの版でも `/mcp` エンドポイント自体は存在していましたが、MCP クライアントが期待する応答群が不足していました。
-- そのため、「MCP」と案内していた内容は厳密には不十分でした。今回の更新で、ようやく **正式な MCP 応答に近い形**へ整理できました。
-- この点に気づくのが遅れ、従来の説明が分かりにくかったことをお詫びします。
 
 ### 注意点
 - `GET/POST /sse` と `POST /messages` は未実装（404）。
@@ -162,8 +239,6 @@
 - レスポンスに `alignWarning` と `alignment`（`anchorModelMm`, `deltaSheetMm`, before/after center）を追加。
 - マニュアル（EN/JA）へ「スケール差対応の位置合わせロジック」を追記。
 
-### 詳細
-- `Manuals/ChangeLog_20260217.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-02-18 Manual/Script: column coreline workflow packaging
 
@@ -198,8 +273,6 @@
 - `params.idempotencyKey` / `idemKey` による **短時間の結果キャッシュ**を追加。
 - 要素配列の **安定ソート**（elementId/id/hostElementId 優先）。
 
-### 詳細
-- `Manuals/ChangeLog_20260204.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-02-02 Codex GUI: session display + log restore + safe install
 
@@ -216,8 +289,6 @@
 - `run_codex_prompt.ps1` で **存在しない profile を無視**して実行継続。
 - 安全インストール用 `install_codexgui_safe.ps1` を追加（設定/ログを上書きしない）。
 
-### 詳細
-- `Manuals/ChangeLog_20260202.md`（詳細: 目的/変更ファイルの完全版）
 
 ## 2026-01-28 Add-in + CodexGUI: Python script handoff (CodexGUI → Python Runner)
 
@@ -477,7 +548,6 @@
   - 読み込み時に重複キーは `ja` フレーズをマージ、無効な `BuiltInCategory` は警告付きでドロップ（ベストエフォート）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260114.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/GlossaryJaService.cs`
 - `RevitMCPAddin/Commands/MetaOps/HelpSuggestHandler.cs`
 - `RevitMCPAddin/glossary_ja.json`
@@ -497,7 +567,6 @@
   - ビューテンプレートが適用されているビューでは、上書きが効かないため `VIEW_TEMPLATE_LOCK` として中断（または `detachViewTemplate=true` で解除して実行）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260114.md`（同日追記: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/AnnotationOps/DrawColoredLineSegmentsCommand.cs`
 - `RevitMCPAddin/RevitMcpWorker.cs`
 - `RevitMCPAddin/RevitMCPAddin.csproj`
@@ -591,7 +660,6 @@
 - `set_visual_override` / `batch_set_visual_override` で、線色と塗りつぶし色を別指定できるようにしました（`lineRgb` / `fillRgb`）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/Room/ApplyFinishWallsOnRoomBoundaryCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/SetVisualOverrideCommand.cs`
 - `RevitMCPAddin/Commands/VisualizationOps/BatchSetVisualOverrideCommand.cs`
@@ -612,7 +680,6 @@
 - ビューテンプレートが適用されているビューはロックされることがあるため、`detachViewTemplate=true`（またはテンプレートビューを直接指定）に対応しました。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260113.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Commands/ViewFilterOps/ViewFilterCommands.cs`
 - `Manuals/FullManual/view_filter.list.md`
 - `Manuals/FullManual/view_filter.upsert.md`
@@ -641,7 +708,6 @@
   - alias→canonical を一覧で確認する場合: `GET /debug/capabilities?includeDeprecated=1&grouped=1`
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260109.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPServer/Program.cs`
 - `RevitMCPServer/Engine/DurableQueue.cs`
 - `RevitMCPServer/Docs/CapabilitiesGenerator.cs`
@@ -735,7 +801,6 @@
 - `RebarBarClearanceTable.json` の径→中心間(mm) を基準に判定し、必要なら違反ペアを返します（`includePairs=true`）。
 
 ### 実装変更（主なファイル）
-- `Manuals/ChangeLog_20260107.md`（詳細: 目的/変更ファイルの完全版）
 - `RevitMCPAddin/Core/RebarAutoModelService.cs`
 - `RevitMCPAddin/RebarMapping.json`
 - `RevitMCPAddin/RebarBarClearanceTable.json`
@@ -1129,7 +1194,6 @@
 - 条件: contains/exclude/family/typeName を AND で評価。
 
 ### 詳細
-- Manuals/ChangeLog_20260206.md
 
 ---
 
@@ -1160,7 +1224,6 @@
 - `Codex/Manuals/FullManual_ja/get_project_browser_selection.md` (new)
 
 ### 詳細
-- Manuals/ChangeLog_20260216.md
 
 ---
 

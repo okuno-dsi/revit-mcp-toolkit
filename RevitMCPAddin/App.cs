@@ -8,6 +8,7 @@ using Autodesk.Revit.UI;
 using RevitMCPAddin.Core;     // RevitLogger
 using RevitMCPAddin.Core.Net; // ServerProcessManager
 using RevitMCPAddin.Core.Progress;
+using RevitMCPAddin.Core.ResultDelivery;
 using RevitMCPAddin.Core.ViewWorkspace;
 using RevitMCPAddin.Manifest;
 using RevitMCPAddin.UI;
@@ -33,6 +34,7 @@ namespace RevitMCPAddin
         public static string? CurrentUserName { get; internal set; }
         public static bool CurrentDocIsCloud { get; internal set; }
         public static string? CurrentChatDisabledReason { get; internal set; }
+        public static IResultDeliveryService? ResultDelivery { get; internal set; }
     }
 
     public class App : IExternalApplication
@@ -216,6 +218,7 @@ namespace RevitMCPAddin
 
             RevitLogger.FlushAndClose();
             AppServices.UIControlledApp = null;
+            AppServices.ResultDelivery = null;
             return Result.Succeeded;
         }
 

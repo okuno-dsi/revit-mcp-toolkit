@@ -26,6 +26,7 @@ nuget.exe
 
 # Node
 **/node_modules/
+Artifacts/
 
 # Python
 __pycache__/
@@ -117,6 +118,7 @@ Codex/tools/Work/
 Codex/Logs/
 Projects/
 Codex/cleanup_*.md
+Codex/全マニュアル.md
 Codex/git_igonore_items_list.md
 **/logs/
 **/Logs/

@@ -226,12 +226,25 @@ var mcpJsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 
 app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!AutoCadMcpProtocol.IsOriginAllowed(origin))
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
     ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = AutoCadMcpProtocol.DefaultProtocolVersion;
-    return Results.Ok();
+    return Results.StatusCode(StatusCodes.Status204NoContent);
 });
 
 app.MapPost("/mcp", async (HttpContext ctx) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!AutoCadMcpProtocol.IsOriginAllowed(origin))
+    {
+        return Results.Json(
+            AutoCadMcpProtocol.Error(null, -32099, "Origin not allowed for local MCP HTTP endpoint.", new { origin }),
+            mcpJsonOpts,
+            statusCode: StatusCodes.Status403Forbidden);
+    }
+
     JsonObject request;
     try
     {
@@ -250,13 +263,25 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
     var method = request["method"]?.GetValue<string>() ?? string.Empty;
     var prm = request["params"] as JsonObject ?? new JsonObject();
     var sessionId = ctx.Request.Headers[AutoCadMcpProtocol.SessionHeader].ToString();
+    var headerProtocolVersion = ctx.Request.Headers[AutoCadMcpProtocol.ProtocolHeader].ToString();
+
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion)
+        && !AutoCadMcpProtocol.IsSupportedProtocolVersion(headerProtocolVersion))
+    {
+        return Results.Json(
+            AutoCadMcpProtocol.Error(idNode, -32600, $"Unsupported {AutoCadMcpProtocol.ProtocolHeader} '{headerProtocolVersion}'.", new
+            {
+                supported = AutoCadMcpProtocol.SupportedProtocolVersions
+            }),
+            mcpJsonOpts,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
 
     if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
     {
-        var protocolVersion = prm["protocolVersion"]?.GetValue<string>()
-            ?? ctx.Request.Headers[AutoCadMcpProtocol.ProtocolHeader].ToString()
-            ?? AutoCadMcpProtocol.DefaultProtocolVersion;
-        var session = mcpSessions.Create(protocolVersion);
+        var protocolVersion = prm["protocolVersion"]?.GetValue<string>() ?? headerProtocolVersion;
+        var negotiatedProtocolVersion = AutoCadMcpProtocol.NegotiateProtocolVersion(protocolVersion);
+        var session = mcpSessions.Create(negotiatedProtocolVersion);
         ctx.Response.Headers[AutoCadMcpProtocol.SessionHeader] = session.SessionId;
         ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = session.ProtocolVersion;
         return Results.Json(
@@ -268,23 +293,38 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
     {
         return Results.Json(
             AutoCadMcpProtocol.Error(idNode, -32001, "Missing or invalid MCP session. Call initialize first."),
-            mcpJsonOpts);
+            mcpJsonOpts,
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     ctx.Response.Headers[AutoCadMcpProtocol.SessionHeader] = state.SessionId;
     ctx.Response.Headers[AutoCadMcpProtocol.ProtocolHeader] = state.ProtocolVersion;
 
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion)
+        && !string.Equals(headerProtocolVersion, state.ProtocolVersion, StringComparison.OrdinalIgnoreCase))
+    {
+        return Results.Json(
+            AutoCadMcpProtocol.Error(idNode, -32600, $"{AutoCadMcpProtocol.ProtocolHeader} does not match the initialized session.", new
+            {
+                expected = state.ProtocolVersion,
+                actual = headerProtocolVersion
+            }),
+            mcpJsonOpts,
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+
     if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
     {
         mcpSessions.MarkInitialized(state.SessionId);
-        return Results.Json(AutoCadMcpProtocol.Success(idNode, new { }), mcpJsonOpts);
+        return Results.StatusCode(StatusCodes.Status202Accepted);
     }
 
     if (!state.IsInitialized)
     {
         return Results.Json(
             AutoCadMcpProtocol.Error(idNode, -32002, "Session not initialized. Send notifications/initialized after initialize."),
-            mcpJsonOpts);
+            mcpJsonOpts,
+            statusCode: StatusCodes.Status400BadRequest);
     }
 
     if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
@@ -372,6 +412,12 @@ app.MapPost("/mcp", async (HttpContext ctx) =>
             mcpJsonOpts);
     }
 
+    if (string.Equals(method, "notifications/cancelled", StringComparison.OrdinalIgnoreCase))
+        return Results.StatusCode(StatusCodes.Status202Accepted);
+
+    if (method.StartsWith("notifications/", StringComparison.OrdinalIgnoreCase))
+        return Results.StatusCode(StatusCodes.Status202Accepted);
+
     return Results.Json(
         AutoCadMcpProtocol.Error(idNode, -32601, $"Method '{method}' not found."),
         mcpJsonOpts,
@@ -443,16 +489,20 @@ internal static class AutoCadMcpProtocol
 {
     public const string SessionHeader = "MCP-Session-Id";
     public const string ProtocolHeader = "MCP-Protocol-Version";
-    public const string DefaultProtocolVersion = "2025-11-05";
+    public const string DefaultProtocolVersion = "2025-11-25";
+    public static readonly string[] SupportedProtocolVersions = new[]
+    {
+        "2025-11-25",
+        "2025-11-05",
+        "2025-03-26"
+    };
 
     public static object InitializeResult(string protocolVersion) => new
     {
         protocolVersion,
         capabilities = new
         {
-            tools = new { listChanged = false },
-            resources = new { subscribe = false, listChanged = false },
-            prompts = new { listChanged = false }
+            tools = new { listChanged = false }
         },
         serverInfo = new { name = "AutoCadMcpServer", version = "1.0.0" },
         instructions = "Use tools/list then tools/call with AutoCAD RPC method names."
@@ -501,6 +551,42 @@ internal static class AutoCadMcpProtocol
             }
         }
         return idNode.ToJsonString();
+    }
+
+    public static bool IsSupportedProtocolVersion(string? protocolVersion)
+    {
+        if (string.IsNullOrWhiteSpace(protocolVersion))
+            return true;
+
+        return SupportedProtocolVersions.Contains(protocolVersion.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static string NegotiateProtocolVersion(string? requestedProtocolVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedProtocolVersion)
+            && IsSupportedProtocolVersion(requestedProtocolVersion))
+        {
+            return requestedProtocolVersion.Trim();
+        }
+
+        return DefaultProtocolVersion;
+    }
+
+    public static bool IsOriginAllowed(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+            return true;
+
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            return false;
+
+        if (uri.IsLoopback)
+            return true;
+
+        if (System.Net.IPAddress.TryParse(uri.Host, out var ip))
+            return System.Net.IPAddress.IsLoopback(ip);
+
+        return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 }
 

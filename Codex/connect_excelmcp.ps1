@@ -2,7 +2,7 @@
 param(
   [string]$BaseUrl,
   [int]$Port,
-  [string]$ExePath = '%USERPROFILE%\Documents\Revit_MCP\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe',
+  [string]$ExePath = '%USERPROFILE%\Documents\VS2022\Ver541\ExcelMCP\bin\x64\Release\net8.0-windows\ExcelMCP.exe',
   [switch]$OnlyCheck,
   [switch]$NoStart
 )

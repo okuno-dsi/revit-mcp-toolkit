@@ -54,7 +54,7 @@ The tool is built as a normal .NET 6 console app and can be run directly with `d
 From the `Codex\IfcCli` directory:
 
 ```powershell
-cd %USERPROFILE%\Documents\Revit_MCP\Codex\IfcCli
+cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli
 dotnet build -c Release
 ```
 
@@ -68,7 +68,7 @@ Notes:
 From the release output directory:
 
 ```powershell
-cd %USERPROFILE%\Documents\Revit_MCP\Codex\IfcCli\bin\Release\net6.0
+cd %USERPROFILE%\Documents\VS2022\Ver602\Codex\IfcCli\bin\Release\net6.0
 .\IfcCli.exe --help
 ```
 

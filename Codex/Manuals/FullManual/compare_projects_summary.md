@@ -6,6 +6,10 @@
 ## Overview
 This command is executed via JSON-RPC against the Revit MCP Add-in. It performs the action described in Purpose. Use the Usage section to craft requests.
 
+## Notes
+- Same-port compare is resolved locally and does not issue an HTTP call back into the same Revit MCP port.
+- Remote compare can be completed in the background and posted later to the original job/result channel. Client code should already support queued/job completion when calling across ports.
+
 ## Usage
 - Method: compare_projects_summary
 

@@ -58,11 +58,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <!-- SDK-style output dirs vary by platform; include whichever exists (recursive to keep tessdata). -->
-      <CaptureAgentFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows\**\*.*"
-                         Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows')" />
-      <CaptureAgentFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows\**\*.*"
-                         Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows')" />
+      <!-- CaptureAgent build outputs are redirected outside the project tree to avoid local duplication. -->
+      <CaptureAgentFiles Include="$(RevitMcpCaptureAgentBuildRoot)bin\$(Configuration)\net8.0-windows\**\*.*"
+                         Condition="Exists('$(RevitMcpCaptureAgentBuildRoot)bin\$(Configuration)\net8.0-windows')" />
+      <CaptureAgentFiles Include="$(RevitMcpCaptureAgentBuildRoot)bin\x64\$(Configuration)\net8.0-windows\**\*.*"
+                         Condition="Exists('$(RevitMcpCaptureAgentBuildRoot)bin\x64\$(Configuration)\net8.0-windows')" />
     </ItemGroup>
 
     <MakeDir Directories="$(CaptureAgentDestDir)" />
@@ -77,10 +77,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <CaptureAgentPublishFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows\**\*.*"
-                                Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\$(Configuration)\net8.0-windows')" />
-      <CaptureAgentPublishFiles Include="$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows\**\*.*"
-                                Condition="Exists('$(MSBuildProjectDirectory)\CaptureAgent\bin\x64\$(Configuration)\net8.0-windows')" />
+      <CaptureAgentPublishFiles Include="$(RevitMcpCaptureAgentBuildRoot)bin\$(Configuration)\net8.0-windows\**\*.*"
+                                Condition="Exists('$(RevitMcpCaptureAgentBuildRoot)bin\$(Configuration)\net8.0-windows')" />
+      <CaptureAgentPublishFiles Include="$(RevitMcpCaptureAgentBuildRoot)bin\x64\$(Configuration)\net8.0-windows\**\*.*"
+                                Condition="Exists('$(RevitMcpCaptureAgentBuildRoot)bin\x64\$(Configuration)\net8.0-windows')" />
     </ItemGroup>
 
     <MakeDir Directories="$(CaptureAgentPublishDestDir)" />

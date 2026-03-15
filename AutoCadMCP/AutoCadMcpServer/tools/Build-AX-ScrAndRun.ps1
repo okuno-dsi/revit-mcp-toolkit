@@ -1,9 +1,9 @@
 ﻿param(
   [string[]]$Inputs = @(
-    'C:/Users/<user>/Documents/Revit_MCP/Projects/AutoCadOut/walls_A.dwg',
-    'C:/Users/<user>/Documents/Revit_MCP/Projects/AutoCadOut/walls_B.dwg',
-    'C:/Users/<user>/Documents/Revit_MCP/Projects/AutoCadOut/walls_C.dwg',
-    'C:/Users/<user>/Documents/Revit_MCP/Projects/AutoCadOut/walls_D.dwg'
+    'C:/Users/<user>/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_A.dwg',
+    'C:/Users/<user>/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_B.dwg',
+    'C:/Users/<user>/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_C.dwg',
+    'C:/Users/<user>/Documents/VS2022/Ver421/Codex/Work/AutoCadOut/walls_D.dwg'
   ),
   [string[]]$Include = @('A-WALL-____-MCUT'),
   [string]$StagingRoot = 'C:/Temp/CadJobs/Staging'

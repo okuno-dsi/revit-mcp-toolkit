@@ -1,80 +1,156 @@
 ## ExcelMCP 運用マニュアル（日本語）
 
-本ドキュメントは ExcelMCP の起動・テスト・主要APIとデバッグ方法をまとめたマニュアルです。
+本ドキュメントは ExcelMCP の起動・MCP 利用・主要 API・テスト・ビルド手順をまとめた運用マニュアルです。
 
 ### 1. 概要
-- 役割: Excel ワークブックの基本操作を HTTP API で提供（読み出し・記入・追記・CSV 変換・フォーマット・数式・簡易グラフ一覧）。
-- 既存機能: `/parse_plan`（罫線=壁・文字列=ラベルの抽出）を保持。
-- 実装: ASP.NET Core Minimal API、ClosedXML、OpenXML SDK（グラフは読み取りのみ）。
+- 役割: Excel ワークブックの読み取り、書き込み、追記、CSV/JSON 出力、書式設定、数式設定、グラフ一覧取得、COM 自動操作を HTTP API と MCP tool の両方で提供します。
+- 実装: ASP.NET Core Minimal API、ClosedXML、OpenXML SDK。
+- 既存機能: `/parse_plan` は継続維持しています。
 
 ### 2. 起動方法
-1) .NET 8 SDK をインストール済みであること。
-2) ポートを指定して起動（例: 5215）
+1. .NET 8 SDK をインストールします。
+2. 任意ポートで起動します。例:
    - `dotnet run --project ExcelMCP --configuration Release --urls http://localhost:5215`
-3) 正常起動の目印
-   - コンソールに以下が出力されます。
-     - `[ExcelMCP] Building application...`
-     - `Now listening on: http://localhost:5215`
-     - `[ExcelMCP] Endpoints:` にルートと各 API 一覧
-4) ヘルスチェック
+3. 正常起動の目印:
+   - `[ExcelMCP] Building application...`
+   - `Now listening on: http://localhost:5215`
+   - `[ExcelMCP] Endpoints:` にルート一覧
+4. ヘルスチェック:
    - `curl http://localhost:5215/health`
-   - 200 が返れば正常です。
+
+### 3. MCP 仕様
+#### 3.1 サポートする protocol version
+- 既定: `2025-11-25`
+- 互換:
+  - `2025-11-05`
+  - `2025-03-26`
+- `initialize` で未対応 version を受け取った場合、その値をそのまま返さず、サーバーが対応する version にネゴシエーションします。
+
+#### 3.2 Transport
+- `OPTIONS /mcp`
+- `GET /mcp`
+- `POST /mcp`
+- `DELETE /mcp`
 
 補足:
-- PowerShell スクリプトから起動する場合は `ExcelMCP/start.ps1` で `-Port` を指定可能です。
+- `GET /mcp` は session 確立後のストリーム接続口です。
+- `DELETE /mcp` は session を破棄します。
+- `notifications/initialized` のような notification には JSON-RPC response を返しません。HTTP としては `202 Accepted` を返します。
+- batch request（JSON array）を受け付けます。
 
-### 3. 主要エンドポイント（抜粋）
-- `GET /health` サーバーヘルス
-- `POST /sheet_info` 既存ブックのシート一覧と used range 情報
-- `POST /read_cells` A1 範囲または used range の読み取り
-- `POST /write_cells` 指定セルから 2D 配列を書き込み
-- `POST /append_rows` 最終行の下に行追加
-- `POST /set_formula` A1 形式の数式をセル/範囲へ設定
-- `POST /format_sheet` 列/行の自動調整・幅/高さ設定
-- `POST /to_csv` シートを CSV へ出力（`encodingName` で文字コード指定）
-- `POST /list_charts` グラフ一覧（シート名とタイトル）
-- 既存: `POST /parse_plan` 罫線/ラベル抽出（既存 Revit 連携用途）
+#### 3.3 セッション手順
+1. `initialize`
+2. `notifications/initialized`
+3. `tools/list`
+4. `tools/call`
 
-詳細なパラメータは `ExcelMCP/README.md` を参照してください。
+### 4. 主な MCP tools
+#### 4.1 ファイル系 first-class tools
+- `excel.health`
+- `excel.parse_plan`
+- `excel.sheet_info`
+- `excel.read_cells`
+- `excel.write_cells`
+- `excel.append_rows`
+- `excel.set_formula`
+- `excel.format_sheet`
+- `excel.to_csv`
+- `excel.to_json`
+- `excel.list_charts`
 
-### 4. 一括テスト
+これらは `mcp_commands.jsonl` を基に registry 化されています。
+
+#### 4.2 COM 系 tools
+- `excel.list_open_workbooks`
+- `excel.com.activate_workbook`
+- `excel.com.activate_sheet`
+- `excel.com.read_cells`
+- `excel.com.write_cells`
+- `excel.com.append_rows`
+- `excel.com.save_workbook`
+- `excel.com.format_range`
+- `excel.com.add_sheet`
+- `excel.com.delete_sheet`
+- `excel.com.sort_range`
+
+#### 4.3 補助 tools
+- `excel.preview_write_cells`
+- `excel.preview_append_rows`
+- `excel.preview_set_formula`
+- `excel.api_call`
+- `mcp.status`
+
+補足:
+- `excel.api_call` は既存 endpoint への汎用 fallback です。新規クライアントは first-class tools を優先してください。
+- preview tools は workbook を変更しません。書き込み前の確認用です。
+
+### 5. 主な HTTP エンドポイント
+- `GET /health`
+- `GET /list_open_workbooks`
+- `POST /sheet_info`
+- `POST /read_cells`
+- `POST /write_cells`
+- `POST /append_rows`
+- `POST /set_formula`
+- `POST /format_sheet`
+- `POST /to_csv`
+- `POST /to_json`
+- `POST /list_charts`
+- `POST /parse_plan`
+- `/com/*` 配下の COM 操作エンドポイント
+
+### 6. テスト
+#### 6.1 一括 integration test
+- `dotnet test ExcelMCP.sln -c Release --no-build`
+- 対象:
+  - `initialize`
+  - `notifications/initialized`
+  - `tools/list`
+  - `tools/call`
+  - invalid session
+  - unsupported protocol version
+  - batch
+  - `GET /mcp`
+  - `OPTIONS /mcp`
+  - `DELETE /mcp`
+
+#### 6.2 既存 PowerShell 疎通テスト
 - スクリプト: `ExcelMCP/test_requests.ps1`
 - 実行例:
   - `pwsh ExcelMCP/test_requests.ps1 -BaseUrl http://localhost:5215`
-  - 既存の `.xlsx` をリポジトリから 1 つ選び、テンポラリへコピーして以下を順に実行します。
-    - `/sheet_info` → `/write_cells` → `/append_rows` → `/set_formula` → `/format_sheet` → `/to_csv` → `/read_cells` → `/list_charts`
-  - 全て `[OK]` が出力されればテスト合格です。
 
-### 5. ログとデバッグ
-- 起動ログ
-  - 起動フェーズ・環境名・バインド URL・登録エンドポイント一覧を出力。
-- リクエストログ
-  - すべての HTTP リクエストで `[REQ]`（受信）/`[RES]`（応答）を出力。ステータスコードと経過時間(ms)付き。
-  - 例外発生時は `[ERR]` に例外種別とメッセージを出力。
-- 保存先（自動ローテーション）
-  - コンソール出力に加えて、以下にも保存されます。
-    - ディレクトリ: `%TEMP%\ExcelMCP\logs`
-    - ファイル名: `excelmcp-YYYYMMDD.log`
-  - 保持期間: 7日（起動時に 7 日より古い `.log` を自動削除）
-  - 例: `C:\Users\<ユーザー>\AppData\Local\Temp\ExcelMCP\logs\excelmcp-20250101.log`
-- 確認例（PowerShell）
-  - 末尾確認: ``Get-Content "$env:TEMP\ExcelMCP\logs\excelmcp-$(Get-Date -Format yyyyMMdd).log" -Tail 50``
-  - 最新ファイルの末尾: ``$d = Join-Path $env:TEMP 'ExcelMCP\logs'; Get-ChildItem $d -Filter 'excelmcp-*.log' | Sort-Object LastWriteTime | Select-Object -Last 1 | % { Get-Content $_.FullName -Tail 50 }``
-- 代表的な注意点
-  - `/to_csv` では `encodingName`（例: `utf-8`, `shift_jis`）を使用してください（`Encoding` 型は JSON で扱えません）。
-  - 書き込み系は既存セルを上書きします。`append_rows` は空行の下ではなく「最後の使用行 +1 行目」に追記します。
+### 7. Build / Release 手順
+1. `dotnet clean ExcelMCP.sln`
+2. `dotnet build ExcelMCP.sln -c Release`
+3. `dotnet test ExcelMCP.sln -c Release --no-build`
+4. 上記が通ったビルドだけを配布元に反映します。
 
-### 6. MCP コマンド仕様
-- ファイル: `ExcelMCP/mcp_commands.jsonl`
-  - 各コマンドが 1 行の JSON で定義されています（`name`, `method`, `path`, `description`, `input_schema`, `output_example`）。
-  - `/to_csv` の入力に `encodingName` を含める点に注意してください。
+簡易実行:
+- `pwsh .\publish_release.ps1`
+- clean/build/test/publish を一括実行し、`publish\Release` を正本出力にします。
 
-### 7. 既存機能との互換性
-- 既存の `/parse_plan` は変更せず維持しています。Revit 連携ワークフローは従来通り利用できます。
+重要:
+- `bin/` と `obj/` は配布物の正本ではありません。
+- 古い Release フォルダを source より優先しないでください。
+- source と配布バイナリのズレを避けるため、必ず同じ source tree から build/test/publish を行ってください。
 
-### 8. トラブルシュート
-- 起動直後に応答がない / 例外が発生する
-  - コンソールの `[ERR]` または開発者例外ページ（Development 環境）を確認。
-  - パッケージの競合がある場合は `dotnet restore` → `dotnet build -c Release` で確認。
-- ポートが使用中
-  - 別のポートに変更して `--urls` を指定して起動してください（例: `http://localhost:5220`）。
+### 8. ログとデバッグ
+- 保存先:
+  - `%TEMP%\ExcelMCP\logs`
+  - `excelmcp-YYYYMMDD.log`
+- 保持期間: 7日
+- PowerShell 例:
+  - `Get-Content "$env:TEMP\ExcelMCP\logs\excelmcp-$(Get-Date -Format yyyyMMdd).log" -Tail 50`
+
+### 9. ユーザーフレンドリー化の現状
+- `tools/list` は generic な `excel.api_call` だけでなく、主要 Excel 操作を first-class tools として返します。
+- input schema に required 項目を持ち、MCP 側でも最低限の引数検証を行います。
+- preview tool により、書き込み系操作の事前確認が可能です。
+- `mcp.status` で session と protocol negotiation 状態を確認できます。
+
+### 10. 参考ファイル
+- `README.md`
+- `BUILD_RELEASE.md`
+- `mcp_commands.jsonl`
+- `Program.cs`
+- `Mcp/` フォルダ配下の MCP 実装

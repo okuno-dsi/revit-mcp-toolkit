@@ -261,6 +261,10 @@ var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPoli
 // ----------------------------- MCP Streamable HTTP -----------------------------
 app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!McpAdapter.IsOriginAllowed(origin))
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
     ctx.Response.Headers["Allow"] = "POST, OPTIONS";
     ctx.Response.Headers[McpAdapter.ProtocolHeader] = McpAdapter.DefaultProtocolVersion;
     return Results.NoContent();
@@ -268,18 +272,39 @@ app.MapMethods("/mcp", new[] { "OPTIONS" }, (HttpContext ctx) =>
 
 app.MapPost("/mcp", async (HttpContext ctx, DurableQueue durable, JobIndex index, ChatStore chat, CaptureService capture, McpSessionStore sessions) =>
 {
+    var origin = ctx.Request.Headers["Origin"].ToString();
+    if (!McpAdapter.IsOriginAllowed(origin))
+    {
+        var originError = McpAdapter.CreateJsonRpcError(null, -32099, "Origin not allowed for local MCP HTTP endpoint.", new
+        {
+            origin
+        });
+        return Results.Json(originError, jsonOpts, statusCode: StatusCodes.Status403Forbidden);
+    }
+
     var request = await ReadMcpRequestAsync(ctx.Request);
     if (request.ErrorResult != null)
         return Results.Json(request.ErrorResult, jsonOpts, statusCode: 400);
 
     var sessionId = ctx.Request.Headers[McpAdapter.SessionHeader].ToString();
-    var protocolVersion = request.ProtocolVersion ?? McpAdapter.DefaultProtocolVersion;
+    var headerProtocolVersion = ctx.Request.Headers[McpAdapter.ProtocolHeader].ToString();
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion) && !McpAdapter.IsSupportedProtocolVersion(headerProtocolVersion))
+    {
+        var headerError = McpAdapter.CreateJsonRpcError(request.Id, -32600, $"Unsupported {McpAdapter.ProtocolHeader} '{headerProtocolVersion}'.", new
+        {
+            supported = McpAdapter.SupportedProtocolVersions
+        });
+        return Results.Json(headerError, jsonOpts, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    var requestedProtocolVersion = ExtractStringProperty(request.Params, "protocolVersion");
     var method = request.Method ?? string.Empty;
     var id = request.Id;
 
     if (string.Equals(method, "initialize", StringComparison.OrdinalIgnoreCase))
     {
-        var session = sessions.Create(protocolVersion);
+        var negotiatedProtocolVersion = McpAdapter.NegotiateProtocolVersion(requestedProtocolVersion ?? headerProtocolVersion);
+        var session = sessions.Create(negotiatedProtocolVersion);
         ctx.Response.Headers[McpAdapter.SessionHeader] = session.SessionId;
         ctx.Response.Headers[McpAdapter.ProtocolHeader] = session.ProtocolVersion;
         return Results.Json(McpAdapter.CreateJsonRpcSuccess(id, McpAdapter.CreateInitializeResult(session.ProtocolVersion)), jsonOpts);
@@ -294,10 +319,21 @@ app.MapPost("/mcp", async (HttpContext ctx, DurableQueue durable, JobIndex index
     ctx.Response.Headers[McpAdapter.SessionHeader] = sessionState.SessionId;
     ctx.Response.Headers[McpAdapter.ProtocolHeader] = sessionState.ProtocolVersion;
 
+    if (!string.IsNullOrWhiteSpace(headerProtocolVersion)
+        && !string.Equals(headerProtocolVersion, sessionState.ProtocolVersion, StringComparison.OrdinalIgnoreCase))
+    {
+        var versionError = McpAdapter.CreateJsonRpcError(id, -32600, $"{McpAdapter.ProtocolHeader} does not match the initialized session.", new
+        {
+            expected = sessionState.ProtocolVersion,
+            actual = headerProtocolVersion
+        });
+        return Results.Json(versionError, jsonOpts, statusCode: StatusCodes.Status400BadRequest);
+    }
+
     if (string.Equals(method, "notifications/initialized", StringComparison.OrdinalIgnoreCase))
     {
         sessions.MarkInitialized(sessionState.SessionId);
-        return Results.NoContent();
+        return Results.StatusCode(StatusCodes.Status202Accepted);
     }
 
     if (string.Equals(method, "ping", StringComparison.OrdinalIgnoreCase))
@@ -411,10 +447,10 @@ app.MapPost("/mcp", async (HttpContext ctx, DurableQueue durable, JobIndex index
     }
 
     if (string.Equals(method, "notifications/cancelled", StringComparison.OrdinalIgnoreCase))
-        return Results.NoContent();
+        return Results.StatusCode(StatusCodes.Status202Accepted);
 
     if (method.StartsWith("notifications/", StringComparison.OrdinalIgnoreCase))
-        return Results.NoContent();
+        return Results.StatusCode(StatusCodes.Status202Accepted);
 
     return Results.Json(McpAdapter.CreateJsonRpcError(id, -32601, $"Method '{method}' not found."), jsonOpts, statusCode: 404);
 });

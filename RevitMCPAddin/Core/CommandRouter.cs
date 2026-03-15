@@ -604,6 +604,12 @@ namespace RevitMCPAddin.Core
                         try { dryGroup?.Dispose(); } catch { /* ignore */ }
                     }
 
+                    if (raw is DeferredRpcResult deferred)
+                    {
+                        if (translated) cmd.Command = invokedMethod;
+                        return deferred;
+                    }
+
                     // Step 7: bump context revision after successful *write* execution (prevents drift).
                     try
                     {

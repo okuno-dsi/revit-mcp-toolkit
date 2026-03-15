@@ -582,6 +582,12 @@ namespace RevitMCPAddin.Core.Net
                 {
                     var parent = Directory.GetParent(dir)?.FullName;
                     if (string.IsNullOrEmpty(parent)) break;
+                    // Artifacts\RevitMCPServer\Server\publish\Release\net8.0-windows\win-x64
+                    var p0 = Path.Combine(parent, "Artifacts", "RevitMCPServer", "Server", "publish", "Release", "net8.0-windows", "win-x64", "RevitMCPServer.exe");
+                    if (File.Exists(p0)) { describe = p0; return p0; }
+                    // Artifacts\RevitMCPServer\Server\publish\Release\net8.0-windows
+                    var p0b = Path.Combine(parent, "Artifacts", "RevitMCPServer", "Server", "publish", "Release", "net8.0-windows", "RevitMCPServer.exe");
+                    if (File.Exists(p0b)) { describe = p0b; return p0b; }
                     // RevitMCPServer\publish
                     var p1 = Path.Combine(parent, "RevitMCPServer", "publish", "RevitMCPServer.exe");
                     if (File.Exists(p1)) { describe = p1; return p1; }

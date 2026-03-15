@@ -39,6 +39,43 @@ Naming note:
 - Python Runner用サンプルを追加。
   - `Scripts/PythonRunnerScripts/column_grid_coreline_workflow_sample.py`
 
+## New (2026-03-11)
+- 実行信頼性の是正（レビュー指摘対応）:
+  - Worker dispatch の直列化（claim上書き防止）
+  - Compare same-port のローカル実行化（自己待ち回避）
+  - `post_result` の非同期配送（再試行 + ローカル退避/再送）
+  - shutdown 時の未送達結果永続化
+  - port rebind 後の pending result 保存先追従
+  - remote compare のバックグラウンド完了化（UIブロック回避）
+- 詳細:
+  - `Manuals/UpdateLog.md`
+
+## New (2026-03-11, MCP transport hardening)
+- `/mcp` の transport 挙動を MCP 仕様寄りに整理:
+  - localhost 向け `Origin` 検証
+  - `MCP-Protocol-Version` の whitelist 化
+  - `initialize` の protocol negotiation 修正
+  - `notifications/initialized` / 未知 notification の `202 Accepted` 化
+- AutoCAD / Rhino は capabilities を `tools` のみに修正し、実装と advertise の不一致を解消。
+- Playbook proxy は `GET /mcp` / `DELETE /mcp` passthrough を追加。
+- 詳細:
+  - `Manuals/RevitMCP_Client_Dev_Guide.md`
+  - `Manuals/ConnectionGuide/QUICKSTART.md`
+
+## New (2026-03-11, ExcelMCP)
+- ExcelMCP の MCP 実装を公式仕様ベースで整理:
+  - transport: `OPTIONS /mcp`, `GET /mcp`, `POST /mcp`, `DELETE /mcp`
+  - protocol default: `2025-11-25`
+  - `notifications/initialized` は `202 Accepted`、JSON-RPC body なし
+  - batch JSON-RPC request 対応
+- generic な `excel.api_call` 依存を減らし、主要 Excel 操作を first-class tools として公開:
+  - `excel.sheet_info`, `excel.read_cells`, `excel.write_cells`, `excel.append_rows`, `excel.set_formula`, `excel.format_sheet`, `excel.to_csv`, `excel.to_json`, `excel.list_charts`
+  - preview tools: `excel.preview_write_cells`, `excel.preview_append_rows`, `excel.preview_set_formula`
+- 参照先:
+  - `Apps/ExcelMCP/README.md`
+  - `Apps/ExcelMCP/MANUAL_JA.md`
+  - `Manuals/ExcelMCP_Placement_Guide_JA.md`
+
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：
   - Python 出力は **` ```python ``` ブロックのみ**保存対象。
@@ -172,6 +209,9 @@ For detailed guidance, see `Manuals/ConnectionGuide/QUICKSTART.md` and `Manuals/
 ## Exports
 - Dashboard (project + levels + rooms + categories/types): `export_dashboard_html`
 - Schedules: `export_schedule_to_csv`, `export_schedule_to_excel` (stable)
+- DWG export setup inspection:
+  - `list_dwg_export_setups`
+  - `get_dwg_export_setup`
 - See: `Manuals/Schedule_Exports_Guide_JA.md` for schedule export usage.
 
 
