@@ -10,11 +10,14 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 - Method: get_param_values
 
 ### Parameters
-| Name | Type | Required | Default |
-|---|---|---|---|
-| includeMeta | bool | no/depends | true |
-| mode | string | no/depends | element |
-| scope | string | no/depends | auto |
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| includeMeta | bool | no | true | Include metadata such as spec and read-only flags |
+| mode | string | no | element | `element` / `type` / `category` |
+| scope | string | no | auto | `auto` / `instance` / `type` |
+| docGuid | string | no |  | Target document `docGuid` / `docKey` |
+| docTitle | string | no |  | Target document title |
+| docPath | string | no |  | Target document full path |
 
 ### Example Request
 ```json
@@ -37,6 +40,11 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 - get_instance_parameters_bulk
 - update_parameters_batch
 
+### Notes
+- `docGuid` / `docTitle` / `docPath` can be used to read from a non-active open document.
+- The same document hints are also accepted via `meta.extensions`.
+- `mode=element` requires `elementId`, `mode=type` requires `typeId`, and `mode=category` requires `category`.
+
 ### Params Schema
 ```json
 {
@@ -49,6 +57,15 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
       "type": "boolean"
     },
     "scope": {
+      "type": "string"
+    },
+    "docGuid": {
+      "type": "string"
+    },
+    "docTitle": {
+      "type": "string"
+    },
+    "docPath": {
       "type": "string"
     }
   }

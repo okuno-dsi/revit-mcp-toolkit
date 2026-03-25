@@ -3,6 +3,11 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
+### Revit 2025 / 2026 対応（今回の目玉）
+- `RevitMCPAddin.Net8.csproj` を追加し、Revit 2025 / 2026 向けの .NET 8 ビルドを `RevitYear` 切替で扱えるようにしました。
+- `Menu/SmartOpen/SmartOpen.Net8.csproj` を追加し、SmartOpen も Revit 2025 / 2026 向けにビルドできるようにしました。
+- `BUILD.md` とインストール系スクリプトを更新し、2024 / 2025 / 2026 のビルド・配置手順を整理しました。
+
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
 - 端部/中央の配筋区分、フック、被り厚さ、柱頭/柱脚区分などの**詳細挙動の強化**。
@@ -23,6 +28,74 @@
 ### 安定性・ログ
 - failureHandling / ダイアログ対応 / ロールバック時の**情報記録強化**。
 - 実行ログやデバッグ情報の整理・安定化。
+
+---
+
+## 2026-03-24 Revit 2025 / 2026 対応と安定性改善
+
+### 目的
+- Revit 2025 / 2026 でも Add-in と SmartOpen を同じリポジトリからビルド・配置できるようにする。
+- 2024 系と 2025 / 2026 系で異なる build / install 手順を整理し、導入ミスを減らす。
+- 非アクティブ文書読取や schedule roundtrip Excel など、実務フロー寄りの安定性改善をまとめる。
+
+### 変更概要
+- `RevitMCPAddin.Net8.csproj` を追加し、`RevitYear=2025/2026` で API 参照先と出力先を切り替え可能にした。
+- `Menu/SmartOpen/SmartOpen.Net8.csproj` を追加し、SmartOpen も Revit 2025 / 2026 向けに build 可能にした。
+- `BUILD.md` を更新し、Revit 2024 / 2025 / 2026 の build 手順を整理した。
+- `install_revitmcp_safe.ps1` と add-in ひな形を更新し、2025 / 2026 の配置先を明示した。
+- 安定性面では、非アクティブ文書読取と schedule roundtrip Excel の改善を継続した。
+
+### 変更ファイル
+- `BUILD.md`
+- `RevitMCPAddin/RevitMCPAddin.Net8.csproj` (new)
+- `Menu/SmartOpen/SmartOpen.Net8.csproj` (new)
+- `Codex/Scripts/Reference/install_revitmcp_safe.ps1`
+- `Codex/tools/PowerShellScripts/install_revitmcp_safe.ps1`
+- `RevitAddinインストール先構成ひな形/2025/RevitMCPAddin.addin` (new)
+- `RevitAddinインストール先構成ひな形/2026/RevitMCPAddin.addin` (new)
+
+---
+
+## 2026-03-17 非アクティブ文書読取の強化
+
+### 目的
+- 2つ以上の Revit プロジェクトを同時に開いている状態で、アクティブ文書に依存せず読取系コマンドを使えるようにする。
+- 環境WGのような「参照モデルから部屋情報を抽出し、別モデルへ反映する」ワークフローを安定させる。
+
+### 変更概要
+- `get_rooms`
+  - `docGuid` / `docTitle` / `docPath` で対象文書を解決可能に変更。
+- `get_param_values`
+  - `docGuid` / `docTitle` / `docPath` 指定で非アクティブ文書からのパラメータ読取に対応。
+- `get_spatial_params_bulk`
+  - Room / Space / Area の一括パラメータ取得でも、非アクティブ文書指定に対応。
+- `export_schedule_roundtrip_excel`
+  - `filePath` に加えて `outputPath` も受理するように修正。
+  - 日本語 Revit の `ID を交換` / `図形 ID を交換` を要素ID列として認識。
+  - 集計表本文から要素IDを拾えない場合は、集計表ビュー collector から行要素を補完。
+  - レベルなど `ElementId` 系の参照列は、可能な限り数値IDではなく表示名で書き出すように修正。
+  - インスタンス列だけでなく、タイプパラメータ列の export / import にも対応。
+  - Yes/No 列は `ON/OFF` ではなく `☑ / ☐` を既定表示に変更。import は旧 `ON/OFF` も互換受理。
+  - 列幅は自動調整しつつ、広がりすぎないように上限 `20` を設定。Yes/No 列は細い固定幅で出力。
+- 文書解決は `Core/DocumentResolver.cs` を使用。
+  - `params`
+  - `meta.extensions`
+  の両方から `docGuid` / `docTitle` / `docPath` を解決。
+
+### 変更ファイル
+- `RevitMCPAddin/Commands/Room/GetRoomsCommand.cs`
+- `RevitMCPAddin/Commands/ParamOps/GetParamValuesCommand.cs`
+- `RevitMCPAddin/Commands/Spatial/GetSpatialParamsBulkCommand.cs`
+- `Codex/Manuals/FullManual/get_rooms.md`
+- `Codex/Manuals/FullManual_ja/get_rooms.md`
+- `Codex/Manuals/FullManual/get_param_values.md`
+- `Codex/Manuals/FullManual_ja/get_param_values.md`
+- `Codex/Manuals/FullManual/get_spatial_params_bulk.md`
+- `Codex/Manuals/FullManual_ja/get_spatial_params_bulk.md`
+
+### 運用メモ
+- `docGuid` は `get_open_documents` や `get_context` で取得した値を使うのが安全。
+- 同名タイトルの文書が複数ある場合は `docGuid` か `docPath` を優先する。
 
 ---
 
@@ -1153,8 +1226,8 @@
 
 ### インストール手順強化
 - `Scripts/Reference/install_revitmcp_safe.ps1`
-  - Revit / RevitMCPServer を停止してから /MIR コピー（addin本体→%APPDATA%\\...\\RevitMCPAddin、server→server）。
-  - サーバーexeのSHA256ハッシュを検証。ロックや部分コピーによる破損を防止。
+  - addin 本体と `server` を別コピーし、addin ルート全体の `/MIR` を禁止。
+  - `server` ソースの完全性とサーバー exe の SHA256 を検証。配布漏れや部分コピーを防止。
 
 ### 追加コマンド（Transform系）
 - `element.copy_elements`（平行移動コピー。units=mm/m/ft、failIfPinned対応）
@@ -1250,3 +1323,32 @@
   - 事前準備に「ビュータイプ `柱芯線図`」を追加。
   - 命名規則とビュータイプ適用確認項目を追記。
 
+# 2026-03-17
+- 集計表の Excel 往復編集機能を追加。
+- `export_schedule_roundtrip_excel`
+  - 現在の集計表を Excel へ書き出し
+  - hidden `__ElementId` と hidden metadata を付与
+  - Yes/No 列は `ON/OFF` 入力向けに出力
+- `import_schedule_roundtrip_excel`
+  - 編集済み Excel を読み込み
+  - 対応する Revit 要素のパラメータへ反映
+  - 更新結果を CSV レポート出力
+- 日本語 Revit 環境で `ID を交換` / `図形 ID を交換` が表示される集計表も、要素対応列として認識するよう修正。
+
+# 2026-03-23
+- RevitMCPAddin の Revit 2025 / 2026 向け net8 並行プロジェクト `RevitMCPAddin.Net8.csproj` を追加。
+- Revit 2026 API で削除された `ElementId.IntegerValue` 依存を互換拡張ベースへ置換し、2025 / 2026 の両方でビルド成立。
+- add-in installer を `%APPDATA%\Autodesk\Revit\Addins\<year>` ベースに更新。
+  - 対象年: 2025, 2026
+  - add-in 本体: `%APPDATA%\Autodesk\Revit\Addins\<year>\RevitMCPAddin`
+  - manifest: `%APPDATA%\Autodesk\Revit\Addins\<year>\RevitMCPAddin.addin`
+- installer は `/MIR` をやめ、非破壊コピーへ変更。
+- 接続診断スクリプトの add-in 探索先を 2024 / 2025 / 2026 対応に更新。
+- `Menu\SmartOpen` についても Revit 2025 / 2026 向け net8 並行プロジェクト `SmartOpen.Net8.csproj` を追加。
+- 壊れていた `Menu\SmartOpen\Command.cs` と `Menu\SmartOpen\OpenService.cs` は Trash へ退避し、最小限の正常実装で復旧。
+- SmartOpen の 2025 / 2026 ビルドを成立させ、`%APPDATA%\Autodesk\Revit\Addins\2025` / `2026` へ配置。
+- `export_schedule_roundtrip_excel` に `display` モードを追加。
+  - `roundtrip`: 従来どおり 1 行 = 1 インスタンス
+  - `display`: Revit の集計表表示に近い行構成で書き出し
+- `display` モードの import は、表示行に紐づく複数インスタンスへ同じ編集値を一括反映。
+- Python Runner の `export_schedule_roundtrip_excel_runner.py` に `--mode roundtrip|display` を追加。

@@ -35,7 +35,7 @@ namespace RevitMCPAddin.Commands.Export
             var options = settings.GetDWGExportOptions();
             return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["settingElementId"] = settings.Id.IntegerValue,
+                ["settingElementId"] = settings.Id.IntValue(),
                 ["uniqueId"] = settings.UniqueId ?? string.Empty,
                 ["name"] = SafeName(settings),
                 ["isActive"] = string.Equals(SafeName(settings), SafeName(GetActive(doc)), StringComparison.OrdinalIgnoreCase),

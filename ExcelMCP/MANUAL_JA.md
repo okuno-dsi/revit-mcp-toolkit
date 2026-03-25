@@ -11,11 +11,16 @@
 1. .NET 8 SDK をインストールします。
 2. 任意ポートで起動します。例:
    - `dotnet run --project ExcelMCP --configuration Release --urls http://localhost:5215`
-3. 正常起動の目印:
+3. 付属スクリプトでも起動できます。
+   - 前面起動: `pwsh .\start.ps1 -Port 5215`
+   - バックグラウンド起動: `pwsh .\start.ps1 -Port 5215 -Background`
+   - 状態確認: `pwsh .\status.ps1`
+   - 停止: `pwsh .\stop.ps1`
+4. 正常起動の目印:
    - `[ExcelMCP] Building application...`
    - `Now listening on: http://localhost:5215`
    - `[ExcelMCP] Endpoints:` にルート一覧
-4. ヘルスチェック:
+5. ヘルスチェック:
    - `curl http://localhost:5215/health`
 
 ### 3. MCP 仕様
@@ -60,8 +65,18 @@
 
 これらは `mcp_commands.jsonl` を基に registry 化されています。
 
+補足:
+- `excel.file.*` という別名も用意しています。
+- ファイルが Excel で開かれていてロックされている場合、読み取り系は一時 live copy を使います。
+- 書き込み系の一部は live workbook への COM フォールバックを行います。
+
 #### 4.2 COM 系 tools
 - `excel.list_open_workbooks`
+- `excel.live.list_workbooks`
+- `excel.live.read_cells`
+- `excel.live.write_cells`
+- `excel.live.append_rows`
+- `excel.live.save_workbook`
 - `excel.com.activate_workbook`
 - `excel.com.activate_sheet`
 - `excel.com.read_cells`
@@ -83,6 +98,9 @@
 補足:
 - `excel.api_call` は既存 endpoint への汎用 fallback です。新規クライアントは first-class tools を優先してください。
 - preview tools は workbook を変更しません。書き込み前の確認用です。
+- 使い分けは次の通りです。
+  - 保存済みファイルを扱う: `excel.file.*` または `excel.*`
+  - Excel で開いているブックを扱う: `excel.live.*` または `excel.com.*`
 
 ### 5. 主な HTTP エンドポイント
 - `GET /health`
@@ -98,6 +116,11 @@
 - `POST /list_charts`
 - `POST /parse_plan`
 - `/com/*` 配下の COM 操作エンドポイント
+
+重要:
+- `POST /com/read_cells` は workbook / worksheet を厳格に解決します。
+- 複数ブックが開いている状態で `workbookFullName` / `workbookName` を省略すると 4xx を返します。
+- `sheetName` を指定して見つからない場合も 4xx を返します。
 
 ### 6. テスト
 #### 6.1 一括 integration test
@@ -136,11 +159,13 @@
 
 ### 8. ログとデバッグ
 - 保存先:
-  - `%TEMP%\ExcelMCP\logs`
+  - `%LOCALAPPDATA%\Revit_MCP\Logs\ExcelMCP`
   - `excelmcp-YYYYMMDD.log`
+- PID:
+  - `%LOCALAPPDATA%\Revit_MCP\Run\ExcelMCP.pid`
 - 保持期間: 7日
 - PowerShell 例:
-  - `Get-Content "$env:TEMP\ExcelMCP\logs\excelmcp-$(Get-Date -Format yyyyMMdd).log" -Tail 50`
+  - `Get-Content "$env:LOCALAPPDATA\Revit_MCP\Logs\ExcelMCP\excelmcp-$(Get-Date -Format yyyyMMdd).log" -Tail 50`
 
 ### 9. ユーザーフレンドリー化の現状
 - `tools/list` は generic な `excel.api_call` だけでなく、主要 Excel 操作を first-class tools として返します。

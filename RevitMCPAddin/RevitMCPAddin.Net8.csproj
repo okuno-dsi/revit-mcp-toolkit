@@ -1,0 +1,134 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <OutputType>Library</OutputType>
+    <RootNamespace>RevitMCPAddin</RootNamespace>
+    <AssemblyName>RevitMCPAddin</AssemblyName>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Platforms>x64</Platforms>
+    <DefineConstants>$(DefineConstants);TRACE;REVIT_NET8;REVIT$(RevitYear)</DefineConstants>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <NoWarn>$(NoWarn);8600;8601;8602;8603;8604;8618;8619;8620;8625;8632;0649</NoWarn>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RevitYear Condition="'$(RevitYear)' == ''">2025</RevitYear>
+    <BuildLabelSuffix>r$(RevitYear)</BuildLabelSuffix>
+    <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">$(ProgramW6432)\Autodesk\Revit $(RevitYear)</RevitInstallDir>
+    <BaseOutputPath>..\Artifacts\RevitMCPAddin\$(RevitYear)\bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>..\Artifacts\RevitMCPAddin\$(RevitYear)\obj\</BaseIntermediateOutputPath>
+    <RevitMcpAbstractionsProject>..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
+    <RevitMcpAbstractionsProject Condition="!Exists('..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj') and Exists('..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj')">..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="bin\**\*.cs;obj\**\*.cs;packages\**\*.cs" />
+    <Page Remove="bin\**\*.xaml;obj\**\*.xaml;packages\**\*.xaml" />
+    <EmbeddedResource Remove="bin\**\*;obj\**\*;packages\**\*" />
+    <Content Remove="bin\**\*;obj\**\*;packages\**\*" />
+    <None Remove="bin\**\*;obj\**\*;packages\**\*" />
+  </ItemGroup>
+
+  <Target Name="ValidateRevitInstall" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(RevitInstallDir)\RevitAPI.dll')" Text="RevitAPI.dll not found under '$(RevitInstallDir)'. Set RevitYear=2025 or 2026, or override RevitInstallDir." />
+    <Error Condition="!Exists('$(RevitInstallDir)\RevitAPIUI.dll')" Text="RevitAPIUI.dll not found under '$(RevitInstallDir)'. Set RevitYear=2025 or 2026, or override RevitInstallDir." />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RevitMcpAbstractionsProject)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.95.4" />
+    <PackageReference Include="ClosedXML.Parser" Version="2.0.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <PackageReference Include="DocumentFormat.OpenXml.Framework" Version="3.3.0" />
+    <PackageReference Include="ExcelNumberFormat" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
+    <PackageReference Include="netDxf" Version="2023.11.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="RBush.Signed" Version="4.0.0" />
+    <PackageReference Include="Rhino3dm" Version="8.17.0" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="app.config" Condition="Exists('app.config')" />
+    <None Update="RebarMapping.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="RebarBarClearanceTable.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="glossary_ja.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="category_alias_ja.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Content Include="python\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="GenerateBuildInfo" BeforeTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;&amp; { $root='$(ProjectDir)'; $date=Get-Date -Format 'yyyy.MM.dd'; $hash=$env:REVIT_MCP_COMMIT; if ([string]::IsNullOrWhiteSpace($hash)) { $git=Get-Command git -ErrorAction SilentlyContinue; if ($git) { try { $hash=(git -C $root rev-parse --short HEAD 2&gt;$null).Trim() } catch {} } }; $count=$env:REVIT_MCP_BUILDCOUNT; if ([string]::IsNullOrWhiteSpace($count)) { $countFile=Join-Path $root ('build_count_$(RevitYear).txt'); $n=0; $storedDate=$null; if (Test-Path $countFile) { try { $raw=(Get-Content $countFile -ErrorAction SilentlyContinue | Select-Object -First 1); if ($raw) { $parts=$raw.Split(',',2); if ($parts.Length -ge 2) { $storedDate=$parts[0].Trim(); $n=[int]$parts[1].Trim(); } else { $n=[int]$raw.Trim(); } } } catch { $n=0 } }; if ($storedDate -ne $date) { $n=0 }; $n=$n+1; try { Set-Content -Path $countFile -Value ($date + ',' + $n) -Encoding UTF8 } catch {}; $count=$n.ToString('00'); }; if ([string]::IsNullOrWhiteSpace($count)) { $count='00' }; $suffix='.$(BuildLabelSuffix)'; if ([string]::IsNullOrWhiteSpace($hash)) { $ver = $date + '+' + $count + $suffix } else { $ver = $date + '+' + $count + $suffix + '.g' + $hash }; Set-Content -Path '$(ProjectDir)build_info.txt' -Value $ver -Encoding UTF8; }&quot;" />
+  </Target>
+
+  <Target Name="CopyBuildInfo" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDir)build_info.txt" DestinationFiles="$(TargetDir)build_info.txt" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)build_info.txt')" />
+  </Target>
+
+  <Target Name="CopyRevitMcpServerExe" AfterTargets="Build">
+    <PropertyGroup>
+      <RevitMcpServerArtifactsRoot>..\Artifacts\RevitMCPServer\Server</RevitMcpServerArtifactsRoot>
+      <ServerRootSource Condition="Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\win-x64</ServerRootSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows\RevitMCPServer.exe')">$(RevitMcpServerArtifactsRoot)\publish\Release\net8.0-windows</ServerRootSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\publish_sc\win-x64\RevitMCPServer.exe')">..\RevitMCPServer\publish_sc\win-x64</ServerRootSource>
+      <ServerRootSource Condition="'$(ServerRootSource)'=='' and Exists('..\RevitMCPServer\publish\RevitMCPServer.exe')">..\RevitMCPServer\publish</ServerRootSource>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ServerFiles Include="$(ServerRootSource)\**\*.*"
+                   Condition="'$(ServerRootSource)'!='' and Exists('$(ServerRootSource)')"
+                   Exclude="$(ServerRootSource)\publish\**\*.*;
+                            $(ServerRootSource)\publish_sc\**\*.*;
+                            $(ServerRootSource)\publish_sc_*\**\*.*;
+                            $(ServerRootSource)\capture-agent\**\*.*;
+                            $(ServerRootSource)\CaptureAgent\**\*.*;
+                            $(ServerRootSource)\tessdata\**\*.*;
+                            $(ServerRootSource)\RevitMcp.CaptureAgent.*" />
+      <CaptureAgentFiles Include="$(ServerRootSource)\capture-agent\**\*.*"
+                         Condition="'$(ServerRootSource)'!='' and Exists('$(ServerRootSource)\capture-agent')" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(TargetDir)server" Condition="'@(ServerFiles)'!=''" />
+    <Copy SourceFiles="@(ServerFiles)"
+          DestinationFiles="@(ServerFiles->'$(TargetDir)server\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(ServerFiles)'!=''" />
+
+    <MakeDir Directories="$(TargetDir)server\capture-agent" Condition="'@(CaptureAgentFiles)'!=''" />
+    <Copy SourceFiles="@(CaptureAgentFiles)"
+          DestinationFiles="@(CaptureAgentFiles->'$(TargetDir)server\capture-agent\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(CaptureAgentFiles)'!=''" />
+  </Target>
+</Project>

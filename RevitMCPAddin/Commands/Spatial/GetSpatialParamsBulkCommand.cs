@@ -23,7 +23,7 @@ namespace RevitMCPAddin.Commands.Spatial
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var doc = uiapp?.ActiveUIDocument?.Document;
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
             if (doc == null)
                 return new { ok = false, message = "No active document." };
 
@@ -58,7 +58,7 @@ namespace RevitMCPAddin.Commands.Spatial
                     if (elem == null) continue;
                     var kind = DetectKind(elem);
                     if (!string.IsNullOrEmpty(kind) && kinds.Contains(kind))
-                        elements.Add((kind, elem));
+                        elements.Add((kind!, elem));
                 }
             }
 

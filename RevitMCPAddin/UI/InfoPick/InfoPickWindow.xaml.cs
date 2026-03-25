@@ -333,7 +333,7 @@ namespace RevitMCPAddin.UI.InfoPick
             {
                 Index = Items.Count + 1,
                 Kind = "Element",
-                ElementId = elem.Id.IntegerValue,
+                ElementId = elem.Id.IntValue(),
                 Category = elem.Category?.Name ?? string.Empty,
                 TypeName = typeName,
                 Xyz = pickPoint,
@@ -522,7 +522,7 @@ namespace RevitMCPAddin.UI.InfoPick
                 docTitle = _doc.Title,
                 docPath = _doc.PathName,
                 docKey = _docKey,
-                viewId = view?.Id.IntegerValue,
+                viewId = view?.Id.IntValue(),
                 viewName = view?.Name,
                 totalCount = Items.Count,
                 excludedCount = Items.Count(x => x.Excluded),

@@ -90,10 +90,12 @@ function Resolve-ServerPath([string]$ExplicitPath) {
     $result.sources += 'env.REVIT_MCP_SERVER_EXE'
   }
 
-  $addinRoots = @(
-    (Join-Path $env:APPDATA 'Autodesk\Revit\Addins\2024\RevitMCPAddin'),
-    (Join-Path $env:ProgramData 'Autodesk\Revit\Addins\2024\RevitMCPAddin')
-  )
+  $addinRoots = @()
+  foreach ($base in @($env:APPDATA, $env:ProgramData)) {
+    foreach ($year in @(2024, 2025, 2026)) {
+      $addinRoots += (Join-Path $base ("Autodesk\Revit\Addins\{0}\RevitMCPAddin" -f $year))
+    }
+  }
   foreach ($r in $addinRoots) {
     $candidates.Add((Join-Path $r 'server\RevitMCPServer.exe'))
   }

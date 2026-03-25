@@ -962,7 +962,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                 .Where(FamUtil.IsLoadableFamilyInstance)
                 .FirstOrDefault(s =>
                     s.Family != null && source.Family != null &&
-                    s.Family.Id.IntegerValue == source.Family.Id.IntegerValue &&
+                    s.Family.Id.IntValue() == source.Family.Id.IntValue() &&
                     string.Equals(s.Name ?? string.Empty, newName, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null && allowExisting)
@@ -996,7 +996,7 @@ namespace RevitMCPAddin.Commands.ElementOps.FamilyInstanceOps
                             .Cast<FamilySymbol>()
                             .FirstOrDefault(s =>
                                 s.Family != null && source.Family != null &&
-                                s.Family.Id.IntegerValue == source.Family.Id.IntegerValue &&
+                                s.Family.Id.IntValue() == source.Family.Id.IntValue() &&
                                 string.Equals(s.Name ?? string.Empty, newName, StringComparison.OrdinalIgnoreCase));
                     }
                     tx.Commit();

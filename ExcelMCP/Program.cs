@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Routing;
 using System.Runtime.InteropServices;
 using System.Collections.Concurrent;
 
+RuntimePaths.Configure(args);
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -25,10 +27,12 @@ builder.Services.AddHttpClient(ExcelMcpToolExecutor.SelfClientName, client =>
     client.Timeout = TimeSpan.FromMinutes(3);
 });
 
-LogUtil.Init();
+LogUtil.Init(RuntimePaths.LogDirectory);
+RuntimePaths.WritePidFile();
 LogUtil.Info("[ExcelMCP] Building application...");
 var app = builder.Build();
 LogUtil.Info($"[ExcelMCP] Environment: {app.Environment.EnvironmentName}");
+app.Lifetime.ApplicationStopping.Register(RuntimePaths.TryDeletePidFile);
 
 if (app.Environment.IsDevelopment())
 {
@@ -121,16 +125,24 @@ app.MapPost("/com/read_cells", (ComExcelIO.ReadCellsRequest req) =>
     dynamic? rng = null;
     try
     {
-        wb = ComUtil.FindWorkbook(excel, req.WorkbookFullName, req.WorkbookName)
-             ?? excel.ActiveWorkbook;
+        string? workbookError;
+        wb = ComUtil.FindWorkbookStrict(excel, req.WorkbookFullName, req.WorkbookName, out workbookError);
         if (wb is null)
-            return Results.Ok(new { ok = false, msg = "target workbook not found" });
+            return Results.BadRequest(new { ok = false, msg = workbookError ?? "target workbook not found" });
 
-        ws = ComUtil.ResolveWorksheet(wb, req.SheetName);
+        string? worksheetError;
+        ws = ComUtil.ResolveWorksheetStrict(wb, req.SheetName, out worksheetError);
         if (ws is null)
-            return Results.Ok(new { ok = false, msg = "target worksheet not found" });
+            return Results.BadRequest(new { ok = false, msg = worksheetError ?? "target worksheet not found" });
 
-        rng = ws.Range(req.RangeA1);
+        try
+        {
+            rng = ws.Range(req.RangeA1);
+        }
+        catch
+        {
+            return Results.BadRequest(new { ok = false, msg = $"invalid rangeA1: {req.RangeA1}" });
+        }
         object? v = null;
         try { v = req.UseValue2 ? rng.Value2 : rng.Value; }
         catch { v = rng.Value2; }
@@ -212,7 +224,7 @@ app.MapPost("/com/write_cells", (ComExcelIO.WriteCellsRequest req) =>
     }
 });
 
-// Save or SaveAs an open workbook via COM
+// Save, SaveCopyAs, or SaveAs an open workbook via COM
 app.MapPost("/com/save_workbook", (ComExcelIO.SaveWorkbookRequest req) =>
 {
     object? excelObj = ComUtil.TryGetActiveObject("Excel.Application");
@@ -228,15 +240,18 @@ app.MapPost("/com/save_workbook", (ComExcelIO.SaveWorkbookRequest req) =>
         if (wb is null)
             return Results.Ok(new { ok = false, msg = "target workbook not found" });
 
+        if (!string.IsNullOrWhiteSpace(req.SaveCopyAsFullName))
+        {
+            wb.SaveCopyAs(req.SaveCopyAsFullName);
+            return Results.Ok(new { ok = true, mode = "saveCopyAs", path = req.SaveCopyAsFullName });
+        }
         if (!string.IsNullOrWhiteSpace(req.SaveAsFullName))
         {
             wb.SaveAs(req.SaveAsFullName);
+            return Results.Ok(new { ok = true, mode = "saveAs", path = req.SaveAsFullName });
         }
-        else
-        {
-            wb.Save();
-        }
-        return Results.Ok(new { ok = true });
+        wb.Save();
+        return Results.Ok(new { ok = true, mode = "save" });
     }
     catch (Exception ex)
     {
@@ -1560,7 +1575,8 @@ app.MapPost("/sheet_info", (ExcelIO.SheetInfoRequest req) =>
         return Results.BadRequest(new { ok = false, msg = "excelPath is required" });
     try
     {
-        using var wb = new XLWorkbook(req.ExcelPath);
+        using var readable = ExcelAccessUtil.ResolveReadablePath(req.ExcelPath);
+        using var wb = new XLWorkbook(readable.EffectivePath);
         var sheets = wb.Worksheets.Select(ws => new
         {
             name = ws.Name,
@@ -1570,7 +1586,7 @@ app.MapPost("/sheet_info", (ExcelIO.SheetInfoRequest req) =>
             rowCount = ws.RangeUsed()?.RowCount() ?? 0,
             columnCount = ws.RangeUsed()?.ColumnCount() ?? 0
         }).ToList();
-        return Results.Ok(new { ok = true, sheets });
+        return Results.Ok(new { ok = true, sheets, usedLiveCopy = readable.UsedLiveCopy });
     }
     catch (Exception ex)
     {
@@ -1585,7 +1601,8 @@ app.MapPost("/read_cells", (ExcelIO.ReadCellsRequest req) =>
         return Results.BadRequest(new { ok = false, msg = "excelPath is required" });
     try
     {
-        using var wb = new XLWorkbook(req.ExcelPath);
+        using var readable = ExcelAccessUtil.ResolveReadablePath(req.ExcelPath);
+        using var wb = new XLWorkbook(readable.EffectivePath);
         var ws = ExcelIO.ResolveWorksheet(wb, req.SheetName);
         if (ws is null) return Results.BadRequest(new { ok = false, msg = $"sheet not found: {req.SheetName}" });
 
@@ -1616,7 +1633,7 @@ app.MapPost("/read_cells", (ExcelIO.ReadCellsRequest req) =>
                 dataType = cell.DataType.ToString()
             });
         }
-        return Results.Ok(new { ok = true, cells });
+        return Results.Ok(new { ok = true, cells, usedLiveCopy = readable.UsedLiveCopy });
     }
     catch (Exception ex)
     {
@@ -1668,6 +1685,11 @@ app.MapPost("/write_cells", (ExcelIO.WriteCellsRequest req) =>
         wb.Save();
         return Results.Ok(new { ok = true, wroteRows = rows, wroteCols = cols });
     }
+    catch (Exception ex) when (ExcelAccessUtil.IsLockConflict(ex))
+    {
+        return ExcelAccessUtil.TryWriteCellsViaLiveWorkbook(req)
+            ?? Results.Conflict(new { ok = false, msg = ex.Message });
+    }
     catch (Exception ex)
     {
         return Results.Ok(new { ok = false, msg = ex.Message });
@@ -1701,6 +1723,11 @@ app.MapPost("/append_rows", (ExcelIO.AppendRowsRequest req) =>
         wb.Save();
         return Results.Ok(new { ok = true, appendedRows = wrote });
     }
+    catch (Exception ex) when (ExcelAccessUtil.IsLockConflict(ex))
+    {
+        return ExcelAccessUtil.TryAppendRowsViaLiveWorkbook(req)
+            ?? Results.Conflict(new { ok = false, msg = ex.Message });
+    }
     catch (Exception ex)
     {
         return Results.Ok(new { ok = false, msg = ex.Message });
@@ -1728,6 +1755,11 @@ app.MapPost("/set_formula", (ExcelIO.SetFormulaRequest req) =>
         wb.Save();
         var count = range.RowCount() * range.ColumnCount();
         return Results.Ok(new { ok = true, cells = count });
+    }
+    catch (Exception ex) when (ExcelAccessUtil.IsLockConflict(ex))
+    {
+        return ExcelAccessUtil.TrySetFormulaViaLiveWorkbook(req)
+            ?? Results.Conflict(new { ok = false, msg = ex.Message });
     }
     catch (Exception ex)
     {
@@ -1870,14 +1902,15 @@ app.MapPost("/to_csv", (ExcelIO.ToCsvRequest req) =>
         return Results.BadRequest(new { ok = false, msg = "excelPath is required" });
     try
     {
-        using var wb = new XLWorkbook(req.ExcelPath);
+        using var readable = ExcelAccessUtil.ResolveReadablePath(req.ExcelPath);
+        using var wb = new XLWorkbook(readable.EffectivePath);
         var ws = ExcelIO.ResolveWorksheet(wb, req.SheetName);
         if (ws is null) return Results.BadRequest(new { ok = false, msg = $"sheet not found: {req.SheetName}" });
         var used = ws.RangeUsed();
         if (used is null)
         {
             System.IO.File.WriteAllText(req.OutputCsvPath, string.Empty);
-            return Results.Ok(new { ok = true, rows = 0, cols = 0, path = req.OutputCsvPath });
+            return Results.Ok(new { ok = true, rows = 0, cols = 0, path = req.OutputCsvPath, usedLiveCopy = readable.UsedLiveCopy });
         }
 
         var delim = string.IsNullOrEmpty(req.Delimiter) ? "," : req.Delimiter;
@@ -1897,7 +1930,7 @@ app.MapPost("/to_csv", (ExcelIO.ToCsvRequest req) =>
         }
         var enc = ExcelIO.ResolveEncoding(req.EncodingName) ?? System.Text.Encoding.UTF8;
         System.IO.File.WriteAllLines(req.OutputCsvPath, lines, enc);
-        return Results.Ok(new { ok = true, rows = rcount, cols = ccount, path = req.OutputCsvPath });
+        return Results.Ok(new { ok = true, rows = rcount, cols = ccount, path = req.OutputCsvPath, usedLiveCopy = readable.UsedLiveCopy });
     }
     catch (Exception ex)
     {
@@ -1915,7 +1948,8 @@ app.MapPost("/to_json", (ExcelIO.ToJsonRequest req) =>
 
     try
     {
-        using var wb = new XLWorkbook(req.ExcelPath);
+        using var readable = ExcelAccessUtil.ResolveReadablePath(req.ExcelPath);
+        using var wb = new XLWorkbook(readable.EffectivePath);
         var ws = ExcelIO.ResolveWorksheet(wb, req.SheetName);
         if (ws is null) return Results.BadRequest(new { ok = false, msg = $"sheet not found: {req.SheetName}" });
 
@@ -1924,7 +1958,7 @@ app.MapPost("/to_json", (ExcelIO.ToJsonRequest req) =>
         {
             ExcelIO.EnsureDirectoryForFile(req.OutputJsonPath);
             System.IO.File.WriteAllText(req.OutputJsonPath, "[]", new System.Text.UTF8Encoding(false));
-            return Results.Ok(new { ok = true, mode = req.Mode, rows = 0, cols = 0, path = req.OutputJsonPath });
+            return Results.Ok(new { ok = true, mode = req.Mode, rows = 0, cols = 0, path = req.OutputJsonPath, usedLiveCopy = readable.UsedLiveCopy });
         }
 
         var mode = string.Equals(req.Mode, "matrix", StringComparison.OrdinalIgnoreCase) ? "matrix" : "records";
@@ -1950,7 +1984,7 @@ app.MapPost("/to_json", (ExcelIO.ToJsonRequest req) =>
             }
             writer.WriteEndArray();
             writer.Flush();
-            return Results.Ok(new { ok = true, mode, rows = rcount, cols = ccount, path = req.OutputJsonPath });
+            return Results.Ok(new { ok = true, mode, rows = rcount, cols = ccount, path = req.OutputJsonPath, usedLiveCopy = readable.UsedLiveCopy });
         }
         else
         {
@@ -1997,7 +2031,7 @@ app.MapPost("/to_json", (ExcelIO.ToJsonRequest req) =>
             }
             writer.WriteEndArray();
             writer.Flush();
-            return Results.Ok(new { ok = true, mode, rows = wrote, cols = colCount, headerRow, path = req.OutputJsonPath });
+            return Results.Ok(new { ok = true, mode, rows = wrote, cols = colCount, headerRow, path = req.OutputJsonPath, usedLiveCopy = readable.UsedLiveCopy });
         }
     }
     catch (Exception ex)
@@ -2014,7 +2048,8 @@ app.MapPost("/list_charts", (ExcelIO.ListChartsRequest req) =>
     try
     {
         var charts = new List<object>();
-        using (SpreadsheetDocument doc = SpreadsheetDocument.Open(req.ExcelPath, false))
+        using var readable = ExcelAccessUtil.ResolveReadablePath(req.ExcelPath);
+        using (SpreadsheetDocument doc = SpreadsheetDocument.Open(readable.EffectivePath, false))
         {
             var wbPart = doc.WorkbookPart!;
             foreach (var wsPart in wbPart.WorksheetParts)
@@ -2029,7 +2064,7 @@ app.MapPost("/list_charts", (ExcelIO.ListChartsRequest req) =>
                 }
             }
         }
-        return Results.Ok(new { ok = true, charts });
+        return Results.Ok(new { ok = true, charts, usedLiveCopy = readable.UsedLiveCopy });
     }
     catch (Exception ex)
     {
@@ -2149,6 +2184,77 @@ static class ComUtil
         return null;
     }
 
+    public static dynamic? FindWorkbookStrict(dynamic excel, string? fullName, string? name, out string? error)
+    {
+        error = null;
+        try
+        {
+            dynamic wbs = excel.Workbooks;
+            int count = 0;
+            try { count = (int)wbs.Count; } catch { count = 0; }
+
+            if (!string.IsNullOrWhiteSpace(fullName))
+            {
+                for (int i = 1; i <= count; i++)
+                {
+                    dynamic wb = null!;
+                    try { wb = wbs.Item(i); } catch { continue; }
+                    try
+                    {
+                        string? fn = null;
+                        try { fn = (string)wb.FullName; } catch { fn = null; }
+                        if (!string.IsNullOrEmpty(fn) && string.Equals(fn, fullName, StringComparison.OrdinalIgnoreCase))
+                            return wb;
+                    }
+                    catch { }
+                    ReleaseTempWorkbook(wb);
+                }
+
+                error = $"target workbook not found for full path: {fullName}";
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                for (int i = 1; i <= count; i++)
+                {
+                    dynamic wb = null!;
+                    try { wb = wbs.Item(i); } catch { continue; }
+                    try
+                    {
+                        string? n = null;
+                        try { n = (string)wb.Name; } catch { n = null; }
+                        if (!string.IsNullOrEmpty(n) && string.Equals(n, name, StringComparison.OrdinalIgnoreCase))
+                            return wb;
+                    }
+                    catch { }
+                    ReleaseTempWorkbook(wb);
+                }
+
+                error = $"target workbook not found for workbook name: {name}";
+                return null;
+            }
+
+            if (count == 1)
+            {
+                try { return wbs.Item(1); } catch { }
+            }
+
+            error = count switch
+            {
+                <= 0 => "no open workbook is available",
+                1 => "failed to resolve the only open workbook",
+                _ => "workbookFullName or workbookName is required when multiple workbooks are open"
+            };
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+
+        return null;
+    }
+
     public static dynamic? ResolveWorksheet(dynamic wb, string? sheetName)
     {
         try
@@ -2162,6 +2268,88 @@ static class ComUtil
         }
         catch { }
         return null;
+    }
+
+    public static dynamic? ResolveWorksheetStrict(dynamic wb, string? sheetName, out string? error)
+    {
+        error = null;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(sheetName))
+            {
+                try { return wb.Worksheets.Item(sheetName); }
+                catch
+                {
+                    try { return wb.Sheets.Item(sheetName); }
+                    catch
+                    {
+                        error = $"target worksheet not found: {sheetName}";
+                        return null;
+                    }
+                }
+            }
+
+            try { return wb.ActiveSheet; }
+            catch
+            {
+                error = "target worksheet not found and no active sheet is available";
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return null;
+        }
+    }
+
+    public static string? TrySaveOpenWorkbookCopy(string excelPath, out string? error)
+    {
+        error = null;
+        object? excelObj = TryGetActiveObject("Excel.Application");
+        if (excelObj is null)
+        {
+            error = "Excel is not running";
+            return null;
+        }
+
+        dynamic excel = excelObj;
+        dynamic? wb = null;
+        try
+        {
+            wb = FindWorkbookStrict(excel, excelPath, Path.GetFileName(excelPath), out error);
+            if (wb is null)
+                return null;
+
+            var tempDir = Path.Combine(Path.GetTempPath(), "ExcelMCP", "live-copy");
+            Directory.CreateDirectory(tempDir);
+            var ext = Path.GetExtension(excelPath);
+            if (string.IsNullOrWhiteSpace(ext))
+                ext = ".xlsx";
+            var tempPath = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(excelPath)}_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}{ext}");
+            wb.SaveCopyAs(tempPath);
+            return tempPath;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return null;
+        }
+        finally
+        {
+            ReleaseTempWorkbook(wb);
+            try { Marshal.ReleaseComObject(excel); } catch { }
+        }
+    }
+
+    private static void ReleaseTempWorkbook(dynamic? workbook)
+    {
+        try
+        {
+            if (workbook != null && Marshal.IsComObject(workbook))
+                Marshal.ReleaseComObject(workbook);
+        }
+        catch { }
     }
 
     public static List<List<object?>> ToJagged(object? variant)
@@ -2388,6 +2576,7 @@ static class ComExcelIO
 
     public record SaveWorkbookRequest : WorkbookSelector
     {
+        public string? SaveCopyAsFullName { get; init; }
         public string? SaveAsFullName { get; init; }
     }
 
@@ -2916,11 +3105,13 @@ static class LogUtil
     private static string? _file;
     private static DateTime _day;
 
-    public static void Init()
+    public static void Init(string? logDir = null)
     {
         try
         {
-            _dir = Path.Combine(Path.GetTempPath(), "ExcelMCP", "logs");
+            _dir = string.IsNullOrWhiteSpace(logDir)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Revit_MCP", "Logs", "ExcelMCP")
+                : logDir;
             Directory.CreateDirectory(_dir);
             Housekeep(_dir, daysToKeep: 7);
             RollFile();

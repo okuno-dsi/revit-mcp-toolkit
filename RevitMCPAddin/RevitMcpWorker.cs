@@ -739,6 +739,8 @@ namespace RevitMCPAddin
                 new DeleteScheduleCommand(),
                 new InspectScheduleFieldsCommand(),
                 new ExportScheduleToExcelCommand(),
+                new ExportScheduleRoundtripExcelCommand(),
+                new ImportScheduleRoundtripExcelCommand(),
 
                 // DXF Export
                 new GetCurvesByCategoryHandler(),

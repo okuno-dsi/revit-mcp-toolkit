@@ -25,10 +25,15 @@ Room / Space / Area のパラメータを一括取得するコマンドです。
 | paramSkip | int | いいえ | パラメータのスキップ |
 | paramCount | int | いいえ | パラメータの件数 |
 | unitsMode | string | いいえ | `SI` / `Project` / `Raw` / `Both`（既定: `SI`） |
+| docGuid | string | いいえ | 対象文書の `docGuid` / `docKey` |
+| docTitle | string | いいえ | 対象文書タイトル |
+| docPath | string | いいえ | 対象文書フルパス |
 
 補足:
 - `skip` / `count` は `elementSkip` / `elementCount` の別名として使えます。
 - `unitsMode` は `parameters[]` の値表現に反映されます。
+- `docGuid` / `docTitle` / `docPath` を指定すると、非アクティブな開いている文書からも取得できます。
+- 同じ文書ヒントは `meta.extensions` でも指定できます。
 
 ### リクエスト例
 ```json

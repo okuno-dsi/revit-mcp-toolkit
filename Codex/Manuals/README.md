@@ -19,9 +19,18 @@ Naming note:
   - Safe writes (two‑phase):
     - `Scripts/Reference/set_visual_override_safe.ps1`
     - `Scripts/Reference/update_wall_parameter_safe.ps1`
-  - Resilient view ops:
+- Resilient view ops:
     - `Scripts/Reference/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
+
+## New (2026-03-24)
+- Revit 2025 / 2026 向けの .NET 8 ビルド構成を追加。
+  - `RevitMCPAddin/RevitMCPAddin.Net8.csproj`
+  - `Menu/SmartOpen/SmartOpen.Net8.csproj`
+- `BUILD.md` とインストール系スクリプトを更新し、2024 / 2025 / 2026 の手順を整理。
+- add-in ひな形に 2025 / 2026 用 manifest を追加。
+- 安定性面では、非アクティブ文書読取と schedule roundtrip Excel の改善を継続。
+- 参照: `Manuals/UpdateLog.md`
 
 ## New (2026-01-26)
 - AutoRebar（梁）: start/end = `LocationCurve.EndPoint(0/1)` を明確化（`Manuals/FullManual/rebar_plan_auto.md`, `Manuals/FullManual_ja/rebar_plan_auto.md`）
@@ -75,6 +84,17 @@ Naming note:
   - `Apps/ExcelMCP/README.md`
   - `Apps/ExcelMCP/MANUAL_JA.md`
   - `Manuals/ExcelMCP_Placement_Guide_JA.md`
+
+## New (2026-03-17)
+- 読取系の一部コマンドが、非アクティブな開いている Revit 文書も対象にできるようになりました。
+  - 対応: `get_rooms`, `get_param_values`, `get_spatial_params_bulk`
+  - 対象文書は `docGuid` / `docTitle` / `docPath`、または `meta.extensions` の同名キーで指定可能
+- 2プロジェクト同時オープン時の部屋抽出・空間パラメータ取得ワークフローを改善。
+- 参照:
+  - `Manuals/FullManual_ja/get_rooms.md`
+  - `Manuals/FullManual_ja/get_param_values.md`
+  - `Manuals/FullManual_ja/get_spatial_params_bulk.md`
+  - `Manuals/UpdateLog.md`
 
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：

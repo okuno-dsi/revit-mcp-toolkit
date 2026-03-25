@@ -10,13 +10,16 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 - Method: get_rooms
 
 ### Parameters
-| Name | Type | Required | Default |
-|---|---|---|---|
-| compat | bool | no/depends | false |
-| count | int | no/depends |  |
-| level | string | no/depends |  |
-| nameContains | string | no/depends |  |
-| skip | int | no/depends | 0 |
+| Name | Type | Required | Default | Description |
+|---|---|---|---|---|
+| compat | bool | no | false | Also returns `roomsById` for compatibility |
+| count | int | no | all | Page size |
+| level | string | no |  | Exact level name filter |
+| nameContains | string | no |  | Case-insensitive room name contains |
+| skip | int | no | 0 | Page offset |
+| docGuid | string | no |  | Target document `docGuid` / `docKey` |
+| docTitle | string | no |  | Target document title |
+| docPath | string | no |  | Target document full path |
 
 ### Example Request
 ```json
@@ -44,6 +47,11 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
 - create_room
 - delete_room
 
+### Notes
+- If `docGuid` / `docTitle` / `docPath` are omitted, the active document is used.
+- The same document hints are also accepted via `meta.extensions`.
+- `count=0` can be used for a lightweight count-only probe.
+
 ### Params Schema
 ```json
 {
@@ -63,6 +71,15 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
     },
     "compat": {
       "type": "boolean"
+    },
+    "docGuid": {
+      "type": "string"
+    },
+    "docTitle": {
+      "type": "string"
+    },
+    "docPath": {
+      "type": "string"
     }
   }
 }
@@ -76,4 +93,3 @@ This command is executed via JSON-RPC against the Revit MCP Add-in. It performs 
   "additionalProperties": true
 }
 ```
-

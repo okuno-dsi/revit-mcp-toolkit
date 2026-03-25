@@ -132,8 +132,95 @@ internal sealed class ExcelMcpToolRegistry
     {
         yield return new ExcelMcpToolDefinition
         {
+            Name = "excel.file.sheet_info",
+            Description = "Inspect a saved workbook file. If the file is open and locked, ExcelMCP will try to read through a temporary live copy.",
+            HttpMethod = "POST",
+            Path = "/sheet_info",
+            InputSchema = Schema(new[] { ("excelPath", StringSchema("Saved workbook full path.")), ("sheetName", StringSchema("Optional sheet name.")) }, new[] { "excelPath" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/sheet_info"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.file.read_cells",
+            Description = "Read cells from a saved workbook file. If the file is open and locked, ExcelMCP will try to read through a temporary live copy.",
+            HttpMethod = "POST",
+            Path = "/read_cells",
+            InputSchema = Schema(new[]
+            {
+                ("excelPath", StringSchema("Saved workbook full path.")),
+                ("sheetName", StringSchema("Optional worksheet name; if omitted the first worksheet is used.")),
+                ("rangeA1", StringSchema("Optional A1 range. If omitted, the used range is returned.")),
+                ("returnRaw", BooleanSchema()),
+                ("returnFormatted", BooleanSchema()),
+                ("includeFormula", BooleanSchema()),
+            }, new[] { "excelPath" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/read_cells"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.file.write_cells",
+            Description = "Write cells into a saved workbook file. If the workbook is currently open in Excel and the file is locked, ExcelMCP will write through the live workbook via COM.",
+            HttpMethod = "POST",
+            Path = "/write_cells",
+            InputSchema = Schema(new[]
+            {
+                ("excelPath", StringSchema("Saved workbook full path.")),
+                ("sheetName", StringSchema()),
+                ("startCell", StringSchema()),
+                ("values", ArraySchema("2D array of values.")),
+                ("treatNullAsClear", BooleanSchema()),
+            }, new[] { "excelPath", "startCell", "values" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/write_cells"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.file.append_rows",
+            Description = "Append rows into a saved workbook file. If the workbook is open and locked, ExcelMCP will append through the live workbook via COM.",
+            HttpMethod = "POST",
+            Path = "/append_rows",
+            InputSchema = Schema(new[]
+            {
+                ("excelPath", StringSchema("Saved workbook full path.")),
+                ("sheetName", StringSchema()),
+                ("startColumn", StringSchema()),
+                ("rows", ArraySchema("2D array of rows to append.")),
+            }, new[] { "excelPath", "rows" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/append_rows"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.file.set_formula",
+            Description = "Set formulas in a saved workbook file. If the workbook is open and locked, ExcelMCP will update the live workbook via COM.",
+            HttpMethod = "POST",
+            Path = "/set_formula",
+            InputSchema = Schema(new[]
+            {
+                ("excelPath", StringSchema("Saved workbook full path.")),
+                ("sheetName", StringSchema()),
+                ("target", StringSchema()),
+                ("formulaA1", StringSchema()),
+            }, new[] { "excelPath", "target", "formulaA1" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/set_formula"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
             Name = "excel.list_open_workbooks",
             Description = "List currently open Excel workbooks via COM. Use this before COM write/sort operations.",
+            HttpMethod = "GET",
+            Path = "/list_open_workbooks",
+            InputSchema = EmptySchema(),
+            Annotations = BuildAnnotations("GET", "/list_open_workbooks"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.live.list_workbooks",
+            Description = "List open Excel workbooks. Use live tools when you need to touch the workbook currently open in Excel.",
             HttpMethod = "GET",
             Path = "/list_open_workbooks",
             InputSchema = EmptySchema(),
@@ -168,19 +255,53 @@ internal sealed class ExcelMcpToolRegistry
 
         yield return new ExcelMcpToolDefinition
         {
-            Name = "excel.com.read_cells",
-            Description = "Read cells from an open workbook via COM automation. Prefer this when you must inspect the currently open workbook state.",
+            Name = "excel.live.read_cells",
+            Description = "Read cells from the workbook currently open in Excel. workbookFullName or workbookName is required when multiple workbooks are open.",
             HttpMethod = "POST",
             Path = "/com/read_cells",
+            InputSchema = Schema(new[]
+            {
+                ("workbookFullName", StringSchema("Open workbook full path. Recommended when possible.")),
+                ("workbookName", StringSchema("Open workbook file name.")),
+                ("sheetName", StringSchema("Worksheet name. If omitted, the active sheet in the resolved workbook is used.")),
+                ("rangeA1", StringSchema("A1 range to read.")),
+                ("useValue2", BooleanSchema()),
+            }, new[] { "rangeA1" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/com/read_cells"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.com.read_cells",
+            Description = "Read cells from an open workbook via COM automation. workbookFullName or workbookName is required when multiple workbooks are open.",
+            HttpMethod = "POST",
+            Path = "/com/read_cells",
+            InputSchema = Schema(new[]
+            {
+                ("workbookFullName", StringSchema("Open workbook full path. Recommended when possible.")),
+                ("workbookName", StringSchema("Open workbook file name.")),
+                ("sheetName", StringSchema("Worksheet name. If omitted, the active sheet in the resolved workbook is used.")),
+                ("rangeA1", StringSchema("A1 range to read.")),
+                ("useValue2", BooleanSchema()),
+            }, new[] { "rangeA1" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/com/read_cells"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.live.write_cells",
+            Description = "Write a 2D value matrix into a workbook currently open in Excel.",
+            HttpMethod = "POST",
+            Path = "/com/write_cells",
             InputSchema = Schema(new[]
             {
                 ("workbookFullName", StringSchema()),
                 ("workbookName", StringSchema()),
                 ("sheetName", StringSchema()),
-                ("rangeA1", StringSchema("A1 range to read.")),
-                ("useValue2", BooleanSchema()),
-            }, new[] { "rangeA1" }, allowAdditionalProperties: false),
-            Annotations = BuildAnnotations("POST", "/com/read_cells"),
+                ("startCell", StringSchema()),
+                ("values", ArraySchema("2D array of values.")),
+            }, new[] { "startCell", "values" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/com/write_cells"),
         };
 
         yield return new ExcelMcpToolDefinition
@@ -202,6 +323,23 @@ internal sealed class ExcelMcpToolRegistry
 
         yield return new ExcelMcpToolDefinition
         {
+            Name = "excel.live.append_rows",
+            Description = "Append rows into a workbook currently open in Excel.",
+            HttpMethod = "POST",
+            Path = "/com/append_rows",
+            InputSchema = Schema(new[]
+            {
+                ("workbookFullName", StringSchema()),
+                ("workbookName", StringSchema()),
+                ("sheetName", StringSchema()),
+                ("startColumn", StringSchema()),
+                ("rows", ArraySchema("2D array of rows to append.")),
+            }, new[] { "rows" }, allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/com/append_rows"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
             Name = "excel.com.append_rows",
             Description = "Append rows into an already open workbook via COM automation.",
             HttpMethod = "POST",
@@ -219,14 +357,31 @@ internal sealed class ExcelMcpToolRegistry
 
         yield return new ExcelMcpToolDefinition
         {
-            Name = "excel.com.save_workbook",
-            Description = "Save the currently open workbook. Optionally provide SaveAsFullName to write a copy.",
+            Name = "excel.live.save_workbook",
+            Description = "Save an open workbook in Excel. saveCopyAsFullName creates a copy without changing the current workbook path.",
             HttpMethod = "POST",
             Path = "/com/save_workbook",
             InputSchema = Schema(new[]
             {
                 ("workbookFullName", StringSchema()),
                 ("workbookName", StringSchema()),
+                ("saveCopyAsFullName", StringSchema()),
+                ("saveAsFullName", StringSchema()),
+            }, Array.Empty<string>(), allowAdditionalProperties: false),
+            Annotations = BuildAnnotations("POST", "/com/save_workbook"),
+        };
+
+        yield return new ExcelMcpToolDefinition
+        {
+            Name = "excel.com.save_workbook",
+            Description = "Save the currently open workbook. saveCopyAsFullName writes a copy without changing the current workbook path; saveAsFullName changes the workbook path.",
+            HttpMethod = "POST",
+            Path = "/com/save_workbook",
+            InputSchema = Schema(new[]
+            {
+                ("workbookFullName", StringSchema()),
+                ("workbookName", StringSchema()),
+                ("saveCopyAsFullName", StringSchema()),
                 ("saveAsFullName", StringSchema()),
             }, Array.Empty<string>(), allowAdditionalProperties: false),
             Annotations = BuildAnnotations("POST", "/com/save_workbook"),

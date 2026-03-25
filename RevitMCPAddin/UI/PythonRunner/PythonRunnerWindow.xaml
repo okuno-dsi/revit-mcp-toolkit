@@ -3,6 +3,20 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Python Script Runner" Height="760" Width="1100"
         WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style x:Key="RunButtonStyle" TargetType="Button">
+            <Setter Property="Content" Value="Run"/>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Content" Value="Running"/>
+                    <Setter Property="Background" Value="#FFF8D7DA"/>
+                    <Setter Property="Foreground" Value="#FF842029"/>
+                    <Setter Property="BorderBrush" Value="#FFF1AEB5"/>
+                    <Setter Property="Opacity" Value="1"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -95,7 +109,7 @@
             <TextBox x:Name="TxtArgs" Grid.Column="1" MinWidth="420" Margin="0,0,12,0"/>
             <Button x:Name="BtnReloadOptions" Grid.Column="2" Content="Reload Options" Width="120" Margin="0,0,12,0"/>
             <Button x:Name="BtnCopyOptionSpec" Grid.Column="3" Content="Copy Option Spec" Width="130" Margin="0,0,12,0"/>
-            <Button x:Name="BtnRun" Grid.Column="4" Content="Run" Width="90" Margin="0,0,6,0"/>
+            <Button x:Name="BtnRun" Grid.Column="4" Style="{StaticResource RunButtonStyle}" Width="90" Margin="0,0,6,0"/>
             <Button x:Name="BtnStop" Grid.Column="5" Content="Stop" Width="90" IsEnabled="False"/>
         </Grid>
 

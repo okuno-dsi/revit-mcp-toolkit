@@ -18,8 +18,7 @@ namespace RevitMCPAddin.Commands.Room
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var uidoc = uiapp?.ActiveUIDocument;
-            var doc = uidoc?.Document;
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
             if (doc == null)
                 return new { ok = false, msg = "アクティブドキュメントが見つかりません。" };
 

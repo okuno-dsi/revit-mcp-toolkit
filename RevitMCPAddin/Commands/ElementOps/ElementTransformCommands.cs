@@ -96,7 +96,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                 var pinned = ids
                     .Select(id => doc.GetElement(new ElementId(id)))
                     .Where(e => e?.Pinned == true)
-                    .Select(e => e!.Id.IntegerValue)
+                    .Select(e => e!.Id.IntValue())
                     .ToList();
                 if (pinned.Count > 0)
                     return ResultUtil.Err(new { code = "ELEMENT_PINNED", msg = "Pinned elements cannot be copied.", pinned });
@@ -111,10 +111,10 @@ namespace RevitMCPAddin.Commands.ElementOps
                     tx.Start();
                     var copied = ElementTransformUtils.CopyElements(doc, eidList, translation);
                     tx.Commit();
-                    var copiedIds = copied.Select(x => x.IntegerValue).ToList();
+                    var copiedIds = copied.Select(x => x.IntValue()).ToList();
                     var existingIds = copied
                         .Where(id => doc.GetElement(id) != null)
-                        .Select(id => id.IntegerValue)
+                        .Select(id => id.IntValue())
                         .ToList();
                     var missingIds = copiedIds
                         .Where(id => !existingIds.Contains(id))
@@ -196,7 +196,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (failIfPinned)
             {
-                var pinned = ids.Select(id => doc.GetElement(new ElementId(id))).Where(e => e?.Pinned == true).Select(e => e!.Id.IntegerValue).ToList();
+                var pinned = ids.Select(id => doc.GetElement(new ElementId(id))).Where(e => e?.Pinned == true).Select(e => e!.Id.IntValue()).ToList();
                 if (pinned.Count > 0)
                     return ResultUtil.Err(new { code = "ELEMENT_PINNED", msg = "Pinned elements cannot be mirrored.", pinned });
             }
@@ -212,7 +212,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                     {
                         ok = true,
                         mirrorCopies,
-                        mirroredCopyIds = newIds.Select(x => x.IntegerValue).ToList(),
+                        mirroredCopyIds = newIds.Select(x => x.IntValue()).ToList(),
                         skipped = new List<object>(),
                         units = new { length = lenUnits }
                     };
@@ -275,7 +275,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (failIfPinned)
             {
-                var pinned = eidList.Select(doc.GetElement).Where(e => e?.Pinned == true).Select(e => e!.Id.IntegerValue).ToList();
+                var pinned = eidList.Select(doc.GetElement).Where(e => e?.Pinned == true).Select(e => e!.Id.IntValue()).ToList();
                 if (pinned.Count > 0)
                     return ResultUtil.Err(new { code = "ELEMENT_PINNED", msg = "Pinned elements cannot be arrayed.", pinned });
             }
@@ -293,14 +293,14 @@ namespace RevitMCPAddin.Commands.ElementOps
                     if (associate)
                     {
                         var arr = LinearArray.Create(doc, view, eidList, count, translationToAnchor, anchorMember);
-                        var original = arr.GetOriginalMemberIds().Select(x => x.IntegerValue).ToList();
-                        var copied = arr.GetCopiedMemberIds().Select(x => x.IntegerValue).ToList();
+                        var original = arr.GetOriginalMemberIds().Select(x => x.IntValue()).ToList();
+                        var copied = arr.GetCopiedMemberIds().Select(x => x.IntValue()).ToList();
                         tx.Commit();
                         return new
                         {
                             ok = true,
                             associate = true,
-                            arrayElementId = arr.Id.IntegerValue,
+                            arrayElementId = arr.Id.IntValue(),
                             originalMemberIds = original,
                             copiedMemberIds = copied,
                             units = new { length = lenUnits }
@@ -315,7 +315,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                             ok = true,
                             associate = false,
                             arrayElementId = (int?)null,
-                            createdElementIds = created.Select(x => x.IntegerValue).ToList(),
+                            createdElementIds = created.Select(x => x.IntValue()).ToList(),
                             units = new { length = lenUnits }
                         };
                     }
@@ -380,7 +380,7 @@ namespace RevitMCPAddin.Commands.ElementOps
 
             if (failIfPinned)
             {
-                var pinned = eidList.Select(doc.GetElement).Where(e => e?.Pinned == true).Select(e => e!.Id.IntegerValue).ToList();
+                var pinned = eidList.Select(doc.GetElement).Where(e => e?.Pinned == true).Select(e => e!.Id.IntValue()).ToList();
                 if (pinned.Count > 0)
                     return ResultUtil.Err(new { code = "ELEMENT_PINNED", msg = "Pinned elements cannot be arrayed.", pinned });
             }
@@ -398,14 +398,14 @@ namespace RevitMCPAddin.Commands.ElementOps
                     if (associate)
                     {
                         var arr = RadialArray.Create(doc, view, eidList, count, axisLine, angleInternal, anchorMember);
-                        var original = arr.GetOriginalMemberIds().Select(x => x.IntegerValue).ToList();
-                        var copied = arr.GetCopiedMemberIds().Select(x => x.IntegerValue).ToList();
+                        var original = arr.GetOriginalMemberIds().Select(x => x.IntValue()).ToList();
+                        var copied = arr.GetCopiedMemberIds().Select(x => x.IntValue()).ToList();
                         tx.Commit();
                         return new
                         {
                             ok = true,
                             associate = true,
-                            arrayElementId = arr.Id.IntegerValue,
+                            arrayElementId = arr.Id.IntValue(),
                             originalMemberIds = original,
                             copiedMemberIds = copied,
                             units = new { length = lenUnits, angle = angleUnits }
@@ -420,7 +420,7 @@ namespace RevitMCPAddin.Commands.ElementOps
                             ok = true,
                             associate = false,
                             arrayElementId = (int?)null,
-                            createdElementIds = created.Select(x => x.IntegerValue).ToList(),
+                            createdElementIds = created.Select(x => x.IntValue()).ToList(),
                             units = new { length = lenUnits, angle = angleUnits }
                         };
                     }

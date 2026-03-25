@@ -10,11 +10,14 @@
 - メソッド: get_param_values
 
 ### パラメータ
-| 名前 | 型 | 必須 | 既定値 |
-|---|---|---|---|
-| includeMeta | bool | いいえ/状況による | true |
-| mode | string | いいえ/状況による | element |
-| scope | string | いいえ/状況による | auto |
+| 名前 | 型 | 必須 | 既定値 | 説明 |
+|---|---|---|---|---|
+| includeMeta | bool | いいえ | true | spec や readOnly などのメタ情報も返す |
+| mode | string | いいえ | element | `element` / `type` / `category` |
+| scope | string | いいえ | auto | `auto` / `instance` / `type` |
+| docGuid | string | いいえ |  | 対象文書の `docGuid` / `docKey` |
+| docTitle | string | いいえ |  | 対象文書タイトル |
+| docPath | string | いいえ |  | 対象文書フルパス |
 
 ### リクエスト例
 ```json
@@ -37,3 +40,8 @@
 - get_instance_parameters_bulk
 - update_parameters_batch
 - 
+
+## 補足
+- `docGuid` / `docTitle` / `docPath` を指定すると、非アクティブ文書からの読取に使えます。
+- 同じ文書ヒントは `meta.extensions` に入れても解決されます。
+- `mode=element` では `elementId`、`mode=type` では `typeId`、`mode=category` では `category` が別途必要です。

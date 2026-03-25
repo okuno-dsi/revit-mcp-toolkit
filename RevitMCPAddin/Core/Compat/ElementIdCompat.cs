@@ -44,9 +44,13 @@ namespace Autodesk.Revit.DB
                 // ignore; fallback below
             }
 
+#if REVIT_NET8
+            return 0;
+#else
 #pragma warning disable 0618 // ElementId.IntegerValue is deprecated in Revit 2024+
             return id.IntegerValue;
 #pragma warning restore 0618
+#endif
         }
 
         public static int IntValue(this ElementId id)

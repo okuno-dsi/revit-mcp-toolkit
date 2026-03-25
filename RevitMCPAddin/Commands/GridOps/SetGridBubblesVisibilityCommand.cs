@@ -42,7 +42,7 @@ namespace RevitMCPAddin.Commands.GridOps
                         ok = false,
                         code = "VIEW_TEMPLATE_APPLIED",
                         msg = "ビューにテンプレートが適用されています。detachViewTemplate=true で再実行してください。",
-                        viewTemplateId = view.ViewTemplateId.IntegerValue
+                        viewTemplateId = view.ViewTemplateId.IntValue()
                     };
                 }
 
@@ -126,7 +126,7 @@ namespace RevitMCPAddin.Commands.GridOps
                 }
                 catch (Exception ex)
                 {
-                    errors.Add(new { gridId = g.Id.IntegerValue, end = end.ToString(), error = ex.Message });
+                    errors.Add(new { gridId = g.Id.IntValue(), end = end.ToString(), error = ex.Message });
                 }
             };
 
@@ -163,7 +163,7 @@ namespace RevitMCPAddin.Commands.GridOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
                 gridCount = grids.Count,
                 target = new { end0Visible, end1Visible },
                 changedEnd0 = changed0,
@@ -175,4 +175,3 @@ namespace RevitMCPAddin.Commands.GridOps
         }
     }
 }
-

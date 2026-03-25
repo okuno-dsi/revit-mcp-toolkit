@@ -27,6 +27,7 @@ nuget.exe
 # Node
 **/node_modules/
 Artifacts/
+**/obj_publish/
 
 # Python
 __pycache__/
@@ -120,6 +121,8 @@ Projects/
 Codex/cleanup_*.md
 Codex/全マニュアル.md
 Codex/git_igonore_items_list.md
+RevitAddinインストール先構成ひな形/RevitMCPAddin/
+RevitMCPAddin/build_count_*.txt
 **/logs/
 **/Logs/
 **/temp/

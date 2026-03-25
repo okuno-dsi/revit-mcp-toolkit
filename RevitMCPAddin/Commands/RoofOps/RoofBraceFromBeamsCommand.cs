@@ -1430,7 +1430,7 @@ namespace RevitMCPAddin.Commands.RoofOps
                 {
                     var el = _doc.GetElement(id) as FamilyInstance;
                     if (el == null) continue;
-                    if (el.Category == null || el.Category.Id.IntegerValue != (int)BuiltInCategory.OST_StructuralFraming)
+                    if (el.Category == null || el.Category.Id.IntValue() != (int)BuiltInCategory.OST_StructuralFraming)
                         continue;
                     if (el.StructuralType != StructuralType.Beam) continue;
                     picked.Add(el);

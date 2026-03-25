@@ -128,8 +128,8 @@ namespace RevitMCPAddin.Commands.ViewOps
             return new
             {
                 ok = true,
-                viewId = view.Id.IntegerValue,
-                elementId = elem.Id.IntegerValue,
+                viewId = view.Id.IntValue(),
+                elementId = elem.Id.IntValue(),
                 marginMm = Math.Round(marginMm, 3),
                 crop = new
                 {
@@ -150,4 +150,3 @@ namespace RevitMCPAddin.Commands.ViewOps
         }
     }
 }
-

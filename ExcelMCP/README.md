@@ -34,6 +34,16 @@ Main tools include:
 
 Additional manual tools are registered for COM and MCP support:
 - `excel.list_open_workbooks`
+- `excel.file.sheet_info`
+- `excel.file.read_cells`
+- `excel.file.write_cells`
+- `excel.file.append_rows`
+- `excel.file.set_formula`
+- `excel.live.list_workbooks`
+- `excel.live.read_cells`
+- `excel.live.write_cells`
+- `excel.live.append_rows`
+- `excel.live.save_workbook`
 - `excel.com.activate_workbook`
 - `excel.com.activate_sheet`
 - `excel.com.read_cells`
@@ -51,6 +61,13 @@ Additional manual tools are registered for COM and MCP support:
 - `mcp.status`
 
 `excel.api_call` remains for compatibility, but new clients should prefer the first-class tools above.
+
+Use this rule:
+- `excel.file.*`: saved workbook files
+- `excel.live.*` or `excel.com.*`: the workbook currently open in Excel
+
+For file reads, if the workbook is open and locked, ExcelMCP tries a temporary live copy.
+For file writes, if the workbook is open and locked, ExcelMCP falls back to the live workbook via COM for supported operations.
 
 ## Core HTTP Endpoints
 - `GET /health`
@@ -85,10 +102,21 @@ pwsh .\publish_release.ps1
 dotnet run --project ExcelMCP --configuration Release --urls http://localhost:5215
 ```
 
+Or use the helper scripts:
+```powershell
+pwsh .\start.ps1 -Port 5215
+pwsh .\start.ps1 -Port 5215 -Background
+pwsh .\status.ps1
+pwsh .\stop.ps1
+```
+
 ## Notes
 - File-based Excel I/O uses ClosedXML.
 - Chart listing uses OpenXML SDK.
 - COM endpoints operate on already open Excel workbooks.
+- `com/read_cells` is strict: if workbook or sheet cannot be resolved, the server returns 4xx instead of silently falling back to the wrong workbook.
+- Default logs: `%LOCALAPPDATA%\Revit_MCP\Logs\ExcelMCP`
+- Default PID file: `%LOCALAPPDATA%\Revit_MCP\Run\ExcelMCP.pid`
 - The canonical release process is documented in `BUILD_RELEASE.md`.
 - `publish_release.ps1` runs clean/build/test/publish in one flow.
 - Japanese operations manual: `MANUAL_JA.md`

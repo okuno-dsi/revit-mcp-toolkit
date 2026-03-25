@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core.ResultDelivery;
@@ -140,7 +141,7 @@ namespace RevitMCPAddin.Core
                 var av = doc.ActiveView;
                 if (av != null)
                 {
-                    ctx["activeViewId"] = av.Id.IntegerValue;
+                    ctx["activeViewId"] = av.Id.IntValue();
                     ctx["activeViewName"] = av.Name ?? string.Empty;
                     ctx["activeViewType"] = av.ViewType.ToString();
                     ctx["rawActiveViewType"] = av.GetType().Name;

@@ -48,7 +48,7 @@ namespace RevitMCPAddin.Commands.Family
             {
                 if (TryParseBuiltInCategory(builtInCategory, out var bic))
                 {
-                    return cat != null && cat.Id.IntegerValue == (int)bic;
+                    return cat != null && cat.Id.IntValue() == (int)bic;
                 }
                 // Fallback to name match if parsing failed.
                 return cat != null && string.Equals(cat.Name, builtInCategory, StringComparison.OrdinalIgnoreCase);
@@ -62,7 +62,7 @@ namespace RevitMCPAddin.Commands.Family
         {
             if ((bicIds == null || bicIds.Count == 0) && (catNames == null || catNames.Count == 0)) return true;
             if (cat == null) return false;
-            if (bicIds != null && bicIds.Count > 0 && bicIds.Contains(cat.Id.IntegerValue)) return true;
+            if (bicIds != null && bicIds.Count > 0 && bicIds.Contains(cat.Id.IntValue())) return true;
             if (catNames != null && catNames.Count > 0 && catNames.Contains(cat.Name ?? "")) return true;
             return false;
         }
@@ -153,7 +153,7 @@ namespace RevitMCPAddin.Commands.Family
                     var cat = sym.Category;
                     if (!FamilyDiscoveryUtil.CategoryMatches(cat, category, builtInCategory)) continue;
 
-                    var text = (sym.Family?.Name ?? "") + " " + (sym.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntegerValue.ToString() : "");
+                    var text = (sym.Family?.Name ?? "") + " " + (sym.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntValue().ToString() : "");
                     var score = FamilyDiscoveryUtil.ScoreByTokens(text, tokens);
                     if (tokens.Count > 0 && score <= 0) continue;
 
@@ -161,10 +161,10 @@ namespace RevitMCPAddin.Commands.Family
                     {
                         ["kind"] = LoadedFamilyKind.LoadableSymbol.ToString(),
                         ["category"] = cat?.Name ?? "",
-                        ["builtInCategory"] = cat != null && cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntegerValue).ToString() : "",
-                        ["familyId"] = fam != null ? fam.Id.IntegerValue : (int?)null,
+                        ["builtInCategory"] = cat != null && cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntValue()).ToString() : "",
+                        ["familyId"] = fam != null ? fam.Id.IntValue() : (int?)null,
                         ["familyName"] = fam?.Name ?? "",
-                        ["typeId"] = sym.Id.IntegerValue,
+                        ["typeId"] = sym.Id.IntValue(),
                         ["typeName"] = sym.Name ?? "",
                         ["isInPlace"] = false,
                         ["score"] = Math.Round(score, 4)
@@ -186,7 +186,7 @@ namespace RevitMCPAddin.Commands.Family
                     var cat = fam.FamilyCategory;
                     if (!FamilyDiscoveryUtil.CategoryMatches(cat, category, builtInCategory)) continue;
 
-                    var text = (fam.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntegerValue.ToString() : "");
+                    var text = (fam.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntValue().ToString() : "");
                     var score = FamilyDiscoveryUtil.ScoreByTokens(text, tokens);
                     if (tokens.Count > 0 && score <= 0) continue;
 
@@ -194,8 +194,8 @@ namespace RevitMCPAddin.Commands.Family
                     {
                         ["kind"] = LoadedFamilyKind.InPlaceFamily.ToString(),
                         ["category"] = cat?.Name ?? "",
-                        ["builtInCategory"] = cat != null && cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntegerValue).ToString() : "",
-                        ["familyId"] = fam.Id.IntegerValue,
+                        ["builtInCategory"] = cat != null && cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntValue()).ToString() : "",
+                        ["familyId"] = fam.Id.IntValue(),
                         ["familyName"] = fam.Name ?? "",
                         ["typeId"] = null,
                         ["typeName"] = "",
@@ -221,7 +221,7 @@ namespace RevitMCPAddin.Commands.Family
                     if (!FamilyDiscoveryUtil.CategoryMatches(cat, category, builtInCategory)) continue;
                     if (!FamilyDiscoveryUtil.CategoryInWhitelist(cat, sysBicIds, sysCatNames)) continue;
 
-                    var text = (t.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntegerValue.ToString() : "");
+                    var text = (t.Name ?? "") + " " + (cat?.Name ?? "") + " " + (cat != null ? cat.Id.IntValue().ToString() : "");
                     var score = FamilyDiscoveryUtil.ScoreByTokens(text, tokens);
                     if (tokens.Count > 0 && score <= 0) continue;
 
@@ -229,10 +229,10 @@ namespace RevitMCPAddin.Commands.Family
                     {
                         ["kind"] = LoadedFamilyKind.SystemType.ToString(),
                         ["category"] = cat?.Name ?? "",
-                        ["builtInCategory"] = cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntegerValue).ToString() : "",
+                        ["builtInCategory"] = cat.Id != ElementId.InvalidElementId ? ((BuiltInCategory)cat.Id.IntValue()).ToString() : "",
                         ["familyId"] = null,
                         ["familyName"] = "",
-                        ["typeId"] = t.Id.IntegerValue,
+                        ["typeId"] = t.Id.IntValue(),
                         ["typeName"] = t.Name ?? "",
                         ["isInPlace"] = false,
                         ["score"] = Math.Round(score, 4)

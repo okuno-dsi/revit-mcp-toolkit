@@ -25,10 +25,15 @@ This command collects parameters for Rooms, Spaces, or Areas in one request. It 
 | paramSkip | int | no | Skip parameters per element. |
 | paramCount | int | no | Limit parameters per element. |
 | unitsMode | string | no | `SI` / `Project` / `Raw` / `Both` (default: `SI`). |
+| docGuid | string | no | Target document `docGuid` / `docKey`. |
+| docTitle | string | no | Target document title. |
+| docPath | string | no | Target document full path. |
 
 Notes:
 - `skip` / `count` are accepted as aliases for `elementSkip` / `elementCount`.
 - `unitsMode` affects the `parameters[]` payload values.
+- `docGuid` / `docTitle` / `docPath` can target a non-active open document.
+- The same document hints are also accepted via `meta.extensions`.
 
 ### Example Request
 ```json

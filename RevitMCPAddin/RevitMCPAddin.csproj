@@ -35,6 +35,9 @@
     <!-- RevitMCP.Abstractions.csproj: このリポジトリは「Codex 配下（Junction）」と「実体フォルダ」両方でビルドされ得るため、両方の相対パスに対応する -->
     <RevitMcpAbstractionsProject>..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
     <RevitMcpAbstractionsProject Condition="!Exists('..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj') and Exists('..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj')">..\..\RevitMCP.Abstractions\RevitMCP.Abstractions.csproj</RevitMcpAbstractionsProject>
+    <RevitMcpAbstractionsDll>..\RevitMCP.Abstractions\bin\x64\Release\netstandard2.0\RevitMCP.Abstractions.dll</RevitMcpAbstractionsDll>
+    <RevitMcpAbstractionsDll Condition="!Exists('..\RevitMCP.Abstractions\bin\x64\Release\netstandard2.0\RevitMCP.Abstractions.dll') and Exists('..\..\RevitMCP.Abstractions\bin\x64\Release\netstandard2.0\RevitMCP.Abstractions.dll')">..\..\RevitMCP.Abstractions\bin\x64\Release\netstandard2.0\RevitMCP.Abstractions.dll</RevitMcpAbstractionsDll>
+    <UseAbstractionsProjectReference Condition="'$(UseAbstractionsProjectReference)'==''">false</UseAbstractionsProjectReference>
   </PropertyGroup>
   <!-- AnyCPU 構成は残すが、出力は分ける（必要なら後で削除可） -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -194,8 +197,10 @@
       <HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <!-- ★ 手動DLL参照の RevitMCP.Abstractions は削除（ProjectReferenceに一本化） -->
-    <!-- <Reference Include="RevitMCP.Abstractions, ..."> ... </Reference> -->
+    <Reference Include="RevitMCP.Abstractions" Condition="'$(UseAbstractionsProjectReference)'!='true' and Exists('$(RevitMcpAbstractionsDll)')">
+      <HintPath>$(RevitMcpAbstractionsDll)</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Rhino3dm, Version=8.17.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\Rhino3dm.8.17.0\lib\net48\Rhino3dm.dll</HintPath>
     </Reference>
@@ -312,6 +317,7 @@
     <Compile Include="Commands\MetaOps\HelpSuggestHandler.cs" />
     <Compile Include="Commands\MetaOps\ResolveCategoryCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ExportScheduleToExcelCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\ScheduleRoundtripExcelCommands.cs" />
     <Compile Include="Commands\ScheduleOps\InspectScheduleFieldsCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ListSchedulableFieldsCommand.cs" />
     <Compile Include="Commands\SmokeTest\SmokeTestNoopHandler.cs" />
@@ -599,7 +605,7 @@
     <Compile Include="UI\RibbonPortUi.cs" />
     <Compile Include="UI\RibbonUnits.cs" />
     <Compile Include="UI\RibbonViewWorkspace.cs" />
-    <ProjectReference Include="$(RevitMcpAbstractionsProject)">
+    <ProjectReference Include="$(RevitMcpAbstractionsProject)" Condition="'$(UseAbstractionsProjectReference)'=='true'">
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </ProjectReference>
     <Compile Include="App.cs" />
@@ -796,6 +802,7 @@
     <Compile Include="Core\FaceHostHelper.cs" />
     <Compile Include="Core\PaintHelper.cs" />
     <Compile Include="Core\ConfirmTokenService.cs" />
+    <Compile Include="Core\DocumentResolver.cs" />
     <Compile Include="Core\DocumentKeyUtil.cs" />
     <Compile Include="Core\IdempotencyResultCache.cs" />
     <Compile Include="RevitMcpWorker.cs" />
@@ -872,6 +879,9 @@
   </PropertyGroup>
   <Import Project="$(WinFxTargets)" Condition="Exists('$(WinFxTargets)')" />
   <Import Project="packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
+  <!-- This legacy net48 project uses packages.config and explicit HintPath references.
+       Disable PackageReference asset resolution to avoid MSBuild/NuGet trying to treat it as SDK-style. -->
+  <Target Name="ResolveNuGetPackageAssets" />
   <!-- NuGet パッケージ存在チェック -->
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
