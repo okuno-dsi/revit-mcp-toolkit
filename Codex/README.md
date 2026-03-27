@@ -1,4 +1,4 @@
-# RevitMCP Server / Revit MCP Toolkit
+# Revit MCP Server / Revit MCP Toolkit
 
 > Autodesk RevitR 2024 を、外部ツール（AIエージェントを含む）から **安全に操作・連携** するための、オープンな統合基盤（**サーバー＋アドイン**）です。  
 > **日本語で使えること**を明確な目的として設計し、国内の設計実務フローや日本独自の基準・法規（例：建築基準法、社内標準、各種ガイドライン）に沿った運用設計をしやすくすることを狙っています。
@@ -166,7 +166,7 @@ Pull Request 歓迎です。手順は `CONTRIBUTING.md` を参照してくださ
 
 ## クレジット
 
-Created by the RevitMCP contributors and GPT series (2025)
+Created by contributors and GPT series (2025)
 
 ---
 

@@ -3,10 +3,9 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
-### Revit 2025 / 2026 対応（今回の目玉）
-- `RevitMCPAddin.Net8.csproj` を追加し、Revit 2025 / 2026 向けの .NET 8 ビルドを `RevitYear` 切替で扱えるようにしました。
-- `Menu/SmartOpen/SmartOpen.Net8.csproj` を追加し、SmartOpen も Revit 2025 / 2026 向けにビルドできるようにしました。
-- `BUILD.md` とインストール系スクリプトを更新し、2024 / 2025 / 2026 のビルド・配置手順を整理しました。
+### HTML集計表・Excel連携
+- ブラウザの HTML 画面から集計表を選択し、プレビュー、Excel 書き出し、差分確認、反映までを一連で扱えるようにした。
+- Revit 側の確認ダイアログとキュー再確認を追加し、外部編集をそのまま即反映しない運用を取りやすくした。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -29,32 +28,66 @@
 - failureHandling / ダイアログ対応 / ロールバック時の**情報記録強化**。
 - 実行ログやデバッグ情報の整理・安定化。
 
+### ファミリ一括編集
+- `family.batch_add_parameter_from_folder` を追加。
+- フォルダ内の `.rfa` に対して、**共有パラメータ / ファミリパラメータの一括追加**を安全に実行。
+- dry-run、バックアップ、上書き/別名保存、JSONL監査ログを備える。
+
 ---
 
-## 2026-03-24 Revit 2025 / 2026 対応と安定性改善
+## 2026-03-27 HTML経由の集計表～Excel連携を追加
 
 ### 目的
-- Revit 2025 / 2026 でも Add-in と SmartOpen を同じリポジトリからビルド・配置できるようにする。
-- 2024 系と 2025 / 2026 系で異なる build / install 手順を整理し、導入ミスを減らす。
-- 非アクティブ文書読取や schedule roundtrip Excel など、実務フロー寄りの安定性改善をまとめる。
+- Revit を直接触らない担当者でも、ブラウザと Excel を使って集計表の確認・編集・差分確認を進めやすくする。
+- Revit 本体側では確認ダイアログやキュー再確認を挟み、誤反映を減らす。
 
 ### 変更概要
-- `RevitMCPAddin.Net8.csproj` を追加し、`RevitYear=2025/2026` で API 参照先と出力先を切り替え可能にした。
-- `Menu/SmartOpen/SmartOpen.Net8.csproj` を追加し、SmartOpen も Revit 2025 / 2026 向けに build 可能にした。
-- `BUILD.md` を更新し、Revit 2024 / 2025 / 2026 の build 手順を整理した。
-- `install_revitmcp_safe.ps1` と add-in ひな形を更新し、2025 / 2026 の配置先を明示した。
-- 安定性面では、非アクティブ文書読取と schedule roundtrip Excel の改善を継続した。
+- `RevitMCPServer` に `/room-excel-roundtrip` と `/api/room-excel-roundtrip/*` を追加。
+- 共有リンク発行、集計表一覧、HTML プレビュー、Excel 書き出し、import preview / apply / verify / queue delete を追加。
+- `confirm_html_schedule_import`
+  - HTML からの反映要求を Revit 側で都度承認できるようにした。
+- `HtmlScheduleImportQueueService`
+  - キュー保存、5分後の再確認、削除、即時反映を扱えるようにした。
+- アップロード受理は `.xlsx` / `.xltx` のみに限定し、`docGuid` 一致確認、差分 preview、CSV / JSON 監査出力を含めて安全側に寄せた。
 
 ### 変更ファイル
-- `BUILD.md`
-- `RevitMCPAddin/RevitMCPAddin.Net8.csproj` (new)
-- `Menu/SmartOpen/SmartOpen.Net8.csproj` (new)
-- `Codex/Scripts/Reference/install_revitmcp_safe.ps1`
-- `Codex/tools/PowerShellScripts/install_revitmcp_safe.ps1`
-- `RevitAddinインストール先構成ひな形/2025/RevitMCPAddin.addin` (new)
-- `RevitAddinインストール先構成ひな形/2026/RevitMCPAddin.addin` (new)
+- `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs` (new)
+- `RevitMCPServer/Program.cs`
+- `RevitMCPAddin/Commands/ScheduleOps/ConfirmHtmlScheduleImportCommand.cs` (new)
+- `RevitMCPAddin/Core/HtmlScheduleImportQueueService.cs` (new)
+- `RevitMCPAddin/Commands/ScheduleOps/ScheduleRoundtripExcelCommands.cs`
+- `RevitMCPAddin/Commands/ScheduleOps/GetSchedulesCommand.cs`
+- `RevitMCPAddin/Commands/ScheduleOps/GetScheduleDataCommand.cs`
 
----
+## 2026-03-27 Family: family.batch_add_parameter_from_folder 追加
+
+### 目的
+- フォルダ内の複数 `.rfa` へ、共有パラメータまたはファミリパラメータを安全に一括追加する。
+- 実案件で、上書き保存前の dry-run、バックアップ、監査ログを確保した状態で運用できるようにする。
+
+### 変更概要
+- `family.batch_add_parameter_from_folder`
+  - 対象は `.rfa` のみ。`.rvt` は編集しない。
+  - `dryRun=true` で保存なしの事前確認が可能。
+  - `saveMode=overwrite/save_as_copy` をサポート。
+  - `createBackup=true` 時は上書き前にバックアップを作成。
+  - 既存一致パラメータは `skip`、不一致パラメータは V1 では破壊的変更しない。
+  - shared parameter は GUID 優先で照合。
+  - `FamilyManager.CurrentType == null` のファミリには一時 type を作って追加を試行。
+  - 監査ログは `%USERPROFILE%\\Documents\\Revit_MCP\\Logs\\family.batch_add_parameter_from_folder\\*.jsonl` に保存。
+
+### 変更ファイル
+- `RevitMCPAddin/Commands/Family/BatchAddFamilyParameterCommand.cs` (new)
+- `RevitMCPAddin/Core/FamilyBatchParameterService.cs` (new)
+- `RevitMCPAddin/Core/FamilyBatchParameterService.Execution.cs` (new)
+- `RevitMCPAddin/Core/FamilyBatchParameterService.Helpers.cs` (new)
+- `Codex/Manuals/FullManual/family.batch_add_parameter_from_folder.md` (new)
+- `Codex/Manuals/FullManual_ja/family.batch_add_parameter_from_folder.md` (new)
+
+### 運用メモ
+- 日本語を含む shared parameter file は、`UTF-16 LE with BOM` が安全。
+- 共有パラメータ追加の実ログは、ファイルごとに `action`, `messages`, `parameterResults` が残る。
+- 実運用前に `dryRun=true` を推奨。
 
 ## 2026-03-17 非アクティブ文書読取の強化
 
@@ -154,6 +187,7 @@
   - `RevitMCPAddin/Core/BuildInfo.cs`
   - `RevitMCPAddin/UI/RibbonPortUi.cs`
 
+### 詳細
 
 ## 2026-03-11 MCP: HTTP transport準拠強化（Revit / AutoCAD / Rhino / Playbook）
 
@@ -312,6 +346,7 @@
 - レスポンスに `alignWarning` と `alignment`（`anchorModelMm`, `deltaSheetMm`, before/after center）を追加。
 - マニュアル（EN/JA）へ「スケール差対応の位置合わせロジック」を追記。
 
+### 詳細
 
 ## 2026-02-18 Manual/Script: column coreline workflow packaging
 
@@ -346,6 +381,7 @@
 - `params.idempotencyKey` / `idemKey` による **短時間の結果キャッシュ**を追加。
 - 要素配列の **安定ソート**（elementId/id/hostElementId 優先）。
 
+### 詳細
 
 ## 2026-02-02 Codex GUI: session display + log restore + safe install
 
@@ -362,6 +398,7 @@
 - `run_codex_prompt.ps1` で **存在しない profile を無視**して実行継続。
 - 安全インストール用 `install_codexgui_safe.ps1` を追加（設定/ログを上書きしない）。
 
+### 詳細
 
 ## 2026-01-28 Add-in + CodexGUI: Python script handoff (CodexGUI → Python Runner)
 

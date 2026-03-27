@@ -3,7 +3,7 @@
 目的: Revit 内から Python スクリプトを直接実行するための UI です。PowerShell など外部シェル不要で、作業メモや簡易スクリプトを安全に実行できます。
 
 ## 起動方法
-- Revit のリボン（RevitMCP タブ）にある **Py** ボタン（Python Runner）をクリック。
+- Revit のリボン（Revit MCP タブ）にある **Py** ボタン（Python Runner）をクリック。
 
 ## 既定の保存先
 - `Projects/<RevitFileName>_<docKey>/python_script/`
@@ -19,7 +19,7 @@
   - `rpc("element.copy_elements", ...)` や `{"method":"doc.get_project_info", ...}` のような **メソッド名**は、濃い茶色＋ボールドで強調表示します（視認性向上）。
 - **Run 実行時**:
   - スクリプトを `run_YYYYMMDD_HHMMSS.py` として保存してから実行。
-  - `http://127.0.0.1:<PORT>` と `--port <PORT>` の指定は、現在の RevitMCP ポートへ自動変換。
+  - `http://127.0.0.1:<PORT>` と `--port <PORT>` の指定は、現在の Revit MCP ポートへ自動変換。
   - `/jsonrpc` が含まれている場合は `/rpc` に自動変換（互換性のため）。
   - 実行プロセスに `REVIT_MCP_PORT` を自動設定（Python 側で参照可能）。
 - **出力ログ**:

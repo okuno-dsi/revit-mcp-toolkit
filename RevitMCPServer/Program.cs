@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
+using System.Net;
 using System.Text;
 using System.Globalization;
 using System.Linq;
@@ -19,6 +20,7 @@ using RevitMcpServer.Persistence; // SqliteConnectionFactory
 using RevitMcpServer.Chat; // ChatStore
 using RevitMcpServer.Capture; // CaptureService
 using RevitMcpServer.Mcp; // MCP adapter
+using RevitMcpServer.Web;
 
 // ----------------------------- Bootstrap -----------------------------
 var builder = WebApplication.CreateBuilder(args);
@@ -40,7 +42,8 @@ try
 catch { }
 
 var chosenPort = RevitMcpServer.Infra.PortLocker.AcquireAvailablePort(startPort);
-builder.WebHost.UseUrls($"http://127.0.0.1:{chosenPort}");
+var bindHost = ResolveBindHost(args);
+builder.WebHost.UseUrls($"http://{bindHost}:{chosenPort}");
 builder.WebHost.ConfigureKestrel(o => { o.Limits.MaxRequestBodySize = 10_000_000; });
 
 // Services
@@ -52,6 +55,25 @@ builder.Services.AddSingleton<CaptureService>();
 builder.Services.AddSingleton<McpSessionStore>();
 
 var app = builder.Build();
+
+app.Use(async (ctx, next) =>
+{
+    if (IsLoopbackRemote(ctx.Connection.RemoteIpAddress) || IsLanAllowedPath(ctx.Request.Path))
+    {
+        await next();
+        return;
+    }
+
+    ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+    await ctx.Response.WriteAsJsonAsync(new
+    {
+        ok = false,
+        code = "LAN_ROUTE_FORBIDDEN",
+        msg = "This endpoint is available only from loopback. LAN access is limited to Room Excel Roundtrip HTML endpoints."
+    });
+});
+
+app.MapScheduleExcelRoundtrip();
 
 // Step 11: docs router (server-local commands) + load cached add-in manifest (best-effort)
 RevitMCP.Abstractions.Rpc.RpcRouter? docsRouter = null;
@@ -1038,6 +1060,64 @@ static bool QueryFlag(HttpRequest req, string key)
     {
         return false;
     }
+}
+
+static string ResolveBindHost(string[] args)
+{
+    try
+    {
+        foreach (var a in args ?? Array.Empty<string>())
+        {
+            if (a.StartsWith("--bind-host=", StringComparison.OrdinalIgnoreCase))
+            {
+                var v = a.Substring("--bind-host=".Length).Trim();
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+            }
+        }
+
+        var explicitHost = (Environment.GetEnvironmentVariable("REVIT_MCP_BIND_HOST")
+                         ?? Environment.GetEnvironmentVariable("MCP_BIND_HOST")
+                         ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(explicitHost))
+            return explicitHost;
+
+        var lanEnabled = (Environment.GetEnvironmentVariable("REVIT_MCP_ENABLE_LAN_ROOM_UI")
+                       ?? Environment.GetEnvironmentVariable("MCP_ENABLE_LAN_ROOM_UI")
+                       ?? string.Empty).Trim();
+        if (lanEnabled == "1"
+            || lanEnabled.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || lanEnabled.Equals("yes", StringComparison.OrdinalIgnoreCase)
+            || lanEnabled.Equals("on", StringComparison.OrdinalIgnoreCase))
+            return "0.0.0.0";
+    }
+    catch { /* ignore */ }
+
+    return "127.0.0.1";
+}
+
+static bool IsLoopbackRemote(IPAddress? ip)
+{
+    if (ip == null) return false;
+    try
+    {
+        if (IPAddress.IsLoopback(ip)) return true;
+        if (ip.IsIPv4MappedToIPv6) return IPAddress.IsLoopback(ip.MapToIPv4());
+    }
+    catch { /* ignore */ }
+    return false;
+}
+
+static bool IsLanAllowedPath(PathString path)
+{
+    var p = path.ToString() ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(p)) return false;
+
+    if (p.Equals("/", StringComparison.OrdinalIgnoreCase)) return true;
+    if (p.Equals("/health", StringComparison.OrdinalIgnoreCase)) return true;
+    if (p.Equals("/room-excel-roundtrip", StringComparison.OrdinalIgnoreCase)) return true;
+    if (p.StartsWith("/api/room-excel-roundtrip/", StringComparison.OrdinalIgnoreCase)) return true;
+
+    return false;
 }
 
 static async Task<object> BuildRevitStatusAsync(DurableQueue durable, DateTimeOffset serverStartedUtc)

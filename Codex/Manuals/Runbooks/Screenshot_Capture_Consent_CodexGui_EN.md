@@ -1,6 +1,6 @@
 # Screenshot Capture + Consent Gate (Codex GUI)
 
-This runbook explains how to capture screenshots via RevitMCP and **attach them to Codex** safely with an explicit consent step.
+This runbook explains how to capture screenshots via Revit MCP and **attach them to Codex** safely with an explicit consent step.
 
 ## What this does (safe by default)
 - Captures screenshots **locally** using server-side tools (`capture.*`) + `CaptureAgent` (external process).

@@ -1,4 +1,4 @@
-# RevitMCP Collaborative Chat (Quick Guide)
+# Revit MCP Collaborative Chat (Quick Guide)
 
 This feature adds a **human-first collaborative chat** (append-only JSONL as the system of record) and a safe manual handoff into Codex GUI (`Copy→Codex`).
 

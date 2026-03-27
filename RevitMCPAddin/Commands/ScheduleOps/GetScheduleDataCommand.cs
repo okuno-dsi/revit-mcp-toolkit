@@ -22,7 +22,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 int skip = Math.Max(0, p.Value<int?>("skip") ?? 0);
                 int count = Math.Max(0, p.Value<int?>("count") ?? 1000);
 
-                var doc = uiapp.ActiveUIDocument?.Document;
+                var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
                 if (doc == null)
                     return ResultUtil.Err("No active document.");
 
@@ -68,6 +68,12 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 int take = Math.Min(count, Math.Max(0, totalRows - skip));
 
                 var rows = new List<Dictionary<string, object>>(take);
+                var columns = new List<string>(visibleColCount);
+                for (int i = 0; i < visibleColCount; i++)
+                {
+                    try { columns.Add(visibleFields[i].GetName()); }
+                    catch { columns.Add($"Column{i + 1}"); }
+                }
 
                 for (int rRel = skip; rRel < skip + take; rRel++) // rRel: セクション内相対行
                 {
@@ -79,15 +85,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         int cAbs = colStartAbs + cRel;          // ← 絶対列
 
                         string fieldName;
-                        try
-                        {
-                            // def のフィールド名（内部定義）を列名にする
-                            fieldName = visibleFields[i].GetName();
-                        }
-                        catch
-                        {
-                            fieldName = $"Column{i + 1}";
-                        }
+                        fieldName = columns[i];
 
                         string cellText = "";
                         try
@@ -109,8 +107,10 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 return new
                 {
                     ok = true,
+                    columns,
                     rows,
                     totalCount = totalRows,
+                    shownCount = rows.Count,
                     units = UnitHelper.DefaultUnitsMeta()
                 };
             }

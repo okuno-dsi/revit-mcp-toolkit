@@ -28,7 +28,7 @@ namespace RevitMCPAddin.Commands.Schedules
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var doc = uiapp?.ActiveUIDocument?.Document;
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
             if (doc == null) return new { ok = false, msg = "No active document." };
 
             var p = (JObject)(cmd.Params ?? new JObject());
@@ -51,6 +51,15 @@ namespace RevitMCPAddin.Commands.Schedules
                         .Cast<ViewSchedule>()
                         .FirstOrDefault(v => !v.IsTemplate &&
                             string.Equals(v.Name, viewName, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            if (vs == null)
+            {
+                var activeDoc = uiapp?.ActiveUIDocument?.Document;
+                if (activeDoc != null &&
+                    string.Equals(activeDoc.PathName ?? string.Empty, doc.PathName ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+                {
+                    vs = activeDoc.ActiveView as ViewSchedule;
                 }
             }
             if (vs == null)

@@ -12,6 +12,7 @@ namespace RevitMCPAddin.Core.Failures
         [ThreadStatic] private static FailureHandlingMode _mode;
         [ThreadStatic] private static bool _enabled;
         [ThreadStatic] private static CommandIssues? _issues;
+        [ThreadStatic] private static bool? _dismissDialogsOverride;
 
         public static bool Enabled { get { return _enabled && _mode != FailureHandlingMode.Off; } }
         public static FailureHandlingMode Mode { get { return _mode; } }
@@ -28,6 +29,16 @@ namespace RevitMCPAddin.Core.Failures
         public static IDisposable Push(FailureHandlingMode mode, CommandIssues issues)
         {
             return new Scope(mode, issues);
+        }
+
+        public static bool GetDismissDialogs(bool defaultValue)
+        {
+            return _dismissDialogsOverride ?? defaultValue;
+        }
+
+        public static IDisposable PushDialogDismissOverride(bool dismissDialogs)
+        {
+            return new DialogDismissScope(dismissDialogs);
         }
 
         private sealed class Scope : IDisposable
@@ -58,6 +69,24 @@ namespace RevitMCPAddin.Core.Failures
                 _issues = _prevIssues;
             }
         }
+
+        private sealed class DialogDismissScope : IDisposable
+        {
+            private readonly bool? _prev;
+            private bool _disposed;
+
+            public DialogDismissScope(bool dismissDialogs)
+            {
+                _prev = _dismissDialogsOverride;
+                _dismissDialogsOverride = dismissDialogs;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _dismissDialogsOverride = _prev;
+            }
+        }
     }
 }
-

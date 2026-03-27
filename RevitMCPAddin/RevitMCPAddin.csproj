@@ -267,6 +267,7 @@
     <Compile Include="Commands\ConstraintOps\ConstraintCommands.cs" />
     <Compile Include="Commands\DatumOps\ListLevelsSimpleCommand.cs" />
     <Compile Include="Commands\Dev\LaunchCodexGuiCommand.cs" />
+    <Compile Include="Commands\Dev\OpenActiveProjectFolderCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetProjectSummaryCommand.cs" />
     <Compile Include="Commands\DocumentOps\GetProjectUnitsCommand.cs" />
     <Compile Include="Commands\DocumentOps\SaveSnapshotCommand.cs" />
@@ -274,6 +275,7 @@
     <Compile Include="Commands\DxfOps\GenerateDwgMergeScriptCommand.cs" />
     <Compile Include="Commands\DynamoOps\DynamoScriptCommands.cs" />
     <Compile Include="Commands\EgressPathCommands.cs" />
+    <Compile Include="Commands\Family\BatchAddFamilyParameterCommand.cs" />
     <Compile Include="Commands\Family\FamilyDiscoveryCommands.cs" />
     <Compile Include="Commands\ElementOps\ElementQueryCommands.cs" />
     <Compile Include="Commands\ElementOps\JoinGeometryCommands.cs" />
@@ -317,6 +319,7 @@
     <Compile Include="Commands\MetaOps\HelpSuggestHandler.cs" />
     <Compile Include="Commands\MetaOps\ResolveCategoryCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ExportScheduleToExcelCommand.cs" />
+    <Compile Include="Commands\ScheduleOps\ConfirmHtmlScheduleImportCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ScheduleRoundtripExcelCommands.cs" />
     <Compile Include="Commands\ScheduleOps\InspectScheduleFieldsCommand.cs" />
     <Compile Include="Commands\ScheduleOps\ListSchedulableFieldsCommand.cs" />
@@ -531,6 +534,7 @@
     <Compile Include="Core\Failures\FailureWhitelistService.cs" />
     <Compile Include="Core\GeometryJsonHelper.cs" />
     <Compile Include="Core\GeometryUtils.cs" />
+    <Compile Include="Core\HtmlScheduleImportQueueService.cs" />
     <Compile Include="Core\Walls\WallFlushPlacement.cs" />
     <Compile Include="Core\Geometry\AnalyzeSegmentsCommand.cs" />
     <Compile Include="Core\Geometry\OrientedBoundingBox.cs" />
@@ -557,6 +561,10 @@
     <Compile Include="Core\Paths.cs" />
     <Compile Include="Core\PortLocator.cs" />
     <Compile Include="Core\ExpectedContextGuard.cs" />
+    <Compile Include="Core\FamilyBatchParameterService.cs" />
+    <Compile Include="Core\FamilyBatchParameterService.Execution.cs" />
+    <Compile Include="Core\FamilyBatchParameterService.Helpers.cs" />
+    <Compile Include="Core\FamilyBatchParameterService.Models.cs" />
     <Compile Include="Core\ContextTokenService.cs" />
     <Compile Include="Core\DeferredRpcResult.cs" />
     <Compile Include="Core\DeferredRpcRunner.cs" />
@@ -817,6 +825,7 @@
     <Compile Include="Commands\Room\GetRoomBoundariesCommand.cs" />
     <Compile Include="Commands\Room\CreateRoomMassesCommand.cs" />
     <Compile Include="Commands\Room\SetRoomParamCommand.cs" />
+    <Compile Include="Commands\Room\SetRoomParamsBulkCommand.cs" />
     <Compile Include="Core\SpatialUtils.cs" />
     <Compile Include="Core\SpatialElementResolver.cs" />
     <Compile Include="Core\RebarMappingService.cs" />

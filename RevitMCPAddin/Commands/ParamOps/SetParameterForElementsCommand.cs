@@ -18,7 +18,7 @@ namespace RevitMCPAddin.Commands.ParamOps
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var doc = uiapp?.ActiveUIDocument?.Document;
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
             if (doc == null) return new { ok = false, msg = "アクティブドキュメントがありません。" };
 
             var p = (JObject?)(cmd.Params ?? new JObject()) ?? new JObject();

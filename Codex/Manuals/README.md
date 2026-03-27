@@ -19,18 +19,9 @@ Naming note:
   - Safe writes (two‑phase):
     - `Scripts/Reference/set_visual_override_safe.ps1`
     - `Scripts/Reference/update_wall_parameter_safe.ps1`
-- Resilient view ops:
+  - Resilient view ops:
     - `Scripts/Reference/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
-
-## New (2026-03-24)
-- Revit 2025 / 2026 向けの .NET 8 ビルド構成を追加。
-  - `RevitMCPAddin/RevitMCPAddin.Net8.csproj`
-  - `Menu/SmartOpen/SmartOpen.Net8.csproj`
-- `BUILD.md` とインストール系スクリプトを更新し、2024 / 2025 / 2026 の手順を整理。
-- add-in ひな形に 2025 / 2026 用 manifest を追加。
-- 安定性面では、非アクティブ文書読取と schedule roundtrip Excel の改善を継続。
-- 参照: `Manuals/UpdateLog.md`
 
 ## New (2026-01-26)
 - AutoRebar（梁）: start/end = `LocationCurve.EndPoint(0/1)` を明確化（`Manuals/FullManual/rebar_plan_auto.md`, `Manuals/FullManual_ja/rebar_plan_auto.md`）
@@ -68,6 +59,7 @@ Naming note:
 - AutoCAD / Rhino は capabilities を `tools` のみに修正し、実装と advertise の不一致を解消。
 - Playbook proxy は `GET /mcp` / `DELETE /mcp` passthrough を追加。
 - 詳細:
+  - `Manuals/UpdateLog.md`
   - `Manuals/RevitMCP_Client_Dev_Guide.md`
   - `Manuals/ConnectionGuide/QUICKSTART.md`
 
@@ -95,6 +87,23 @@ Naming note:
   - `Manuals/FullManual_ja/get_param_values.md`
   - `Manuals/FullManual_ja/get_spatial_params_bulk.md`
   - `Manuals/UpdateLog.md`
+
+## New (2026-03-27)
+- HTML 経由の集計表→Excel 連携を追加。
+  - `/room-excel-roundtrip` から集計表一覧、HTML プレビュー、Excel 書き出し、差分確認、反映確認までを一連で実行可能。
+  - Revit 側は `confirm_html_schedule_import` とキュー再確認に対応し、即時反映と保留運用を切り替え可能。
+- Family batch parameter add:
+  - `family.batch_add_parameter_from_folder`
+  - Open `.rfa` files in a folder, add family/shared parameters safely, save, close, and emit per-file JSONL audit logs.
+- Safety:
+  - edits `.rfa` only
+  - supports `dryRun`
+  - overwrite with backup or save-as-copy
+  - GUID-first matching for shared parameters
+- References:
+  - `Manuals/UpdateLog.md`
+  - `Manuals/FullManual/family.batch_add_parameter_from_folder.md`
+  - `Manuals/FullManual_ja/family.batch_add_parameter_from_folder.md`
 
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：

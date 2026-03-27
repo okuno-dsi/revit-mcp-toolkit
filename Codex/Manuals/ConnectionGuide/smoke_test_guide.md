@@ -113,7 +113,7 @@ python ..\\..\\NVIDIA-Nemotron-v3\\tool\\revit_agent_cli.py --port 5210 --method
 
 ## 🧾 8. 結論
 
-- **RevitMCP の全 write コマンドは smoke_test を必須とする。**
+- **Revit MCP の全 write コマンドは smoke_test を必須とする。**
 - Abstractions の `RpcRouter` が安全ゲート。  
 - Add-in 側の CommandRegistry は read-only 参照のみ。  
 - CLI (`..\..\NVIDIA-Nemotron-v3\tool\revit_agent_cli.py`) により smoke_test 自動実施が保証される。
@@ -121,5 +121,5 @@ python ..\\..\\NVIDIA-Nemotron-v3\\tool\\revit_agent_cli.py --port 5210 --method
 ---
 
 **更新日:** 2025-10-07  
-**作成者:** RevitMCP 開発チーム
+**作成者:** Revit MCP 開発チーム
 

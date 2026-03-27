@@ -290,6 +290,13 @@ namespace RevitMCPAddin.Core.Net
                     WorkingDirectory = Path.GetDirectoryName(exe) ?? Environment.CurrentDirectory
                 };
 
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(psi.EnvironmentVariables["REVIT_MCP_ENABLE_LAN_ROOM_UI"]))
+                        psi.EnvironmentVariables["REVIT_MCP_ENABLE_LAN_ROOM_UI"] = "1";
+                }
+                catch { /* best-effort */ }
+
                 Log($"Starting server: {psi.FileName} {psi.Arguments} (WD={psi.WorkingDirectory})");
                 var proc = Process.Start(psi);
                 if (proc == null) return (false, 0, "Process.Start returned null");

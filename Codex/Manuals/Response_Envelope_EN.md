@@ -1,6 +1,6 @@
 # Response Envelope (Step 1)
 
-RevitMCP now adds a **standard set of fields** to every command payload so agents/scripts can reliably:
+Revit MCP now adds a **standard set of fields** to every command payload so agents/scripts can reliably:
 - detect success/failure (`ok`)
 - branch on machine-readable error (`code`)
 - show a human message (`msg`)

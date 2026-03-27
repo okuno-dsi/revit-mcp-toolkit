@@ -1,7 +1,7 @@
-# RevitMCP ⇄ AutoCadMCP Combined Quickstart (最短到達版)
+# Revit MCP ⇄ AutoCadMCP Combined Quickstart (最短到達版)
 
 目的
-- RevitMCP からビュー内の「壁」をインスタンスパラメータ「コメント」で分類し、グループごとに DWG を書き出し、AutoCadMCP でレイヤー名をコメント別に再命名して1つのDWGに統合する。
+- Revit MCP からビュー内の「壁」をインスタンスパラメータ「コメント」で分類し、グループごとに DWG を書き出し、AutoCadMCP でレイヤー名をコメント別に再命名して1つのDWGに統合する。
 - 次回起動時に最短でここまで到達できるよう、確実に動く最小手順とトラブル回避をまとめる。
 
 前提
@@ -12,7 +12,7 @@
 
 ---
 
-## 1) RevitMCP: 接続と最短チェック
+## 1) Revit MCP: 接続と最短チェック
 
 最短動作確認（PowerShell）
 - ポート確認: `Test-NetConnection localhost -Port 5210`
@@ -25,7 +25,7 @@
 
 ---
 
-## 2) RevitMCP: 書き出し用ビューの準備（壁を確実に見せる）
+## 2) Revit MCP: 書き出し用ビューの準備（壁を確実に見せる）
 
 推奨手順（コマンド）
 1. ビュー作成＋活性化
@@ -170,7 +170,7 @@ python Tools/AutoCad/merge_dwgs_by_map_com.py ^
 
 ## 8) 次回最短到達のチェックリスト
 
-1. RevitMCP 疎通
+1. Revit MCP 疎通
    - `Scripts/Reference/test_connection.ps1 -Port 5210` → OK
 2. ビュー準備（壁可視）
    - `create_view_plan` → `activate_view` → `set_view_template(clear)` → `set_category_visibility(-2000011,true)` → `view_fit`

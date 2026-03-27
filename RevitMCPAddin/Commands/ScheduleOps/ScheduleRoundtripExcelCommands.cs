@@ -8,6 +8,7 @@ using System.Reflection;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
 using RevitMCPAddin.Core.Failures;
@@ -26,6 +27,39 @@ namespace RevitMCPAddin.Commands.ScheduleOps
         public bool Editable { get; set; }
         public bool IsBoolean { get; set; }
         public string SourceFieldName { get; set; } = string.Empty;
+    }
+
+    internal sealed class ScheduleImportAuditElementResult
+    {
+        public int ElementId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string Before { get; set; } = string.Empty;
+        public string Imported { get; set; } = string.Empty;
+        public string After { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
+
+    internal sealed class ScheduleImportAuditCellResult
+    {
+        public int OutputColumnNumber { get; set; }
+        public string Header { get; set; } = string.Empty;
+        public string ParameterName { get; set; } = string.Empty;
+        public string ImportedValue { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public List<ScheduleImportAuditElementResult> Elements { get; set; } = new List<ScheduleImportAuditElementResult>();
+    }
+
+    internal sealed class ScheduleImportAuditRowResult
+    {
+        public int Row { get; set; }
+        public string MappingSource { get; set; } = string.Empty;
+        public List<int> ElementIds { get; set; } = new List<int>();
+        public int Updated { get; set; }
+        public int Skipped { get; set; }
+        public int Failed { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public List<ScheduleImportAuditCellResult> Cells { get; set; } = new List<ScheduleImportAuditCellResult>();
     }
 
     internal static class ScheduleRoundtripExcelUtil
@@ -183,6 +217,22 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             catch { }
 
             return ExportModeRoundtrip;
+        }
+
+        public static bool IsScheduleItemized(ViewSchedule schedule)
+        {
+            if (schedule == null) return true;
+
+            try
+            {
+                var def = schedule.Definition;
+                var prop = def.GetType().GetProperty("IsItemized", BindingFlags.Public | BindingFlags.Instance);
+                if (prop != null)
+                    return Convert.ToBoolean(prop.GetValue(def, null), CultureInfo.InvariantCulture);
+            }
+            catch { }
+
+            return true;
         }
 
         public static IList<int> ReadRowElementIds(Document doc, ViewSchedule vs)
@@ -542,6 +592,31 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             return values;
         }
 
+        public static IList<string> ReadDisplayRowValuesAlignedWithoutElementId(ViewSchedule vs, IList<ScheduleRoundtripColumn> cols, int rowRel)
+        {
+            var values = new List<string>();
+            var table = vs.GetTableData();
+            var body = table.GetSectionData(SectionType.Body);
+            if (body == null) return values;
+
+            var visibleFields = vs.Definition.GetFieldOrder()
+                .Select(fid => vs.Definition.GetField(fid))
+                .Where(f => f != null && !f.IsHidden)
+                .ToList();
+
+            var nonIdColumnIndexes = new List<int>();
+            for (int i = 0; i < visibleFields.Count; i++)
+            {
+                if (!IsElementIdLikeField(visibleFields[i]))
+                    nonIdColumnIndexes.Add(i);
+            }
+
+            for (int i = 0; i < cols.Count && i < nonIdColumnIndexes.Count; i++)
+                values.Add(GetCellText(vs, body, SectionType.Body, rowRel, nonIdColumnIndexes[i]));
+
+            return values;
+        }
+
         public static string BuildRowKeyFromValues(IList<string> values, IList<int> keyIndexes)
         {
             if (keyIndexes == null || keyIndexes.Count == 0)
@@ -594,28 +669,61 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             return Enumerable.Range(0, cols.Count).ToList();
         }
 
-        public static IDictionary<string, List<int>> BuildDisplayRowElementMap(Document doc, ViewSchedule source, ViewSchedule mappingWork, IList<ScheduleRoundtripColumn> cols)
+        private static IList<(int RowIndex, int ElementId)> EnumerateMappingRowsWithElementIds(
+            Document doc,
+            ViewSchedule mappingWork,
+            IList<int>? fallbackElementIds = null)
+        {
+            var pairs = new List<(int RowIndex, int ElementId)>();
+            var workTable = mappingWork.GetTableData();
+            var workBody = workTable.GetSectionData(SectionType.Body);
+            if (workBody == null)
+                return pairs;
+
+            int elementIdCol = FindElementIdColumnIndex(mappingWork);
+            if (elementIdCol >= 0)
+            {
+                for (int r = 0; r < workBody.NumberOfRows; r++)
+                {
+                    var idText = GetCellText(mappingWork, workBody, SectionType.Body, r, elementIdCol);
+                    if (!int.TryParse((idText ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var eid))
+                        continue;
+                    if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) == null)
+                        continue;
+                    pairs.Add((r, eid));
+                }
+            }
+
+            if (pairs.Count > 0)
+                return pairs;
+
+            var fallback = (fallbackElementIds ?? Array.Empty<int>())
+                .Where(eid => doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) != null)
+                .Distinct()
+                .ToList();
+
+            if (fallback.Count == 0)
+                return pairs;
+
+            int max = Math.Min(workBody.NumberOfRows, fallback.Count);
+            for (int r = 0; r < max; r++)
+                pairs.Add((r, fallback[r]));
+
+            return pairs;
+        }
+
+        public static IDictionary<string, List<int>> BuildDisplayRowElementMap(
+            Document doc,
+            ViewSchedule source,
+            ViewSchedule mappingWork,
+            IList<ScheduleRoundtripColumn> cols,
+            IList<int>? fallbackElementIds = null)
         {
             var map = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
             var keyIndexes = GetDisplayKeyColumnIndexes(source, cols);
-            var workTable = mappingWork.GetTableData();
-            var workBody = workTable.GetSectionData(SectionType.Body);
-            if (workBody == null) return map;
-
-            int elementIdCol = FindElementIdColumnIndex(mappingWork);
-            if (elementIdCol < 0) return map;
-
-            for (int r = 0; r < workBody.NumberOfRows; r++)
+            foreach (var pair in EnumerateMappingRowsWithElementIds(doc, mappingWork, fallbackElementIds))
             {
-                var idText = GetCellText(mappingWork, workBody, SectionType.Body, r, elementIdCol);
-                if (!int.TryParse((idText ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var eid))
-                    continue;
-                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) == null)
-                    continue;
-
-                var rowValues = new List<string>();
-                foreach (var col in cols)
-                    rowValues.Add(GetCellText(mappingWork, workBody, SectionType.Body, r, col.ScheduleColumnIndex));
+                var rowValues = ReadDisplayRowValuesAlignedWithoutElementId(mappingWork, cols, pair.RowIndex);
 
                 var key = BuildRowKeyFromValues(rowValues, keyIndexes);
                 if (!map.TryGetValue(key, out var ids))
@@ -624,34 +732,23 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     map[key] = ids;
                 }
 
-                if (!ids.Contains(eid))
-                    ids.Add(eid);
+                if (!ids.Contains(pair.ElementId))
+                    ids.Add(pair.ElementId);
             }
 
             return map;
         }
 
-        public static IDictionary<string, List<int>> BuildExactDisplayRowElementMap(Document doc, ViewSchedule mappingWork, IList<ScheduleRoundtripColumn> cols)
+        public static IDictionary<string, List<int>> BuildExactDisplayRowElementMap(
+            Document doc,
+            ViewSchedule mappingWork,
+            IList<ScheduleRoundtripColumn> cols,
+            IList<int>? fallbackElementIds = null)
         {
             var map = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-            var workTable = mappingWork.GetTableData();
-            var workBody = workTable.GetSectionData(SectionType.Body);
-            if (workBody == null) return map;
-
-            int elementIdCol = FindElementIdColumnIndex(mappingWork);
-            if (elementIdCol < 0) return map;
-
-            for (int r = 0; r < workBody.NumberOfRows; r++)
+            foreach (var pair in EnumerateMappingRowsWithElementIds(doc, mappingWork, fallbackElementIds))
             {
-                var idText = GetCellText(mappingWork, workBody, SectionType.Body, r, elementIdCol);
-                if (!int.TryParse((idText ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var eid))
-                    continue;
-                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) == null)
-                    continue;
-
-                var rowValues = new List<string>();
-                foreach (var col in cols)
-                    rowValues.Add(GetCellText(mappingWork, workBody, SectionType.Body, r, col.ScheduleColumnIndex));
+                var rowValues = ReadDisplayRowValuesAlignedWithoutElementId(mappingWork, cols, pair.RowIndex);
 
                 var key = BuildRowKeyFromValues(rowValues, Enumerable.Range(0, rowValues.Count).ToList());
                 if (!map.TryGetValue(key, out var ids))
@@ -660,32 +757,23 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     map[key] = ids;
                 }
 
-                if (!ids.Contains(eid))
-                    ids.Add(eid);
+                if (!ids.Contains(pair.ElementId))
+                    ids.Add(pair.ElementId);
             }
 
             return map;
         }
 
-        public static IList<(int ElementId, IList<string> Values)> BuildItemizedDisplayRows(Document doc, ViewSchedule mappingWork, IList<ScheduleRoundtripColumn> cols)
+        public static IList<(int ElementId, IList<string> Values)> BuildItemizedDisplayRows(
+            Document doc,
+            ViewSchedule mappingWork,
+            IList<ScheduleRoundtripColumn> cols,
+            IList<int>? fallbackElementIds = null)
         {
             var rows = new List<(int ElementId, IList<string> Values)>();
-            var workTable = mappingWork.GetTableData();
-            var workBody = workTable.GetSectionData(SectionType.Body);
-            if (workBody == null) return rows;
-
-            int elementIdCol = FindElementIdColumnIndex(mappingWork);
-            if (elementIdCol < 0) return rows;
-
-            for (int r = 0; r < workBody.NumberOfRows; r++)
+            foreach (var pair in EnumerateMappingRowsWithElementIds(doc, mappingWork, fallbackElementIds))
             {
-                var idText = GetCellText(mappingWork, workBody, SectionType.Body, r, elementIdCol);
-                if (!int.TryParse((idText ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var eid))
-                    continue;
-                if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid)) == null)
-                    continue;
-
-                rows.Add((eid, ReadDisplayRowValues(mappingWork, cols, r)));
+                rows.Add((pair.ElementId, ReadDisplayRowValuesAlignedWithoutElementId(mappingWork, cols, pair.RowIndex)));
             }
 
             return rows;
@@ -756,7 +844,15 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                    || normalized.IndexOf("type", StringComparison.OrdinalIgnoreCase) >= 0
                    || normalized.IndexOf("符号", StringComparison.OrdinalIgnoreCase) >= 0
                    || normalized.IndexOf("番号", StringComparison.OrdinalIgnoreCase) >= 0
-                   || normalized.IndexOf("name", StringComparison.OrdinalIgnoreCase) >= 0;
+                   || normalized.IndexOf("部屋番号", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("room number", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("name", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("名前", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("部屋名", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("level", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("レベル", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("階", StringComparison.OrdinalIgnoreCase) >= 0
+                   || normalized.IndexOf("room name", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public static IList<int> SelectiveMatchDisplayRowToElementIds(
@@ -994,6 +1090,34 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             }
         }
 
+        public static bool ExportValuesEqual(string? left, string? right)
+        {
+            return string.Equals(
+                (left ?? string.Empty).Trim(),
+                (right ?? string.Empty).Trim(),
+                StringComparison.Ordinal);
+        }
+
+        public static string BuildWorksheetRowLabel(
+            IXLWorksheet ws,
+            int rowNumber,
+            IList<ScheduleRoundtripColumn> cols,
+            int maxParts = 3)
+        {
+            var parts = new List<string>();
+            foreach (var col in cols.OrderBy(x => x.OutputColumnNumber))
+            {
+                var value = (ws.Cell(rowNumber, col.OutputColumnNumber).GetString() ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+                parts.Add(value);
+                if (parts.Count >= maxParts)
+                    break;
+            }
+
+            return parts.Count == 0 ? $"row-{rowNumber}" : string.Join(" / ", parts);
+        }
+
         public static void WriteMetaSheet(IXLWorksheet meta, Document doc, ViewSchedule schedule, IList<ScheduleRoundtripColumn> cols)
         {
             meta.Cell(1, 1).Value = "docTitle";
@@ -1227,6 +1351,102 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             return false;
         }
 
+        public static string GetPreviewComparableValue(Parameter param, ScheduleRoundtripColumn col)
+        {
+            try
+            {
+                if (col.IsBoolean || IsYesNoParameter(param))
+                    return param.AsInteger() != 0 ? "1" : "0";
+
+                switch (param.StorageType)
+                {
+                    case StorageType.String:
+                        return (param.AsString() ?? string.Empty).Trim();
+                    case StorageType.Integer:
+                        return param.AsInteger().ToString(CultureInfo.InvariantCulture);
+                    case StorageType.Double:
+                        return (param.AsValueString() ?? string.Empty).Trim();
+                    case StorageType.ElementId:
+                        var id = param.AsElementId();
+                        return id == null || id == ElementId.InvalidElementId
+                            ? string.Empty
+                            : id.IntValue().ToString(CultureInfo.InvariantCulture);
+                    default:
+                        return string.Empty;
+                }
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        public static bool TryNormalizeImportedPreviewValue(
+            Parameter param,
+            ScheduleRoundtripColumn col,
+            string rawText,
+            out string normalizedDisplay,
+            out string comparableValue,
+            out string message)
+        {
+            normalizedDisplay = string.Empty;
+            comparableValue = string.Empty;
+            message = string.Empty;
+
+            var text = (rawText ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(text))
+            {
+                message = "blank-skip";
+                return false;
+            }
+
+            if (col.IsBoolean || IsYesNoParameter(param))
+            {
+                if (!TryParseBooleanText(text, out var b))
+                {
+                    message = "Expected ☑/☐.";
+                    return false;
+                }
+
+                normalizedDisplay = b ? "☑" : "☐";
+                comparableValue = b ? "1" : "0";
+                return true;
+            }
+
+            switch (param.StorageType)
+            {
+                case StorageType.String:
+                    normalizedDisplay = text;
+                    comparableValue = text;
+                    return true;
+                case StorageType.Integer:
+                    if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv))
+                    {
+                        normalizedDisplay = iv.ToString(CultureInfo.InvariantCulture);
+                        comparableValue = normalizedDisplay;
+                        return true;
+                    }
+                    message = "Expected integer.";
+                    return false;
+                case StorageType.Double:
+                    normalizedDisplay = text;
+                    comparableValue = text;
+                    return true;
+                case StorageType.ElementId:
+                    if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var eid))
+                    {
+                        normalizedDisplay = eid.ToString(CultureInfo.InvariantCulture);
+                        comparableValue = normalizedDisplay;
+                        return true;
+                    }
+                    message = "Expected ElementId integer.";
+                    return false;
+                default:
+                    message = "Unsupported StorageType.";
+                    return false;
+            }
+        }
+
         public static bool TryParseBooleanText(string text, out bool value)
         {
             var s = (text ?? string.Empty).Trim();
@@ -1404,6 +1624,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             else if (exportMode != ScheduleRoundtripExcelUtil.ExportModeDisplay)
                 exportMode = ScheduleRoundtripExcelUtil.ExportModeRoundtrip;
             ElementId tempId = ElementId.InvalidElementId;
+            ElementId mappingTempId = ElementId.InvalidElementId;
 
             try
             {
@@ -1422,22 +1643,43 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 var columnSourceSchedule = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay ? schedule : work;
                 var cols = ScheduleRoundtripExcelUtil.BuildColumns(doc, columnSourceSchedule, rowElementIds);
                 var displaySchedule = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay ? schedule : work;
+                bool sourceIsItemized = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay
+                    ? ScheduleRoundtripExcelUtil.IsScheduleItemized(schedule)
+                    : true;
+                var workTable = work.GetTableData();
+                var workBody = workTable.GetSectionData(SectionType.Body);
                 var table = displaySchedule.GetTableData();
                 var body = table.GetSectionData(SectionType.Body);
                 if (body == null)
                     return new { ok = false, msg = "Schedule body section not found." };
                 int elementIdCol = ScheduleRoundtripExcelUtil.FindElementIdColumnIndex(work);
+                var mappingSourceWork = work;
+                var mappingSourceRowElementIds = ScheduleRoundtripExcelUtil.ReadRowElementIds(doc, mappingSourceWork);
+                if (mappingSourceRowElementIds.Count == 0)
+                    mappingSourceRowElementIds = ScheduleRoundtripExcelUtil.GetElementsInScheduleView(doc, mappingSourceWork);
+                if (exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay && sourceIsItemized)
+                {
+                    mappingSourceWork = ScheduleRoundtripExcelUtil.PrepareTemporarySchedule(
+                        doc,
+                        schedule,
+                        out mappingTempId,
+                        removeSortGroupFields: true);
+                    mappingSourceRowElementIds = ScheduleRoundtripExcelUtil.ReadRowElementIds(doc, mappingSourceWork);
+                    if (mappingSourceRowElementIds.Count == 0)
+                        mappingSourceRowElementIds = ScheduleRoundtripExcelUtil.GetElementsInScheduleView(doc, mappingSourceWork);
+                }
+
                 var displayRowElementMap = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay
-                    ? ScheduleRoundtripExcelUtil.BuildDisplayRowElementMap(doc, schedule, work, cols)
+                    ? ScheduleRoundtripExcelUtil.BuildDisplayRowElementMap(doc, schedule, mappingSourceWork, cols, mappingSourceRowElementIds)
                     : new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
                 var exactDisplayRowElementMap = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay
-                    ? ScheduleRoundtripExcelUtil.BuildExactDisplayRowElementMap(doc, work, cols)
+                    ? ScheduleRoundtripExcelUtil.BuildExactDisplayRowElementMap(doc, mappingSourceWork, cols, mappingSourceRowElementIds)
                     : new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
                 var identityValueElementMap = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay
-                    ? ScheduleRoundtripExcelUtil.BuildIdentityValueElementMap(doc, rowElementIds, cols)
+                    ? ScheduleRoundtripExcelUtil.BuildIdentityValueElementMap(doc, mappingSourceRowElementIds, cols)
                     : new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
                 var itemizedDisplayRows = exportMode == ScheduleRoundtripExcelUtil.ExportModeDisplay
-                    ? ScheduleRoundtripExcelUtil.BuildItemizedDisplayRows(doc, work, cols)
+                    ? ScheduleRoundtripExcelUtil.BuildItemizedDisplayRows(doc, mappingSourceWork, cols, mappingSourceRowElementIds)
                     : new List<(int ElementId, IList<string> Values)>();
 
                 using (var wb = new XLWorkbook(XLEventTracking.Disabled))
@@ -1468,24 +1710,28 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             if (rowValues.Count == 0)
                                 continue;
 
-                            var exactKey = ScheduleRoundtripExcelUtil.BuildRowKeyFromValues(rowValues, Enumerable.Range(0, rowValues.Count).ToList());
-                            exactDisplayRowElementMap.TryGetValue(exactKey, out var mappedIds);
-
+                            List<int>? mappedIds = null;
                             if (mappedIds == null || mappedIds.Count == 0)
+                            {
+                                var exactKey = ScheduleRoundtripExcelUtil.BuildRowKeyFromValues(rowValues, Enumerable.Range(0, rowValues.Count).ToList());
+                                exactDisplayRowElementMap.TryGetValue(exactKey, out mappedIds);
+                            }
+
+                            if (!sourceIsItemized && (mappedIds == null || mappedIds.Count == 0))
                             {
                                 var rowKey = ScheduleRoundtripExcelUtil.BuildRowKeyFromValues(rowValues, keyIndexes);
                                 if (!string.IsNullOrWhiteSpace(ScheduleRoundtripExcelUtil.NormalizeKeyText(rowKey)))
                                     displayRowElementMap.TryGetValue(rowKey, out mappedIds);
                             }
 
-                            if (mappedIds == null || mappedIds.Count == 0)
+                            if (!sourceIsItemized && (mappedIds == null || mappedIds.Count == 0))
                             {
                                 mappedIds = ScheduleRoundtripExcelUtil
                                     .MatchDisplayRowToElementIdsByIdentityValueMap(rowValues, cols, identityValueElementMap)
                                     .ToList();
                             }
 
-                            if (mappedIds == null || mappedIds.Count == 0)
+                            if (!sourceIsItemized && (mappedIds == null || mappedIds.Count == 0))
                             {
                                 mappedIds = ScheduleRoundtripExcelUtil
                                     .SelectiveMatchDisplayRowToElementIds(rowValues, cols, itemizedDisplayRows)
@@ -1601,6 +1847,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             finally
             {
                 ScheduleRoundtripExcelUtil.CleanupTempSchedule(doc, tempId);
+                ScheduleRoundtripExcelUtil.CleanupTempSchedule(doc, mappingTempId);
             }
         }
     }
@@ -1620,9 +1867,17 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 return new { ok = false, msg = "filePath is required." };
             if (!File.Exists(filePath))
                 return new { ok = false, msg = $"File not found: {filePath}" };
+            var ext = Path.GetExtension(filePath ?? string.Empty);
+            if (!string.Equals(ext, ".xlsx", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(ext, ".xltx", StringComparison.OrdinalIgnoreCase))
+            {
+                return new { ok = false, msg = "Only .xlsx and .xltx are supported. Macro-enabled Excel files are not accepted." };
+            }
 
             var reportPath = p.Value<string>("reportPath") ?? ScheduleRoundtripExcelUtil.GetDefaultImportReportPath(filePath);
+            var auditJsonPath = p.Value<string>("auditJsonPath") ?? Path.ChangeExtension(reportPath, ".json");
             Directory.CreateDirectory(Path.GetDirectoryName(reportPath) ?? Path.GetTempPath());
+            Directory.CreateDirectory(Path.GetDirectoryName(auditJsonPath) ?? Path.GetTempPath());
 
             try
             {
@@ -1647,9 +1902,13 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         return new { ok = false, msg = "No editable columns found in metadata." };
 
                     int updatedCount = 0;
+                    int changedCount = 0;
+                    int unchangedCount = 0;
                     int skippedCount = 0;
                     int failedCount = 0;
                     var reportRows = new List<string> { "row,elementId,updated,skipped,failed,message" };
+                    var auditChanges = new List<object>();
+                    var auditRows = new List<ScheduleImportAuditRowResult>();
                     var exportMode = meta.Cell(4, 2).GetString();
                     int missingElementIdRows = 0;
                     ViewSchedule? displaySchedule = null;
@@ -1695,7 +1954,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                     mappingRowElementIds = ScheduleRoundtripExcelUtil.GetElementsInScheduleView(doc, mappingWork);
                                 displayCols = ScheduleRoundtripExcelUtil.BuildColumns(doc, displaySchedule, mappingRowElementIds);
                                 identityValueElementMap = ScheduleRoundtripExcelUtil.BuildIdentityValueElementMap(doc, mappingRowElementIds, displayCols);
-                                itemizedDisplayRows = ScheduleRoundtripExcelUtil.BuildItemizedDisplayRows(doc, mappingWork, displayCols);
+                                itemizedDisplayRows = ScheduleRoundtripExcelUtil.BuildItemizedDisplayRows(doc, mappingWork, displayCols, mappingRowElementIds);
                                 worksheetHeaderColumnMap = ScheduleRoundtripExcelUtil.BuildWorksheetHeaderColumnMap(ws);
                             }
                         }
@@ -1712,8 +1971,13 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         {
                             var idText = ws.Cell(row, 1).GetString();
                             var rowElementIds = ScheduleRoundtripExcelUtil.ParseElementIds(idText);
+                            var mappingSource = rowElementIds.Count > 0 ? "worksheet-hidden-id-column" : string.Empty;
                             if (rowElementIds.Count == 0 && rowMap.TryGetValue(row, out var mappedRowIds))
+                            {
                                 rowElementIds = mappedRowIds;
+                                if (rowElementIds.Count > 0)
+                                    mappingSource = "worksheet-row-map";
+                            }
                             if (rowElementIds.Count == 0
                                 && string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase)
                                 && displayCols.Count > 0
@@ -1727,18 +1991,31 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                 rowElementIds = ScheduleRoundtripExcelUtil
                                     .MatchDisplayRowToElementIdsByIdentityValueMap(displayRowValues, displayCols, identityValueElementMap)
                                     .ToList();
+                                if (rowElementIds.Count > 0)
+                                    mappingSource = "display-identity-value-map";
                                 if (rowElementIds.Count == 0)
                                 {
                                     rowElementIds = ScheduleRoundtripExcelUtil
                                         .SelectiveMatchDisplayRowToElementIds(displayRowValues, displayCols, itemizedDisplayRows)
                                         .ToList();
+                                    if (rowElementIds.Count > 0)
+                                        mappingSource = "display-selective-match";
                                 }
                             }
+                            var rowAudit = new ScheduleImportAuditRowResult
+                            {
+                                Row = row,
+                                MappingSource = string.IsNullOrWhiteSpace(mappingSource) ? "unmapped" : mappingSource,
+                                ElementIds = rowElementIds.ToList()
+                            };
                             if (rowElementIds.Count == 0)
                             {
                                 skippedCount++;
                                 missingElementIdRows++;
+                                rowAudit.Skipped = 1;
+                                rowAudit.Message = "missing-element-id";
                                 reportRows.Add($"{row},,0,1,0,missing-element-id");
+                                auditRows.Add(rowAudit);
                                 continue;
                             }
 
@@ -1750,9 +2027,19 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             foreach (var col in cols)
                             {
                                 var cellText = ws.Cell(row, col.OutputColumnNumber).GetString();
+                                var cellAudit = new ScheduleImportAuditCellResult
+                                {
+                                    OutputColumnNumber = col.OutputColumnNumber,
+                                    Header = col.Header,
+                                    ParameterName = col.ParamName,
+                                    ImportedValue = cellText ?? string.Empty
+                                };
                                 if (string.IsNullOrWhiteSpace(cellText))
                                 {
                                     rowSkipped++;
+                                    cellAudit.Status = "skipped";
+                                    cellAudit.Message = "blank-cell";
+                                    rowAudit.Cells.Add(cellAudit);
                                     continue;
                                 }
 
@@ -1763,6 +2050,14 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                     {
                                         rowFailed++;
                                         rowMessages.Add($"{col.Header}:element-not-found({eid})");
+                                        cellAudit.Status = "failed";
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = "failed",
+                                            Imported = cellText ?? string.Empty,
+                                            Message = "element-not-found"
+                                        });
                                         continue;
                                     }
 
@@ -1770,6 +2065,13 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                     if (prm == null || prm.IsReadOnly)
                                     {
                                         rowSkipped++;
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = "skipped",
+                                            Imported = cellText ?? string.Empty,
+                                            Message = prm == null ? "parameter-not-found" : "parameter-readonly"
+                                        });
                                         continue;
                                     }
 
@@ -1777,28 +2079,117 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                         && !int.TryParse((cellText ?? string.Empty).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
                                     {
                                         rowSkipped++;
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = "skipped",
+                                            Imported = cellText ?? string.Empty,
+                                            Message = "elementid-text-not-supported"
+                                        });
                                         continue;
                                     }
 
+                                    var beforeValue = ScheduleRoundtripExcelUtil.GetExportValueForColumn(element, col, prm.AsValueString() ?? prm.AsString() ?? string.Empty);
                                     if (ScheduleRoundtripExcelUtil.TryApplyImportedValue(prm, col, cellText, out var msg))
                                     {
                                         rowUpdated++;
+                                        var afterValue = ScheduleRoundtripExcelUtil.GetExportValueForColumn(element, col, prm.AsValueString() ?? prm.AsString() ?? string.Empty);
+                                        var changed = !ScheduleRoundtripExcelUtil.ExportValuesEqual(beforeValue, afterValue);
+                                        if (changed)
+                                            changedCount++;
+                                        else
+                                            unchangedCount++;
+
+                                        var changeRecord = new
+                                        {
+                                            row,
+                                            elementId = eid,
+                                            parameter = col.Header,
+                                            parameterName = col.ParamName,
+                                            before = beforeValue,
+                                            imported = cellText,
+                                            after = afterValue,
+                                            changed,
+                                            mode = exportMode,
+                                            mappingSource = rowAudit.MappingSource,
+                                            appliedAt = DateTime.Now.ToString("O", CultureInfo.InvariantCulture)
+                                        };
+                                        if (changed)
+                                            auditChanges.Add(changeRecord);
+
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = changed ? "changed" : "unchanged",
+                                            Before = beforeValue,
+                                            Imported = cellText ?? string.Empty,
+                                            After = afterValue,
+                                            Message = changed ? "value-changed" : "no-effective-change"
+                                        });
                                     }
                                     else if (string.Equals(msg, "blank-skip", StringComparison.OrdinalIgnoreCase))
                                     {
                                         rowSkipped++;
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = "skipped",
+                                            Before = beforeValue,
+                                            Imported = cellText ?? string.Empty,
+                                            After = beforeValue,
+                                            Message = "blank-skip"
+                                        });
                                     }
                                     else
                                     {
                                         rowFailed++;
                                         rowMessages.Add($"{col.Header}[{eid}]:{msg}");
+                                        cellAudit.Elements.Add(new ScheduleImportAuditElementResult
+                                        {
+                                            ElementId = eid,
+                                            Status = "failed",
+                                            Before = beforeValue,
+                                            Imported = cellText ?? string.Empty,
+                                            After = beforeValue,
+                                            Message = msg ?? string.Empty
+                                        });
                                     }
                                 }
+
+                                if (cellAudit.Elements.Count == 0)
+                                {
+                                    cellAudit.Status = "skipped";
+                                    if (string.IsNullOrWhiteSpace(cellAudit.Message))
+                                        cellAudit.Message = "no-target-elements";
+                                }
+                                else if (cellAudit.Elements.Any(x => string.Equals(x.Status, "failed", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    cellAudit.Status = "failed";
+                                }
+                                else if (cellAudit.Elements.Any(x => string.Equals(x.Status, "changed", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    cellAudit.Status = "changed";
+                                }
+                                else if (cellAudit.Elements.Any(x => string.Equals(x.Status, "unchanged", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    cellAudit.Status = "unchanged";
+                                }
+                                else
+                                {
+                                    cellAudit.Status = "skipped";
+                                }
+
+                                rowAudit.Cells.Add(cellAudit);
                             }
 
                             updatedCount += rowUpdated;
                             skippedCount += rowSkipped;
                             failedCount += rowFailed;
+                            rowAudit.Updated = rowUpdated;
+                            rowAudit.Skipped = rowSkipped;
+                            rowAudit.Failed = rowFailed;
+                            rowAudit.Message = string.Join(" | ", rowMessages);
+                            auditRows.Add(rowAudit);
                             reportRows.Add($"{row},\"{string.Join(";", rowElementIds)}\",{rowUpdated},{rowSkipped},{rowFailed},\"{string.Join(" | ", rowMessages).Replace("\"", "\"\"")}\"");
                         }
 
@@ -1812,6 +2203,23 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                         && missingElementIdRows > 0)
                     {
                         File.WriteAllLines(reportPath, reportRows);
+                        File.WriteAllText(auditJsonPath, JsonConvert.SerializeObject(new
+                        {
+                            ok = false,
+                            filePath,
+                            reportPath,
+                            auditJsonPath,
+                            docTitle = doc.Title,
+                            docGuid = p.Value<string>("docGuid") ?? string.Empty,
+                            mode = exportMode,
+                            updatedCount,
+                            changedCount,
+                            unchangedCount,
+                            skippedCount,
+                            failedCount,
+                            changes = auditChanges,
+                            rows = auditRows
+                        }, Formatting.Indented));
                         return new
                         {
                             ok = false,
@@ -1819,6 +2227,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                             detail = "display export rows could not be mapped back to element ids. Re-export with the latest addin.",
                             path = filePath,
                             reportPath,
+                            auditJsonPath,
                             mode = exportMode,
                             updatedCount,
                             skippedCount,
@@ -1828,12 +2237,33 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     }
 
                     File.WriteAllLines(reportPath, reportRows);
+                    File.WriteAllText(auditJsonPath, JsonConvert.SerializeObject(new
+                    {
+                        ok = true,
+                        filePath,
+                        reportPath,
+                        auditJsonPath,
+                        docTitle = doc.Title,
+                        docGuid = p.Value<string>("docGuid") ?? string.Empty,
+                        mode = exportMode,
+                        updatedCount,
+                        changedCount,
+                        unchangedCount,
+                        skippedCount,
+                        failedCount,
+                        changes = auditChanges,
+                        rows = auditRows,
+                        generatedAt = DateTime.Now.ToString("O", CultureInfo.InvariantCulture),
+                        editorUser = Environment.UserName,
+                        machineName = Environment.MachineName
+                    }, Formatting.Indented));
 
                     return new
                     {
                         ok = true,
                         path = filePath,
                         reportPath,
+                        auditJsonPath,
                         mode = exportMode,
                         updatedCount,
                         skippedCount,
@@ -1851,6 +2281,285 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             catch (Exception ex)
             {
                 return new { ok = false, msg = "Roundtrip Excel import failed.", detail = ex.Message };
+            }
+        }
+    }
+
+    public class PreviewScheduleRoundtripExcelCommand : IRevitCommandHandler
+    {
+        public string CommandName => "preview_schedule_roundtrip_excel";
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
+            if (doc == null) return new { ok = false, msg = "No target document." };
+
+            var p = (JObject)(cmd.Params ?? new JObject());
+            var filePath = p.Value<string>("filePath") ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(filePath))
+                return new { ok = false, msg = "filePath is required." };
+            if (!File.Exists(filePath))
+                return new { ok = false, msg = $"File not found: {filePath}" };
+
+            try
+            {
+                using (var wb = new XLWorkbook(filePath, XLEventTracking.Disabled))
+                {
+                    var dataSheetName = p.Value<string>("sheetName") ?? ScheduleRoundtripExcelUtil.DataSheetName;
+                    var ws = wb.Worksheets.FirstOrDefault(x => string.Equals(x.Name, dataSheetName, StringComparison.OrdinalIgnoreCase))
+                             ?? wb.Worksheets.FirstOrDefault(x => !string.Equals(x.Name, ScheduleRoundtripExcelUtil.MetaSheetName, StringComparison.OrdinalIgnoreCase)
+                                                               && !string.Equals(x.Name, ScheduleRoundtripExcelUtil.ReadmeSheetName, StringComparison.OrdinalIgnoreCase));
+                    if (ws == null)
+                        return new { ok = false, msg = "Data sheet not found in workbook." };
+
+                    var meta = wb.Worksheets.FirstOrDefault(x => string.Equals(x.Name, ScheduleRoundtripExcelUtil.MetaSheetName, StringComparison.OrdinalIgnoreCase));
+                    if (meta == null)
+                        return new { ok = false, msg = "Metadata sheet not found. Use export_schedule_roundtrip_excel output." };
+                    var rowMapSheet = wb.Worksheets.FirstOrDefault(x => string.Equals(x.Name, ScheduleRoundtripExcelUtil.RowMapSheetName, StringComparison.OrdinalIgnoreCase));
+                    var rowMap = ScheduleRoundtripExcelUtil.ReadRowMapSheet(rowMapSheet);
+
+                    var cols = ScheduleRoundtripExcelUtil.ReadMetaSheet(meta).Where(c => c.Editable).ToList();
+                    if (cols.Count == 0)
+                        return new { ok = false, msg = "No editable columns found in metadata." };
+
+                    var exportMode = meta.Cell(4, 2).GetString();
+                    ViewSchedule? displaySchedule = null;
+                    ElementId tempId = ElementId.InvalidElementId;
+                    IList<ScheduleRoundtripColumn> displayCols = Array.Empty<ScheduleRoundtripColumn>();
+                    IList<(int ElementId, IList<string> Values)> itemizedDisplayRows = Array.Empty<(int ElementId, IList<string> Values)>();
+                    IDictionary<string, int> worksheetHeaderColumnMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    IDictionary<string, List<int>> identityValueElementMap = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+
+                    try
+                    {
+                        if (string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var scheduleViewIdText = meta.Cell(2, 2).GetString();
+                            if (int.TryParse(scheduleViewIdText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scheduleViewId))
+                                displaySchedule = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(scheduleViewId)) as ViewSchedule;
+
+                            if (displaySchedule == null)
+                            {
+                                var scheduleName = meta.Cell(3, 2).GetString();
+                                if (!string.IsNullOrWhiteSpace(scheduleName))
+                                {
+                                    displaySchedule = new FilteredElementCollector(doc)
+                                        .OfClass(typeof(ViewSchedule))
+                                        .Cast<ViewSchedule>()
+                                        .FirstOrDefault(v => !v.IsTemplate &&
+                                                             string.Equals(v.Name, scheduleName, StringComparison.OrdinalIgnoreCase));
+                                }
+                            }
+
+                            if (displaySchedule == null)
+                                displaySchedule = uiapp.ActiveUIDocument?.ActiveView as ViewSchedule;
+
+                            if (displaySchedule != null)
+                            {
+                                var mappingWork = ScheduleRoundtripExcelUtil.PrepareTemporarySchedule(
+                                    doc,
+                                    displaySchedule,
+                                    out tempId,
+                                    removeSortGroupFields: false);
+                                var mappingRowElementIds = ScheduleRoundtripExcelUtil.ReadRowElementIds(doc, mappingWork);
+                                if (mappingRowElementIds.Count == 0)
+                                    mappingRowElementIds = ScheduleRoundtripExcelUtil.GetElementsInScheduleView(doc, mappingWork);
+                                displayCols = ScheduleRoundtripExcelUtil.BuildColumns(doc, displaySchedule, mappingRowElementIds);
+                                identityValueElementMap = ScheduleRoundtripExcelUtil.BuildIdentityValueElementMap(doc, mappingRowElementIds, displayCols);
+                                itemizedDisplayRows = ScheduleRoundtripExcelUtil.BuildItemizedDisplayRows(doc, mappingWork, displayCols, mappingRowElementIds);
+                                worksheetHeaderColumnMap = ScheduleRoundtripExcelUtil.BuildWorksheetHeaderColumnMap(ws);
+                            }
+                        }
+                    }
+                    catch { }
+
+                    var rows = new List<object>();
+                    int changedCellCount = 0;
+                    int unchangedCellCount = 0;
+                    int skippedCellCount = 0;
+                    int failedCellCount = 0;
+                    int lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+                    for (int row = 2; row <= lastRow; row++)
+                    {
+                        var idText = ws.Cell(row, 1).GetString();
+                        var rowElementIds = ScheduleRoundtripExcelUtil.ParseElementIds(idText);
+                        var mappingSource = rowElementIds.Count > 0 ? "worksheet-hidden-id-column" : string.Empty;
+                        if (rowElementIds.Count == 0 && rowMap.TryGetValue(row, out var mappedRowIds))
+                        {
+                            rowElementIds = mappedRowIds;
+                            if (rowElementIds.Count > 0)
+                                mappingSource = "worksheet-row-map";
+                        }
+                        if (rowElementIds.Count == 0
+                            && string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase)
+                            && displayCols.Count > 0
+                            && itemizedDisplayRows.Count > 0)
+                        {
+                            var displayRowValues = ScheduleRoundtripExcelUtil.ReadWorksheetDisplayRowValues(
+                                ws,
+                                row,
+                                displayCols,
+                                worksheetHeaderColumnMap);
+                            rowElementIds = ScheduleRoundtripExcelUtil
+                                .MatchDisplayRowToElementIdsByIdentityValueMap(displayRowValues, displayCols, identityValueElementMap)
+                                .ToList();
+                            if (rowElementIds.Count > 0)
+                                mappingSource = "display-identity-value-map";
+                            if (rowElementIds.Count == 0)
+                            {
+                                rowElementIds = ScheduleRoundtripExcelUtil
+                                    .SelectiveMatchDisplayRowToElementIds(displayRowValues, displayCols, itemizedDisplayRows)
+                                    .ToList();
+                                if (rowElementIds.Count > 0)
+                                    mappingSource = "display-selective-match";
+                            }
+                        }
+
+                        var rowLabel = ScheduleRoundtripExcelUtil.BuildWorksheetRowLabel(ws, row, cols);
+                        if (rowElementIds.Count == 0)
+                        {
+                            rows.Add(new
+                            {
+                                row,
+                                label = rowLabel,
+                                mappingSource = string.IsNullOrWhiteSpace(mappingSource) ? "unmapped" : mappingSource,
+                                elementIds = Array.Empty<int>(),
+                                status = "UNMAPPED",
+                                message = "missing-element-id",
+                                cells = Array.Empty<object>()
+                            });
+                            skippedCellCount++;
+                            continue;
+                        }
+
+                        var cellResults = new List<object>();
+                        var rowHasChanged = false;
+                        foreach (var col in cols)
+                        {
+                            var cellText = ws.Cell(row, col.OutputColumnNumber).GetString();
+                            if (string.IsNullOrWhiteSpace(cellText))
+                                continue;
+
+                            var elementResults = new List<object>();
+                            var cellStatus = "UNCHANGED";
+                            var cellMessage = string.Empty;
+
+                            foreach (var eid in rowElementIds)
+                            {
+                                var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(eid));
+                                if (element == null)
+                                {
+                                    elementResults.Add(new { elementId = eid, status = "FAILED", before = string.Empty, imported = cellText, after = string.Empty, message = "element-not-found" });
+                                    cellStatus = "FAILED";
+                                    cellMessage = "element-not-found";
+                                    failedCellCount++;
+                                    continue;
+                                }
+
+                                var prm = ScheduleRoundtripExcelUtil.ResolveParameterOnElementOrType(element, col, out _, out _);
+                                if (prm == null)
+                                {
+                                    elementResults.Add(new { elementId = eid, status = "SKIPPED", before = string.Empty, imported = cellText, after = string.Empty, message = "parameter-not-found" });
+                                    if (!string.Equals(cellStatus, "FAILED", StringComparison.OrdinalIgnoreCase))
+                                        cellStatus = "SKIPPED";
+                                    skippedCellCount++;
+                                    continue;
+                                }
+                                if (prm.IsReadOnly)
+                                {
+                                    elementResults.Add(new { elementId = eid, status = "SKIPPED", before = string.Empty, imported = cellText, after = string.Empty, message = "parameter-readonly" });
+                                    if (!string.Equals(cellStatus, "FAILED", StringComparison.OrdinalIgnoreCase))
+                                        cellStatus = "SKIPPED";
+                                    skippedCellCount++;
+                                    continue;
+                                }
+
+                                var beforeValue = ScheduleRoundtripExcelUtil.GetExportValueForColumn(element, col, prm.AsValueString() ?? prm.AsString() ?? string.Empty);
+                                if (!ScheduleRoundtripExcelUtil.TryNormalizeImportedPreviewValue(prm, col, cellText, out var normalizedDisplay, out var importedComparable, out var msg))
+                                {
+                                    elementResults.Add(new { elementId = eid, status = "FAILED", before = beforeValue, imported = cellText, after = beforeValue, message = msg });
+                                    cellStatus = "FAILED";
+                                    cellMessage = msg;
+                                    failedCellCount++;
+                                    continue;
+                                }
+
+                                var beforeComparable = ScheduleRoundtripExcelUtil.GetPreviewComparableValue(prm, col);
+                                var changed = !ScheduleRoundtripExcelUtil.ExportValuesEqual(beforeComparable, importedComparable)
+                                           && !ScheduleRoundtripExcelUtil.ExportValuesEqual(beforeValue, normalizedDisplay);
+                                var status = changed ? "CHANGED" : "UNCHANGED";
+                                elementResults.Add(new
+                                {
+                                    elementId = eid,
+                                    status,
+                                    before = beforeValue,
+                                    imported = normalizedDisplay,
+                                    after = normalizedDisplay,
+                                    message = changed ? "will-update" : "no-effective-change"
+                                });
+
+                                if (changed)
+                                {
+                                    cellStatus = "CHANGED";
+                                    rowHasChanged = true;
+                                    changedCellCount++;
+                                }
+                                else if (!string.Equals(cellStatus, "CHANGED", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    unchangedCellCount++;
+                                }
+                            }
+
+                            if (elementResults.Count == 0)
+                                continue;
+
+                            cellResults.Add(new
+                            {
+                                outputColumnNumber = col.OutputColumnNumber,
+                                header = col.Header,
+                                parameterName = col.ParamName,
+                                importedValue = cellText,
+                                status = cellStatus,
+                                message = cellMessage,
+                                elements = elementResults
+                            });
+                        }
+
+                        var rowStatus = rowHasChanged ? "CHANGED" : "UNCHANGED";
+
+                        rows.Add(new
+                        {
+                            row,
+                            label = rowLabel,
+                            mappingSource = string.IsNullOrWhiteSpace(mappingSource) ? "worksheet-row-map" : mappingSource,
+                            elementIds = rowElementIds,
+                            status = rowStatus,
+                            message = string.Empty,
+                            cells = cellResults
+                        });
+                    }
+
+                    ScheduleRoundtripExcelUtil.CleanupTempSchedule(doc, tempId);
+
+                    return new
+                    {
+                        ok = true,
+                        path = filePath,
+                        mode = exportMode,
+                        scheduleViewId = meta.Cell(2, 2).GetString(),
+                        scheduleName = meta.Cell(3, 2).GetString(),
+                        editableColumnCount = cols.Count,
+                        changedCellCount,
+                        unchangedCellCount,
+                        skippedCellCount,
+                        failedCellCount,
+                        rows
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { ok = false, msg = "Schedule roundtrip preview failed.", detail = ex.Message };
             }
         }
     }

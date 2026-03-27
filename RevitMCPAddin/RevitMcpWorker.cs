@@ -740,7 +740,9 @@ namespace RevitMCPAddin
                 new InspectScheduleFieldsCommand(),
                 new ExportScheduleToExcelCommand(),
                 new ExportScheduleRoundtripExcelCommand(),
+                new PreviewScheduleRoundtripExcelCommand(),
                 new ImportScheduleRoundtripExcelCommand(),
+                new ConfirmHtmlScheduleImportCommand(),
 
                 // DXF Export
                 new GetCurvesByCategoryHandler(),
@@ -821,6 +823,7 @@ namespace RevitMCPAddin
                 new GetRoomsCommand(),
                 new GetRoomParamsCommand(),
                 new SetRoomParamCommand(),
+                new SetRoomParamsBulkCommand(),
                 new GetRoomBoundaryCommand(),
                 new GetRoomPerimeterWithColumnsAndWallsCommand(),
                 new GetRoomFinishTakeoffContextCommand(),
@@ -1239,6 +1242,7 @@ namespace RevitMCPAddin
                 new GetFamilyInstancesCommand(),
                 new GetFamilyTypesCommand(),
                 new QueryLoadedFamiliesCommand(),
+                new BatchAddFamilyParameterCommand(),
                 new CreateFamilyInstanceCommand(),
                 new MoveFamilyInstanceCommand(),
                 new DeleteFamilyInstanceCommand(),

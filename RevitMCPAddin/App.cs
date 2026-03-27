@@ -321,6 +321,18 @@ namespace RevitMCPAddin
                 if (uiapp != null) ViewWorkspaceService.OnIdling(uiapp);
             }
             catch { }
+            try
+            {
+                var uiapp = sender as UIApplication;
+                if (uiapp != null) HtmlScheduleImportQueueService.OnIdling(uiapp);
+            }
+            catch { }
+            try
+            {
+                var uiapp = sender as UIApplication;
+                if (uiapp != null) RibbonPortUi.RefreshScheduleHtmlQueueButtons(uiapp);
+            }
+            catch { }
 
             try
             {

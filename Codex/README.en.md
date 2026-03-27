@@ -1,4 +1,4 @@
-# RevitMCP Server / Revit MCP Toolkit
+# Revit MCP Server / Revit MCP Toolkit
 
 > An open integration platform (server + add-in) to safely operate Autodesk RevitR 2024 from external tools (including AI agents).  
 > It is explicitly designed to be usable in Japanese, so workflows can align with local practice and regulations (e.g., building codes, internal standards, and guidelines).
@@ -155,7 +155,7 @@ If your organization builds and distributes binaries internally, ensure complian
 
 ## Credits
 
-Created by Tetsuya Okuno and GPT series (2025) / 99.9% vibe coding
+Created by contributors and GPT series (2025)
 
 ---
 

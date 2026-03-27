@@ -314,8 +314,10 @@ namespace RevitMCPAddin.Core.Failures
             bool dismissed = false;
             int overrideResult = 0;
 
+            var dismissDialogs = FailureHandlingContext.GetDismissDialogs(_dismissDialogs);
+
             DialogCaptureItem capItem = null;
-            if (_dismissDialogs)
+            if (dismissDialogs)
             {
                 try
                 {
@@ -325,7 +327,7 @@ namespace RevitMCPAddin.Core.Failures
                 catch { /* ignore */ }
             }
 
-            if (_dismissDialogs)
+            if (dismissDialogs)
             {
                 // Default to OK/Close-equivalent. For Revit warning dialogs this usually maps to "OK".
                 // We still capture the dialogId/message so the agent can report what was dismissed.

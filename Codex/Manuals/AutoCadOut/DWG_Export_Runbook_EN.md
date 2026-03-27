@@ -4,7 +4,7 @@ Purpose
 - Produce DWGs where the current view’s walls are split by type into separate files, then merged into one DWG with per‑type layer names. Includes state snapshot/restore to avoid visual side effects.
 
 Prerequisites
-- Revit + RevitMCP add‑in running on `5210` (verify: `Invoke-RestMethod http://127.0.0.1:5210/debug`).
+- Revit + Revit MCP add‑in running on `5210` (verify: `Invoke-RestMethod http://127.0.0.1:5210/debug`).
 - Optional: AutoCadMCP on `5251` (for automatic DWG merge via accoreconsole). If not running, the runbook still generates a `command.txt` you can submit later.
 - Repo checked out at `VS2022/Ver431`.
 

@@ -16,7 +16,9 @@ namespace RevitMCPAddin.Commands.Room
 
         public object Execute(UIApplication uiapp, RequestCommand cmd)
         {
-            var doc = uiapp.ActiveUIDocument.Document;
+            var doc = DocumentResolver.ResolveDocument(uiapp, cmd);
+            if (doc == null)
+                return new { ok = false, message = "Target document not found." };
             var p = (JObject)(cmd.Params ?? new JObject());
 
             if (!p.TryGetValue("elementId", out var eidToken))

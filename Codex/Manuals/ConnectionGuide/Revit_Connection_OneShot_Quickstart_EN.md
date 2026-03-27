@@ -22,7 +22,7 @@ Tested with:
 
 ## 1) Prerequisites
 
-- Revit with RevitMCP Add‑in installed (start Revit; the add‑in hosts `RevitMCPServer` on 5210+).
+- Revit with Revit MCP Add‑in installed (start Revit; the add‑in hosts `RevitMCPServer` on 5210+).
 - .NET SDK 8.0+ available (`dotnet --info`).
 - Python 3.9+ (`python -V`).
 

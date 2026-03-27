@@ -13,11 +13,20 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Reflection;
 using Imaging = System.Windows.Media.Imaging;
 // WPF
 using Media = System.Windows.Media;
+using Newtonsoft.Json.Linq;
 using RevitMCPAddin.Core;
+using RevitMCPAddin.Core.Ledger;
+using RevitMCPAddin.Core.Net;
+using Forms = System.Windows.Forms;
 
 namespace RevitMCPAddin.UI
 {
@@ -50,8 +59,10 @@ namespace RevitMCPAddin.UI
         // ---- Developer: 「開く」系 + 設定系（拡張）----
         public const string ButtonNameOpenAddin = "OpenAddinFolder";
         public const string ButtonNameOpenLogs = "OpenLogsFolder";
+        public const string ButtonNameOpenProjectFolder = "OpenProjectFolder";
         public const string ButtonClassOpenAddin = "RevitMCPAddin.Commands.Dev.OpenAddinFolderCommand";
         public const string ButtonClassOpenLogs = "RevitMCPAddin.Commands.Dev.OpenLogFolderCommand";
+        public const string ButtonClassOpenProjectFolder = "RevitMCPAddin.Commands.Dev.OpenActiveProjectFolderCommand";
 
         // 新規: Codex GUI 起動
         public const string ButtonNameLaunchCodexGui = "LaunchCodexGui";
@@ -71,6 +82,10 @@ namespace RevitMCPAddin.UI
         // ---- Build Info ----
         public const string ButtonNameBuildInfo = "ShowBuildInfo";
         public const string ButtonClassShowBuildInfo = "RevitMCPAddin.Commands.SystemOps.ShowBuildInfoCommand";
+        public const string ButtonNameRoomHtmlLink = "ShowRoomHtmlLink";
+        public const string ButtonClassShowRoomHtmlLink = "RevitMCPAddin.UI.ShowRoomHtmlLinkCommand";
+        public const string ButtonNameRunScheduleQueue = "RunScheduleQueue";
+        public const string ButtonClassRunScheduleQueue = "RevitMCPAddin.UI.RunScheduleQueueCommand";
 
         // ★ 新規: Settings 操作用
         public const string ButtonNameOpenSettings = "OpenSettings";
@@ -80,6 +95,9 @@ namespace RevitMCPAddin.UI
 
 
         private static int _currentPort;
+        private static DateTime _lastQueueRefreshUtc = DateTime.MinValue;
+        private static string _lastQueueDocGuid = string.Empty;
+        private static int _lastQueueCount = -1;
 
         public static void Setup(UIControlledApplication app, int? port = null, string? iconDir = null)
         {
@@ -117,6 +135,24 @@ namespace RevitMCPAddin.UI
                     fill: Media.Color.FromRgb(90, 90, 90),
                     stroke: Media.Color.FromRgb(40, 40, 40));
             }
+
+            var roomHtmlBtn = EnsurePushButton(panel, ButtonNameRoomHtmlLink, BuildScheduleHtmlLinkText(), asm, ButtonClassShowRoomHtmlLink);
+            roomHtmlBtn.ToolTip = "集計表 Excel 往復編集用の HTML リンクを表示します。LAN 用 URL をクリップボードへコピーします。";
+            roomHtmlBtn.LongDescription = "現在の文書に対する signed HTML URL を生成し、ローカルホスト用と LAN 用のアドレスを表示します。";
+            {
+                roomHtmlBtn.Image = PortIconBuilder.BuildTextBadge("URL", 16);
+                roomHtmlBtn.LargeImage = PortIconBuilder.BuildTextBadge("URL", 32);
+            }
+
+            var runQueueBtn = EnsurePushButton(panel, ButtonNameRunScheduleQueue, BuildRunQueueText(0), asm, ButtonClassRunScheduleQueue);
+            runQueueBtn.ToolTip = "アクティブ文書に対するキュー済み HTML 変更リクエストの次の1件を、今すぐ確認・処理します。";
+            runQueueBtn.LongDescription = "キュー済み変更の確認ダイアログを即時に表示し、反映可否を判断できます。";
+            {
+                runQueueBtn.Image = PortIconBuilder.BuildTextBadge("Q", 16);
+                runQueueBtn.LargeImage = PortIconBuilder.BuildTextBadge("Q", 32);
+            }
+
+            RefreshScheduleHtmlQueueButtonsCore(app, null, force: true);
 
             // =============== Server（緑／赤） ===============
             {
@@ -194,6 +230,13 @@ namespace RevitMCPAddin.UI
                 btnOpenLogs.LargeImage = PortIconBuilder.TryLoadBitmapAsImage(l32) ?? PortIconBuilder.BuildFolderIcon(32, isLogs: true);
             }
 
+            var btnOpenProjectFolder = EnsurePushButton(devPanel, ButtonNameOpenProjectFolder, "Open\nProject Folder", asm, ButtonClassOpenProjectFolder);
+            btnOpenProjectFolder.ToolTip = "現在アクティブな文書に対応する Revit_MCP のプロジェクトフォルダを開きます。";
+            {
+                btnOpenProjectFolder.Image = PortIconBuilder.BuildFolderIcon(16);
+                btnOpenProjectFolder.LargeImage = PortIconBuilder.BuildFolderIcon(32);
+            }
+
             // ★ 新規: Open Settings / Reload Settings
             var btnOpenSettings = EnsurePushButton(devPanel, ButtonNameOpenSettings, "Open\nSettings", asm, ButtonClassOpenSettings);
             btnOpenSettings.ToolTip = "MCPサーバーの settings.json を開きます。";
@@ -248,8 +291,87 @@ namespace RevitMCPAddin.UI
             var uica = RevitMCPAddin.AppServices.UIControlledApp;
             if (uica != null)
             {
-                try { UpdatePort(uica, newPort, iconDir); return; }
+                try
+                {
+                    UpdatePort(uica, newPort, iconDir);
+                    RefreshScheduleHtmlQueueButtonsCore(uica, uiapp, force: true);
+                    return;
+                }
                 catch { /* 最低限: 環境変数は更新済み */ }
+            }
+        }
+
+        public static void RefreshScheduleHtmlQueueButtons(UIApplication? uiapp, bool force = false)
+        {
+            var uica = global::RevitMCPAddin.AppServices.UIControlledApp;
+            if (uica == null)
+                return;
+            RefreshScheduleHtmlQueueButtonsCore(uica, uiapp, force);
+        }
+
+        private static void RefreshScheduleHtmlQueueButtonsCore(UIControlledApplication application, UIApplication? uiapp, bool force)
+        {
+            var now = DateTime.UtcNow;
+            var docGuid = TryGetActiveDocGuid(uiapp) ?? string.Empty;
+            if (!force
+                && string.Equals(docGuid, _lastQueueDocGuid, StringComparison.OrdinalIgnoreCase)
+                && _lastQueueRefreshUtc != DateTime.MinValue
+                && (now - _lastQueueRefreshUtc).TotalSeconds < 5)
+            {
+                return;
+            }
+
+            var count = HtmlScheduleImportQueueService.GetQueuedCountForActiveDocument(uiapp);
+            if (!force && string.Equals(docGuid, _lastQueueDocGuid, StringComparison.OrdinalIgnoreCase) && count == _lastQueueCount)
+            {
+                _lastQueueRefreshUtc = now;
+                return;
+            }
+
+            _lastQueueRefreshUtc = now;
+            _lastQueueDocGuid = docGuid;
+            _lastQueueCount = count;
+
+            var panel = application.GetRibbonPanels(TabName).FirstOrDefault(p => p.Name == PanelName);
+            if (panel == null)
+                return;
+
+            var linkBtn = panel.GetItems().OfType<PushButton>().FirstOrDefault(b => b.Name == ButtonNameRoomHtmlLink);
+            if (linkBtn != null)
+            {
+                linkBtn.ItemText = BuildScheduleHtmlLinkText();
+                linkBtn.ToolTip = "集計表 Excel 往復編集用の HTML リンクを表示します。LAN 用 URL をクリップボードへコピーします。";
+            }
+
+            var runBtn = panel.GetItems().OfType<PushButton>().FirstOrDefault(b => b.Name == ButtonNameRunScheduleQueue);
+            if (runBtn != null)
+            {
+                runBtn.ItemText = BuildRunQueueText(count);
+                runBtn.ToolTip = count > 0
+                    ? $"アクティブ文書に対する未処理キュー {count} 件のうち、次の1件を今すぐ確認・処理します。"
+                    : "アクティブ文書に対するキュー済み HTML 変更リクエストはありません。";
+            }
+        }
+
+        private static string BuildScheduleHtmlLinkText()
+            => "Schedule HTML\nLink";
+
+        private static string BuildRunQueueText(int queueCount)
+            => queueCount > 0 ? $"Run Queue\n({queueCount})" : "Run Queue";
+
+        private static string? TryGetActiveDocGuid(UIApplication? uiapp)
+        {
+            var doc = uiapp?.ActiveUIDocument?.Document;
+            if (doc == null)
+                return null;
+
+            try
+            {
+                return DocumentKeyUtil.GetDocKeyOrStable(doc, createIfMissing: true, out _);
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -341,6 +463,114 @@ namespace RevitMCPAddin.UI
         }
     }
 
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.ReadOnly)]
+    public class ShowRoomHtmlLinkCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var uiapp = data.Application;
+                var doc = uiapp?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    TaskDialog.Show("Schedule HTML Link", "アクティブな文書がありません。");
+                    return Result.Cancelled;
+                }
+
+                if (!LedgerDocKeyProvider.TryGetOrCreateDocKey(doc, createIfMissing: true, out var docGuid, out _, out var err)
+                    || string.IsNullOrWhiteSpace(docGuid))
+                {
+                    TaskDialog.Show("Schedule HTML Link", "docGuid を取得できませんでした。\n" + (err ?? ""));
+                    return Result.Failed;
+                }
+
+                var port = PortLocator.GetCurrentPortOrDefault(5210);
+                var baseUrls = RoomHtmlLinkHelper.GetPreferredBaseUrls(port);
+                var primaryBaseUrl = baseUrls.FirstOrDefault() ?? ("http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture));
+                var paramNames = RoomHtmlLinkHelper.CollectDefaultRoomParamNames(doc);
+
+                var projectName = RoomHtmlLinkHelper.GetProjectName(doc);
+                var editorUser = Environment.UserName ?? string.Empty;
+                var queuedCount = HtmlScheduleImportQueueService.GetQueuedCountForActiveDocument(uiapp);
+                var token = RoomHtmlLinkHelper.CreateRoomRoundtripToken(
+                    port,
+                    docGuid,
+                    doc.Title ?? string.Empty,
+                    projectName,
+                    editorUser,
+                    paramNames,
+                    primaryBaseUrl);
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    TaskDialog.Show("Schedule HTML Link", "サーバーから signed link を生成できませんでした。");
+                    return Result.Failed;
+                }
+
+                var urls = baseUrls
+                    .Select(u => u.TrimEnd('/') + "/room-excel-roundtrip?token=" + Uri.EscapeDataString(token))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var primaryUrl = urls.FirstOrDefault() ?? string.Empty;
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(primaryUrl))
+                        Forms.Clipboard.SetText(primaryUrl);
+                }
+                catch { /* best-effort */ }
+
+                var td = new TaskDialog("Schedule HTML Link")
+                {
+                    MainInstruction = "Schedule Excel Roundtrip HTML リンク",
+                    MainContent = "Primary URL をクリップボードへコピーしました。\n同一ローカルネットワーク上からアクセスできます。Windows Firewall で TCP " + port.ToString(CultureInfo.InvariantCulture) + " が許可されている必要があります。",
+                    ExpandedContent =
+                        "Primary URL\n" + primaryUrl + "\n\n" +
+                        "All URLs\n" + string.Join("\n", urls) + "\n\n" +
+                        "Queued requests\n" + queuedCount.ToString(CultureInfo.InvariantCulture) + "\n\n" +
+                        "Project\n" + (projectName ?? string.Empty) + "\n\n" +
+                        "Editor user\n" + (editorUser ?? string.Empty) + "\n\n" +
+                        "docGuid\n" + docGuid,
+                    FooterText = "Link generation API is local-only. Shared users open the signed URL itself."
+                };
+                td.Show();
+                RibbonPortUi.RefreshScheduleHtmlQueueButtons(uiapp, force: true);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    [Autodesk.Revit.Attributes.Transaction(Autodesk.Revit.Attributes.TransactionMode.Manual)]
+    public class RunScheduleQueueCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var uiapp = data.Application;
+                if (!HtmlScheduleImportQueueService.TryProcessNextNowForActiveDocument(uiapp, out var info))
+                {
+                    TaskDialog.Show("Run Queue", string.IsNullOrWhiteSpace(info) ? "キュー済みリクエストはありません。" : info);
+                    RibbonPortUi.RefreshScheduleHtmlQueueButtons(uiapp, force: true);
+                    return Result.Cancelled;
+                }
+
+                RibbonPortUi.RefreshScheduleHtmlQueueButtons(uiapp, force: true);
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
     public static class PortSettings
     {
         public static int GetPort()
@@ -348,6 +578,207 @@ namespace RevitMCPAddin.UI
             var env = Environment.GetEnvironmentVariable("REVIT_MCP_PORT");
             if (int.TryParse(env, out var p) && p > 0 && p < 65536) return p;
             return 5210;
+        }
+    }
+
+    internal static class RoomHtmlLinkHelper
+    {
+        public static List<string> GetPreferredBaseUrls(int port)
+        {
+            var urls = new List<string>();
+            foreach (var ip in GetPrivateIpv4Addresses())
+            {
+                urls.Add("http://" + ip + ":" + port.ToString(CultureInfo.InvariantCulture));
+            }
+            urls.Add("http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture));
+            return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public static string CreateRoomRoundtripToken(int port, string docGuid, string docTitle, string projectName, string editorUser, IList<string> paramNames, string publicBaseUrl)
+        {
+            try
+            {
+                return CreateRoomRoundtripTokenCore(port, docGuid, docTitle, projectName, editorUser, paramNames, publicBaseUrl);
+            }
+            catch (HttpRequestException)
+            {
+                return RetryCreateRoomRoundtripToken(port, docGuid, docTitle, projectName, editorUser, paramNames, publicBaseUrl);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.IndexOf("404", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return RetryCreateRoomRoundtripToken(port, docGuid, docTitle, projectName, editorUser, paramNames, publicBaseUrl);
+                throw;
+            }
+        }
+
+        private static string RetryCreateRoomRoundtripToken(int port, string docGuid, string docTitle, string projectName, string editorUser, IList<string> paramNames, string publicBaseUrl)
+        {
+            var ownerPid = Process.GetCurrentProcess().Id;
+            try { ServerProcessManager.StopByLock(ownerPid, port); } catch { }
+            var started = ServerProcessManager.StartOrAttach(ownerPid);
+            var effectivePort = started.port > 0 ? started.port : port;
+            return CreateRoomRoundtripTokenCore(effectivePort, docGuid, docTitle, projectName, editorUser, paramNames, publicBaseUrl);
+        }
+
+        private static string CreateRoomRoundtripTokenCore(int port, string docGuid, string docTitle, string projectName, string editorUser, IList<string> paramNames, string publicBaseUrl)
+        {
+            var query = new List<string>
+            {
+                "docGuid=" + Uri.EscapeDataString(docGuid ?? string.Empty),
+                "docTitle=" + Uri.EscapeDataString(docTitle ?? string.Empty),
+                "projectName=" + Uri.EscapeDataString(projectName ?? string.Empty),
+                "editorUser=" + Uri.EscapeDataString(editorUser ?? string.Empty),
+                "baseUrl=" + Uri.EscapeDataString(publicBaseUrl ?? string.Empty)
+            };
+
+            if (paramNames != null && paramNames.Count > 0)
+                query.Add("paramNames=" + Uri.EscapeDataString(string.Join(",", paramNames)));
+
+            var url = "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)
+                    + "/api/room-excel-roundtrip/create-link?"
+                    + string.Join("&", query);
+
+            using (var hc = new HttpClient())
+            {
+                hc.Timeout = TimeSpan.FromSeconds(8);
+                var raw = hc.GetStringAsync(url).GetAwaiter().GetResult();
+                var jo = JObject.Parse(raw);
+                if (jo.Value<bool?>("ok") != true) return string.Empty;
+                return jo.Value<string>("token") ?? string.Empty;
+            }
+        }
+
+        public static List<string> CollectDefaultRoomParamNames(Document doc)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var rooms = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_Rooms)
+                .WhereElementIsNotElementType()
+                .Cast<Element>()
+                .Take(20)
+                .ToList();
+
+            foreach (var room in rooms)
+            {
+                foreach (Parameter p in room.Parameters)
+                {
+                    var name = SafeParamName(p);
+                    if (!IsEligibleRoomParam(p, name)) continue;
+                    if (!counts.ContainsKey(name)) counts[name] = 0;
+                    counts[name]++;
+                }
+            }
+
+            var minHits = rooms.Count <= 1 ? 1 : Math.Min(3, rooms.Count);
+            return counts
+                .Where(kvp => kvp.Value >= minHits)
+                .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .Take(40)
+                .Select(kvp => kvp.Key)
+                .ToList();
+        }
+
+        public static string GetProjectName(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi != null)
+                {
+                    var name = pi.Name;
+                    if (!string.IsNullOrWhiteSpace(name))
+                        return name.Trim();
+                }
+            }
+            catch { }
+
+            try
+            {
+                var title = doc?.Title;
+                if (!string.IsNullOrWhiteSpace(title))
+                    return title.Trim();
+            }
+            catch { }
+
+            return string.Empty;
+        }
+
+        private static bool IsEligibleRoomParam(Parameter p, string name)
+        {
+            if (p == null || string.IsNullOrWhiteSpace(name)) return false;
+            if (p.IsReadOnly) return false;
+
+            var st = p.StorageType;
+            if (st == StorageType.ElementId || st == StorageType.None) return false;
+
+            switch (name.Trim())
+            {
+                case "Number":
+                case "Name":
+                case "Level":
+                case "番号":
+                case "名前":
+                case "レベル":
+                case "面積":
+                case "Area":
+                case "Volume":
+                case "体積":
+                case "Perimeter":
+                case "周長":
+                case "位相":
+                case "Phase":
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string SafeParamName(Parameter p)
+        {
+            try { return p.Definition?.Name ?? string.Empty; }
+            catch { return string.Empty; }
+        }
+
+        private static IEnumerable<string> GetPrivateIpv4Addresses()
+        {
+            var ips = new List<string>();
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni == null) continue;
+                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                    IPInterfaceProperties props;
+                    try { props = ni.GetIPProperties(); }
+                    catch { continue; }
+
+                    foreach (var ua in props.UnicastAddresses)
+                    {
+                        var ip = ua?.Address;
+                        if (ip == null || ip.AddressFamily != AddressFamily.InterNetwork) continue;
+                        if (IPAddress.IsLoopback(ip)) continue;
+                        if (!IsPrivateIpv4(ip)) continue;
+                        ips.Add(ip.ToString());
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            return ips.Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool IsPrivateIpv4(IPAddress ip)
+        {
+            var b = ip.GetAddressBytes();
+            if (b == null || b.Length != 4) return false;
+            if (b[0] == 10) return true;
+            if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+            if (b[0] == 192 && b[1] == 168) return true;
+            return false;
         }
     }
 

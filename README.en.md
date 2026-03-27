@@ -1,4 +1,4 @@
-# RevitMCP Server
+# Revit MCP Server
 
 This project provides an open integration layer (server + Revit add-in) to **safely operate and orchestrate Autodesk Revit®** from external tools (including AI agents, CLIs, and automation systems).
 
@@ -81,7 +81,7 @@ If your organization builds and distributes binaries internally, ensure complian
 ---
 
 ## Credits
-- Created by **Tetsuya Okuno** and **GPT series** (2025)
+- Created by **contributors** and **GPT series** (2025)
 
 ---
 
