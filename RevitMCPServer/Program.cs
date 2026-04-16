@@ -86,6 +86,7 @@ try { RevitMcpServer.Infra.Logging.Init(chosenPort); } catch { }
 try
 {
     ServerContext.Port = chosenPort;
+    WriteServerPortState(chosenPort);
     var qOverride = Environment.GetEnvironmentVariable("REVIT_MCP_QUEUE_DIR") ?? Environment.GetEnvironmentVariable("MCP_QUEUE_DIR");
     SqliteConnectionFactory.Configure(chosenPort, qOverride);
 }
@@ -1093,6 +1094,30 @@ static string ResolveBindHost(string[] args)
     catch { /* ignore */ }
 
     return "127.0.0.1";
+}
+
+static void WriteServerPortState(int chosenPort)
+{
+    try
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var root = Path.Combine(local, "RevitMCP");
+        Directory.CreateDirectory(root);
+
+        var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+        var path = Path.Combine(root, $"server_state_{pid}.json");
+        var json = JsonSerializer.Serialize(new
+        {
+            port = chosenPort,
+            pid = pid,
+            startedAtUtc = DateTimeOffset.UtcNow.ToString("o")
+        });
+        File.WriteAllText(path, json, Encoding.UTF8);
+    }
+    catch
+    {
+        // best-effort
+    }
 }
 
 static bool IsLoopbackRemote(IPAddress? ip)

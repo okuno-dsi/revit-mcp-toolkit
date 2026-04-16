@@ -56,11 +56,15 @@ namespace RevitMCPAddin.Commands.TypeOps
             string? reassignToFamilyName = p.Value<string>("reassignToFamilyName");
 
             bool purgeAllUnusedInCategory = p.Value<bool?>("purgeAllUnusedInCategory") ?? false;
+            var bulkTypeIds = p["typeIds"] as JArray;
 
             var steps = new List<object>();
 
             try
             {
+                if (bulkTypeIds != null && bulkTypeIds.Count > 0)
+                    return ExecuteBulkTypeIds(doc, bulkTypeIds, dryRun);
+
                 // ------------------------------------------------------------
                 // Bulk purge (category)
                 // ------------------------------------------------------------
@@ -375,6 +379,256 @@ namespace RevitMCPAddin.Commands.TypeOps
         }
 
         // --------------------- helpers ---------------------
+
+        private sealed class BulkTypeTarget
+        {
+            public int InputIndex { get; set; }
+            public int TypeId { get; set; }
+            public string CategoryName { get; set; } = "";
+            public string FamilyName { get; set; } = "";
+            public string TypeName { get; set; } = "";
+        }
+
+        private static object ExecuteBulkTypeIds(Document doc, JArray rawTypeIds, bool dryRun)
+        {
+            var requested = ParseBulkTypeIds(rawTypeIds);
+            var skipped = new List<object>();
+            var candidates = new List<BulkTypeTarget>();
+            var seen = new HashSet<int>();
+
+            if (requested.Count == 0)
+                return new { ok = false, dryRun, msg = "typeIds is empty.", errorCode = "empty-typeIds" };
+
+            var usedTypeIds = CollectUsedTypeIds(doc);
+
+            foreach (var item in requested)
+            {
+                int inputIndex = item.inputIndex;
+                int typeId = item.typeId;
+                if (typeId <= 0)
+                {
+                    skipped.Add(new { inputIndex, typeId, reason = "invalid-type-id" });
+                    continue;
+                }
+
+                if (!seen.Add(typeId))
+                {
+                    skipped.Add(new { inputIndex, typeId, reason = "duplicate-type-id" });
+                    continue;
+                }
+
+                var element = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(typeId));
+                if (!(element is ElementType elementType))
+                {
+                    skipped.Add(new { inputIndex, typeId, reason = "not-element-type" });
+                    continue;
+                }
+
+                if (elementType is ViewFamilyType)
+                {
+                    skipped.Add(new
+                    {
+                        inputIndex,
+                        typeId,
+                        reason = "unsupported-type",
+                        className = elementType.GetType().Name,
+                        categoryName = elementType.Category?.Name ?? "",
+                        typeName = elementType.Name
+                    });
+                    continue;
+                }
+
+                if (usedTypeIds.Contains(typeId))
+                {
+                    skipped.Add(new
+                    {
+                        inputIndex,
+                        typeId,
+                        reason = "type-in-use",
+                        className = elementType.GetType().Name,
+                        categoryName = elementType.Category?.Name ?? "",
+                        familyName = TryGetFamilyName(elementType) ?? "",
+                        typeName = elementType.Name
+                    });
+                    continue;
+                }
+
+                candidates.Add(new BulkTypeTarget
+                {
+                    InputIndex = inputIndex,
+                    TypeId = typeId,
+                    CategoryName = elementType.Category?.Name ?? "",
+                    FamilyName = TryGetFamilyName(elementType) ?? "",
+                    TypeName = elementType.Name
+                });
+            }
+
+            if (dryRun)
+            {
+                return new
+                {
+                    ok = true,
+                    dryRun = true,
+                    inputCount = rawTypeIds.Count,
+                    uniqueTypeIdCount = seen.Count,
+                    candidateCount = candidates.Count,
+                    skippedCount = skipped.Count,
+                    candidateTypeIds = candidates.Select(x => x.TypeId).ToList(),
+                    candidates = candidates.Select(ToBulkTargetDto).ToList(),
+                    skipped,
+                    msg = $"[DryRun] Would delete {candidates.Count} unused ElementType(s)."
+                };
+            }
+
+            var deleted = new List<object>();
+            var deletedTypeIds = new List<int>();
+            var failed = new List<object>();
+            int deletedElementCount = 0;
+
+            if (candidates.Count > 0)
+            {
+                using (var tx = new Transaction(doc, "[MCP] Delete unused types batch"))
+                {
+                    tx.Start();
+                    foreach (var target in candidates)
+                    {
+                        try
+                        {
+                            if (doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(target.TypeId)) == null)
+                            {
+                                skipped.Add(new
+                                {
+                                    inputIndex = target.InputIndex,
+                                    typeId = target.TypeId,
+                                    reason = "already-deleted",
+                                    categoryName = target.CategoryName,
+                                    familyName = target.FamilyName,
+                                    typeName = target.TypeName
+                                });
+                                continue;
+                            }
+
+                            var deletedIds = doc.Delete(Autodesk.Revit.DB.ElementIdCompat.From(target.TypeId));
+                            int count = deletedIds?.Count ?? 0;
+                            deletedElementCount += count;
+                            deletedTypeIds.Add(target.TypeId);
+                            deleted.Add(new
+                            {
+                                inputIndex = target.InputIndex,
+                                typeId = target.TypeId,
+                                deletedElementCount = count,
+                                categoryName = target.CategoryName,
+                                familyName = target.FamilyName,
+                                typeName = target.TypeName
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            failed.Add(new
+                            {
+                                inputIndex = target.InputIndex,
+                                typeId = target.TypeId,
+                                reason = ex.Message,
+                                categoryName = target.CategoryName,
+                                familyName = target.FamilyName,
+                                typeName = target.TypeName
+                            });
+                        }
+                    }
+                    tx.Commit();
+                }
+            }
+
+            return new
+            {
+                ok = failed.Count == 0,
+                dryRun = false,
+                inputCount = rawTypeIds.Count,
+                uniqueTypeIdCount = seen.Count,
+                candidateCount = candidates.Count,
+                deletedCount = deleted.Count,
+                deletedElementCount,
+                failedCount = failed.Count,
+                skippedCount = skipped.Count,
+                deletedTypeIds,
+                deleted,
+                failed,
+                skipped,
+                msg = $"Deleted {deleted.Count}/{candidates.Count} unused ElementType(s)."
+            };
+        }
+
+        private static object ToBulkTargetDto(BulkTypeTarget target)
+        {
+            return new
+            {
+                inputIndex = target.InputIndex,
+                typeId = target.TypeId,
+                categoryName = target.CategoryName,
+                familyName = target.FamilyName,
+                typeName = target.TypeName
+            };
+        }
+
+        private static List<(int inputIndex, int typeId)> ParseBulkTypeIds(JArray rawTypeIds)
+        {
+            var result = new List<(int inputIndex, int typeId)>();
+            int inputIndex = 0;
+            foreach (var token in rawTypeIds)
+            {
+                inputIndex++;
+                if (TryReadBulkTypeId(token, out int typeId))
+                    result.Add((inputIndex, typeId));
+                else
+                    result.Add((inputIndex, -1));
+            }
+            return result;
+        }
+
+        private static bool TryReadBulkTypeId(JToken token, out int typeId)
+        {
+            typeId = -1;
+            try
+            {
+                if (token.Type == JTokenType.Integer || token.Type == JTokenType.String)
+                    return int.TryParse(token.ToString(), out typeId);
+
+                if (token.Type == JTokenType.Object)
+                {
+                    var obj = (JObject)token;
+                    return int.TryParse(
+                        (obj.Value<string>("typeId")
+                         ?? obj.Value<string>("elementTypeId")
+                         ?? obj.Value<string>("elementId")
+                         ?? "").Trim(),
+                        out typeId);
+                }
+            }
+            catch
+            {
+                typeId = -1;
+            }
+            return false;
+        }
+
+        private static HashSet<int> CollectUsedTypeIds(Document doc)
+        {
+            var usedTypeIds = new HashSet<int>();
+            foreach (Element element in new FilteredElementCollector(doc).WhereElementIsNotElementType())
+            {
+                try
+                {
+                    var typeId = element.GetTypeId();
+                    if (typeId != null && typeId != ElementId.InvalidElementId)
+                        usedTypeIds.Add(typeId.IntValue());
+                }
+                catch
+                {
+                    // Some internal elements do not expose a stable TypeId. Ignore them.
+                }
+            }
+            return usedTypeIds;
+        }
 
         private static ElementType? FindTypeByAny(
             Document doc,

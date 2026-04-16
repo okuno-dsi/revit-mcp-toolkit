@@ -49,6 +49,8 @@ namespace RevitMCPAddin.UI.PythonRunner
         private string? _lastInboxPath;
         private readonly List<ScriptOptionBinding> _optionBindings = new List<ScriptOptionBinding>();
         private string _lastOptionProfileKey = string.Empty;
+        private bool _stopRequested;
+        private bool _isClosing;
 
         private static readonly Regex FeatureLineRx = new Regex("^\\s*#\\s*@feature\\s*:\\s*(?<feature>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex KeywordLineRx = new Regex("^\\s*#\\s*@keywords\\s*:\\s*(?<keywords>.*)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -107,6 +109,7 @@ namespace RevitMCPAddin.UI.PythonRunner
             BtnClearOut.Click += (_, __) => ClearOutput();
             BtnLibrary.Click += (_, __) => OpenLibrary();
 
+            DataObject.AddPastingHandler(ScriptBox, OnScriptBoxPasting);
             ScriptBox.TextChanged += (_, __) =>
             {
                 if (_suppressTextChange) return;
@@ -152,11 +155,17 @@ namespace RevitMCPAddin.UI.PythonRunner
             ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
         }
 
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            _isClosing = true;
+            StopProcess(addOutput: false);
+            base.OnClosing(e);
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             try { PersistOptionProfile(); } catch { /* ignore */ }
             base.OnClosed(e);
-            StopProcess();
         }
 
         private void OpenScript()
@@ -267,7 +276,7 @@ namespace RevitMCPAddin.UI.PythonRunner
                 return;
             }
 
-            var txt = Clipboard.GetText() ?? "";
+            var txt = NormalizePastedScriptText(Clipboard.GetText() ?? "");
             SetScriptText(txt);
             ApplyMetadataFromText(txt);
             ReloadScriptOptionEditors(preserveCurrentValues: false, addOutput: false);
@@ -294,6 +303,39 @@ namespace RevitMCPAddin.UI.PythonRunner
             _needsOutputHeader = true;
         }
 
+        private void OnScriptBoxPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            try
+            {
+                var data = e.SourceDataObject;
+                if (data == null)
+                    return;
+
+                string? text = null;
+                if (data.GetDataPresent(DataFormats.UnicodeText, true))
+                    text = data.GetData(DataFormats.UnicodeText, true) as string;
+                if (text == null && data.GetDataPresent(DataFormats.Text, true))
+                    text = data.GetData(DataFormats.Text, true) as string;
+                if (text == null)
+                    return;
+
+                e.CancelCommand();
+                ScriptBox.BeginChange();
+                try
+                {
+                    ScriptBox.Selection.Text = NormalizePastedScriptText(text);
+                }
+                finally
+                {
+                    ScriptBox.EndChange();
+                }
+            }
+            catch
+            {
+                // Fall back to the built-in paste behavior if normalization fails.
+            }
+        }
+
         private async Task RunAsync()
         {
             StartOutputGroup();
@@ -305,6 +347,7 @@ namespace RevitMCPAddin.UI.PythonRunner
 
             BtnRun.IsEnabled = false;
             BtnStop.IsEnabled = true;
+            _stopRequested = false;
 
             try
             {
@@ -409,64 +452,168 @@ namespace RevitMCPAddin.UI.PythonRunner
                     : sitePackages + Path.PathSeparator + existing;
             }
 
-            _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            _exitTcs = new TaskCompletionSource<int>();
+            var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            var exitTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _proc = proc;
+            _exitTcs = exitTcs;
 
-            _proc.OutputDataReceived += (_, e) =>
+            proc.OutputDataReceived += (_, e) =>
             {
                 if (e.Data != null) AppendOutput(e.Data);
             };
-            _proc.ErrorDataReceived += (_, e) =>
+            proc.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data != null) AppendOutput("ERR: " + e.Data);
             };
-            _proc.Exited += (_, __) =>
+            proc.Exited += (_, __) =>
             {
-                _exitTcs.TrySetResult(_proc?.ExitCode ?? -1);
+                exitTcs.TrySetResult(GetProcessExitCode(proc, -1));
             };
 
             AppendOutput("Process start: " + pythonExe);
-            if (!_proc.Start())
+            if (!proc.Start())
             {
                 AppendOutput("Process failed to start.");
+                exitTcs.TrySetResult(-1);
+                try { proc.Dispose(); } catch { }
+                if (ReferenceEquals(_proc, proc)) _proc = null;
+                if (ReferenceEquals(_exitTcs, exitTcs)) _exitTcs = null;
                 return;
             }
 
-            _proc.BeginOutputReadLine();
-            _proc.BeginErrorReadLine();
+            proc.BeginOutputReadLine();
+            proc.BeginErrorReadLine();
 
-            var exitCode = await _exitTcs.Task.ConfigureAwait(false);
-            AppendOutput("Process exit: " + exitCode);
+            var exitCode = await exitTcs.Task.ConfigureAwait(false);
+            var stopped = _stopRequested || exitCode == -2;
+            AppendOutput(stopped ? "Process stopped." : ("Process exit: " + exitCode));
 
-            await TryAutoPollQueuedJobAsync().ConfigureAwait(false);
+            if (!stopped && !_isClosing)
+            {
+                await TryAutoPollQueuedJobAsync().ConfigureAwait(false);
+            }
 
-            try { _proc.Dispose(); } catch { }
-            _proc = null;
-            _exitTcs = null;
+            try { proc.Dispose(); } catch { }
+            if (ReferenceEquals(_proc, proc)) _proc = null;
+            if (ReferenceEquals(_exitTcs, exitTcs)) _exitTcs = null;
         }
 
         private void StopProcess()
         {
-            StartOutputGroup();
-            if (_proc == null) return;
+            StopProcess(addOutput: true);
+        }
+
+        private void StopProcess(bool addOutput)
+        {
+            if (addOutput) StartOutputGroup();
+            var proc = _proc;
+            var exitTcs = _exitTcs;
+            if (proc == null) return;
+
+            _stopRequested = true;
             try
             {
-                if (!_proc.HasExited)
+                if (!proc.HasExited)
                 {
-                    _proc.Kill();
-                    AppendOutput("Process killed.");
+                    var killed = TryKillProcessTree(proc, out var killMessage);
+                    if (addOutput) AppendOutput(killMessage);
+                    if (!killed)
+                    {
+                        exitTcs?.TrySetResult(GetProcessExitCode(proc, -2));
+                    }
+                }
+                else
+                {
+                    exitTcs?.TrySetResult(GetProcessExitCode(proc, -2));
                 }
             }
             catch (Exception ex)
             {
-                AppendOutput("Stop failed: " + ex.Message);
+                if (addOutput) AppendOutput("Stop failed: " + ex.Message);
+                exitTcs?.TrySetResult(-2);
             }
             finally
             {
-                try { _proc.Dispose(); } catch { }
-                _proc = null;
-                _exitTcs = null;
+                exitTcs?.TrySetResult(-2);
             }
+        }
+
+        private static int GetProcessExitCode(Process process, int fallback)
+        {
+            try
+            {
+                return process.HasExited ? process.ExitCode : fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        private static bool TryKillProcessTree(Process process, out string message)
+        {
+            var pid = 0;
+            try { pid = process.Id; } catch { }
+
+            if (pid > 0 && Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "taskkill.exe",
+                        Arguments = "/PID " + pid.ToString(CultureInfo.InvariantCulture) + " /T /F",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    using (var killer = Process.Start(psi))
+                    {
+                        if (killer != null)
+                        {
+                            if (!killer.WaitForExit(5000))
+                            {
+                                try { killer.Kill(); } catch { }
+                                message = "Stop requested; taskkill timed out.";
+                                return false;
+                            }
+
+                            if (killer.ExitCode == 0 || SafeHasExited(process))
+                            {
+                                message = "Process tree stopped.";
+                                return true;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fall back to Process.Kill below.
+                }
+            }
+
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                }
+                message = "Process stopped.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = "Stop failed: " + ex.Message;
+                return false;
+            }
+        }
+
+        private static bool SafeHasExited(Process process)
+        {
+            try { return process.HasExited; }
+            catch { return true; }
         }
 
         private void ReloadScriptOptionEditors(bool preserveCurrentValues, bool addOutput)
@@ -849,7 +996,9 @@ namespace RevitMCPAddin.UI.PythonRunner
             }
 
             if (string.IsNullOrWhiteSpace(def.Name)) return null;
-            if (IsLikelyPathName(def.Name, def.Hint) && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase))
+            if (IsLikelyPathName(def.Name, def.Hint)
+                && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase))
             {
                 def.Type = "path";
             }
@@ -932,7 +1081,9 @@ namespace RevitMCPAddin.UI.PythonRunner
                         def.DefaultValue = choices[0];
                 }
 
-                if (IsLikelyPathName(def.Name, def.Hint) && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase))
+                if (IsLikelyPathName(def.Name, def.Hint)
+                    && !string.Equals(def.Type, "choice", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(def.Type, "bool", StringComparison.OrdinalIgnoreCase))
                 {
                     def.Type = "path";
                 }
@@ -1443,6 +1594,16 @@ namespace RevitMCPAddin.UI.PythonRunner
             }
         }
 
+        private static string NormalizePastedScriptText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return string.Empty;
+
+            // Force plain text newline handling. RichTextBox otherwise prefers RTF/HTML
+            // clipboard formats, which can turn each source line into a separate paragraph.
+            return text.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", Environment.NewLine);
+        }
+
         private string GetScriptText()
         {
             try
@@ -1942,46 +2103,12 @@ namespace RevitMCPAddin.UI.PythonRunner
 
         private static string? TryResolveWorkProjectFolder(string? docTitle, string? docKey)
         {
-            var workRoot = ResolveWorkRoot();
-            if (string.IsNullOrWhiteSpace(workRoot)) return null;
-
-            var workDir = workRoot;
-            if (string.IsNullOrWhiteSpace(workDir) || !Directory.Exists(workDir)) return null;
-
-            var dirs = Directory.GetDirectories(workDir);
-            if (!string.IsNullOrWhiteSpace(docKey))
-            {
-                var keyToken = "_" + docKey.Trim();
-                var match = dirs.FirstOrDefault(d =>
-                    Path.GetFileName(d).EndsWith(keyToken, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(match)) return match;
-            }
-
-            var safeTitle = SanitizePathSegment(docTitle);
-            if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = "Project";
-            var safeKey = SanitizePathSegment(docKey);
-            if (string.IsNullOrWhiteSpace(safeKey)) safeKey = "unknown";
-
-            var created = Path.Combine(workDir, $"{safeTitle}_{safeKey}");
-            Directory.CreateDirectory(created);
-            return created;
-        }
-
-        private static string? ResolveWorkRoot()
-        {
-            return Paths.ResolveWorkRoot();
-        }
-
-        private static string SanitizePathSegment(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return "";
-            var invalid = Path.GetInvalidFileNameChars();
-            var cleaned = new string(name.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
-            return cleaned.Trim();
+            return Paths.ResolveManagedProjectFolder(docTitle, docKey);
         }
 
         private async Task TryAutoPollQueuedJobAsync()
         {
+            if (_isClosing) return;
             string text;
             if (Dispatcher.CheckAccess())
             {
@@ -1989,7 +2116,14 @@ namespace RevitMCPAddin.UI.PythonRunner
             }
             else
             {
-                text = Dispatcher.Invoke(() => OutputBox.Text ?? "");
+                try
+                {
+                    text = Dispatcher.Invoke(() => OutputBox.Text ?? "");
+                }
+                catch
+                {
+                    return;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(text)) return;
@@ -2092,9 +2226,17 @@ namespace RevitMCPAddin.UI.PythonRunner
 
         private void AppendOutput(string text)
         {
+            if (_isClosing) return;
             if (!Dispatcher.CheckAccess())
             {
-                Dispatcher.Invoke(() => AppendOutput(text));
+                try
+                {
+                    Dispatcher.BeginInvoke(new Action(() => AppendOutput(text)));
+                }
+                catch
+                {
+                    // The runner window may already be closing.
+                }
                 return;
             }
 

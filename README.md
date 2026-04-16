@@ -27,10 +27,11 @@
 
 ---
 
-## 最近の目玉
+## 最近の更新
 
-- HTML 経由で集計表を選択し、プレビュー、Excel 書き出し、差分確認、Revit 側確認付きの反映までを一連で扱えるようになりました。
-- 反映要求は Revit 側でその場の許可とキュー再確認を選べるため、外部編集と本体反映を分けて運用できます。
+- **A2A adapter**: A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできる `RevitMCP.A2AAdapter` を追加しました。
+- **HTML集計表・Excel連携**: ブラウザで集計表を確認し、Excel 書き出し、差分確認、Revit 側確認付き反映まで進められる導線を強化しました。
+- **DWG/import後片付け**: DWG/import 由来の Object Styles、Material、残留 root を dry-run 前提で調査・整理するコマンドを追加しました。
 
 ---
 

@@ -1,7 +1,7 @@
 # MCP Playbook Server — Design Spec & Operations Runbook
 **Version:** 1.2 (2025-10-20)  
-**Context:** RevitMCP Project (external recorder/replay proxy)  
-**Audience:** AI agent developers, BIM automation engineers, RevitMCP maintainers
+**Context:** Revit MCP Project (external recorder/replay proxy)  
+**Audience:** AI agent developers, BIM automation engineers, Revit MCP maintainers
 
 ---
 
@@ -218,7 +218,7 @@ sealed class TeachState {
     StreamWriter? _jsonl;
     public IResult Start(string? sessionName){
         var name = string.IsNullOrWhiteSpace(sessionName) ? DateTime.Now.ToString("yyyyMMdd_HHmmss") : sessionName.Trim();
-        _dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP","Playbooks", name);
+        _dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Revit MCP","Playbooks", name);
         Directory.CreateDirectory(_dir);
         _jsonl = new StreamWriter(Path.Combine(_dir, "capture.jsonl"), append:true, Encoding.UTF8);
         File.WriteAllText(Path.Combine(_dir, "playbook.md"), $"# Playbook: {name}\nCreated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n", Encoding.UTF8);
@@ -275,7 +275,7 @@ static class RecipeLoader {
         if (!string.IsNullOrWhiteSpace(rr.RecipePath))
             return await LoadFromFileAsync(rr.RecipePath!);
         if (!string.IsNullOrWhiteSpace(rr.SessionId)){
-            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RevitMCP","Playbooks", rr.SessionId!);
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Revit MCP","Playbooks", rr.SessionId!);
             var path = Path.Combine(dir, "recipe.json");
             return await LoadFromFileAsync(path);
         }
@@ -431,7 +431,7 @@ curl -X POST "http://127.0.0.1:5209/replay" ^
 - **HTTP 5xx from RevitMcpServer** → Check Revit is open, server port, antivirus/firewall, long‑running transactions.
 
 ### 6.9 Versioning & Governance
-- Include Revit version, RevitMCP server version, and Playbook server version in `summary.yaml`.  
+- Include Revit version, Revit MCP server version, and Playbook server version in `summary.yaml`.  
 - Use semantic versioning for recipes (`name@major.minor.patch`).  
 - Keep a **reviewed** folder for approved recipes; require code review for changes.
 

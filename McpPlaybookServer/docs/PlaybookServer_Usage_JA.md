@@ -1,12 +1,12 @@
 # MCP Playbook Server 利用ガイド（説明書）
 
 バージョン: 1.0  
-対象: RevitMCP を安全に記録・再生しながら操作するための外部 HTTP プロキシ（.NET 8）
+対象: Revit MCP を安全に記録・再生しながら操作するための外部 HTTP プロキシ（.NET 8）
 
 ---
 
 ## 1) 目的と概要
-- 目的: AI エージェントやスクリプトと RevitMCP の間に挟み、JSON-RPC を記録（teach）し、レシピで安全に再生（replay）します。
+- 目的: AI エージェントやスクリプトと Revit MCP の間に挟み、JSON-RPC を記録（teach）し、レシピで安全に再生（replay）します。
 - 特徴:
   - Revit アドイン側の変更不要（.NET Framework 4.8 のまま）
   - 別プロセス（.NET 8）として動作
@@ -17,7 +17,7 @@
 ## 2) 動作環境
 - Windows 10/11（x64）
 - .NET Runtime 8 以降（開発時: SDK 9.0.305/Runtime 8.0/9.0）
-- RevitMCP サーバー（例: http://127.0.0.1:5210）
+- Revit MCP サーバー（例: http://127.0.0.1:5210）
 - Visual Studio 2022（任意、ビルド済みバイナリをそのまま使用可）
 
 ---
@@ -36,7 +36,7 @@
 ---
 
 ## 4) 起動方法（ポート/転送先）
-- 例: RevitMCP が `http://127.0.0.1:5210` でリッスン
+- 例: Revit MCP が `http://127.0.0.1:5210` でリッスン
 - Playbook Server を 5209 で起動
 
 ```
@@ -50,11 +50,11 @@ McpPlaybookServer.exe --forward http://127.0.0.1:5210 --port 5209
   - `POST /teach/start?name={optional}` → `{ ok:true, dir }`
   - `POST /teach/stop` → `{ ok:true }`
 - 従来フロー（レガシー互換）
-  - `POST /rpc` → RevitMCP `/rpc` へ転送（キュー投入/即時応答の形はサーバーに依存）
-  - `GET  /get_result` → RevitMCP `/get_result` へ転送
+  - `POST /rpc` → Revit MCP `/rpc` へ転送（キュー投入/即時応答の形はサーバーに依存）
+  - `GET  /get_result` → Revit MCP `/get_result` へ転送
 - 耐久フロー（推奨）
-  - `POST /enqueue` → RevitMCP `/enqueue` へ転送（`{"jsonrpc":"2.0","id", "method", "params"}`）
-  - `GET  /job/{id}` → RevitMCP `/job/{id}` へ転送
+  - `POST /enqueue` → Revit MCP `/enqueue` へ転送（`{"jsonrpc":"2.0","id", "method", "params"}`）
+  - `GET  /job/{id}` → Revit MCP `/job/{id}` へ転送
   - 動的切替（単一 Playbook で複数 Revit を扱う場合）
     - `POST /t/{port}/enqueue` → `http://127.0.0.1:{port}/enqueue` へ転送
     - `GET  /t/{port}/job/{id}` → `http://127.0.0.1:{port}/job/{id}` へ転送
@@ -95,7 +95,7 @@ Invoke-WebRequest -Uri "$base/job/<jobId>" -Method Get -UseBasicParsing
 
 - プロジェクト情報の取得
 ```
-# 1) 動的切替（例: RevitMCP が 5211 で待受）
+# 1) 動的切替（例: Revit MCP が 5211 で待受）
 $base = 'http://127.0.0.1:5209/t/5211'
 $payload = '{"jsonrpc":"2.0","id":1,"method":"get_project_info","params":{}}'
 Invoke-RestMethod -Uri "$base/enqueue" -Method Post -Body $payload -ContentType 'application/json; charset=utf-8'
@@ -146,7 +146,7 @@ POST /replay
 ## 10) トラブルシュート
 - `POST /enqueue` が 500 の場合:
   - Content-Type を `application/json; charset=utf-8` にする
-  - 本サーバーを再起動し、RevitMCP `/enqueue` 単体で通るか確認
+  - 本サーバーを再起動し、Revit MCP `/enqueue` 単体で通るか確認
 - `GET /job/{id}` が 404 の場合:
   - `jobId` の入力ミスまたは期限切れ
 - 応答待ちが続く（204/304）:
@@ -167,7 +167,7 @@ curl -X POST "http://127.0.0.1:5209/teach/stop"
 ---
 
 ## 12) 既知の仕様
-- 本サーバーは JSON を JSON として透過することを優先し、`/enqueue` では JSON ボディを一度バッファに読み込み、明示的に `application/json; charset=utf-8` を付与して RevitMCP に転送します。
+- 本サーバーは JSON を JSON として透過することを優先し、`/enqueue` では JSON ボディを一度バッファに読み込み、明示的に `application/json; charset=utf-8` を付与して Revit MCP に転送します。
 - teach 中は `/rpc` および `/enqueue` の呼び出しを正規化して `capture.jsonl` へ追記します（`method`/`params`/`result`）。
 
 ---

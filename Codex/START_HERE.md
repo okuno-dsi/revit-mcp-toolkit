@@ -1,6 +1,6 @@
 # Revit MCP スタートアップガイド（作業開始用）
 
-この文書は、RevitMCP の作業を開始するための最短導線です。ここから各ドキュメント/スクリプトに移動し、即時に作業を始められます。
+この文書は、Revit MCP の作業を開始するための最短導線です。ここから各ドキュメント/スクリプトに移動し、即時に作業を始められます。
 
 Read First: `READ_FIRST_RevitMCP_JA.md` (one-page quickstart)
 **必読**: `WORK_RULES.md`（Work の運用ルール。プロジェクトごとの保存先を必ず遵守）
@@ -59,7 +59,7 @@ Read First: `READ_FIRST_RevitMCP_JA.md` (one-page quickstart)
 - TaskSpec は `Projects/<ProjectName>_<ProjectID>/Tasks/*.task.json` に保存します（`Work` 直下は禁止）。
 
 ### 実行（固定ランナー）
-- TaskSpec の `server`（RevitMCP 推奨）: `http://127.0.0.1:<PORT>/enqueue`（または `http://127.0.0.1:<PORT>`）
+- TaskSpec の `server`（Revit MCP 推奨）: `http://127.0.0.1:<PORT>/enqueue`（または `http://127.0.0.1:<PORT>`）
 - Python: `python Docs/Manuals/Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py <task.json> --dry-run`（送信前検証）
 - Python: `python Docs/Manuals/Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py <task.json>`（実行）
 - PowerShell: `pwsh -ExecutionPolicy Bypass -File Docs/Manuals/Design/taskspec-v2-kit/runner/mcp_task_runner_v2.ps1 -Task <task.json> -DryRun`

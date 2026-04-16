@@ -123,6 +123,10 @@ Codex/全マニュアル.md
 Codex/git_igonore_items_list.md
 RevitAddinインストール先構成ひな形/RevitMCPAddin/
 RevitMCPAddin/build_count_*.txt
+RevitReviewPortal.sln
+RevitReviewPortal.Shared/
+RevitReviewPortalAddin/
+RevitReviewPortalServer/
 **/logs/
 **/Logs/
 **/temp/

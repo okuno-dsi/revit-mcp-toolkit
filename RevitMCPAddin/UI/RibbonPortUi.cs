@@ -575,9 +575,7 @@ namespace RevitMCPAddin.UI
     {
         public static int GetPort()
         {
-            var env = Environment.GetEnvironmentVariable("REVIT_MCP_PORT");
-            if (int.TryParse(env, out var p) && p > 0 && p < 65536) return p;
-            return 5210;
+            return PortLocator.GetCurrentPortOrDefault(5210);
         }
     }
 

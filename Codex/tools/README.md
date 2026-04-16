@@ -6,7 +6,7 @@
 ## 主なスクリプト
 
 - `mcp_safe.py`
-  - RevitMCP 等の MCP 呼び出しを「リトライ／バックオフ／タイムアウト耐性」を付けて実行するためのラッパー。
+  - Revit MCP 等の MCP 呼び出しを「リトライ／バックオフ／タイムアウト耐性」を付けて実行するためのラッパー。
   - 参考: `Manuals/Durable_vs_Legacy_Request_Flow.md`
 - `Tools/PowerShellScripts/cleanup_old_artifacts.ps1`
   - `Projects/` や `%LOCALAPPDATA%/RevitMCP` 配下のキャッシュ／ログ等を、更新日が古いものから削除する補助（既定: 7日）。

@@ -92,9 +92,12 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                 using (var tx = new Transaction(doc, "Create Structural Column"))
                 {
                     tx.Start();
+                    TxnUtil.ConfigureProceedWithWarnings(tx);
                     if (!symbol.IsActive) symbol.Activate();
 
                     var col = doc.Create.NewFamilyInstance(loc, symbol, baseLevel, StructuralType.Column);
+                    int createdElementId = col.Id.IntValue();
+                    int createdTypeId = symbol.Id.IntValue();
 
                     // Base params
                     col.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM)?.Set(baseLevel.Id);
@@ -115,12 +118,39 @@ namespace RevitMCPAddin.Commands.ElementOps.StructuralColumn
                         pTopOff?.Set(heightFt);
                     }
 
-                    tx.Commit();
+                    doc.Regenerate();
+
+                    var txStatus = tx.Commit();
+                    if (txStatus != TransactionStatus.Committed)
+                    {
+                        return new
+                        {
+                            ok = false,
+                            code = "TX_NOT_COMMITTED",
+                            msg = "Create Structural Column transaction did not commit.",
+                            detail = new { transactionStatus = txStatus.ToString() }
+                        };
+                    }
+
+                    var createdColumn = doc.GetElement(ElementIdCompat.From(createdElementId)) as FamilyInstance;
+                    if (createdColumn == null)
+                    {
+                        return new
+                        {
+                            ok = false,
+                            code = "COLUMN_CREATE_VERIFY_FAILED",
+                            msg = "Structural column was committed but could not be resolved from the document.",
+                            typeId = createdTypeId,
+                            baseLevelId = baseLevel.Id.IntValue(),
+                            topLevelId = useTopConstraint ? topLevel.Id.IntValue() : baseLevel.Id.IntValue()
+                        };
+                    }
+
                     return new
                     {
                         ok = true,
-                        elementId = col.Id.IntValue(),
-                        typeId = col.GetTypeId().IntValue(),
+                        elementId = createdElementId,
+                        typeId = createdTypeId,
                         baseLevelId = baseLevel.Id.IntValue(),
                         topLevelId = useTopConstraint ? topLevel.Id.IntValue() : baseLevel.Id.IntValue(),
                         mode = useTopConstraint ? "top-constrained" : "base+offset"

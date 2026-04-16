@@ -113,6 +113,17 @@ namespace RevitMCPAddin
             var (ok, port, msg) = ServerProcessManager.StartOrAttach(me);
             AppServices.CurrentPort = port;
 
+            // Port は最初に確定値を保存して、後続の UI/コマンドが 5210 fallback に落ちないようにする
+            try
+            {
+                Environment.SetEnvironmentVariable("REVIT_MCP_PORT", port.ToString());
+                PortLocator.SaveCurrentPort(port);
+            }
+            catch (Exception ex)
+            {
+                RevitLogger.Warn($"Set REVIT_MCP_PORT or SaveCurrentPort failed: {ex.Message}");
+            }
+
             // ポート確定後に addin_<port>.log へ切替
             RevitLogger.SwitchToPortLog(port, overwriteAtStart: true);
             try { ProgressHub.SwitchToPort(port, overwriteAtStart: true); } catch (Exception ex) { RevitLogger.Warn($"ProgressHub.SwitchToPort failed: {ex.Message}"); }
@@ -161,17 +172,6 @@ namespace RevitMCPAddin
             TryStartSelectionMonitor(application);
             try { ViewWorkspaceService.Initialize(application); } catch (Exception ex) { RevitLogger.Warn($"ViewWorkspaceService.Initialize failed: {ex.Message}"); }
             try { ChatInviteNotifier.Start(); } catch { }
-
-            // ENV（参照用）
-            try
-            {
-                Environment.SetEnvironmentVariable("REVIT_MCP_PORT", port.ToString());
-                PortLocator.SaveCurrentPort(port);
-            }
-            catch (Exception ex)
-            {
-                RevitLogger.Warn($"Set REVIT_MCP_PORT or SaveCurrentPort failed: {ex.Message}");
-            }
 
             // 設定ファイルの初期化（任意）
             try { RevitMCPAddin.Core.SettingsHelper.EnsureSettingsFile(); }

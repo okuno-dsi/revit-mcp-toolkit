@@ -1,4 +1,4 @@
-# READ FIRST: RevitMCP 120% クイックスタート
+# READ FIRST: Revit MCP 120% クイックスタート
 
 この1枚だけ読めば、Revit MCP サーバーへ確実に接続・取得・安全な書き込みまで行えます。必要なコマンドはそのまま貼り付けて使えます。
 
@@ -106,7 +106,7 @@ Get-NetTCPConnection -LocalPort 5210,5211,5212 -State Listen | Select-Object Loc
 ```
 
 ## 8) もっと進める（複数Revit・記録再生）
-- 安定運用/多重インスタンス向けチェーン: Client → Proxy(5221) → Playbook(5209) → RevitMCP(5210+)
+- 安定運用/多重インスタンス向けチェーン: Client → Proxy(5221) → Playbook(5209) → Revit MCP(5210+)
 - ルーティング: `POST http://127.0.0.1:5221/t/{revitPort}/rpc`
 - 詳細: `Docs/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md`
 

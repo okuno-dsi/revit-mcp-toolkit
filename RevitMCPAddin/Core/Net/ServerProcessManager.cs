@@ -53,9 +53,9 @@ namespace RevitMCPAddin.Core.Net
 
                     if (ReadLock(BasePort) == null) // 生存なし
                     {
-                        var res = StartServerOnPort(BasePort);
-                        if (res.ok) WriteLock(BasePort, res.pid, ownerPid);
-                        return (res.ok, BasePort, res.msg);
+                    var res = StartServerOnPort(BasePort);
+                    if (res.ok) WriteLock(res.actualPort, res.pid, ownerPid);
+                    return (res.ok, res.actualPort, res.msg);
                     }
                 }
 
@@ -77,8 +77,8 @@ namespace RevitMCPAddin.Core.Net
                 if (IsPortFree(BasePort))
                 {
                     var resAgain = StartServerOnPort(BasePort);
-                    if (resAgain.ok) WriteLock(BasePort, resAgain.pid, ownerPid);
-                    return (resAgain.ok, BasePort, resAgain.msg);
+                    if (resAgain.ok) WriteLock(resAgain.actualPort, resAgain.pid, ownerPid);
+                    return (resAgain.ok, resAgain.actualPort, resAgain.msg);
                 }
             }
 
@@ -94,7 +94,7 @@ namespace RevitMCPAddin.Core.Net
                         if (IsPortFree(p))
                         {
                             var res2 = StartServerOnPort(p);
-                            if (res2.ok) { WriteLock(p, res2.pid, ownerPid); return (true, p, $"started on {p}"); }
+                            if (res2.ok) { WriteLock(res2.actualPort, res2.pid, ownerPid); return (true, res2.actualPort, res2.msg); }
                         }
                     }
 
@@ -257,10 +257,10 @@ namespace RevitMCPAddin.Core.Net
 
         // -------------------- Internals --------------------
 
-        private static (bool ok, int pid, string msg) StartServerOnPort(int port)
+        private static (bool ok, int pid, int actualPort, string msg) StartServerOnPort(int port)
         {
             if (!IsPortFree(port))
-                return (false, 0, $"port {port} is busy");
+                return (false, 0, port, $"port {port} is busy");
 
             // ロックはあるが死んでいれば掃除
             var info = ReadLock(port);
@@ -269,14 +269,14 @@ namespace RevitMCPAddin.Core.Net
                 if (!IsProcessAlive(info.Value.serverPid))
                     TryDeleteLock(port);
                 else
-                    return (false, 0, $"alive server exists on {port}");
+                    return (false, 0, port, $"alive server exists on {port}");
             }
 
             var exe = ResolveServerExePath(out string describe);
             if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
             {
                 Log($"Server exe not found. Looked at: {describe}");
-                return (false, 0, "Server executable not found. Place server/RevitMCPServer.exe next to the Add-in or set REVIT_MCP_SERVER_EXE.");
+                return (false, 0, port, "Server executable not found. Place server/RevitMCPServer.exe next to the Add-in or set REVIT_MCP_SERVER_EXE.");
             }
 
             try
@@ -299,12 +299,17 @@ namespace RevitMCPAddin.Core.Net
 
                 Log($"Starting server: {psi.FileName} {psi.Arguments} (WD={psi.WorkingDirectory})");
                 var proc = Process.Start(psi);
-                if (proc == null) return (false, 0, "Process.Start returned null");
+                if (proc == null) return (false, 0, port, "Process.Start returned null");
 
                 // 自分が起動したサーバーだけ Job 登録（失敗しても続行）
                 TryAssignJob(proc);
 
-                // wait for the port to bind (slightly extended to reduce startup races)
+                // Server may choose another free port (5210..5219). Detect the actual bound port
+                // via the sidecar state file written by the server process, then wait for that port.
+                var actualPort = WaitForServerStatePort(proc.Id, port, bindTimeoutMs: 10000);
+                if (actualPort <= 0) actualPort = port;
+
+                // wait for the actual port to bind (slightly extended to reduce startup races)
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 bool bound = false;
                 int bindTimeoutMs = 30000; // default 30s
@@ -321,7 +326,7 @@ namespace RevitMCPAddin.Core.Net
                     {
                         using (var client = new System.Net.Sockets.TcpClient())
                         {
-                            var ar = client.BeginConnect(System.Net.IPAddress.Loopback, port, null, null);
+                            var ar = client.BeginConnect(System.Net.IPAddress.Loopback, actualPort, null, null);
                             if (ar.AsyncWaitHandle.WaitOne(500))
                             {
                                 try { client.EndConnect(ar); } catch { }
@@ -335,16 +340,46 @@ namespace RevitMCPAddin.Core.Net
 
                 // 18s→30sに延長。それでも bind しない場合でも、プロセスは起動済みのため OK 扱いでロックを書き、
                 // 後続の StartOrAttach が二重起動しないようにする。
-                var msg = bound ? $"started: {describe} (port {port})" : $"started (pending bind): {describe} (port {port})";
-                Log($"Start result: bound={bound}, hasExited={proc.HasExited}, pid={proc.Id}, msg={msg}");
-                return (bound || proc.HasExited == false, proc.Id,
-                    msg);
+                var msg = actualPort == port
+                    ? (bound ? $"started: {describe} (port {actualPort})" : $"started (pending bind): {describe} (port {actualPort})")
+                    : (bound ? $"started: {describe} (requested {port} -> actual {actualPort})" : $"started (pending bind): {describe} (requested {port} -> actual {actualPort})");
+                Log($"Start result: requested={port}, actual={actualPort}, bound={bound}, hasExited={proc.HasExited}, pid={proc.Id}, msg={msg}");
+                return (bound || proc.HasExited == false, proc.Id, actualPort, msg);
             }
             catch (Exception ex)
             {
                 Log($"Start failed: {ex.GetType().Name}: {ex.Message}");
-                return (false, 0, $"start failed: {ex.GetType().Name}: {ex.Message}");
+                return (false, 0, port, $"start failed: {ex.GetType().Name}: {ex.Message}");
             }
+        }
+
+        private static int WaitForServerStatePort(int serverPid, int fallbackPort, int bindTimeoutMs)
+        {
+            try
+            {
+                var deadline = DateTime.UtcNow.AddMilliseconds(Math.Max(500, bindTimeoutMs));
+                var path = Path.Combine(_appDataRoot, $"server_state_{serverPid}.json");
+                while (DateTime.UtcNow < deadline)
+                {
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            var txt = File.ReadAllText(path);
+                            if (!string.IsNullOrWhiteSpace(txt))
+                            {
+                                var match = System.Text.RegularExpressions.Regex.Match(txt, "\"port\"\\s*:\\s*(\\d+)");
+                                if (match.Success && int.TryParse(match.Groups[1].Value, out var p) && p > 0 && p < 65536)
+                                    return p;
+                            }
+                        }
+                    }
+                    catch { }
+                    System.Threading.Thread.Sleep(100);
+                }
+            }
+            catch { }
+            return fallbackPort;
         }
 
         private static void EnsureAppData()

@@ -23,7 +23,7 @@ Logs location
 TaskSpec v2 (recommended for complex/write)
 - Fixed runner (no free-form transport scripts): `Design/taskspec-v2-kit/runner/mcp_task_runner_v2.py` (Python) / `Design/taskspec-v2-kit/runner/mcp_task_runner_v2.ps1` (PowerShell).
 - Store TaskSpec files under `Projects/<Project>_<Port>/Tasks/*.task.json` (never under `Projects/` root).
-- RevitMCP transport: set `server` to `http://127.0.0.1:<PORT>/enqueue` (or base `http://127.0.0.1:<PORT>`); the runner polls `/job/{id}` automatically.
+- Revit MCP transport: set `server` to `http://127.0.0.1:<PORT>/enqueue` (or base `http://127.0.0.1:<PORT>`); the runner polls `/job/{id}` automatically.
 
 Safety and ID handling
 - Scripts will not send `viewId: 0` or `elementId: 0`.

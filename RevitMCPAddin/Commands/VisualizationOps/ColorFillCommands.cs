@@ -178,6 +178,264 @@ namespace RevitMCPAddin.Commands.VisualizationOps
             }
             return (true, id, null);
         }
+
+        public static ColorFillScheme ResolveColorScheme(Document doc, JObject p)
+        {
+            if (doc == null || p == null) return null;
+
+            int schemeId = p.Value<int?>("schemeId") ?? 0;
+            if (schemeId > 0)
+            {
+                var direct = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(schemeId)) as ColorFillScheme;
+                if (direct != null) return direct;
+            }
+
+            string schemeName = p.Value<string>("schemeName") ?? p.Value<string>("name");
+            int categoryId = p.Value<int?>("categoryId") ?? 0;
+            int areaSchemeId = p.Value<int?>("areaSchemeId") ?? 0;
+
+            IEnumerable<ColorFillScheme> query = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_ColorFillSchema)
+                .OfClass(typeof(ColorFillScheme))
+                .Cast<ColorFillScheme>();
+
+            if (categoryId != 0)
+            {
+                query = query.Where(s => s.CategoryId != null && s.CategoryId.IntValue() == categoryId);
+            }
+
+            if (areaSchemeId != 0)
+            {
+                query = query.Where(s => s.AreaSchemeId != null && s.AreaSchemeId.IntValue() == areaSchemeId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(schemeName))
+            {
+                query = query.Where(s => string.Equals(s.Name ?? string.Empty, schemeName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.FirstOrDefault();
+        }
+
+        public static ColorFillScheme FindBaseColorScheme(Document doc, ElementId categoryId, ElementId areaSchemeId)
+        {
+            if (doc == null || categoryId == null || categoryId == ElementId.InvalidElementId) return null;
+
+            IEnumerable<ColorFillScheme> query = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_ColorFillSchema)
+                .OfClass(typeof(ColorFillScheme))
+                .Cast<ColorFillScheme>()
+                .Where(s => s.CategoryId != null && s.CategoryId.IntValue() == categoryId.IntValue());
+
+            if (areaSchemeId != null && areaSchemeId != ElementId.InvalidElementId)
+            {
+                query = query.Where(s => s.AreaSchemeId != null && s.AreaSchemeId.IntValue() == areaSchemeId.IntValue());
+            }
+
+            return query.FirstOrDefault();
+        }
+
+        public static string ElementName(Document doc, ElementId id)
+        {
+            if (doc == null || id == null || id == ElementId.InvalidElementId) return string.Empty;
+            try
+            {
+                var e = doc.GetElement(id);
+                return e != null ? (e.Name ?? string.Empty) : string.Empty;
+            }
+            catch { return string.Empty; }
+        }
+
+        public static JObject ExportColorScheme(Document doc, ColorFillScheme scheme)
+        {
+            var obj = new JObject();
+            if (doc == null || scheme == null) return obj;
+
+            obj["schemeId"] = scheme.Id.IntValue();
+            obj["uniqueId"] = scheme.UniqueId ?? string.Empty;
+            obj["name"] = scheme.Name ?? string.Empty;
+            try { obj["title"] = scheme.Title ?? string.Empty; } catch { obj["title"] = string.Empty; }
+            obj["categoryId"] = scheme.CategoryId != null ? scheme.CategoryId.IntValue() : 0;
+            obj["categoryName"] = ElementName(doc, scheme.CategoryId);
+            obj["areaSchemeId"] = scheme.AreaSchemeId != null ? scheme.AreaSchemeId.IntValue() : -1;
+            obj["areaSchemeName"] = ElementName(doc, scheme.AreaSchemeId);
+            obj["parameterDefinitionId"] = scheme.ParameterDefinition != null ? scheme.ParameterDefinition.IntValue() : -1;
+            obj["parameterDefinitionName"] = ElementName(doc, scheme.ParameterDefinition);
+            obj["isByRange"] = scheme.IsByRange;
+            obj["storageType"] = scheme.StorageType.ToString();
+            try { obj["isLinkedFilesIncluded"] = scheme.IsLinkedFilesIncluded; } catch { }
+
+            var entries = new JArray();
+            int order = 0;
+            foreach (var entry in scheme.GetEntries() ?? new List<ColorFillSchemeEntry>())
+            {
+                order++;
+                entries.Add(ExportColorFillEntry(doc, entry, order));
+            }
+            obj["entryCount"] = entries.Count;
+            obj["entries"] = entries;
+            return obj;
+        }
+
+        public static JObject ExportColorFillEntry(Document doc, ColorFillSchemeEntry entry, int order)
+        {
+            var obj = new JObject();
+            if (entry == null) return obj;
+
+            obj["order"] = order;
+            obj["storageType"] = entry.StorageType.ToString();
+            try { obj["caption"] = entry.Caption ?? string.Empty; } catch { obj["caption"] = string.Empty; }
+            try { obj["isVisible"] = entry.IsVisible; } catch { }
+            try { obj["isInUse"] = entry.IsInUse; } catch { }
+
+            var fillId = ElementId.InvalidElementId;
+            try { fillId = entry.FillPatternId; } catch { fillId = ElementId.InvalidElementId; }
+            obj["fillPatternId"] = fillId != null ? fillId.IntValue() : -1;
+            obj["fillPatternName"] = ElementName(doc, fillId);
+
+            try
+            {
+                var c = entry.Color;
+                if (c != null && c.IsValid)
+                {
+                    obj["color"] = new JObject
+                    {
+                        ["r"] = (int)c.Red,
+                        ["g"] = (int)c.Green,
+                        ["b"] = (int)c.Blue
+                    };
+                }
+            }
+            catch { }
+
+            try
+            {
+                switch (entry.StorageType)
+                {
+                    case StorageType.String:
+                        obj["value"] = entry.GetStringValue() ?? string.Empty;
+                        break;
+                    case StorageType.Integer:
+                        obj["value"] = entry.GetIntegerValue();
+                        break;
+                    case StorageType.Double:
+                        obj["value"] = entry.GetDoubleValue();
+                        break;
+                    case StorageType.ElementId:
+                        var id = entry.GetElementIdValue();
+                        obj["value"] = id != null ? id.IntValue() : -1;
+                        obj["valueName"] = ElementName(doc, id);
+                        break;
+                    default:
+                        obj["value"] = null;
+                        break;
+                }
+            }
+            catch { obj["valueReadError"] = true; }
+
+            return obj;
+        }
+
+        public static ElementId ResolveFillPatternId(Document doc, JObject entryObj, IList<string> warnings)
+        {
+            if (doc == null || entryObj == null) return ElementId.InvalidElementId;
+
+            string fillName = entryObj.Value<string>("fillPatternName");
+            if (!string.IsNullOrWhiteSpace(fillName))
+            {
+                var match = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement))
+                    .Cast<FillPatternElement>()
+                    .FirstOrDefault(fp =>
+                    {
+                        try
+                        {
+                            var p = fp.GetFillPattern();
+                            return p != null
+                                && p.Target == FillPatternTarget.Drafting
+                                && string.Equals(fp.Name ?? string.Empty, fillName, StringComparison.OrdinalIgnoreCase);
+                        }
+                        catch { return false; }
+                    });
+                if (match != null) return match.Id;
+                warnings?.Add("Fill pattern not found by name; using solid fill fallback: " + fillName);
+            }
+
+            int fillId = entryObj.Value<int?>("fillPatternId") ?? -1;
+            if (fillId > 0)
+            {
+                try
+                {
+                    var fp = doc.GetElement(Autodesk.Revit.DB.ElementIdCompat.From(fillId)) as FillPatternElement;
+                    var pat = fp?.GetFillPattern();
+                    if (fp != null && pat != null && pat.Target == FillPatternTarget.Drafting) return fp.Id;
+                }
+                catch { }
+            }
+
+            return GetSolidDraftingFillId(doc);
+        }
+
+        public static ColorFillSchemeEntry BuildColorFillEntry(Document doc, JObject entryObj, StorageType storageType, bool isByRange, IList<string> warnings)
+        {
+            var entry = new ColorFillSchemeEntry(storageType);
+            var value = entryObj?["value"];
+
+            try
+            {
+                switch (storageType)
+                {
+                    case StorageType.String:
+                        var s = value != null && value.Type != JTokenType.Null ? value.Value<string>() : string.Empty;
+                        if (string.IsNullOrWhiteSpace(s)) throw new InvalidOperationException("String color fill entry value is empty.");
+                        entry.SetStringValue(s);
+                        break;
+                    case StorageType.Integer:
+                        entry.SetIntegerValue(value != null ? value.Value<int>() : 0);
+                        break;
+                    case StorageType.Double:
+                        entry.SetDoubleValue(value != null ? value.Value<double>() : 0.0);
+                        break;
+                    case StorageType.ElementId:
+                        entry.SetElementIdValue(Autodesk.Revit.DB.ElementIdCompat.From(value != null ? value.Value<int>() : -1));
+                        break;
+                    default:
+                        throw new InvalidOperationException("Unsupported color fill entry storage type: " + storageType);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to set color fill entry value: " + ex.Message, ex);
+            }
+
+            try
+            {
+                var colorObj = entryObj?["color"] as JObject;
+                if (colorObj != null)
+                    entry.Color = Rgb(colorObj.Value<int?>("r") ?? 0, colorObj.Value<int?>("g") ?? 0, colorObj.Value<int?>("b") ?? 0);
+            }
+            catch (Exception ex) { warnings?.Add("Failed to set entry color: " + ex.Message); }
+
+            try { entry.FillPatternId = ResolveFillPatternId(doc, entryObj, warnings); }
+            catch (Exception ex) { warnings?.Add("Failed to set entry fill pattern: " + ex.Message); }
+
+            try
+            {
+                if (entryObj != null && entryObj["isVisible"] != null && entryObj["isVisible"].Type != JTokenType.Null)
+                    entry.IsVisible = entryObj.Value<bool>("isVisible");
+            }
+            catch (Exception ex) { warnings?.Add("Failed to set entry visibility: " + ex.Message); }
+
+            try
+            {
+                string caption = entryObj?.Value<string>("caption");
+                if (isByRange && !string.IsNullOrWhiteSpace(caption))
+                    entry.Caption = caption;
+            }
+            catch (Exception ex) { warnings?.Add("Failed to set entry caption: " + ex.Message); }
+
+            return entry;
+        }
     }
 
     // ----------------------------------------------------------------
@@ -276,6 +534,208 @@ namespace RevitMCPAddin.Commands.VisualizationOps
                 .ToList();
 
             return new { ok = true, schemes };
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // 3.1) カラースキームをJSONとして取得
+    // ----------------------------------------------------------------
+    public class ExportColorSchemeCommand : IRevitCommandHandler
+    {
+        public string CommandName => "export_color_scheme";
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var doc = uiapp?.ActiveUIDocument?.Document;
+            if (doc == null) return new { ok = false, message = "No active document." };
+            var p = (JObject)(cmd.Params ?? new JObject());
+
+            var scheme = CfUtil.ResolveColorScheme(doc, p);
+            if (scheme == null) return new { ok = false, message = "ColorFillScheme not found (schemeId/schemeName/categoryId)." };
+
+            var schemeObj = CfUtil.ExportColorScheme(doc, scheme);
+            return new
+            {
+                ok = true,
+                scheme = schemeObj
+            };
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // 3.2) JSON化したカラースキームを同カテゴリのスキームへ反映
+    // ----------------------------------------------------------------
+    public class ImportColorSchemeCommand : IRevitCommandHandler
+    {
+        public string CommandName => "import_color_scheme";
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var doc = uiapp?.ActiveUIDocument?.Document;
+            if (doc == null) return new { ok = false, message = "No active document." };
+            var p = (JObject)(cmd.Params ?? new JObject());
+
+            var source = p["scheme"] as JObject;
+            if (source == null) return new { ok = false, message = "scheme object is required (from export_color_scheme)." };
+
+            int categoryIdInt = p.Value<int?>("categoryId") ?? source.Value<int?>("categoryId") ?? 0;
+            if (categoryIdInt == 0) return new { ok = false, message = "categoryId is required." };
+            var categoryId = Autodesk.Revit.DB.ElementIdCompat.From(categoryIdInt);
+
+            int areaSchemeIdInt = p.Value<int?>("areaSchemeId") ?? source.Value<int?>("areaSchemeId") ?? -1;
+            var areaSchemeId = areaSchemeIdInt > 0 ? Autodesk.Revit.DB.ElementIdCompat.From(areaSchemeIdInt) : ElementId.InvalidElementId;
+
+            string targetName = p.Value<string>("targetName") ?? p.Value<string>("schemeName") ?? source.Value<string>("name") ?? "Imported Color Scheme";
+            bool createIfMissing = p.Value<bool?>("createIfMissing") ?? true;
+            bool dryRun = p.Value<bool?>("dryRun") ?? false;
+
+            int paramDefinitionIdInt = p.Value<int?>("parameterDefinitionId") ?? source.Value<int?>("parameterDefinitionId") ?? 0;
+            if (paramDefinitionIdInt == 0) return new { ok = false, message = "parameterDefinitionId is required." };
+            var paramDefinitionId = Autodesk.Revit.DB.ElementIdCompat.From(paramDefinitionIdInt);
+
+            var warnings = new List<string>();
+            var entriesPayload = source["entries"] as JArray ?? new JArray();
+            if (entriesPayload.Count == 0) warnings.Add("Source scheme contains no entries.");
+
+            ColorFillScheme target = null;
+            var targetQuery = new JObject
+            {
+                ["schemeName"] = targetName,
+                ["categoryId"] = categoryIdInt
+            };
+            if (areaSchemeIdInt > 0) targetQuery["areaSchemeId"] = areaSchemeIdInt;
+            target = CfUtil.ResolveColorScheme(doc, targetQuery);
+
+            string action = target != null ? "update" : "create";
+            if (target == null && !createIfMissing)
+                return new { ok = false, message = "Target ColorFillScheme not found and createIfMissing=false.", targetName };
+
+            if (dryRun)
+            {
+                return new
+                {
+                    ok = true,
+                    dryRun = true,
+                    action,
+                    targetName,
+                    categoryId = categoryIdInt,
+                    parameterDefinitionId = paramDefinitionIdInt,
+                    entryCount = entriesPayload.Count,
+                    warnings
+                };
+            }
+
+            using (var t = new Transaction(doc, "[MCP] Import Color Scheme"))
+            {
+                t.Start();
+                try
+                {
+                    if (target == null)
+                    {
+                        var baseScheme = CfUtil.FindBaseColorScheme(doc, categoryId, areaSchemeId);
+                        if (baseScheme == null)
+                        {
+                            t.RollBack();
+                            return new { ok = false, message = "No base ColorFillScheme found for target category. Create one manually first.", categoryId = categoryIdInt };
+                        }
+                        var newId = baseScheme.Duplicate(targetName);
+                        target = doc.GetElement(newId) as ColorFillScheme;
+                        if (target == null)
+                        {
+                            t.RollBack();
+                            return new { ok = false, message = "Failed to duplicate base ColorFillScheme.", targetName };
+                        }
+                    }
+
+                    if (!target.IsValidParameterDefinitionId(paramDefinitionId))
+                    {
+                        t.RollBack();
+                        return new
+                        {
+                            ok = false,
+                            message = "ParameterDefinition is not valid for target scheme.",
+                            targetName,
+                            parameterDefinitionId = paramDefinitionIdInt
+                        };
+                    }
+
+                    target.ParameterDefinition = paramDefinitionId;
+                    target.IsByRange = source.Value<bool?>("isByRange") ?? false;
+                    try
+                    {
+                        string title = source.Value<string>("title");
+                        if (!string.IsNullOrWhiteSpace(title)) target.Title = title;
+                    }
+                    catch (Exception ex) { warnings.Add("Failed to set scheme title: " + ex.Message); }
+                    try
+                    {
+                        if (source["isLinkedFilesIncluded"] != null && source["isLinkedFilesIncluded"].Type != JTokenType.Null)
+                            target.IsLinkedFilesIncluded = source.Value<bool>("isLinkedFilesIncluded");
+                    }
+                    catch (Exception ex) { warnings.Add("Failed to set linked-file flag: " + ex.Message); }
+
+                    var storageType = target.StorageType;
+                    var entries = new List<ColorFillSchemeEntry>();
+                    var skippedEntries = new List<object>();
+                    int order = 0;
+                    foreach (var tok in entriesPayload.OfType<JObject>())
+                    {
+                        order++;
+                        try
+                        {
+                            var entry = CfUtil.BuildColorFillEntry(doc, tok, storageType, target.IsByRange, warnings);
+                            entries.Add(entry);
+                        }
+                        catch (Exception ex)
+                        {
+                            skippedEntries.Add(new { order, message = ex.Message, value = tok["value"] });
+                        }
+                    }
+
+                    EntryAndSchemeConsistency consistency = EntryAndSchemeConsistency.Consistent;
+                    try { consistency = target.AreEntriesConsistentWithScheme(entries); }
+                    catch (Exception ex) { warnings.Add("Failed to validate entries: " + ex.Message); }
+
+                    if (consistency != EntryAndSchemeConsistency.Consistent)
+                    {
+                        t.RollBack();
+                        return new
+                        {
+                            ok = false,
+                            message = "Entries are not consistent with the target scheme.",
+                            consistency = consistency.ToString(),
+                            targetName,
+                            builtEntryCount = entries.Count,
+                            skippedEntries,
+                            warnings
+                        };
+                    }
+
+                    target.SetEntries(entries);
+                    t.Commit();
+
+                    var exported = CfUtil.ExportColorScheme(doc, target);
+                    return new
+                    {
+                        ok = true,
+                        action,
+                        targetSchemeId = target.Id.IntValue(),
+                        targetName = target.Name,
+                        categoryId = categoryIdInt,
+                        parameterDefinitionId = paramDefinitionId.IntValue(),
+                        importedEntryCount = entries.Count,
+                        skippedEntryCount = skippedEntries.Count,
+                        skippedEntries,
+                        warnings,
+                        scheme = exported
+                    };
+                }
+                catch (Exception ex)
+                {
+                    try { t.RollBack(); } catch { }
+                    return new { ok = false, message = ex.Message, detail = ex.ToString(), warnings };
+                }
+            }
         }
     }
 

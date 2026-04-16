@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using Newtonsoft.Json;
 
@@ -12,6 +13,8 @@ namespace RevitMCPAddin.Core
 {
     public static class Paths
     {
+        private const int ManagedProjectFolderBudget = 190;
+
         private sealed class PathsConfig
         {
             public string? root { get; set; }
@@ -306,6 +309,37 @@ namespace RevitMCPAddin.Core
             return null;
         }
 
+        public static string? ResolveManagedProjectFolder(string? docTitle, string? docKey, int maxFullPathLength = ManagedProjectFolderBudget)
+        {
+            var workRoot = ResolveWorkRoot();
+            if (string.IsNullOrWhiteSpace(workRoot)) return null;
+
+            TryCreateDir(workRoot);
+            if (!Directory.Exists(workRoot)) return null;
+
+            var safeTitle = SanitizePathSegment(docTitle);
+            if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = "Project";
+
+            var safeKey = SanitizePathSegment(docKey);
+            if (string.IsNullOrWhiteSpace(safeKey)) safeKey = "unknown";
+
+            var legacyName = $"{safeTitle}_{safeKey}";
+            var legacyPath = Path.Combine(workRoot, legacyName);
+            var managedName = legacyPath.Length <= maxFullPathLength
+                ? legacyName
+                : $"{ShortenPathComponent(safeTitle, 32, "Project")}_{ShortenPathComponent(safeKey, 16, "Doc")}_{ComputeShortHash(safeTitle + "|" + safeKey).Substring(0, 8)}";
+            var managedPath = Path.Combine(workRoot, managedName);
+
+            if (legacyPath.Length <= maxFullPathLength && Directory.Exists(legacyPath))
+                return legacyPath;
+
+            if (Directory.Exists(managedPath))
+                return managedPath;
+
+            Directory.CreateDirectory(managedPath);
+            return managedPath;
+        }
+
         private static string NormalizeWorkDir(string rootOrWork)
         {
             if (string.IsNullOrWhiteSpace(rootOrWork)) return rootOrWork;
@@ -405,6 +439,36 @@ namespace RevitMCPAddin.Core
         private static void TryCreateDir(string path)
         {
             try { Directory.CreateDirectory(path); } catch { }
+        }
+
+        private static string SanitizePathSegment(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+            var invalid = Path.GetInvalidFileNameChars();
+            var cleaned = new string(name.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
+            return cleaned.Trim().Trim('.', ' ');
+        }
+
+        private static string ShortenPathComponent(string? value, int maxLength, string fallback)
+        {
+            var sanitized = SanitizePathSegment(value);
+            if (string.IsNullOrWhiteSpace(sanitized))
+                sanitized = fallback;
+            if (sanitized.Length <= maxLength)
+                return sanitized;
+            if (maxLength <= 12)
+                return sanitized.Substring(0, Math.Max(1, maxLength));
+
+            var hash = ComputeShortHash(sanitized).Substring(0, 8);
+            var prefixLength = Math.Max(1, maxLength - hash.Length - 1);
+            return sanitized.Substring(0, prefixLength) + "_" + hash;
+        }
+
+        private static string ComputeShortHash(string value)
+        {
+            using var sha = SHA256.Create();
+            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(value ?? string.Empty));
+            return BitConverter.ToString(bytes).Replace("-", string.Empty);
         }
     }
 }

@@ -32,16 +32,18 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 .OrderBy(vs => vs.Name)
                 .Select(vs =>
                 {
-                    var catId = vs.Definition.CategoryId;
-                    var category = doc.Settings.Categories
-                        .Cast<Category>()
-                        .FirstOrDefault(c => c.Id == catId);
+                    var analysis = ScheduleRoundtripExcelUtil.AnalyzeScheduleRoundtripSupport(doc, vs);
                     return new
                     {
                         scheduleViewId = vs.Id.IntValue(),
                         title = vs.Name,
-                        categoryName = category?.Name ?? string.Empty,
-                        isActive = vs.Id.IntValue() == activeScheduleId
+                        categoryName = analysis.CategoryName,
+                        isActive = vs.Id.IntValue() == activeScheduleId,
+                        supportStatus = analysis.StatusCode,
+                        supportReasonCode = analysis.ReasonCode,
+                        supportReason = analysis.Reason,
+                        suggestedMode = analysis.SuggestedMode,
+                        visibleColumnCount = analysis.VisibleColumnCount
                     };
                 })
                 .ToList();

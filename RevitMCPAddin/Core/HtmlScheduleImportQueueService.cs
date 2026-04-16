@@ -133,6 +133,7 @@ namespace RevitMCPAddin.Core
                     : $"集計表「{entry.ScheduleName}」のキュー済み変更リクエストを処理しますか？",
                 MainContent =
                     $"Document: {entry.DocTitle}\n" +
+                    $"Requested by: {(string.IsNullOrWhiteSpace(entry.RequestedBy) ? "(unknown)" : entry.RequestedBy)}\n" +
                     $"Workbook: {entry.UploadedFileName}\n" +
                     $"Changed cells (preview): {entry.ChangedCellCount}\n\n" +
                     "「今すぐ反映」: ただちに反映\n" +
@@ -251,7 +252,8 @@ namespace RevitMCPAddin.Core
                     ["docTitle"] = entry.DocTitle,
                     ["filePath"] = entry.UploadedFilePath,
                     ["reportPath"] = reportPath,
-                    ["auditJsonPath"] = auditJsonPath
+                    ["auditJsonPath"] = auditJsonPath,
+                    ["expectedValues"] = JToken.FromObject(entry.ExpectedValues ?? new List<HtmlScheduleImportExpectedValue>())
                 }
             };
 
@@ -262,13 +264,18 @@ namespace RevitMCPAddin.Core
 
             if (ok)
             {
+                var conflictCount = root.Value<int?>("conflictCount") ?? 0;
                 entry.Status = "completed";
                 entry.CompletedUtc = DateTimeOffset.UtcNow;
                 entry.ReportPath = root.Value<string>("reportPath") ?? reportPath;
                 entry.AuditJsonPath = root.Value<string>("auditJsonPath") ?? auditJsonPath;
-                entry.LastMessage = "completed";
+                entry.LastMessage = conflictCount > 0 ? $"completed-with-conflicts:{conflictCount}" : "completed";
                 SaveEntry(entry);
-                TaskDialog.Show("Queued HTML Import", "キュー済み変更の反映が完了しました。");
+                TaskDialog.Show(
+                    "Queued HTML Import",
+                    conflictCount > 0
+                        ? $"キュー済み変更の反映は完了しましたが、{conflictCount} 件は Revit 側の値が preview 時から変わっていたため反映しませんでした。"
+                        : "キュー済み変更の反映が完了しました。");
                 return;
             }
 
@@ -378,19 +385,8 @@ namespace RevitMCPAddin.Core
 
         private static string GetProjectFolder(string docTitle, string docGuid)
         {
-            var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Revit_MCP", "Projects");
-            var name = SanitizeFileName($"{docTitle}_{docGuid}");
-            var path = Path.Combine(root, name);
-            Directory.CreateDirectory(path);
-            return path;
-        }
-
-        private static string SanitizeFileName(string? value)
-        {
-            var text = string.IsNullOrWhiteSpace(value) ? "room_roundtrip" : value!;
-            foreach (var ch in Path.GetInvalidFileNameChars())
-                text = text.Replace(ch, '_');
-            return text;
+            return Paths.ResolveManagedProjectFolder(docTitle, docGuid)
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Revit_MCP", "Projects", "Project_unknown");
         }
 
         private static string FirstNonBlank(params string?[] values)
@@ -418,6 +414,7 @@ namespace RevitMCPAddin.Core
             public string ProjectFolderPath { get; set; } = string.Empty;
             public int ChangedCellCount { get; set; }
             public int EditableColumnCount { get; set; }
+            public List<HtmlScheduleImportExpectedValue> ExpectedValues { get; set; } = new List<HtmlScheduleImportExpectedValue>();
             public string Status { get; set; } = "queued";
             public int AttemptCount { get; set; }
             public DateTimeOffset CreatedUtc { get; set; }
@@ -428,6 +425,18 @@ namespace RevitMCPAddin.Core
             public string LastMessage { get; set; } = string.Empty;
             public string ReportPath { get; set; } = string.Empty;
             public string AuditJsonPath { get; set; } = string.Empty;
+        }
+
+        private sealed class HtmlScheduleImportExpectedValue
+        {
+            public int Row { get; set; }
+            public int OutputColumnNumber { get; set; }
+            public int ElementId { get; set; }
+            public string Header { get; set; } = string.Empty;
+            public string ParameterName { get; set; } = string.Empty;
+            public string ExpectedComparable { get; set; } = string.Empty;
+            public string ExpectedDisplay { get; set; } = string.Empty;
+            public string ImportedComparable { get; set; } = string.Empty;
         }
     }
 }

@@ -88,6 +88,22 @@ Naming note:
   - `Manuals/FullManual_ja/get_spatial_params_bulk.md`
   - `Manuals/UpdateLog.md`
 
+## New (2026-04-15)
+- A2A adapter を追加。
+  - `RevitMCP.A2AAdapter`
+  - A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡し。
+  - `SendMessage`, `GetTask`, `ListTasks`, `CancelTask`, `GetExtendedAgentCard` に対応。
+- DWG/import 後片付けコマンドを追加。
+  - `analyze_unused_imported_object_styles`
+  - `list_dwg_related_materials`
+  - `purge_unused_imported_object_styles`
+  - `purge_dwg_residue`
+- HTML 集計表→Excel 連携を強化。
+  - HTML プレビュー、Excel export、import preview、apply、verify、queue 削除の流れを整理。
+- References:
+  - `Manuals/UpdateLog.md`
+  - `../RevitMCP.A2AAdapter/README.md`
+
 ## New (2026-03-27)
 - HTML 経由の集計表→Excel 連携を追加。
   - `/room-excel-roundtrip` から集計表一覧、HTML プレビュー、Excel 書き出し、差分確認、反映確認までを一連で実行可能。
@@ -101,9 +117,9 @@ Naming note:
   - overwrite with backup or save-as-copy
   - GUID-first matching for shared parameters
 - References:
-  - `Manuals/UpdateLog.md`
   - `Manuals/FullManual/family.batch_add_parameter_from_folder.md`
   - `Manuals/FullManual_ja/family.batch_add_parameter_from_folder.md`
+  - `Manuals/UpdateLog.md`
 
 ## New (2026-01-28)
 - CodexGUI → Python Runner 連携を整理：

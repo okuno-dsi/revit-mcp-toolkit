@@ -455,42 +455,7 @@ namespace RevitMCPAddin.UI.InfoPick
 
         private static string? TryResolveWorkProjectFolder(string? docTitle, string? docKey)
         {
-            var workRoot = ResolveWorkRoot();
-            if (string.IsNullOrWhiteSpace(workRoot)) return null;
-
-            var workDir = workRoot;
-            if (string.IsNullOrWhiteSpace(workDir) || !Directory.Exists(workDir)) return null;
-
-            var dirs = Directory.GetDirectories(workDir);
-            if (!string.IsNullOrWhiteSpace(docKey))
-            {
-                var keyToken = "_" + docKey.Trim();
-                var match = dirs.FirstOrDefault(d =>
-                    Path.GetFileName(d).EndsWith(keyToken, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(match)) return match;
-            }
-
-            var safeTitle = SanitizePathSegment(docTitle);
-            if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = "Project";
-            var safeKey = SanitizePathSegment(docKey);
-            if (string.IsNullOrWhiteSpace(safeKey)) safeKey = "unknown";
-
-            var created = Path.Combine(workDir, $"{safeTitle}_{safeKey}");
-            Directory.CreateDirectory(created);
-            return created;
-        }
-
-        private static string? ResolveWorkRoot()
-        {
-            return Paths.ResolveWorkRoot();
-        }
-
-        private static string SanitizePathSegment(string? name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return "";
-            var invalid = Path.GetInvalidFileNameChars();
-            var cleaned = new string(name.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
-            return cleaned.Trim();
+            return Paths.ResolveManagedProjectFolder(docTitle, docKey);
         }
 
         private void ScheduleRefresh()

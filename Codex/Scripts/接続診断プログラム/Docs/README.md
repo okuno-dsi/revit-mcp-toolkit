@@ -1,4 +1,4 @@
-# RevitMCP Diagnostic Program (Port 5210)
+# Revit MCP Diagnostic Program (Port 5210)
 
 ## Folder Layout
 - `Run_RevitMCP_Diagnostics_5210_Full.cmd`: double-click launcher

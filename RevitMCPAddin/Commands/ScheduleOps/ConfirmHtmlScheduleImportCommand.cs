@@ -15,6 +15,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
             var p = cmd.Params ?? new JObject();
             var scheduleName = (p.Value<string>("scheduleName") ?? string.Empty).Trim();
             var uploadedFileName = (p.Value<string>("uploadedFileName") ?? string.Empty).Trim();
+            var requestedBy = (p.Value<string>("requestedBy") ?? string.Empty).Trim();
             var changedCellCount = p.Value<int?>("changedCellCount") ?? 0;
             var docTitle = (p.Value<string>("docTitle") ?? string.Empty).Trim();
 
@@ -24,6 +25,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 : $"集計表「{scheduleName}」のHTML経由変更リクエストを許可しますか？";
             var content =
                 $"Document: {docTitle}\n" +
+                $"Requested by: {(string.IsNullOrWhiteSpace(requestedBy) ? "(unknown)" : requestedBy)}\n" +
                 $"Workbook: {uploadedFileName}\n" +
                 $"Changed cells (preview): {changedCellCount}\n\n" +
                 "「許可」で反映を実行します。\n" +
@@ -49,6 +51,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                 ok = true,
                 decision,
                 scheduleName,
+                requestedBy,
                 uploadedFileName,
                 changedCellCount
             };

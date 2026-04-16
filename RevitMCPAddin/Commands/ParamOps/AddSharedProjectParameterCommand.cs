@@ -432,6 +432,9 @@ namespace RevitMCPAddin.Commands.ParamOps
                 ["Double"] = "Autodesk.Revit.DB.SpecTypeId.Number",
                 ["実数"] = "Autodesk.Revit.DB.SpecTypeId.Number",
                 ["数値"] = "Autodesk.Revit.DB.SpecTypeId.Number",
+                ["Integer"] = "Autodesk.Revit.DB.SpecTypeId.Int.Integer",
+                ["Int"] = "Autodesk.Revit.DB.SpecTypeId.Int.Integer",
+                ["整数"] = "Autodesk.Revit.DB.SpecTypeId.Int.Integer",
             };
             string path;
             if (!map.TryGetValue((s ?? string.Empty).Trim(), out path)) path = map["Text"];

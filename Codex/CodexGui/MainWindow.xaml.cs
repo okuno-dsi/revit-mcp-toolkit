@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -3238,6 +3239,11 @@ public partial class MainWindow : Window
                 }
             }
         }
+        catch (Exception ex)
+        {
+            AppendSystemMessage("PowerShell スクリプト実行エラー:");
+            AppendSystemMessage(GetDisplayableErrorText(ex));
+        }
         finally
         {
             _isSending = false;
@@ -3565,7 +3571,7 @@ public partial class MainWindow : Window
                 }
 
                 output = string.Empty;
-                error = ex.ToString();
+                error = GetDisplayableErrorText(ex);
                 exitCode = -1;
                 hadStreamingOutput = false;
             }
@@ -3726,7 +3732,65 @@ public partial class MainWindow : Window
         };
     }
 
-private static async Task<(string output, string error, int exitCode, bool hadStreamingOutput)> RunPromptThroughPowerShellAsync(
+    private static string GetDisplayableErrorText(Exception ex)
+    {
+        if (ex is AggregateException agg && agg.InnerExceptions.Count == 1 && agg.InnerException != null)
+        {
+            ex = agg.InnerException;
+        }
+
+        var message = ex.Message?.Trim();
+        return string.IsNullOrWhiteSpace(message) ? ex.ToString() : message;
+    }
+
+    private static async Task EnsureRevitMcpServerReadyAsync()
+    {
+        if (!TryGetRevitMcpPort(out var port) || port <= 0)
+        {
+            throw new InvalidOperationException(
+                "RevitMCP のポート情報が見つかりません。Revit を起動し、MCP サーバー接続を確認してください。");
+        }
+
+        var healthUrl = $"http://127.0.0.1:{port}/health";
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+            using var response = await client.GetAsync(healthUrl).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    $"RevitMCPServer が応答していません (port {port}, HTTP {(int)response.StatusCode})。Revit を起動し、MCP サーバー接続を確認してください。");
+            }
+
+            var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                throw new InvalidOperationException(
+                    $"RevitMCPServer の応答が空です (port {port})。Revit を起動し、MCP サーバー接続を確認してください。");
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("ok", out var ok) &&
+                ok.ValueKind == JsonValueKind.False)
+            {
+                throw new InvalidOperationException(
+                    $"RevitMCPServer の health 応答が NG です (port {port})。Revit を起動し、MCP サーバー接続を確認してください。");
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            throw new InvalidOperationException(
+                $"RevitMCPServer への接続がタイムアウトしました (port {port})。Revit を起動し、MCP サーバー接続を確認してください。");
+        }
+        catch (HttpRequestException ex)
+        {
+            var suffix = string.IsNullOrWhiteSpace(ex.Message) ? string.Empty : $" {ex.Message}";
+            throw new InvalidOperationException(
+                $"RevitMCPServer に接続できませんでした (port {port})。Revit を起動し、MCP サーバー接続を確認してください。{suffix}");
+        }
+    }
+
+    private static async Task<(string output, string error, int exitCode, bool hadStreamingOutput)> RunPromptThroughPowerShellAsync(
         string prompt,
         SessionInfo session,
         bool isStatusRequest,
@@ -3739,6 +3803,8 @@ private static async Task<(string output, string error, int exitCode, bool hadSt
             throw new FileNotFoundException("Codex 用の PowerShell スクリプトが見つかりません。",
                 scriptPath);
         }
+
+        await EnsureRevitMcpServerReadyAsync();
 
         var tempFile = Path.Combine(Path.GetTempPath(),
             $"codex_prompt_{Guid.NewGuid():N}.txt");

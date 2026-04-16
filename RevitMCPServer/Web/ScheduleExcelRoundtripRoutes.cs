@@ -25,6 +25,9 @@ namespace RevitMcpServer.Web
     {
         private const string MetadataSheetName = "__room_roundtrip_meta";
         private const string DataSheetName = "Rooms";
+        private const int ManagedPathBudget = 235;
+        private const int ManagedProjectFolderBudget = 190;
+        private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(12);
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         private static readonly ConcurrentDictionary<string, PreviewSession> PreviewSessions = new ConcurrentDictionary<string, PreviewSession>(StringComparer.OrdinalIgnoreCase);
         private static readonly ConcurrentDictionary<string, ScheduleImportPreviewSession> ScheduleImportPreviewSessions = new ConcurrentDictionary<string, ScheduleImportPreviewSession>(StringComparer.OrdinalIgnoreCase);
@@ -56,10 +59,10 @@ namespace RevitMcpServer.Web
                 if (permissions.Count == 0)
                     permissions = DefaultPermissions.ToList();
 
-                var expiresMinutes = 60 * 24 * 3650;
+                var expiresMinutes = (int)AccessTokenLifetime.TotalMinutes;
                 _ = int.TryParse(req.Query["expiresMinutes"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out expiresMinutes);
-                if (expiresMinutes <= 0) expiresMinutes = 60 * 24 * 3650;
-                if (expiresMinutes > 60 * 24 * 3650) expiresMinutes = 60 * 24 * 3650;
+                if (expiresMinutes <= 0) expiresMinutes = (int)AccessTokenLifetime.TotalMinutes;
+                if (expiresMinutes > (int)AccessTokenLifetime.TotalMinutes) expiresMinutes = (int)AccessTokenLifetime.TotalMinutes;
 
                 var payload = new AccessTokenPayload
                 {
@@ -111,7 +114,12 @@ namespace RevitMcpServer.Web
                             scheduleViewId = x["scheduleViewId"]?.GetValue<int>() ?? 0,
                             title = x["title"]?.GetValue<string>() ?? string.Empty,
                             categoryName = x["categoryName"]?.GetValue<string>() ?? string.Empty,
-                            isActive = x["isActive"]?.GetValue<bool>() ?? false
+                            isActive = x["isActive"]?.GetValue<bool>() ?? false,
+                            supportStatus = x["supportStatus"]?.GetValue<string>() ?? "supported",
+                            supportReasonCode = x["supportReasonCode"]?.GetValue<string>() ?? string.Empty,
+                            supportReason = x["supportReason"]?.GetValue<string>() ?? string.Empty,
+                            suggestedMode = x["suggestedMode"]?.GetValue<string>() ?? string.Empty,
+                            visibleColumnCount = x["visibleColumnCount"]?.GetValue<int>() ?? 0
                         })
                         .Where(x => x.scheduleViewId > 0 && !string.IsNullOrWhiteSpace(x.title))
                         .OrderBy(x => x.title, StringComparer.OrdinalIgnoreCase)
@@ -138,9 +146,14 @@ namespace RevitMcpServer.Web
                     _ = int.TryParse(req.Query["scheduleViewId"].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out requestedScheduleId);
                     if (requestedScheduleId > 0)
                     {
-                        var tempDir = Path.Combine(Path.GetTempPath(), "RevitMCP", "HtmlScheduleExport");
-                        Directory.CreateDirectory(tempDir);
-                        var tempPath = Path.Combine(tempDir, $"schedule_{requestedScheduleId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                        var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+                        var tempDir = GetManagedTempDirectory("HtmlScheduleExport");
+                        var tempPath = BuildManagedFilePath(
+                            tempDir,
+                            "schedule",
+                            requestedScheduleId.ToString(CultureInfo.InvariantCulture),
+                            stamp,
+                            ".xlsx");
 
                         var payload = await InvokeAddinAsync(durable, index, "export_schedule_roundtrip_excel", new
                         {
@@ -154,7 +167,19 @@ namespace RevitMcpServer.Web
 
                         var root = payload as JsonObject ?? new JsonObject();
                         if (root["ok"]?.GetValue<bool>() != true)
-                            return Results.Json(new { ok = false, code = "SCHEDULE_EXPORT_FAILED", msg = root["msg"]?.GetValue<string>() ?? "export_schedule_roundtrip_excel failed." }, statusCode: 500);
+                        {
+                            var rootCode = root["code"]?.GetValue<string>() ?? "SCHEDULE_EXPORT_FAILED";
+                            var statusCode = string.Equals(rootCode, "SCHEDULE_EXPORT_UNSUPPORTED", StringComparison.OrdinalIgnoreCase) ? 400 : 500;
+                            return Results.Json(new
+                            {
+                                ok = false,
+                                code = rootCode,
+                                msg = root["msg"]?.GetValue<string>() ?? "export_schedule_roundtrip_excel failed.",
+                                supportStatus = root["supportStatus"]?.GetValue<string>() ?? string.Empty,
+                                supportReasonCode = root["supportReasonCode"]?.GetValue<string>() ?? string.Empty,
+                                supportReason = root["supportReason"]?.GetValue<string>() ?? string.Empty
+                            }, statusCode: statusCode);
+                        }
 
                         var actualPath = root["path"]?.GetValue<string>() ?? tempPath;
                         if (!File.Exists(actualPath))
@@ -163,7 +188,7 @@ namespace RevitMcpServer.Web
                         var scheduleBytes = await File.ReadAllBytesAsync(actualPath);
                         TryDeleteFile(actualPath);
                         Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ROOM_RT schedule export docGuid={tokenPayload.DocGuid} scheduleViewId={requestedScheduleId} bytes={scheduleBytes.Length}");
-                        return Results.File(scheduleBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"export_schedule_{requestedScheduleId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                        return Results.File(scheduleBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"export_schedule_{requestedScheduleId}_{stamp}.xlsx");
                     }
 
                     return Results.Json(new { ok = false, code = "SCHEDULE_REQUIRED", msg = "scheduleViewId is required." }, statusCode: 400);
@@ -210,9 +235,12 @@ namespace RevitMcpServer.Web
                         .Select(x => x?.GetValue<string>() ?? string.Empty)
                         .Where(x => !string.IsNullOrWhiteSpace(x))
                         .ToList();
-                    var rows = (root["rows"] as JsonArray ?? new JsonArray()).ToJsonString();
+                    var rawRows = root["rows"] as JsonArray ?? new JsonArray();
                     var totalCount = root["totalCount"]?.GetValue<int>() ?? 0;
-                    var shownCount = root["shownCount"]?.GetValue<int>() ?? 0;
+                    var normalizedRows = NormalizeSchedulePreviewRows(rawRows, columns, out var droppedRows);
+                    if (droppedRows > 0)
+                        totalCount = Math.Max(normalizedRows.Count, totalCount - droppedRows);
+                    var shownCount = normalizedRows.Count;
 
                     return Results.Content(JsonSerializer.Serialize(new
                     {
@@ -223,7 +251,7 @@ namespace RevitMcpServer.Web
                         totalCount,
                         shownCount,
                         truncated = totalCount > shownCount,
-                        rows = JsonNode.Parse(rows)
+                        rows = normalizedRows
                     }, JsonOptions), "application/json", Encoding.UTF8);
                 }
                 catch (Exception ex)
@@ -306,6 +334,7 @@ namespace RevitMcpServer.Web
                 try
                 {
                     var form = await req.ReadFormAsync();
+                    var requestedBy = NormalizeRequesterName(form["requesterName"].ToString());
                     var file = form.Files["file"];
                     if (file == null || file.Length <= 0)
                         return Results.Json(new { ok = false, code = "FILE_REQUIRED", msg = "Excel file is required." }, statusCode: 400);
@@ -320,7 +349,7 @@ namespace RevitMcpServer.Web
 
                     var importBaseName = NormalizeWorkbookBaseName(file.FileName);
                     var importExtension = NormalizeWorkbookExtension(file.FileName);
-                    tempPath = Path.Combine(importDir, $"{importBaseName}_{DateTime.Now:yyyyMMdd_HHmmss}{importExtension}");
+                    tempPath = BuildManagedFilePath(importDir, "import", importBaseName, DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture), importExtension);
                     using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
                     {
                         await file.CopyToAsync(fs);
@@ -351,11 +380,13 @@ namespace RevitMcpServer.Web
                         DocTitle = tokenPayload.DocTitle,
                         ScheduleName = root["scheduleName"]?.GetValue<string>() ?? string.Empty,
                         ScheduleViewId = root["scheduleViewId"]?.GetValue<string>() ?? string.Empty,
+                        RequestedBy = requestedBy,
                         UploadedFilePath = tempPath,
                         UploadedFileName = Path.GetFileName(tempPath),
                         CreatedUtc = DateTimeOffset.UtcNow,
-                        ExpiresUtc = tokenPayload.ExpiresUtc,
-                        PreviewPayload = root
+                        ExpiresUtc = CapSessionExpiry(tokenPayload.ExpiresUtc),
+                        PreviewPayload = root,
+                        ExpectedValues = BuildScheduleImportExpectedValues(root)
                     };
                     ScheduleImportPreviewSessions[previewToken] = session;
 
@@ -369,6 +400,7 @@ namespace RevitMcpServer.Web
                         mode = root["mode"]?.GetValue<string>() ?? string.Empty,
                         editableColumnCount = root["editableColumnCount"]?.GetValue<int>() ?? 0,
                         changedCellCount = root["changedCellCount"]?.GetValue<int>() ?? 0,
+                        conflictCellCount = root["conflictCellCount"]?.GetValue<int>() ?? 0,
                         unchangedCellCount = root["unchangedCellCount"]?.GetValue<int>() ?? 0,
                         skippedCellCount = root["skippedCellCount"]?.GetValue<int>() ?? 0,
                         failedCellCount = root["failedCellCount"]?.GetValue<int>() ?? 0,
@@ -389,6 +421,8 @@ namespace RevitMcpServer.Web
                 CleanupExpiredPreviewSessions();
                 if (!TryReadAccessToken(req, out var tokenPayload, out var tokenError, requiredPermission: "apply"))
                     return Results.Json(new { ok = false, code = "UNAUTHORIZED", msg = tokenError ?? "Invalid token." }, statusCode: 401);
+                if (!IsLoopbackRequest(req))
+                    return Results.Json(new { ok = false, code = "LOCAL_ONLY", msg = "Direct import is available only from the local Revit machine. Use preview/apply from the HTML portal." }, statusCode: 403);
 
                 string? tempPath = null;
                 try
@@ -412,15 +446,15 @@ namespace RevitMcpServer.Web
 
                     var importBaseName = NormalizeWorkbookBaseName(file.FileName);
                     var importExtension = NormalizeWorkbookExtension(file.FileName);
-                    tempPath = Path.Combine(importDir, $"{importBaseName}_{DateTime.Now:yyyyMMdd_HHmmss}{importExtension}");
+                    tempPath = BuildManagedFilePath(importDir, "import", importBaseName, DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture), importExtension);
                     using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
                     {
                         await file.CopyToAsync(fs);
                     }
 
                     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-                    var reportPath = Path.Combine(reportDir, $"{importBaseName}_import_report_{stamp}.csv");
-                    var auditJsonPath = Path.Combine(auditDir, $"{importBaseName}_changes_{stamp}.json");
+                    var reportPath = BuildManagedFilePath(reportDir, importBaseName, "import_report", stamp, ".csv");
+                    var auditJsonPath = BuildManagedFilePath(auditDir, importBaseName, "changes", stamp, ".json");
                     var payload = await InvokeAddinAsync(durable, index, "import_schedule_roundtrip_excel", new
                     {
                         docGuid = tokenPayload!.DocGuid,
@@ -497,6 +531,7 @@ namespace RevitMcpServer.Web
                         docGuid = tokenPayload!.DocGuid,
                         docTitle = tokenPayload.DocTitle,
                         scheduleName = preview.ScheduleName,
+                        requestedBy = preview.RequestedBy,
                         uploadedFileName = preview.UploadedFileName,
                         changedCellCount = preview.PreviewPayload?["changedCellCount"]?.GetValue<int>() ?? 0
                     }, timeoutSeconds: 600);
@@ -525,15 +560,16 @@ namespace RevitMcpServer.Web
 
                     var importBaseName = NormalizeWorkbookBaseName(preview.UploadedFileName);
                     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
-                    var reportPath = Path.Combine(reportDir, $"{importBaseName}_import_report_{stamp}.csv");
-                    var auditJsonPath = Path.Combine(auditDir, $"{importBaseName}_changes_{stamp}.json");
+                    var reportPath = BuildManagedFilePath(reportDir, importBaseName, "import_report", stamp, ".csv");
+                    var auditJsonPath = BuildManagedFilePath(auditDir, importBaseName, "changes", stamp, ".json");
                     var payload = await InvokeAddinAsync(durable, index, "import_schedule_roundtrip_excel", new
                     {
                         docGuid = tokenPayload!.DocGuid,
                         docTitle = tokenPayload.DocTitle,
                         filePath = preview.UploadedFilePath,
                         reportPath = reportPath,
-                        auditJsonPath = auditJsonPath
+                        auditJsonPath = auditJsonPath,
+                        expectedValues = preview.ExpectedValues
                     }, timeoutSeconds: 180);
 
                     var root = payload as JsonObject ?? new JsonObject();
@@ -561,6 +597,7 @@ namespace RevitMcpServer.Web
                         unchangedCount = root["unchangedCount"]?.GetValue<int>() ?? 0,
                         skippedCount = root["skippedCount"]?.GetValue<int>() ?? 0,
                         failedCount = root["failedCount"]?.GetValue<int>() ?? 0,
+                        conflictCount = root["conflictCount"]?.GetValue<int>() ?? 0,
                         editableColumnCount = root["editableColumnCount"]?.GetValue<int>() ?? 0
                     });
                 }
@@ -615,7 +652,12 @@ namespace RevitMcpServer.Web
 
                     var changedCellCount = root["changedCellCount"]?.GetValue<int>() ?? 0;
                     var failedCellCount = root["failedCellCount"]?.GetValue<int>() ?? 0;
-                    var reflected = changedCellCount == 0 && failedCellCount == 0;
+                    var conflictCellCount = root["conflictCellCount"]?.GetValue<int>() ?? 0;
+                    var skippedCellCount = root["skippedCellCount"]?.GetValue<int>() ?? 0;
+                    var reflected = changedCellCount == 0
+                        && failedCellCount == 0
+                        && conflictCellCount == 0
+                        && skippedCellCount == 0;
 
                     return Results.Json(new
                     {
@@ -626,7 +668,8 @@ namespace RevitMcpServer.Web
                         editableColumnCount = root["editableColumnCount"]?.GetValue<int>() ?? 0,
                         changedCellCount = changedCellCount,
                         unchangedCellCount = root["unchangedCellCount"]?.GetValue<int>() ?? 0,
-                        skippedCellCount = root["skippedCellCount"]?.GetValue<int>() ?? 0,
+                        skippedCellCount = skippedCellCount,
+                        conflictCellCount = conflictCellCount,
                         failedCellCount = failedCellCount,
                         scheduleName = root["scheduleName"]?.GetValue<string>() ?? string.Empty,
                         scheduleViewId = root["scheduleViewId"]?.GetValue<string>() ?? string.Empty,
@@ -680,10 +723,11 @@ namespace RevitMcpServer.Web
                         ScheduleName = preview.ScheduleName,
                         UploadedFilePath = preview.UploadedFilePath,
                         UploadedFileName = preview.UploadedFileName,
-                        RequestedBy = tokenPayload.EditorUser,
+                        RequestedBy = preview.RequestedBy,
                         ProjectFolderPath = projectDir,
                         ChangedCellCount = preview.PreviewPayload?["changedCellCount"]?.GetValue<int>() ?? 0,
                         EditableColumnCount = preview.PreviewPayload?["editableColumnCount"]?.GetValue<int>() ?? 0,
+                        ExpectedValues = preview.ExpectedValues,
                         Status = "queued",
                         CreatedUtc = DateTimeOffset.UtcNow,
                         NextPromptUtc = DateTimeOffset.UtcNow.AddMinutes(5)
@@ -696,7 +740,7 @@ namespace RevitMcpServer.Web
                         ok = true,
                         queueId,
                         status = "queued",
-                        msg = "キューに入れました。後でRevit に反映されます。",
+                        msg = "キューに入れました。",
                         nextPromptUtc = entry.NextPromptUtc
                     });
                 }
@@ -736,7 +780,7 @@ namespace RevitMcpServer.Web
                     entry.DeletedUtc = DateTimeOffset.UtcNow;
                     entry.LastMessage = "deleted-from-html";
                     SaveScheduleImportQueueEntry(entry);
-                    Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ROOM_RT queue-delete docGuid={tokenPayload.DocGuid} queueId={queueId}");
+                    Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ROOM_RT queue-delete docGuid={tokenPayload!.DocGuid} queueId={queueId}");
                     return Results.Json(new
                     {
                         ok = true,
@@ -747,7 +791,7 @@ namespace RevitMcpServer.Web
                 }
                 catch (Exception ex)
                 {
-                    Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ROOM_RT queue-delete fail docGuid={tokenPayload.DocGuid} queueId={queueId} msg={ex.Message}");
+                    Logging.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ROOM_RT queue-delete fail docGuid={tokenPayload!.DocGuid} queueId={queueId} msg={ex.Message}");
                     return Results.Json(new { ok = false, code = "QUEUE_DELETE_FAILED", msg = ex.Message }, statusCode: 500);
                 }
             });
@@ -847,10 +891,26 @@ namespace RevitMcpServer.Web
             return "<!doctype html><html><head><meta charset=\"utf-8\"><title>Schedule Excel Roundtrip</title></head><body><h1>Schedule Excel Roundtrip</h1><p style=\"color:#b00020;\">" + System.Net.WebUtility.HtmlEncode(message) + "</p></body></html>";
         }
 
+        private static string GetManagedTempDirectory(string areaName)
+        {
+            var baseDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "RevitMCP",
+                "Temp");
+            var safeArea = ShortenPathComponent(areaName, 32, "temp");
+            var path = Path.Combine(baseDir, safeArea);
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
         private static string GetProjectFolder(AccessTokenPayload token)
         {
             var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Revit_MCP", "Projects");
-            var name = SanitizeFileName($"{token.DocTitle}_{token.DocGuid}");
+            var legacyName = SanitizeFileName($"{token.DocTitle}_{token.DocGuid}");
+            var legacyPath = Path.Combine(root, legacyName);
+            var name = legacyPath.Length <= ManagedProjectFolderBudget
+                ? legacyName
+                : SanitizeFileName($"{ShortenPathComponent(token.DocTitle, 32, "Project")}_{ShortenPathComponent(token.DocGuid, 16, "Doc")}_{ComputeShortHash(token.DocTitle + "|" + token.DocGuid).Substring(0, 8)}");
             var path = Path.Combine(root, name);
             Directory.CreateDirectory(path);
             return path;
@@ -884,7 +944,35 @@ namespace RevitMcpServer.Web
                 raw = raw.Substring(0, semicolon);
             raw = raw.Replace("filename_=", string.Empty).Trim();
             raw = SanitizeFileName(raw);
-            return string.IsNullOrWhiteSpace(raw) ? "schedule_import" : raw;
+            raw = string.IsNullOrWhiteSpace(raw) ? "schedule_import" : raw;
+            return ShortenPathComponent(raw, 72, "schedule_import");
+        }
+
+        private static string BuildManagedFilePath(string directoryPath, string prefix, string baseName, string stamp, string extension)
+        {
+            Directory.CreateDirectory(directoryPath);
+
+            var safePrefix = ShortenPathComponent(prefix, 16, "file");
+            var safeBaseName = ShortenPathComponent(baseName, 96, "schedule");
+            var safeExtension = (extension ?? string.Empty).Trim();
+            if (!safeExtension.StartsWith(".", StringComparison.Ordinal))
+                safeExtension = "." + safeExtension.TrimStart('.');
+            if (string.IsNullOrWhiteSpace(safeExtension))
+                safeExtension = ".tmp";
+
+            var candidate = Path.Combine(directoryPath, $"{safePrefix}_{safeBaseName}_{stamp}{safeExtension}");
+            if (candidate.Length <= ManagedPathBudget)
+                return candidate;
+
+            var fixedLength = directoryPath.Length + 1 + safePrefix.Length + 1 + 1 + stamp.Length + safeExtension.Length;
+            var allowedBaseLength = Math.Max(12, ManagedPathBudget - fixedLength);
+            safeBaseName = ShortenPathComponent(baseName, allowedBaseLength, "schedule");
+            candidate = Path.Combine(directoryPath, $"{safePrefix}_{safeBaseName}_{stamp}{safeExtension}");
+            if (candidate.Length <= ManagedPathBudget)
+                return candidate;
+
+            var fallbackBase = ComputeShortHash(baseName);
+            return Path.Combine(directoryPath, $"{safePrefix}_{fallbackBase}_{stamp}{safeExtension}");
         }
 
         private static string NormalizeWorkbookExtension(string fileName)
@@ -903,6 +991,7 @@ namespace RevitMcpServer.Web
                 docTitle = token.DocTitle,
                 projectName = token.ProjectName,
                 editorUser = token.EditorUser,
+                defaultRequester = NormalizeRequesterName(Environment.UserName),
                 paramNames = token.ParamNames,
                 permissions = token.Permissions,
                 expiresUtc = token.ExpiresUtc
@@ -921,7 +1010,9 @@ namespace RevitMcpServer.Web
     button{background:#355c4d;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer}
     button.warn{background:#a55534}
     button:disabled{opacity:.55;cursor:default}
-    input[type=file]{padding:8px;background:#faf8f1;border:1px solid #d8d2c5;border-radius:8px}
+    input[type=file]{display:none}
+    .fileButton{background:#6d7f76}
+    .fileName{min-width:220px;padding:8px;background:#faf8f1;border:1px solid #d8d2c5;border-radius:8px;display:inline-block}
     table{border-collapse:collapse;width:100%;font-size:12px}
     th,td{border:1px solid #ddd4c3;padding:6px 8px;text-align:left;vertical-align:top}
     th{background:#ede7d8}
@@ -930,13 +1021,27 @@ namespace RevitMcpServer.Web
     .warnText{color:#9a6500}
     .err{color:#b00020}
     .changedCell{color:#b00020;font-weight:700;background:#fff1f1}
+    .conflictCell{color:#7a1f73;font-weight:700;background:#fdf1ff}
+    .liveConflictValue{color:#7a1f73;font-weight:700;background:#f7e8ff}
+    .paramReadonly{background:#eeeeee}
+    .paramInstance{background:#fff6bf}
+    .paramType{background:#dceeff}
+    .paramBoolean{background:#e7f7e7}
+    .legend{font-size:12px}
   </style>
 </head>
 <body>
-    <h1>Schedule Excel Roundtrip</h1>
-  <div class="card"><div id="meta"></div></div>
+  <div class="row" style="justify-content:flex-end;margin-bottom:12px">
+    <button id="btnLangJa" type="button">日本語</button>
+    <button id="btnLangEn" type="button">English</button>
+  </div>
+  <h1 id="pageTitle">Schedule Excel Roundtrip</h1>
   <div class="card">
-    <h2 style="margin-top:0">Schedule export</h2>
+    <div id="meta"></div>
+    <p id="lifetimeNote" class="mono warnText" style="margin-bottom:0"></p>
+  </div>
+  <div class="card">
+    <h2 id="exportTitle" style="margin-top:0">Schedule export</h2>
     <div class="row">
       <button id="btnRefreshSchedules" type="button">Refresh Schedules</button>
       <select id="scheduleSelect" style="min-width:360px;padding:8px;border:1px solid #d8d2c5;border-radius:8px;background:#faf8f1">
@@ -948,27 +1053,33 @@ namespace RevitMcpServer.Web
     <p class="mono" id="scheduleStatus"></p>
   </div>
   <div class="card">
-    <h2 style="margin-top:0">Schedule Preview</h2>
+    <h2 id="schedulePreviewTitle" style="margin-top:0">Schedule Preview</h2>
     <div id="schedulePreviewSummary"></div>
     <div style="overflow:auto;max-height:45vh"><table id="schedulePreviewTable"><thead></thead><tbody></tbody></table></div>
   </div>
   <div class="card">
-    <h2 style="margin-top:0">After Apply Preview</h2>
+    <h2 id="afterApplyTitle" style="margin-top:0">After Apply Preview</h2>
     <div id="afterSchedulePreviewSummary"></div>
     <div style="overflow:auto;max-height:45vh"><table id="afterSchedulePreviewTable"><thead></thead><tbody></tbody></table></div>
   </div>
   <div class="card">
-    <h2 style="margin-top:0">Excel Import</h2>
+    <h2 id="excelImportTitle" style="margin-top:0">Excel Import</h2>
       <div class="row">
+        <label id="requesterLabel" for="requesterName">送信者名</label>
+        <input id="requesterName" type="text" style="min-width:180px;padding:8px;background:#faf8f1;border:1px solid #d8d2c5;border-radius:8px" />
         <input id="file" type="file" accept=".xlsx,.xltx"/>
+        <button id="btnChooseFile" class="fileButton" type="button">ファイル選択</button>
+        <span id="fileNameLabel" class="mono fileName">未選択</span>
         <button id="btnPreviewImport" class="warn">変更内容を確認</button>
         <button id="btnBack" type="button" style="display:none">戻る</button>
         <button id="btnApplyImport" class="warn" type="button" style="display:none">変更を実行</button>
         <button id="btnVerifyImport" type="button" style="display:none">反映確認</button>
+        <button id="btnPopoutResult" type="button" style="display:none">別ウィンドウ表示</button>
         <button id="btnQueueImport" type="button" style="display:none">キューに入れる</button>
         <button id="btnDeleteQueue" type="button" style="display:none">キューを削除</button>
       </div>
       <p id="status" class="mono"></p>
+      <p id="excelEditNotice" class="mono warnText"></p>
       <p id="queueHint" class="mono warnText" style="display:none"></p>
   </div>
   <div class="card">
@@ -978,7 +1089,272 @@ namespace RevitMcpServer.Web
   <script>
     const token = new URLSearchParams(location.search).get('token') || '';
     const info = {{JsonEncodedJs(tokenJson)}};
+    const I18N = {
+      ja: {
+        pageTitle: '集計表 Excel 往復編集',
+        exportTitle: '集計表エクスポート',
+        schedulePreviewTitle: '集計表プレビュー',
+        afterApplyTitle: '反映後プレビュー',
+        excelImportTitle: 'Excel 取り込み',
+        refreshSchedules: '集計表を更新',
+        exportSelectedSchedule: '選択した集計表をエクスポート',
+        previewSelectedSchedule: '選択した集計表を表示',
+        previewImport: '変更内容を確認',
+        back: '戻る',
+        applyImport: '変更を実行',
+        verifyImport: '反映確認',
+        popoutResult: '別ウィンドウ表示',
+        queueImport: 'キューに入れる',
+        deleteQueue: 'キューを削除',
+        chooseFile: 'ファイル選択',
+        noFileSelected: '未選択',
+        requesterLabel: '送信者名',
+        requesterPlaceholder: '送信者名',
+        requesterRequired: '送信者名を入力してください。',
+        excelEditNotice: '編集ルール: 行全体のソートは可。列の並べ替え、セル範囲だけの切り取り/貼り付け、行の複製、行の挿入は不可です。行削除は Revit の削除ではなく、その行を更新しない扱いです。hidden 列(__ElementId, __RowIdentity)は行と一緒に移動してください。',
+        document: 'Document',
+        project: 'Project',
+        revitEditor: 'Revit editor',
+        docGuid: 'docGuid',
+        permissions: 'Permissions',
+        expires: 'Expires',
+        lifetimeNote: 'このリンクとプレビューセッションの有効期限は 12 時間です。期限後は再度リンクを作成してください。',
+        selectScheduleFirst: '先に集計表を選択してください。',
+        exportingSchedule: '選択した集計表をエクスポートしています…',
+        scheduleExportCompleted: '集計表エクスポートが完了しました。',
+        loadingSelectedSchedule: '選択した集計表を読み込んでいます…',
+        selectedScheduleLoaded: '集計表プレビューを読み込みました。',
+        selectExcelFirst: '先に Excel ファイルを選択してください。',
+        comparingWorkbook: 'Excel と現在の Revit 値を比較しています…',
+        noPreviewSession: 'プレビューがありません。もう一度 Excel をアップロードして比較してください。',
+        applyingConfirmedChanges: '確認済みの変更を反映しています…',
+        rejectedByRevit: 'Revit 側で拒否されました。',
+        chooseNextAction: '下のボタンから次の操作を選んでください。',
+        noVerificationFile: '確認対象の Excel ファイルがありません。再度プレビューしてください。',
+        comparingCurrentValues: '現在の Revit 値と再比較しています…',
+        reflectedOk: '反映確認: Excel の内容は現在の Revit 集計表に反映されています。',
+        reflectedDiff: (changed, failed, conflict, skipped) => `反映確認: まだ差分があります。changed=${changed}, failed=${failed}, conflicts=${conflict}, skipped=${skipped}`,
+        noQueuedRequest: 'キュー済みリクエストはありません。',
+        popupBlocked: '別ウィンドウを開けませんでした。ブラウザのポップアップブロックを確認してください。',
+        queueOfferHint: '必要なら「キューに入れる」を押してください。登録後は Revit 側で 5 分ごとに確認ダイアログを表示します。',
+        queueStoredHint: 'キューに入れました。Revit 側では 5 分ごとに確認ダイアログを表示します。不要になった場合は「キューを削除」を押してください。',
+        queueStored: 'キューに入れました。',
+        queueDeleted: 'キューを削除しました。反映しなかったことを送信者に別途連絡してください。',
+        previewReady: (changed, conflicts, unchanged, skipped, failed) => `比較結果: changed=${changed}, conflicts=${conflicts}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}`,
+        imported: (changed, unchanged, skipped, failed, conflicts) => `反映結果: changed=${changed}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}, conflicts=${conflicts}`,
+        importedWithConflict: (changed, unchanged, skipped, failed, conflicts) => `反映結果: changed=${changed}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}, conflicts=${conflicts}. Revit 側で更新済みのセルは反映していません。次回は古い Excel を再利用せず、再エクスポートしてください。`,
+        report: 'レポート',
+        changeJson: '変更 JSON',
+        mode: 'Mode',
+        changedCells: 'Changed cells',
+        conflicts: 'Conflicts',
+        unchangedCells: 'Unchanged cells',
+        skippedCells: 'Skipped cells',
+        failedCells: 'Failed cells',
+        previewToken: 'Preview token',
+        verification: 'Verification',
+        reflected: 'Reflected',
+        differencesRemain: 'Differences remain',
+        editableColumns: '編集可能列数',
+        uploadedWorkbook: 'アップロードされた Excel',
+        verificationWorkbook: '確認対象 Excel',
+        conflictExplain: 'Conflict 行は自動反映しません。「Current Revit」列の最新値を確認し、必要なら Excel の値を調整してください。',
+        colorLegend: '色凡例',
+        legendReadonly: '灰色=変更不可',
+        legendInstance: '薄黄色=インスタンス',
+        legendType: '薄水色=タイプ',
+        legendBoolean: '薄緑=Yes/No',
+        item: '項目',
+        value: '値',
+        importedFile: '反映ファイル',
+        reportPath: 'レポート保存先',
+        changeJsonPath: '変更 JSON 保存先',
+        changedCount: '変更数',
+        unchangedCount: '未変更数',
+        skippedCount: 'スキップ数',
+        failedCount: '失敗数',
+        conflictCount: 'Conflict 数',
+        conflictDetected: 'Conflict が検出されました。Revit 側の集計表はすでに一部更新されています。conflict になったセルは反映していません。次回編集時は古い Excel を使い回さず、必ず集計表を再エクスポートしてください。',
+        afterApplyHint: 'Apply 後に「反映確認」を押すと、変更後の集計表をここに表示します。',
+        missingBeforePreview: '変更前の集計表プレビューがありません。先に「選択した集計表を表示」を実行してください。',
+        loadedSchedules: count => `${count} 件の集計表を読み込みました。`,
+        loadedSchedulesWithSupport: (count, supported, unsupported) => `${count} 件の集計表を読み込みました。対応可=${supported} / 対応不可=${unsupported}`,
+        loadingSchedules: '集計表を読み込んでいます…',
+        schedulesUnavailable: '集計表を取得できませんでした。',
+        noSchedulesFound: '集計表が見つかりません。',
+        scheduleSupported: '対応可',
+        scheduleUnsupported: '対応不可',
+        supportReason_DIRECT_ROUNDTRIP: '要素ベースの往復編集に対応します。',
+        supportReason_DISPLAY_RUNTIME_CHECK: '表示順保持の display export 対象です。実行時に行マッピングを検証します。',
+        supportReason_NO_VISIBLE_COLUMNS: '可視列がありません。',
+        supportReason_DISPLAY_SINGLE_COLUMN: '表示モードの 1 列集計表は要素 ID に安全に対応付けできません。',
+        supportReason_LIKELY_DOCUMENT_OR_VIEW_SCHEDULE: 'シート・ビュー・レベル系の表と判定しました。',
+        supportReason_LIKELY_LEGEND_OR_KEY_SCHEDULE: '凡例・キー・注記系の表と判定しました。',
+        supportReason_LIKELY_MATERIAL_OR_PART_SCHEDULE: '材料・部位構成系の表と判定しました。',
+        supportReason_DISPLAY_ROW_MAPPING_FAILED: '表示行を Revit 要素 ID に対応付けできません。',
+        supportReason_DISPLAY_PARTIAL_ROW_MAPPING: '表示行の一部しか Revit 要素 ID に対応付けできません。',
+        selectedScheduleSupport: (status, reason) => `選択結果: ${status}${reason ? ' / ' + reason : ''}`,
+        noScheduleRows: '集計表の行がありません。',
+        noChangedCells: '変更セルは検出されませんでした。',
+        noRemainingDifferences: '残っている差分はありません。',
+        selectedSchedule: '選択中の集計表',
+        scheduleAfterApply: '反映後の集計表',
+        rowsShown: '表示行数',
+        totalRows: '総行数',
+        highlightedCells: '強調セル数',
+        truncated: '一部省略',
+        excelRow: 'Excel Row',
+        targetItem: '項目',
+        elementId: 'ElementId',
+        parameter: 'Parameter',
+        exported: 'Exported',
+        currentRevit: 'Current Revit',
+        uploadedExcel: 'Uploaded Excel',
+        status: 'Status',
+        message: 'Message',
+        requestedBy: '送信者名',
+        conflictShort: 'Conflict 検出',
+        untitled: '(無題)',
+        notSet: '(未設定)',
+        unknown: '(不明)'
+      },
+      en: {
+        pageTitle: 'Schedule Excel Roundtrip',
+        exportTitle: 'Schedule Export',
+        schedulePreviewTitle: 'Schedule Preview',
+        afterApplyTitle: 'After Apply Preview',
+        excelImportTitle: 'Excel Import',
+        refreshSchedules: 'Refresh Schedules',
+        exportSelectedSchedule: 'Export Selected Schedule',
+        previewSelectedSchedule: 'Preview Selected Schedule',
+        previewImport: 'Preview Changes',
+        back: 'Back',
+        applyImport: 'Apply Changes',
+        verifyImport: 'Verify Apply',
+        popoutResult: 'Open in New Window',
+        queueImport: 'Queue Request',
+        deleteQueue: 'Delete Queue',
+        chooseFile: 'Choose File',
+        noFileSelected: 'No file selected',
+        requesterLabel: 'Requester',
+        requesterPlaceholder: 'Requester name',
+        requesterRequired: 'Enter the requester name.',
+        excelEditNotice: 'Editing rules: full-row sorting is allowed. Do not reorder columns, cut/paste a partial cell range, duplicate rows, or insert rows. Deleting a row does not delete Revit data; it only means that row will not be updated. Keep the hidden columns (__ElementId, __RowIdentity) moving with the row.',
+        document: 'Document',
+        project: 'Project',
+        revitEditor: 'Revit editor',
+        docGuid: 'docGuid',
+        permissions: 'Permissions',
+        expires: 'Expires',
+        lifetimeNote: 'This link and preview session expire after 12 hours. Generate a new link after expiration.',
+        selectScheduleFirst: 'Select a schedule first.',
+        exportingSchedule: 'Exporting selected schedule…',
+        scheduleExportCompleted: 'Schedule export completed.',
+        loadingSelectedSchedule: 'Loading selected schedule…',
+        selectedScheduleLoaded: 'Schedule preview loaded.',
+        selectExcelFirst: 'Select an Excel file first.',
+        comparingWorkbook: 'Comparing workbook with current Revit values…',
+        noPreviewSession: 'No preview session. Upload and preview the workbook again.',
+        applyingConfirmedChanges: 'Applying confirmed changes…',
+        rejectedByRevit: 'Rejected on the Revit side.',
+        chooseNextAction: 'Choose the next action using the buttons below.',
+        noVerificationFile: 'No verification workbook is available. Preview the workbook again.',
+        comparingCurrentValues: 'Comparing with current Revit values…',
+        reflectedOk: 'Verification: the Excel content is reflected in the current Revit schedule.',
+        reflectedDiff: (changed, failed, conflict, skipped) => `Verification: differences remain. changed=${changed}, failed=${failed}, conflicts=${conflict}, skipped=${skipped}`,
+        noQueuedRequest: 'No queued request.',
+        popupBlocked: 'The popup window could not be opened. Check the browser popup blocker settings.',
+        queueOfferHint: 'If needed, click "Queue Request". After it is queued, Revit will show a confirmation dialog every 5 minutes.',
+        queueStoredHint: 'Queued. Revit will show a confirmation dialog every 5 minutes. Use "Delete Queue" if the request is no longer needed.',
+        queueStored: 'Queued.',
+        queueDeleted: 'Queue deleted. Please notify the sender separately that the request was not applied.',
+        previewReady: (changed, conflicts, unchanged, skipped, failed) => `Preview ready: changed=${changed}, conflicts=${conflicts}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}`,
+        imported: (changed, unchanged, skipped, failed, conflicts) => `Imported: changed=${changed}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}, conflicts=${conflicts}`,
+        importedWithConflict: (changed, unchanged, skipped, failed, conflicts) => `Imported: changed=${changed}, unchanged=${unchanged}, skipped=${skipped}, failed=${failed}, conflicts=${conflicts}. Conflicted cells were not applied because Revit already has newer values. Re-export the schedule before editing again.`,
+        report: 'Report',
+        changeJson: 'Change JSON',
+        mode: 'Mode',
+        changedCells: 'Changed cells',
+        conflicts: 'Conflicts',
+        unchangedCells: 'Unchanged cells',
+        skippedCells: 'Skipped cells',
+        failedCells: 'Failed cells',
+        previewToken: 'Preview token',
+        verification: 'Verification',
+        reflected: 'Reflected',
+        differencesRemain: 'Differences remain',
+        editableColumns: 'Editable columns',
+        uploadedWorkbook: 'Uploaded workbook',
+        verificationWorkbook: 'Verification workbook',
+        conflictExplain: 'Conflict rows are not applied automatically. Review the latest value in "Current Revit" and adjust the Excel value if needed.',
+        colorLegend: 'Color legend',
+        legendReadonly: 'Gray=Read-only',
+        legendInstance: 'Light yellow=Instance',
+        legendType: 'Light blue=Type',
+        legendBoolean: 'Light green=Yes/No',
+        item: 'Item',
+        value: 'Value',
+        importedFile: 'Imported file',
+        reportPath: 'Report path',
+        changeJsonPath: 'Change JSON path',
+        changedCount: 'Changed count',
+        unchangedCount: 'Unchanged count',
+        skippedCount: 'Skipped count',
+        failedCount: 'Failed count',
+        conflictCount: 'Conflict count',
+        conflictDetected: 'Conflict detected. The Revit schedule already contains newer values. Conflicted cells were not applied. Re-export the schedule before editing again.',
+        afterApplyHint: 'After Apply, click "Verify Apply" to display the updated schedule here.',
+        missingBeforePreview: 'The original schedule preview is missing. Run "Preview Selected Schedule" first.',
+        loadedSchedules: count => `Loaded ${count} schedules.`,
+        loadedSchedulesWithSupport: (count, supported, unsupported) => `Loaded ${count} schedules. Supported=${supported} / Unsupported=${unsupported}`,
+        loadingSchedules: 'Loading schedules…',
+        schedulesUnavailable: 'Schedules unavailable.',
+        noSchedulesFound: 'No schedules found.',
+        scheduleSupported: 'Supported',
+        scheduleUnsupported: 'Unsupported',
+        supportReason_DIRECT_ROUNDTRIP: 'Element-based roundtrip export is supported.',
+        supportReason_DISPLAY_RUNTIME_CHECK: 'This schedule uses display-preserving export. Row mapping is verified at runtime.',
+        supportReason_NO_VISIBLE_COLUMNS: 'No visible columns are available.',
+        supportReason_DISPLAY_SINGLE_COLUMN: 'Single-column display schedules cannot be mapped safely to Revit element IDs.',
+        supportReason_LIKELY_DOCUMENT_OR_VIEW_SCHEDULE: 'This appears to be a sheet / view / level style schedule.',
+        supportReason_LIKELY_LEGEND_OR_KEY_SCHEDULE: 'This appears to be a legend / key / note style schedule.',
+        supportReason_LIKELY_MATERIAL_OR_PART_SCHEDULE: 'This appears to be a material / part-composition style schedule.',
+        supportReason_DISPLAY_ROW_MAPPING_FAILED: 'Visible rows could not be mapped to Revit element IDs.',
+        supportReason_DISPLAY_PARTIAL_ROW_MAPPING: 'Only part of the visible rows could be mapped to Revit element IDs.',
+        selectedScheduleSupport: (status, reason) => `Selected schedule: ${status}${reason ? ' / ' + reason : ''}`,
+        noScheduleRows: 'No schedule rows returned.',
+        noChangedCells: 'No changed cells detected.',
+        noRemainingDifferences: 'No remaining differences detected.',
+        selectedSchedule: 'Selected Schedule',
+        scheduleAfterApply: 'Schedule After Apply',
+        rowsShown: 'Rows shown',
+        totalRows: 'Total rows',
+        highlightedCells: 'Highlighted changed cells',
+        truncated: 'truncated',
+        excelRow: 'Excel Row',
+        targetItem: 'Item',
+        elementId: 'ElementId',
+        parameter: 'Parameter',
+        exported: 'Exported',
+        currentRevit: 'Current Revit',
+        uploadedExcel: 'Uploaded Excel',
+        status: 'Status',
+        message: 'Message',
+        requestedBy: 'Requester',
+        conflictShort: 'Conflict detected',
+        untitled: '(untitled)',
+        notSet: '(not set)',
+        unknown: '(unknown)'
+      }
+    };
+    const requesterStorageKey = 'scheduleRtRequesterName';
+    let currentLang = (localStorage.getItem('scheduleRtLang') || 'ja').toLowerCase() === 'en' ? 'en' : 'ja';
+    function t(key) {
+      const dict = I18N[currentLang] || I18N.ja;
+      return dict[key];
+    }
     const meta = document.getElementById('meta');
+    const lifetimeNoteEl = document.getElementById('lifetimeNote');
     const statusEl = document.getElementById('status');
     const scheduleStatusEl = document.getElementById('scheduleStatus');
     const schedulePreviewSummary = document.getElementById('schedulePreviewSummary');
@@ -992,56 +1368,274 @@ namespace RevitMcpServer.Web
     const tblBody = document.querySelector('#tbl tbody');
     const scheduleSelect = document.getElementById('scheduleSelect');
     const fileInput = document.getElementById('file');
+    const btnChooseFile = document.getElementById('btnChooseFile');
+    const fileNameLabel = document.getElementById('fileNameLabel');
+    const requesterNameInput = document.getElementById('requesterName');
     const btnPreviewSchedule = document.getElementById('btnPreviewSchedule');
     const btnPreviewImport = document.getElementById('btnPreviewImport');
     const btnApplyImport = document.getElementById('btnApplyImport');
     const btnVerifyImport = document.getElementById('btnVerifyImport');
+    const btnPopoutResult = document.getElementById('btnPopoutResult');
     const btnBack = document.getElementById('btnBack');
     const btnQueueImport = document.getElementById('btnQueueImport');
     const btnDeleteQueue = document.getElementById('btnDeleteQueue');
+    const btnLangJa = document.getElementById('btnLangJa');
+    const btnLangEn = document.getElementById('btnLangEn');
     const queueHintEl = document.getElementById('queueHint');
     let activeImportPreviewToken = '';
     let activeQueueId = '';
     let activeImportedFilePath = '';
     let activeChangedCellKeys = new Set();
     let activeSchedulePreviewData = null;
+    let activeImportPreviewData = null;
+    let activeImportPreviewIsVerification = false;
+    let activeImportResultData = null;
+    let activeVerificationData = null;
+    let activeScheduleEntries = [];
+    let lastStatusState = null;
+    let lastScheduleStatusState = null;
+    let lastQueueHintState = null;
 
-    meta.innerHTML = `<div><b>Document:</b> ${escapeHtml(info.docTitle || '(untitled)')}</div>
-      <div><b>Project:</b> ${escapeHtml(info.projectName || '(not set)')}</div>
-      <div><b>Revit editor:</b> ${escapeHtml(info.editorUser || '(unknown)')}</div>
-      <div><b>docGuid:</b> <span class="mono">${escapeHtml(info.docGuid || '')}</span></div>
-      <div><b>Permissions:</b> ${escapeHtml((info.permissions || []).join(', '))}</div>
-      <div><b>Expires:</b> ${escapeHtml(info.expiresUtc || '')}</div>`;
+    function isLoopbackHost() {
+      const host = String(location.hostname || '').trim().toLowerCase();
+      return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    }
+
+    function resolveInitialRequesterName() {
+      const remembered = String(localStorage.getItem(requesterStorageKey) || '').trim();
+      if (remembered) return remembered;
+      if (isLoopbackHost()) {
+        const fallback = String(info.defaultRequester || '').trim();
+        if (fallback) return fallback;
+      }
+      return '';
+    }
+
+    function cloneSimpleData(data) {
+      if (data === null || data === undefined) return null;
+      return JSON.parse(JSON.stringify(data));
+    }
+
+    function resolveTextState(state) {
+      if (!state) return '';
+      if (state.type === 'key') {
+        const value = t(state.key);
+        return typeof value === 'function' ? value(...(state.args || [])) : value;
+      }
+      return state.text || '';
+    }
+
+    function setStatusKey(key, isErr = false, ...args) {
+      lastStatusState = { type: 'key', key, args, isErr };
+      status(resolveTextState(lastStatusState), isErr);
+    }
+
+    function setStatusRaw(text, isErr = false) {
+      lastStatusState = { type: 'raw', text: text || '', isErr };
+      status(text || '', isErr);
+    }
+
+    function setScheduleStatusKey(key, isErr = false, ...args) {
+      lastScheduleStatusState = { type: 'key', key, args, isErr };
+      scheduleStatus(resolveTextState(lastScheduleStatusState), isErr);
+    }
+
+    function setScheduleStatusRaw(text, isErr = false) {
+      lastScheduleStatusState = { type: 'raw', text: text || '', isErr };
+      scheduleStatus(text || '', isErr);
+    }
+
+    function setQueueHintKey(key, ...args) {
+      lastQueueHintState = { type: 'key', key, args };
+      queueHint(resolveTextState(lastQueueHintState));
+    }
+
+    function setQueueHintRaw(text) {
+      lastQueueHintState = { type: 'raw', text: text || '' };
+      queueHint(text || '');
+    }
+
+    function resolveScheduleSupportReason(entry) {
+      if (!entry) return '';
+      const code = String(entry.supportReasonCode || '').trim();
+      if (code) {
+        const translated = t('supportReason_' + code);
+        if (translated)
+          return typeof translated === 'function' ? translated() : translated;
+      }
+      return String(entry.supportReason || '').trim();
+    }
+
+    function resolveScheduleSupportLabel(entry) {
+      return String(entry?.supportStatus || '').toLowerCase() === 'unsupported'
+        ? t('scheduleUnsupported')
+        : t('scheduleSupported');
+    }
+
+    function renderScheduleOptions() {
+      const selectedId = String(scheduleSelect.value || '');
+      scheduleSelect.innerHTML = '';
+      activeScheduleEntries.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = String(s.scheduleViewId || '');
+        const suffix = s.categoryName ? ` [${s.categoryName}]` : '';
+        opt.textContent = `${s.title || t('untitled')}${suffix} [${resolveScheduleSupportLabel(s)}]`;
+        if (selectedId && opt.value === selectedId)
+          opt.selected = true;
+        else if (!selectedId && s.isActive)
+          opt.selected = true;
+        scheduleSelect.appendChild(opt);
+      });
+
+      if (!scheduleSelect.value && scheduleSelect.options.length > 0)
+        scheduleSelect.selectedIndex = 0;
+    }
+
+    function renderSelectedScheduleSupport() {
+      const selectedId = String(scheduleSelect.value || '');
+      if (!selectedId) return;
+      const entry = activeScheduleEntries.find(x => String(x.scheduleViewId || '') === selectedId);
+      if (!entry) return;
+      setScheduleStatusKey(
+        'selectedScheduleSupport',
+        String(entry.supportStatus || '').toLowerCase() === 'unsupported',
+        resolveScheduleSupportLabel(entry),
+        resolveScheduleSupportReason(entry));
+    }
+
+    function renderSelectedFileName() {
+      const file = fileInput?.files?.[0];
+      fileNameLabel.textContent = file ? file.name : t('noFileSelected');
+    }
+
+    function rerenderDynamicSections() {
+      if (activeSchedulePreviewData)
+        renderSchedulePreviewInto(schedulePreviewSummary, schedulePreviewHead, schedulePreviewBody, activeSchedulePreviewData, null, t('selectedSchedule'));
+
+      if (activeImportResultData) {
+        renderImportResult(activeImportResultData);
+      }
+      else if (activeImportPreviewData) {
+        renderImportPreview(activeImportPreviewData, activeImportPreviewIsVerification);
+      }
+
+      if (activeVerificationData) {
+        const afterData = cloneSchedulePreviewData(activeSchedulePreviewData);
+        applyVerificationToScheduleData(afterData, activeVerificationData.rows);
+        renderSchedulePreviewInto(afterSchedulePreviewSummary, afterSchedulePreviewHead, afterSchedulePreviewBody, afterData, activeChangedCellKeys, t('scheduleAfterApply'));
+      }
+      else {
+        clearAfterSchedulePreview(false);
+      }
+
+      if (lastStatusState)
+        status(resolveTextState(lastStatusState), !!lastStatusState.isErr);
+      if (lastScheduleStatusState)
+        scheduleStatus(resolveTextState(lastScheduleStatusState), !!lastScheduleStatusState.isErr);
+      if (lastQueueHintState)
+        queueHint(resolveTextState(lastQueueHintState));
+      renderSelectedFileName();
+    }
+
+    function renderMeta() {
+      meta.innerHTML = `<div><b>${escapeHtml(t('document'))}:</b> ${escapeHtml(info.docTitle || t('untitled'))}</div>
+        <div><b>${escapeHtml(t('project'))}:</b> ${escapeHtml(info.projectName || t('notSet'))}</div>
+        <div><b>${escapeHtml(t('revitEditor'))}:</b> ${escapeHtml(info.editorUser || t('unknown'))}</div>
+        <div><b>${escapeHtml(t('docGuid'))}:</b> <span class="mono">${escapeHtml(info.docGuid || '')}</span></div>
+        <div><b>${escapeHtml(t('permissions'))}:</b> ${escapeHtml((info.permissions || []).join(', '))}</div>
+        <div><b>${escapeHtml(t('expires'))}:</b> ${escapeHtml(info.expiresUtc || '')}</div>`;
+      lifetimeNoteEl.textContent = t('lifetimeNote');
+    }
+
+    function applyLanguage() {
+      localStorage.setItem('scheduleRtLang', currentLang);
+      document.documentElement.lang = currentLang === 'ja' ? 'ja' : 'en';
+      document.getElementById('pageTitle').textContent = t('pageTitle');
+      document.getElementById('exportTitle').textContent = t('exportTitle');
+      document.getElementById('schedulePreviewTitle').textContent = t('schedulePreviewTitle');
+      document.getElementById('afterApplyTitle').textContent = t('afterApplyTitle');
+      document.getElementById('excelImportTitle').textContent = t('excelImportTitle');
+      document.getElementById('btnRefreshSchedules').textContent = t('refreshSchedules');
+      document.getElementById('btnExportSchedule').textContent = t('exportSelectedSchedule');
+      document.getElementById('btnPreviewSchedule').textContent = t('previewSelectedSchedule');
+      btnPreviewImport.textContent = t('previewImport');
+      btnBack.textContent = t('back');
+      btnApplyImport.textContent = t('applyImport');
+      btnVerifyImport.textContent = t('verifyImport');
+      btnPopoutResult.textContent = t('popoutResult');
+      btnQueueImport.textContent = t('queueImport');
+      btnDeleteQueue.textContent = t('deleteQueue');
+      btnChooseFile.textContent = t('chooseFile');
+      document.getElementById('requesterLabel').textContent = t('requesterLabel');
+      document.getElementById('excelEditNotice').textContent = t('excelEditNotice');
+      requesterNameInput.placeholder = t('requesterPlaceholder');
+      btnLangJa.disabled = currentLang === 'ja';
+      btnLangEn.disabled = currentLang === 'en';
+      renderMeta();
+      rerenderDynamicSections();
+      if (activeScheduleEntries.length > 0) {
+        renderScheduleOptions();
+        renderSelectedScheduleSupport();
+      }
+    }
+
+    btnLangJa.addEventListener('click', () => {
+      currentLang = 'ja';
+      applyLanguage();
+    });
+
+    btnLangEn.addEventListener('click', () => {
+      currentLang = 'en';
+      applyLanguage();
+    });
+
+    requesterNameInput.addEventListener('change', () => {
+      const requesterName = String(requesterNameInput.value || '').trim();
+      if (requesterName) localStorage.setItem(requesterStorageKey, requesterName);
+    });
+
+    btnChooseFile.addEventListener('click', () => {
+      if (!fileInput.disabled) fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      renderSelectedFileName();
+    });
 
     document.getElementById('btnRefreshSchedules').addEventListener('click', async () => {
       await loadSchedules();
     });
 
+    scheduleSelect.addEventListener('change', () => {
+      renderSelectedScheduleSupport();
+    });
+
     document.getElementById('btnExportSchedule').addEventListener('click', async () => {
       const scheduleViewId = scheduleSelect.value || '';
       if (!scheduleViewId) {
-        scheduleStatus('Select a schedule first.', true);
+        setScheduleStatusKey('selectScheduleFirst', true);
         return;
       }
-      scheduleStatus('Exporting selected schedule…');
+      setScheduleStatusKey('exportingSchedule');
       const res = await fetch('/api/room-excel-roundtrip/export?token=' + encodeURIComponent(token) + '&scheduleViewId=' + encodeURIComponent(scheduleViewId));
       if (!res.ok) {
         const t = await tryJson(res);
-        scheduleStatus(t.msg || ('HTTP ' + res.status), true);
+        const supportReason = resolveScheduleSupportReason(t);
+        setScheduleStatusRaw(supportReason || t.msg || ('HTTP ' + res.status), true);
         return;
       }
       await downloadResponseBlob(res, 'schedule_export.xlsx');
-      scheduleStatus('Schedule export completed.');
+      setScheduleStatusKey('scheduleExportCompleted');
     });
 
     btnPreviewSchedule.addEventListener('click', async () => {
       const scheduleViewId = scheduleSelect.value || '';
       const selectedText = scheduleSelect.options[scheduleSelect.selectedIndex]?.text || '';
       if (!scheduleViewId) {
-        scheduleStatus('Select a schedule first.', true);
+        setScheduleStatusKey('selectScheduleFirst', true);
         return;
       }
-      scheduleStatus('Loading selected schedule preview…');
+      setScheduleStatusKey('loadingSelectedSchedule');
       const url = '/api/room-excel-roundtrip/schedule-preview?token=' + encodeURIComponent(token)
         + '&scheduleViewId=' + encodeURIComponent(scheduleViewId)
         + '&scheduleName=' + encodeURIComponent(selectedText)
@@ -1049,26 +1643,34 @@ namespace RevitMcpServer.Web
       const res = await fetch(url);
       const data = await tryJson(res);
       if (!res.ok || !data.ok) {
-        scheduleStatus(data.msg || ('HTTP ' + res.status), true);
+        setScheduleStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       renderSchedulePreview(data);
-      scheduleStatus('Schedule preview loaded.');
+      setScheduleStatusKey('selectedScheduleLoaded');
     });
 
     btnPreviewImport.addEventListener('click', async () => {
+      const requesterName = String(requesterNameInput.value || '').trim();
+      if (!requesterName) {
+        setStatusKey('requesterRequired', true);
+        requesterNameInput.focus();
+        return;
+      }
       const file = fileInput.files[0];
       if (!file) {
-        status('Select an Excel file first.', true);
+        setStatusKey('selectExcelFirst', true);
         return;
       }
       const fd = new FormData();
+      localStorage.setItem(requesterStorageKey, requesterName);
+      fd.append('requesterName', requesterName);
       fd.append('file', file);
-      status('Comparing workbook with current Revit values…');
+      setStatusKey('comparingWorkbook');
       const res = await fetch('/api/room-excel-roundtrip/import-preview?token=' + encodeURIComponent(token), { method: 'POST', body: fd });
       const data = await tryJson(res);
       if (!res.ok || !data.ok) {
-        status(data.msg || ('HTTP ' + res.status), true);
+        setStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       activeImportPreviewToken = data.previewToken || '';
@@ -1077,16 +1679,17 @@ namespace RevitMcpServer.Web
       renderImportPreview(data);
       setImportMode(true);
       clearAfterSchedulePreview();
-      status(`Preview ready: changed=${data.changedCellCount || 0}, unchanged=${data.unchangedCellCount || 0}, skipped=${data.skippedCellCount || 0}, failed=${data.failedCellCount || 0}`);
+      const conflictCount = data.conflictCellCount || 0;
+      setStatusKey('previewReady', conflictCount > 0, data.changedCellCount || 0, conflictCount, data.unchangedCellCount || 0, data.skippedCellCount || 0, data.failedCellCount || 0);
     });
 
     btnApplyImport.addEventListener('click', async () => {
       if (!activeImportPreviewToken) {
-        status('No preview session. Upload and preview the workbook again.', true);
+        setStatusKey('noPreviewSession', true);
         return;
       }
       btnApplyImport.disabled = true;
-      status('Applying confirmed changes…');
+      setStatusKey('applyingConfirmedChanges');
       const res = await fetch('/api/room-excel-roundtrip/import-apply?token=' + encodeURIComponent(token), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1097,11 +1700,12 @@ namespace RevitMcpServer.Web
       if (!res.ok || !data.ok) {
         if (String(data.code || '') === 'REJECTED_BY_REVIT') {
           btnQueueImport.style.display = '';
-          queueHint((data.msg || 'Revit 側で拒否されました。') + ' 下の「キューに入れる」を押すと、5分後に Revit 側で再確認します。');
-          status((data.msg || 'Revit 側で拒否されました。') + ' 下のボタンから次の操作を選んでください。', true);
+          btnDeleteQueue.style.display = 'none';
+          setQueueHintKey('queueOfferHint');
+          setStatusRaw((data.msg || t('rejectedByRevit')) + ' ' + t('chooseNextAction'), true);
           return;
         }
-        status(data.msg || ('HTTP ' + res.status), true);
+        setStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       renderImportResult(data);
@@ -1109,16 +1713,21 @@ namespace RevitMcpServer.Web
       activeQueueId = '';
       activeImportedFilePath = data.path || activeImportedFilePath;
       setImportMode(false);
-      status(`Imported: changed=${data.changedCount || 0}, unchanged=${data.unchangedCount || 0}, skipped=${data.skippedCount || 0}, failed=${data.failedCount || 0}`);
+      const conflictCount = data.conflictCount || 0;
+      if (conflictCount > 0) {
+        setStatusKey('importedWithConflict', true, data.changedCount || 0, data.unchangedCount || 0, data.skippedCount || 0, data.failedCount || 0, conflictCount);
+      } else {
+        setStatusKey('imported', false, data.changedCount || 0, data.unchangedCount || 0, data.skippedCount || 0, data.failedCount || 0, conflictCount);
+      }
     });
 
     btnVerifyImport.addEventListener('click', async () => {
       if (!activeImportedFilePath) {
-        status('確認対象の Excel ファイルがありません。再度プレビューしてください。', true);
+        setStatusKey('noVerificationFile', true);
         return;
       }
       btnVerifyImport.disabled = true;
-      status('現在の Revit 値と再比較しています…');
+      setStatusKey('comparingCurrentValues');
       const res = await fetch('/api/room-excel-roundtrip/import-verify?token=' + encodeURIComponent(token), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1127,21 +1736,21 @@ namespace RevitMcpServer.Web
       const data = await tryJson(res);
       btnVerifyImport.disabled = false;
       if (!res.ok || !data.ok) {
-        status(data.msg || ('HTTP ' + res.status), true);
+        setStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       renderImportPreview(data, true);
       await renderVerifiedSchedulePreview(data);
       if (data.reflected) {
-        status('反映確認: Excel の内容は現在の Revit 集計表に反映されています。');
+        setStatusKey('reflectedOk');
       } else {
-        status(`反映確認: まだ差分があります。changed=${data.changedCellCount || 0}, failed=${data.failedCellCount || 0}`, true);
+        setStatusKey('reflectedDiff', true, data.changedCellCount || 0, data.failedCellCount || 0, data.conflictCellCount || 0, data.skippedCellCount || 0);
       }
     });
 
     btnQueueImport.addEventListener('click', async () => {
       if (!activeImportPreviewToken) {
-        status('No preview session. Upload and preview the workbook again.', true);
+        setStatusKey('noPreviewSession', true);
         return;
       }
       btnQueueImport.disabled = true;
@@ -1153,18 +1762,18 @@ namespace RevitMcpServer.Web
       const data = await tryJson(res);
       btnQueueImport.disabled = false;
       if (!res.ok || !data.ok) {
-        status(data.msg || ('HTTP ' + res.status), true);
+        setStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       activeQueueId = data.queueId || '';
       btnDeleteQueue.style.display = activeQueueId ? '' : 'none';
-      queueHint('キューに入れました。Revit 側では 5 分ごとに確認ダイアログを表示します。不要になった場合は「キューを削除」を押してください。');
-      status(data.msg || 'キューに入れました。後でRevit に反映されます。');
+      setQueueHintKey('queueStoredHint');
+      setStatusRaw(data.msg || t('queueStored'));
     });
 
     btnDeleteQueue.addEventListener('click', async () => {
       if (!activeQueueId) {
-        status('No queued request.', true);
+        setStatusKey('noQueuedRequest', true);
         return;
       }
       btnDeleteQueue.disabled = true;
@@ -1176,71 +1785,95 @@ namespace RevitMcpServer.Web
       const data = await tryJson(res);
       btnDeleteQueue.disabled = false;
       if (!res.ok || !data.ok) {
-        status(data.msg || ('HTTP ' + res.status), true);
+        setStatusRaw(data.msg || ('HTTP ' + res.status), true);
         return;
       }
       activeQueueId = '';
       btnDeleteQueue.style.display = 'none';
       btnQueueImport.style.display = 'none';
-      queueHint('');
-      status(data.msg || 'キューを削除しました。反映しなかったことを送信者に別途連絡してください。', true);
+      setQueueHintRaw('');
+      setStatusRaw(data.msg || t('queueDeleted'), true);
+    });
+
+    btnPopoutResult.addEventListener('click', () => {
+      openComparisonWindow();
     });
 
     btnBack.addEventListener('click', () => {
       activeImportPreviewToken = '';
       activeQueueId = '';
       activeImportedFilePath = '';
+      activeImportPreviewData = null;
+      activeImportResultData = null;
+      activeVerificationData = null;
       setImportMode(false);
       btnQueueImport.style.display = 'none';
       btnDeleteQueue.style.display = 'none';
-      queueHint('');
+      btnPopoutResult.style.display = 'none';
+      setQueueHintRaw('');
       summary.innerHTML = '';
       tblHead.innerHTML = '';
       tblBody.innerHTML = '';
       clearAfterSchedulePreview();
-      status('');
+      setStatusRaw('');
     });
 
     setImportMode(false);
-    clearAfterSchedulePreview();
+    requesterNameInput.value = resolveInitialRequesterName();
+    applyLanguage();
     loadSchedules();
 
     function renderImportResult(data) {
-      summary.innerHTML = `<p><b>Mode:</b> ${escapeHtml(data.mode || '')} / <b>Changed:</b> ${data.changedCount || data.updatedCount || 0} / <b>Unchanged:</b> ${data.unchangedCount || 0} / <b>Skipped:</b> ${data.skippedCount || 0} / <b>Failed:</b> ${data.failedCount || 0} / <b>Editable columns:</b> ${data.editableColumnCount || 0}</p>` +
-        (data.reportPath ? `<p><b>Report:</b> <span class="mono">${escapeHtml(data.reportPath)}</span></p>` : '') +
-        (data.auditJsonPath ? `<p><b>Change JSON:</b> <span class="mono">${escapeHtml(data.auditJsonPath)}</span></p>` : '');
-      tblHead.innerHTML = '<tr><th>Item</th><th>Value</th></tr>';
+      activeImportResultData = cloneSimpleData(data);
+      activeImportPreviewData = null;
+      activeImportPreviewIsVerification = false;
+      const conflictCount = data.conflictCount || 0;
+      summary.innerHTML = `<p><b>${escapeHtml(t('mode'))}:</b> ${escapeHtml(data.mode || '')} / <b>${escapeHtml(t('changedCount'))}:</b> ${data.changedCount || data.updatedCount || 0} / <b>${escapeHtml(t('unchangedCount'))}:</b> ${data.unchangedCount || 0} / <b>${escapeHtml(t('skippedCount'))}:</b> ${data.skippedCount || 0} / <b>${escapeHtml(t('failedCount'))}:</b> ${data.failedCount || 0} / <b>${escapeHtml(t('conflictCount'))}:</b> ${conflictCount} / <b>${escapeHtml(t('editableColumns'))}:</b> ${data.editableColumnCount || 0}</p>` +
+        (data.reportPath ? `<p><b>${escapeHtml(t('report'))}:</b> <span class="mono">${escapeHtml(data.reportPath)}</span></p>` : '') +
+        (data.auditJsonPath ? `<p><b>${escapeHtml(t('changeJson'))}:</b> <span class="mono">${escapeHtml(data.auditJsonPath)}</span></p>` : '') +
+        (conflictCount > 0 ? `<p class="warnText"><b>${escapeHtml(t('conflictShort'))}.</b> ${escapeHtml(t('conflictDetected'))}</p>` : '');
+      tblHead.innerHTML = `<tr><th>${escapeHtml(t('item'))}</th><th>${escapeHtml(t('value'))}</th></tr>`;
       tblBody.innerHTML = '';
       [
-        ['Imported file', data.path || ''],
-        ['Report path', data.reportPath || ''],
-        ['Change JSON', data.auditJsonPath || ''],
-        ['Changed count', String(data.changedCount || data.updatedCount || 0)],
-        ['Unchanged count', String(data.unchangedCount || 0)],
-        ['Skipped count', String(data.skippedCount || 0)],
-        ['Failed count', String(data.failedCount || 0)]
+        [t('importedFile'), data.path || ''],
+        [t('reportPath'), data.reportPath || ''],
+        [t('changeJsonPath'), data.auditJsonPath || ''],
+        [t('changedCount'), String(data.changedCount || data.updatedCount || 0)],
+        [t('unchangedCount'), String(data.unchangedCount || 0)],
+        [t('skippedCount'), String(data.skippedCount || 0)],
+        [t('failedCount'), String(data.failedCount || 0)],
+        [t('conflictCount'), String(data.conflictCount || 0)]
       ].forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${escapeHtml(r[0])}</td><td class="mono">${escapeHtml(r[1])}</td>`;
         tblBody.appendChild(tr);
       });
+      refreshPopoutButton();
       updateVerifyButton();
     }
 
-    function clearAfterSchedulePreview() {
-      afterSchedulePreviewSummary.innerHTML = '<p class="mono">Apply 後に「反映確認」を押すと、変更後の集計表をここに表示します。</p>';
+    function clearAfterSchedulePreview(resetVerification = true) {
+      if (resetVerification)
+        activeVerificationData = null;
+      afterSchedulePreviewSummary.innerHTML = `<p class="mono">${escapeHtml(t('afterApplyHint'))}</p>`;
       afterSchedulePreviewHead.innerHTML = '';
       afterSchedulePreviewBody.innerHTML = '';
     }
 
     function renderImportPreview(data, isVerification = false) {
+      activeImportPreviewData = cloneSimpleData(data);
+      activeImportPreviewIsVerification = !!isVerification;
+      if (!isVerification)
+        activeImportResultData = null;
       summary.innerHTML = (isVerification
-        ? `<p><b>Verification:</b> ${data.reflected ? '<span class="ok">Reflected</span>' : '<span class="err">Differences remain</span>'}</p>`
-        : `<p><b>Preview token:</b> <span class="mono">${escapeHtml(data.previewToken || '')}</span></p>`) +
-        `<p><b>Mode:</b> ${escapeHtml(data.mode || '')} / <b>Changed cells:</b> ${data.changedCellCount || 0} / <b>Unchanged cells:</b> ${data.unchangedCellCount || 0} / <b>Skipped cells:</b> ${data.skippedCellCount || 0} / <b>Failed cells:</b> ${data.failedCellCount || 0}</p>` +
-        ((data.uploadedPath || data.filePath) ? `<p><b>${isVerification ? 'Verification workbook' : 'Uploaded workbook'}:</b> <span class="mono">${escapeHtml(data.uploadedPath || data.filePath || '')}</span></p>` : '');
+        ? `<p><b>${escapeHtml(t('verification'))}:</b> ${data.reflected ? `<span class="ok">${escapeHtml(t('reflected'))}</span>` : `<span class="err">${escapeHtml(t('differencesRemain'))}</span>`}</p>`
+        : `<p><b>${escapeHtml(t('previewToken'))}:</b> <span class="mono">${escapeHtml(data.previewToken || '')}</span></p>`) +
+        `<p><b>${escapeHtml(t('mode'))}:</b> ${escapeHtml(data.mode || '')} / <b>${escapeHtml(t('changedCells'))}:</b> ${data.changedCellCount || 0} / <b>${escapeHtml(t('conflicts'))}:</b> ${data.conflictCellCount || 0} / <b>${escapeHtml(t('unchangedCells'))}:</b> ${data.unchangedCellCount || 0} / <b>${escapeHtml(t('skippedCells'))}:</b> ${data.skippedCellCount || 0} / <b>${escapeHtml(t('failedCells'))}:</b> ${data.failedCellCount || 0}</p>` +
+        `<p class="legend"><b>${escapeHtml(t('colorLegend'))}:</b> <span class="paramReadonly">${escapeHtml(t('legendReadonly'))}</span> / <span class="paramInstance">${escapeHtml(t('legendInstance'))}</span> / <span class="paramType">${escapeHtml(t('legendType'))}</span> / <span class="paramBoolean">${escapeHtml(t('legendBoolean'))}</span></p>` +
+        ((data.conflictCellCount || 0) > 0 ? `<p class="warnText"><b>${escapeHtml(t('conflictShort'))}.</b> ${escapeHtml(t('conflictExplain'))}</p>` : '') +
+        ((data.uploadedPath || data.filePath) ? `<p><b>${escapeHtml(isVerification ? t('verificationWorkbook') : t('uploadedWorkbook'))}:</b> <span class="mono">${escapeHtml(data.uploadedPath || data.filePath || '')}</span></p>` : '');
 
-      tblHead.innerHTML = '<tr><th>Excel Row</th><th>Item</th><th>ElementId</th><th>Parameter</th><th>Before</th><th>After</th><th>Status</th><th>Message</th></tr>';
+      tblHead.innerHTML = `<tr><th>${escapeHtml(t('excelRow'))}</th><th>${escapeHtml(t('targetItem'))}</th><th>${escapeHtml(t('elementId'))}</th><th>${escapeHtml(t('parameter'))}</th><th>${escapeHtml(t('exported'))}</th><th>${escapeHtml(t('currentRevit'))}</th><th>${escapeHtml(t('uploadedExcel'))}</th><th>${escapeHtml(t('status'))}</th><th>${escapeHtml(t('message'))}</th></tr>`;
       tblBody.innerHTML = '';
 
       const rows = Array.isArray(data.rows) ? data.rows : [];
@@ -1251,13 +1884,18 @@ namespace RevitMcpServer.Web
           elements.forEach(e => {
             if (String(e.status || '').toUpperCase() === 'UNCHANGED') return;
             const tr = document.createElement('tr');
+            const statusText = String(e.status || c.status || '').toUpperCase();
+            const currentCellClass = statusText === 'CONFLICT' ? ' class="liveConflictValue"' : '';
+            const uploadedCellClass = statusText === 'CONFLICT' ? ' class="conflictCell"' : '';
+            const parameterCellClass = getParameterColorClass(c);
             tr.innerHTML =
               `<td>${escapeHtml(r.row)}</td>` +
               `<td>${escapeHtml(r.label || '')}</td>` +
               `<td class="mono">${escapeHtml(e.elementId || '')}</td>` +
-              `<td>${escapeHtml(c.parameterName || c.header || '')}</td>` +
-              `<td>${escapeHtml(e.before || '')}</td>` +
-              `<td>${escapeHtml(e.after || e.imported || '')}</td>` +
+              `<td class="${parameterCellClass}">${escapeHtml(c.parameterName || c.header || '')}</td>` +
+              `<td>${escapeHtml(e.baseline || '')}</td>` +
+              `<td${currentCellClass}>${escapeHtml(e.before || '')}</td>` +
+              `<td${uploadedCellClass}>${escapeHtml(e.after || e.imported || '')}</td>` +
               `<td>${escapeHtml(e.status || c.status || '')}</td>` +
               `<td>${escapeHtml(e.message || c.message || r.message || '')}</td>`;
             tblBody.appendChild(tr);
@@ -1267,9 +1905,10 @@ namespace RevitMcpServer.Web
 
       if (!tblBody.children.length) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="8">${isVerification ? 'No remaining differences detected.' : 'No changed cells detected.'}</td>`;
+        tr.innerHTML = `<td colspan="9">${escapeHtml(isVerification ? t('noRemainingDifferences') : t('noChangedCells'))}</td>`;
         tblBody.appendChild(tr);
       }
+      refreshPopoutButton();
     }
 
     function setImportMode(isPreview) {
@@ -1279,12 +1918,18 @@ namespace RevitMcpServer.Web
       btnQueueImport.style.display = 'none';
       btnDeleteQueue.style.display = activeQueueId ? '' : 'none';
       btnVerifyImport.style.display = isPreview ? 'none' : (activeImportedFilePath ? '' : 'none');
-      if (!isPreview) queueHint('');
+      btnPopoutResult.style.display = tblBody.children.length > 0 ? '' : 'none';
+      if (!isPreview) setQueueHintRaw('');
       fileInput.disabled = !!isPreview;
+      btnChooseFile.disabled = !!isPreview;
     }
 
     function updateVerifyButton() {
       btnVerifyImport.style.display = activeImportedFilePath ? '' : 'none';
+    }
+
+    function refreshPopoutButton() {
+      btnPopoutResult.style.display = tblBody.children.length > 0 ? '' : 'none';
     }
 
     function status(text, isErr = false) {
@@ -1304,42 +1949,82 @@ namespace RevitMcpServer.Web
     }
 
     async function loadSchedules() {
-      scheduleStatus('Loading schedules…');
-      scheduleSelect.innerHTML = '<option value=\"\">Loading schedules…</option>';
+      setScheduleStatusKey('loadingSchedules');
+      scheduleSelect.innerHTML = `<option value="">${escapeHtml(t('loadingSchedules'))}</option>`;
       const res = await fetch('/api/room-excel-roundtrip/schedules?token=' + encodeURIComponent(token));
       const data = await tryJson(res);
       if (!res.ok || !data.ok) {
-        scheduleSelect.innerHTML = '<option value=\"\">Schedules unavailable</option>';
-        scheduleStatus(data.msg || ('HTTP ' + res.status), true);
+        scheduleSelect.innerHTML = `<option value="">${escapeHtml(t('schedulesUnavailable'))}</option>`;
+        setScheduleStatusRaw(data.msg || t('schedulesUnavailable') || ('HTTP ' + res.status), true);
         return;
       }
 
       const schedules = Array.isArray(data.schedules) ? data.schedules : [];
+      activeScheduleEntries = schedules;
       if (!schedules.length) {
-        scheduleSelect.innerHTML = '<option value=\"\">No schedules found</option>';
-        scheduleStatus('No schedules found.', true);
+        scheduleSelect.innerHTML = `<option value="">${escapeHtml(t('noSchedulesFound'))}</option>`;
+        setScheduleStatusKey('noSchedulesFound', true);
         return;
       }
 
-      scheduleSelect.innerHTML = '';
-      schedules.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = String(s.scheduleViewId || '');
-        const suffix = s.categoryName ? ` [${s.categoryName}]` : '';
-        opt.textContent = `${s.title || '(untitled)'}${suffix}`;
-        if (s.isActive) opt.selected = true;
-        scheduleSelect.appendChild(opt);
-      });
-
-      if (!scheduleSelect.value && scheduleSelect.options.length > 0)
-        scheduleSelect.selectedIndex = 0;
-
-      scheduleStatus(`Loaded ${schedules.length} schedules.`);
+      renderScheduleOptions();
+      const supportedCount = schedules.filter(s => String(s.supportStatus || '').toLowerCase() !== 'unsupported').length;
+      const unsupportedCount = schedules.length - supportedCount;
+      setScheduleStatusKey('loadedSchedulesWithSupport', unsupportedCount > 0, schedules.length, supportedCount, unsupportedCount);
+      renderSelectedScheduleSupport();
     }
 
     function renderSchedulePreview(data) {
       activeSchedulePreviewData = cloneSchedulePreviewData(data);
-      renderSchedulePreviewInto(schedulePreviewSummary, schedulePreviewHead, schedulePreviewBody, data, null, 'Selected Schedule');
+      renderSchedulePreviewInto(schedulePreviewSummary, schedulePreviewHead, schedulePreviewBody, data, null, t('selectedSchedule'));
+    }
+
+    function openComparisonWindow() {
+      if (!summary.innerHTML && !tblBody.children.length) {
+        setStatusKey('noChangedCells', true);
+        return;
+      }
+
+      const popup = window.open('', 'scheduleRoundtripComparison', 'width=1600,height=900,resizable=yes,scrollbars=yes');
+      if (!popup) {
+        setStatusKey('popupBlocked', true);
+        return;
+      }
+
+      const title = escapeHtml(t('excelImportTitle'));
+      popup.document.open();
+      popup.document.write(`<!doctype html>
+<html lang="${currentLang === 'ja' ? 'ja' : 'en'}">
+<head>
+  <meta charset="utf-8"/>
+  <title>${title}</title>
+  <style>
+    body{font-family:Segoe UI,sans-serif;margin:20px;background:#f7f4ec;color:#1d1d1d}
+    .card{background:#fff;padding:16px 18px;border:1px solid #d8d2c5;border-radius:12px;margin-bottom:16px}
+    table{border-collapse:collapse;width:100%;font-size:12px}
+    th,td{border:1px solid #ddd4c3;padding:6px 8px;text-align:left;vertical-align:top}
+    th{background:#ede7d8;position:sticky;top:0}
+    .mono{font-family:Consolas,monospace}
+    .ok{color:#24613a}
+    .warnText{color:#9a6500}
+    .err{color:#b00020}
+    .changedCell{color:#b00020;font-weight:700;background:#fff1f1}
+    .conflictCell{color:#7a1f73;font-weight:700;background:#fdf1ff}
+    .liveConflictValue{color:#7a1f73;font-weight:700;background:#f7e8ff}
+    .paramReadonly{background:#eeeeee}
+    .paramInstance{background:#fff6bf}
+    .paramType{background:#dceeff}
+    .paramBoolean{background:#e7f7e7}
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="card">${summary.innerHTML}</div>
+  <div class="card"><table><thead>${tblHead.innerHTML}</thead><tbody>${tblBody.innerHTML}</tbody></table></div>
+</body>
+</html>`);
+      popup.document.close();
+      popup.focus();
     }
 
     function renderSchedulePreviewInto(summaryEl, headEl, bodyEl, data, changedCellKeys, title) {
@@ -1347,10 +2032,10 @@ namespace RevitMcpServer.Web
       const rows = Array.isArray(data.rows) ? data.rows : [];
       const scheduleName = data.scheduleName || scheduleSelect.options[scheduleSelect.selectedIndex]?.text || '';
       summaryEl.innerHTML =
-        `<p><b>${escapeHtml(title || 'Schedule')}:</b> ${escapeHtml(scheduleName)}</p>` +
-        `<p><b>Rows shown:</b> ${data.shownCount || rows.length} / <b>Total rows:</b> ${data.totalCount || rows.length}` +
-        (data.truncated ? ' <span class="warnText">(truncated)</span>' : '') +
-        (changedCellKeys ? ` / <b>Highlighted changed cells:</b> ${changedCellKeys.size}` : '') + '</p>';
+        `<p><b>${escapeHtml(title || t('selectedSchedule'))}:</b> ${escapeHtml(scheduleName)}</p>` +
+        `<p><b>${escapeHtml(t('rowsShown'))}:</b> ${data.shownCount || rows.length} / <b>${escapeHtml(t('totalRows'))}:</b> ${data.totalCount || rows.length}` +
+        (data.truncated ? ` <span class="warnText">(${escapeHtml(t('truncated'))})</span>` : '') +
+        (changedCellKeys ? ` / <b>${escapeHtml(t('highlightedCells'))}:</b> ${changedCellKeys.size}` : '') + '</p>';
       headEl.innerHTML = '';
       bodyEl.innerHTML = '';
 
@@ -1377,13 +2062,23 @@ namespace RevitMcpServer.Web
 
       if (!bodyEl.children.length) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="${Math.max(columns.length, 1)}">No schedule rows returned.</td>`;
+        tr.innerHTML = `<td colspan="${Math.max(columns.length, 1)}">${escapeHtml(t('noScheduleRows'))}</td>`;
         bodyEl.appendChild(tr);
       }
     }
 
     function buildChangedCellKey(rowNumber, header) {
       return String(rowNumber) + '|' + String(header || '').trim().toLowerCase();
+    }
+
+    function getParameterColorClass(cell) {
+      const editable = cell?.editable !== false;
+      const isBoolean = !!cell?.isBoolean;
+      const scope = String(cell?.resolvedScope || '').trim().toLowerCase();
+      if (isBoolean) return 'paramBoolean';
+      if (!editable) return 'paramReadonly';
+      if (scope === 'type' || scope === 'mixed') return 'paramType';
+      return 'paramInstance';
     }
 
     function buildChangedCellKeySet(rows) {
@@ -1397,7 +2092,10 @@ namespace RevitMcpServer.Web
           const header = String(c?.header || c?.parameterName || '').trim();
           if (!header) return;
           const elements = Array.isArray(c?.elements) ? c.elements : [];
-          if (elements.some(e => String(e?.status || '').toUpperCase() === 'CHANGED'))
+          if (elements.some(e => {
+            const status = String(e?.status || '').toUpperCase();
+            return status === 'CHANGED' || status === 'CONFLICT';
+          }))
             keys.add(buildChangedCellKey(rowNumber, header));
         });
       });
@@ -1407,12 +2105,13 @@ namespace RevitMcpServer.Web
     async function renderVerifiedSchedulePreview(verifyData) {
       if (!activeSchedulePreviewData) {
         clearAfterSchedulePreview();
-        afterSchedulePreviewSummary.innerHTML = '<p class="err">変更前の集計表プレビューがありません。先に「Preview Selected Schedule」を実行してください。</p>';
+        afterSchedulePreviewSummary.innerHTML = `<p class="err">${escapeHtml(t('missingBeforePreview'))}</p>`;
         return;
       }
+      activeVerificationData = cloneSimpleData(verifyData);
       const afterData = cloneSchedulePreviewData(activeSchedulePreviewData);
       applyVerificationToScheduleData(afterData, verifyData.rows);
-      renderSchedulePreviewInto(afterSchedulePreviewSummary, afterSchedulePreviewHead, afterSchedulePreviewBody, afterData, activeChangedCellKeys, 'Schedule After Apply');
+      renderSchedulePreviewInto(afterSchedulePreviewSummary, afterSchedulePreviewHead, afterSchedulePreviewBody, afterData, activeChangedCellKeys, t('scheduleAfterApply'));
     }
 
     function cloneSchedulePreviewData(data) {
@@ -1729,7 +2428,7 @@ namespace RevitMcpServer.Web
                 DocGuid = token.DocGuid,
                 DocTitle = token.DocTitle,
                 CreatedUtc = DateTimeOffset.UtcNow,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2),
+                ExpiresUtc = CapSessionExpiry(token.ExpiresUtc),
                 ParamNames = workbook.ParamNames,
                 Rows = rows
             };
@@ -1961,6 +2660,12 @@ namespace RevitMcpServer.Web
             return $"{req.Scheme}://{req.Host}";
         }
 
+        private static DateTimeOffset CapSessionExpiry(DateTimeOffset requestedExpiryUtc)
+        {
+            var maxExpiryUtc = DateTimeOffset.UtcNow.Add(AccessTokenLifetime);
+            return requestedExpiryUtc <= maxExpiryUtc ? requestedExpiryUtc : maxExpiryUtc;
+        }
+
         private static string CreateSignedToken(AccessTokenPayload payload)
         {
             var json = JsonSerializer.Serialize(payload, JsonOptions);
@@ -2072,6 +2777,132 @@ namespace RevitMcpServer.Web
                 .ToList();
         }
 
+        private static JsonArray NormalizeSchedulePreviewRows(
+            JsonArray? sourceRows,
+            IReadOnlyList<string> columns,
+            out int droppedRows)
+        {
+            droppedRows = 0;
+            var normalized = new JsonArray();
+            if (sourceRows == null)
+                return normalized;
+
+            if (columns == null || columns.Count == 0)
+            {
+                foreach (var node in sourceRows)
+                    normalized.Add(node?.DeepClone());
+                return normalized;
+            }
+
+            bool emittedMeaningfulDisplayRow = false;
+
+            foreach (var node in sourceRows)
+            {
+                if (node is not JsonObject rowObj)
+                {
+                    normalized.Add(node?.DeepClone());
+                    emittedMeaningfulDisplayRow = true;
+                    continue;
+                }
+
+                var rowValues = new List<string>(columns.Count);
+                foreach (var col in columns)
+                    rowValues.Add(ReadSchedulePreviewCellText(rowObj, col));
+
+                int meaningfulValueCount = CountSchedulePreviewMeaningfulValues(rowValues, columns);
+                if (!emittedMeaningfulDisplayRow
+                    && IsSchedulePreviewHeaderLikeRow(rowValues, columns))
+                {
+                    droppedRows++;
+                    continue;
+                }
+
+                normalized.Add(rowObj.DeepClone());
+                if (meaningfulValueCount > 0)
+                    emittedMeaningfulDisplayRow = true;
+            }
+
+            return normalized;
+        }
+
+        private static string ReadSchedulePreviewCellText(JsonObject rowObj, string column)
+        {
+            if (rowObj == null || string.IsNullOrWhiteSpace(column))
+                return string.Empty;
+
+            if (!rowObj.TryGetPropertyValue(column, out var node) || node == null)
+                return string.Empty;
+
+            return node.ToString();
+        }
+
+        private static int CountSchedulePreviewMeaningfulValues(
+            IReadOnlyList<string> rowValues,
+            IReadOnlyList<string> columns)
+        {
+            if (rowValues == null || columns == null)
+                return 0;
+
+            int meaningfulCount = 0;
+            for (int i = 0; i < rowValues.Count && i < columns.Count; i++)
+            {
+                if (!IsSchedulePreviewPlaceholderValue(rowValues[i], columns[i]))
+                    meaningfulCount++;
+            }
+
+            return meaningfulCount;
+        }
+
+        private static bool IsSchedulePreviewHeaderLikeRow(
+            IReadOnlyList<string> rowValues,
+            IReadOnlyList<string> columns)
+        {
+            if (rowValues == null || columns == null || columns.Count == 0)
+                return false;
+
+            int comparableCount = 0;
+            for (int i = 0; i < rowValues.Count && i < columns.Count; i++)
+            {
+                var value = NormalizeSchedulePreviewText(rowValues[i] ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+
+                comparableCount++;
+                var header = NormalizeSchedulePreviewText(columns[i] ?? string.Empty);
+                if (!string.Equals(value, header, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+
+            if (comparableCount <= 0)
+                return false;
+
+            return comparableCount >= Math.Min(2, Math.Max(1, columns.Count));
+        }
+
+        private static bool IsSchedulePreviewPlaceholderValue(string? text, string? header = null)
+        {
+            var normalized = NormalizeSchedulePreviewText(text ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return true;
+
+            if (!string.IsNullOrWhiteSpace(header)
+                && string.Equals(normalized, NormalizeSchedulePreviewText(header), StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (normalized.StartsWith("<", StringComparison.OrdinalIgnoreCase)
+                && normalized.EndsWith(">", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        }
+
+        private static string NormalizeSchedulePreviewText(string text)
+        {
+            return string.Join(" ", (text ?? string.Empty)
+                .Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                .Trim();
+        }
+
         private static bool IsSupportedExcelExtension(string fileName)
         {
             var ext = Path.GetExtension(fileName ?? string.Empty);
@@ -2084,6 +2915,34 @@ namespace RevitMcpServer.Web
             var text = string.IsNullOrWhiteSpace(value) ? "room_roundtrip" : value!;
             foreach (var ch in Path.GetInvalidFileNameChars())
                 text = text.Replace(ch, '_');
+            return text;
+        }
+
+        private static string ComputeShortHash(string? value)
+        {
+            using (var sha = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(value ?? string.Empty);
+                return Convert.ToHexString(sha.ComputeHash(bytes)).Substring(0, 10);
+            }
+        }
+
+        private static string ShortenPathComponent(string? value, int maxLength, string fallback)
+        {
+            var text = SanitizeFileName(string.IsNullOrWhiteSpace(value) ? fallback : value);
+            if (text.Length <= maxLength)
+                return text;
+
+            var keep = Math.Max(8, maxLength - 11);
+            var head = text.Substring(0, Math.Min(keep, text.Length)).TrimEnd(' ', '.', '_');
+            return $"{head}_{ComputeShortHash(text)}";
+        }
+
+        private static string NormalizeRequesterName(string? value)
+        {
+            var text = (value ?? string.Empty).Trim();
+            if (text.Length > 100)
+                text = text.Substring(0, 100).Trim();
             return text;
         }
 
@@ -2120,6 +2979,56 @@ namespace RevitMcpServer.Web
         private static string JsonEncodedJs(string json)
         {
             return json.Replace("</", "<\\/");
+        }
+
+        private static List<ScheduleImportExpectedValue> BuildScheduleImportExpectedValues(JsonObject? previewPayload)
+        {
+            var result = new List<ScheduleImportExpectedValue>();
+            var rows = previewPayload?["rows"] as JsonArray;
+            if (rows == null)
+                return result;
+
+            foreach (var row in rows.OfType<JsonObject>())
+            {
+                var rowNumber = row["row"]?.GetValue<int>() ?? 0;
+                var cells = row["cells"] as JsonArray;
+                if (rowNumber <= 0 || cells == null)
+                    continue;
+
+                foreach (var cell in cells.OfType<JsonObject>())
+                {
+                    var outputColumnNumber = cell["outputColumnNumber"]?.GetValue<int>() ?? 0;
+                    if (outputColumnNumber <= 0)
+                        continue;
+
+                    var elements = cell["elements"] as JsonArray;
+                    if (elements == null)
+                        continue;
+
+                    foreach (var element in elements.OfType<JsonObject>())
+                    {
+                        var elementId = element["elementId"]?.GetValue<int>() ?? 0;
+                        if (elementId <= 0 || !element.TryGetPropertyValue("beforeComparable", out var beforeComparableNode))
+                            continue;
+                        var expectedComparable = (beforeComparableNode?.GetValue<string>() ?? string.Empty).Trim();
+
+                        result.Add(new ScheduleImportExpectedValue
+                        {
+                            Row = rowNumber,
+                            OutputColumnNumber = outputColumnNumber,
+                            ElementId = elementId,
+                            Header = (cell["header"]?.GetValue<string>() ?? string.Empty).Trim(),
+                            ParameterName = (cell["parameterName"]?.GetValue<string>() ?? string.Empty).Trim(),
+                            ExpectedComparable = expectedComparable,
+                            ExpectedDisplay = (element["before"]?.GetValue<string>() ?? string.Empty).Trim(),
+                            ImportedComparable = (element["importedComparable"]?.GetValue<string>() ?? string.Empty).Trim(),
+                            CanApply = element["canApply"]?.GetValue<bool?>() ?? !string.Equals(element["status"]?.GetValue<string>() ?? string.Empty, "CONFLICT", StringComparison.OrdinalIgnoreCase)
+                        });
+                    }
+                }
+            }
+
+            return result;
         }
 
         private sealed class AccessTokenPayload
@@ -2196,11 +3105,13 @@ namespace RevitMcpServer.Web
             public string DocTitle { get; set; } = string.Empty;
             public string ScheduleName { get; set; } = string.Empty;
             public string ScheduleViewId { get; set; } = string.Empty;
+            public string RequestedBy { get; set; } = string.Empty;
             public string UploadedFilePath { get; set; } = string.Empty;
             public string UploadedFileName { get; set; } = string.Empty;
             public DateTimeOffset CreatedUtc { get; set; }
             public DateTimeOffset ExpiresUtc { get; set; }
             public JsonObject? PreviewPayload { get; set; }
+            public List<ScheduleImportExpectedValue> ExpectedValues { get; set; } = new List<ScheduleImportExpectedValue>();
         }
 
         private sealed class ScheduleImportQueueEntry
@@ -2217,11 +3128,25 @@ namespace RevitMcpServer.Web
             public string ProjectFolderPath { get; set; } = string.Empty;
             public int ChangedCellCount { get; set; }
             public int EditableColumnCount { get; set; }
+            public List<ScheduleImportExpectedValue> ExpectedValues { get; set; } = new List<ScheduleImportExpectedValue>();
             public string Status { get; set; } = "queued";
             public DateTimeOffset CreatedUtc { get; set; }
             public DateTimeOffset NextPromptUtc { get; set; }
             public DateTimeOffset DeletedUtc { get; set; }
             public string LastMessage { get; set; } = string.Empty;
+        }
+
+        private sealed class ScheduleImportExpectedValue
+        {
+            public int Row { get; set; }
+            public int OutputColumnNumber { get; set; }
+            public int ElementId { get; set; }
+            public string Header { get; set; } = string.Empty;
+            public string ParameterName { get; set; } = string.Empty;
+            public string ExpectedComparable { get; set; } = string.Empty;
+            public string ExpectedDisplay { get; set; } = string.Empty;
+            public string ImportedComparable { get; set; } = string.Empty;
+            public bool CanApply { get; set; } = true;
         }
 
         private static ScheduleImportQueueEntry? LoadScheduleImportQueueEntry(string path)

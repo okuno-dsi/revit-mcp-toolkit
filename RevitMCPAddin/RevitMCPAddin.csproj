@@ -378,6 +378,8 @@
     <Compile Include="Commands\LightingOps\LightingCommon.cs" />
     <Compile Include="Commands\LightingOps\ListLightingFixturesCommand.cs" />
     <Compile Include="Commands\LinkOps\LinksCommand.cs" />
+    <Compile Include="Commands\LinkOps\DwgResidueCleanupCommand.cs" />
+    <Compile Include="Commands\LinkOps\ImportedObjectStylesCommands.cs" />
     <Compile Include="Commands\MEPOps\ChangeMepElementTypeCommand.cs" />
     <Compile Include="Commands\MEPOps\CreateCableTrayCommand.cs" />
     <Compile Include="Commands\MEPOps\CreateConduitCommand.cs" />

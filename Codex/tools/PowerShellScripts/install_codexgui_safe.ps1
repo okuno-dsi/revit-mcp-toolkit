@@ -9,8 +9,8 @@
   - Keeps any existing user files in the destination.
 
 .PARAMETER Source
-  Source folder for CodexGUI build output
-  (default: ..\CodexGui\bin\Release\net6.0-windows).
+  Source folder for CodexGUI publish output
+  (default: ..\CodexGui\publish_sc).
 
 .PARAMETER Dest
   Destination folder (default: %USERPROFILE%\Documents\Codex_MCP\CodexGui).
@@ -25,7 +25,7 @@
 
 [CmdletBinding()]
 param(
-  [string]$Source = (Join-Path $PSScriptRoot "..\..\CodexGui\bin\Release\net6.0-windows"),
+  [string]$Source = (Join-Path $PSScriptRoot "..\..\CodexGui\publish_sc"),
   [string]$Dest = ""
 )
 

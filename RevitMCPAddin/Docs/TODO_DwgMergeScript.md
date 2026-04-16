@@ -1,12 +1,12 @@
 # DWG Merge Script – ToDo
 
 Goals
-- Make generation robust, discoverable from RevitMCP, and easy to run via AutoCadMCP or external runner.
+- Make generation robust, discoverable from Revit MCP, and easy to run via AutoCadMCP or external runner.
 
 Backlog
 - Execution Integration
   - [ ] Add AutoCadMCP RPC: run_accore_script { accorePath, locale, seedDwg?, scriptPath, timeoutMs? }.
-  - [ ] RevitMCP convenience: optional follow‑up call to AutoCadMCP when `execute=true` is passed.
+  - [ ] Revit MCP convenience: optional follow‑up call to AutoCadMCP when `execute=true` is passed.
   - [ ] Stream/log tailing to user (console capture or file pointer to accore log and output DWG).
 
 - UI/UX (Optional, after script‑only)
@@ -28,7 +28,7 @@ Backlog
 - Config/DevEx
   - [ ] Job JSON input → map to command params (load from a `.json` and `layermap.csv`).
   - [ ] Sample jobs under `Work/AutoCadOut/Jobs` – keep in sync with the command docs.
-  - [ ] Add `README_AcCoreJobs.txt` cross‑link in RevitMCP docs.
+  - [ ] Add `README_AcCoreJobs.txt` cross‑link in Revit MCP docs.
 
 - Testing
   - [ ] Golden‑file tests for generated `.scr` (pattern → expected lines).

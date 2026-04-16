@@ -39,19 +39,8 @@ namespace RevitMCPAddin.Commands.Dev
 
         private static string GetProjectFolder(string docTitle, string docGuid)
         {
-            var root = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "Revit_MCP",
-                "Projects");
-            return Path.Combine(root, SanitizeFileName($"{docTitle}_{docGuid}"));
-        }
-
-        private static string SanitizeFileName(string? value)
-        {
-            var text = string.IsNullOrWhiteSpace(value) ? "project" : value!;
-            foreach (var ch in Path.GetInvalidFileNameChars())
-                text = text.Replace(ch, '_');
-            return text;
+            return Paths.ResolveManagedProjectFolder(docTitle, docGuid)
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Revit_MCP", "Projects", "Project_unknown");
         }
     }
 }

@@ -3,9 +3,17 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
+### A2A adapter / 外部連携
+- `RevitMCP.A2AAdapter` を追加し、A2A 風の HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできるようにした。
+- `SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `GetExtendedAgentCard` を提供し、既定では loopback に閉じた運用を前提にした。
+
 ### HTML集計表・Excel連携
 - ブラウザの HTML 画面から集計表を選択し、プレビュー、Excel 書き出し、差分確認、反映までを一連で扱えるようにした。
-- Revit 側の確認ダイアログとキュー再確認を追加し、外部編集をそのまま即反映しない運用を取りやすくした。
+- Revit 側の確認ダイアログ、キュー再確認、import preview / verify を強化し、外部編集をそのまま即反映しない運用を取りやすくした。
+
+### DWG / Import 後片付け
+- DWG/import 由来の未使用 Object Styles、関連 Material、残留カテゴリ root を調査・削除するコマンドを追加した。
+- `dryRun`、候補リスト出力、段階的 purge を使い、広範囲削除を避けながらモデル整理できるようにした。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -34,6 +42,44 @@
 - dry-run、バックアップ、上書き/別名保存、JSONL監査ログを備える。
 
 ---
+
+## 2026-04-15 A2A adapter / HTML集計表連携 / DWG-import後片付け
+
+### 目的
+- A2A 系クライアントから、既存の Revit MCP 実行キューへ決定的なリクエストを渡せる入口を用意する。
+- HTML 経由の集計表 Excel 往復編集を、preview / apply / verify / queue の手順でより安全に運用できるようにする。
+- DWG/import 削除後に残る Object Styles、Material、カテゴリ root の確認と整理をしやすくする。
+
+### 変更概要
+- `RevitMCP.A2AAdapter`
+  - `GET /health`
+  - `GET /.well-known/agent-card.json`
+  - `GET /a2a/agent-card`
+  - `POST /a2a/rpc`
+  - `SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `GetExtendedAgentCard` に対応。
+  - 既定ターゲットは `http://127.0.0.1:5210`。既定 bind は loopback。
+- HTML集計表・Excel連携
+  - `/room-excel-roundtrip` と `/api/room-excel-roundtrip/*` を強化。
+  - 集計表一覧、HTML プレビュー、Excel export、import preview、apply、verify、queue 削除の流れを整理。
+  - `.xlsx` / `.xltx` のみ受理し、`docGuid` 照合、差分 preview、CSV / JSON 監査出力を継続。
+- DWG/import後片付け
+  - `analyze_unused_imported_object_styles`
+  - `list_dwg_related_materials`
+  - `purge_unused_imported_object_styles`
+  - `purge_dwg_residue`
+  - dry-run と候補リストを使った確認を前提にし、必要時だけ purge を実行できるようにした。
+- 安定性
+  - `create_level` / `create_structural_column` の transaction commit 後検証を強化。
+  - 共有プロジェクトパラメータ追加、スケジュール roundtrip、Python Runner / リボン UI 周辺の細かな安定性を改善。
+
+### 変更ファイル
+- `RevitMCP.A2AAdapter/*` (new)
+- `RevitMCPAddin/Commands/LinkOps/ImportedObjectStylesCommands.cs` (new)
+- `RevitMCPAddin/Commands/LinkOps/DwgResidueCleanupCommand.cs` (new)
+- `RevitMCPAddin/Commands/ScheduleOps/ScheduleRoundtripExcelCommands.cs`
+- `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs`
+- `RevitMCPAddin/Commands/LevelOps/CreateLevelCommand.cs`
+- `RevitMCPAddin/Commands/ElementOps/StructuralColumn/CreateStructuralColumnCommand.cs`
 
 ## 2026-03-27 HTML経由の集計表～Excel連携を追加
 

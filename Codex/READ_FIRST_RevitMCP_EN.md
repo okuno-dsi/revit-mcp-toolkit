@@ -1,4 +1,4 @@
-# READ FIRST: RevitMCP 120% Quickstart (EN)
+# READ FIRST: Revit MCP 120% Quickstart (EN)
 
 If you read just this one page, you can reliably **connect to the Revit MCP server**, **fetch data**, and **perform safe writes**. All commands below are copy‑paste ready.
 
@@ -92,7 +92,7 @@ Get-NetTCPConnection -LocalPort 5210,5211,5212 -State Listen | Select-Object Loc
 ```
 
 ## 8) Scale Further (Multi‑Revit & Recording/Replay)
-- Stable multi‑instance chain: Client → Proxy(5221) → Playbook(5209) → RevitMCP(5210+)
+- Stable multi‑instance chain: Client → Proxy(5221) → Playbook(5209) → Revit MCP(5210+)
 - Routing pattern: `POST http://127.0.0.1:5221/t/{revitPort}/rpc`
 - Details: `Docs/Manuals/ConnectionGuide/Revit_Connection_OneShot_Quickstart_EN.md`
 

@@ -142,6 +142,7 @@ function Resolve-AddinSourceForYear {
 
   $candidates = @()
   if ($Year -ge 2025) {
+    $candidates += (Join-Path $SrcRoot "$Year\bin\x64\Release\net8.0-windows")
     $candidates += (Join-Path $SrcRoot "$Year\bin\Release\net8.0-windows")
     $candidates += (Join-Path $SrcRoot "$Year")
   }
@@ -277,7 +278,7 @@ Stop-IfRunning -Names @("RevitMCPServer", "Revit")
 $targetYears = @($RevitYears | Where-Object { Test-RevitInstalled -Year $_ })
 $skippedYears = @($RevitYears | Where-Object { $_ -notin $targetYears })
 if ($skippedYears.Count -gt 0) {
-  Write-Host ("[Skip] Revit 本体が見つからない年: {0}" -f ($skippedYears -join ', ')) -ForegroundColor Yellow
+  Write-Host ("[Skip] Revit installation was not found for years: {0}" -f ($skippedYears -join ', ')) -ForegroundColor Yellow
 }
 
 foreach ($year in $targetYears) {
@@ -311,5 +312,5 @@ Write-Host ""
 if ($targetYears.Count -gt 0) {
   Write-Host "[OK] Install completed for years: $($targetYears -join ', ')" -ForegroundColor Green
 } else {
-  Write-Host "[OK] Revit 本体が見つからなかったため、Add-in のインストールはスキップしました。" -ForegroundColor Yellow
+  Write-Host "[OK] Revit installation was not found. Add-in install was skipped." -ForegroundColor Yellow
 }

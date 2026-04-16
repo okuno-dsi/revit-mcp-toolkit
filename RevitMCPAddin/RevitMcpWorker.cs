@@ -603,6 +603,8 @@ namespace RevitMCPAddin
                 new ListViewColorFillCategoriesCommand(),
                 new ListColorFillSupportedParamsCommand(),
                 new ListColorSchemesCommand(),
+                new ExportColorSchemeCommand(),
+                new ImportColorSchemeCommand(),
                 new ApplyQuickColorSchemeCommand(),
                 new ListColorfillBuiltinParamSuggestionsCommand(),
 
@@ -1342,6 +1344,10 @@ namespace RevitMCPAddin
                 new ReloadLinkFromCommand(),
                 new BindLinkCommand(),
                 new DetachLinkCommand(),
+                new AnalyzeUnusedImportedObjectStylesCommand(),
+                new ListDwgRelatedMaterialsCommand(),
+                new PurgeUnusedImportedObjectStylesCommand(),
+                new PurgeDwgResidueRpcCommand(),
 
                 // Excel Plan
                 new ExcelPlanImporterCommand(),

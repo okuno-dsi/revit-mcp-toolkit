@@ -1,4 +1,4 @@
-# RevitMCP Command: generate_dwg_merge_script
+# Revit MCP Command: generate_dwg_merge_script
 
 Purpose
 - Generate an AutoCAD Core Console `.scr` script that consolidates multiple DWG files into a single DWG, with optional layer merge rules.
@@ -108,6 +108,6 @@ Troubleshooting
   - `pattern` に未包含の DWG がある可能性。`inputDir` と `pattern` を確認。
 
 Versioning / Environment
-- RevitMCP Add-in (Revit 2023+ / .NET Fx 4.8)
+- Revit MCP Add-in (Revit 2023+ / .NET Fx 4.8)
 - AutoCAD Core Console 2026 で検証（他バージョンは SAVEAS の `saveAsVersion` に合わせる）
 
