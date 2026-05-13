@@ -67,7 +67,7 @@ $deletedDirs = 0
 $deletedBytes = [int64]0
 
 if ($IncludeLocalRevitMcp) {
-  $localRoot = Join-Path $env:LOCALAPPDATA "RevitMCP"
+  $localRoot = Join-Path $env:LOCALAPPDATA "Revit MCP"
   Write-Host "LocalRoot: $localRoot"
   if (Test-Path -LiteralPath $localRoot) {
     # logs/locks

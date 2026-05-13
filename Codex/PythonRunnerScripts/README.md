@@ -15,6 +15,9 @@
 追加サンプル:
 - `column_grid_coreline_workflow_sample.py`
   - 柱芯線図向け（通り芯ビュー作成、柱別トリミング、通り芯長さ調整、通り芯記号非表示、シート重ね配置）
+- `snapshot_view_elements_to_sqlite_runner.py`
+  - 現在ビュー、または指定ビューの要素スナップショットを SQLite に追記保存します。
+  - 既存の `snapshot_view_elements` / `get_elements_in_view` を使うため、比較・監査・検索用の補助DBとして使えます。
 
 
 

@@ -104,8 +104,8 @@ function Resolve-ServerPath([string]$ExplicitPath) {
   $jsonHints = @(
     (Join-Path $env:USERPROFILE 'Documents\Revit_MCP\Settings\paths.json'),
     (Join-Path $env:USERPROFILE 'Documents\Revit_MCP\paths.json'),
-    (Join-Path $env:LOCALAPPDATA 'RevitMCP\paths.json'),
-    (Join-Path $env:APPDATA 'RevitMCP\paths.json')
+    (Join-Path $env:LOCALAPPDATA 'Revit MCP\paths.json'),
+    (Join-Path $env:APPDATA 'Revit MCP\paths.json')
   )
   foreach ($jp in $jsonHints) {
     if (-not (Test-Path -LiteralPath $jp)) { continue }
@@ -505,7 +505,7 @@ function Get-FirewallSnapshot([int]$TargetPort, [string]$ServerExe, [bool]$DoFul
   }
 
   try {
-    $nameRules = @(Get-NetFirewallRule -ErrorAction Stop | Where-Object { $_.DisplayName -match 'RevitMCP|Revit MCP|5210' } | Select-Object -First 50)
+    $nameRules = @(Get-NetFirewallRule -ErrorAction Stop | Where-Object { $_.DisplayName -match 'Revit MCP|Revit MCP|5210' } | Select-Object -First 50)
     foreach ($r in $nameRules) {
       $ret.rulesByName += [ordered]@{
         name = $r.Name
@@ -707,7 +707,7 @@ function Classify-Result([hashtable]$Report) {
       $cls.nextActions += 'If users still fail, compare this JSON against failing PCs.'
     }
     'SERVER_MISSING' {
-      $cls.nextActions += 'Reinstall RevitMCP add-in payload (server folder).'
+      $cls.nextActions += 'Reinstall Revit MCP add-in payload (server folder).'
       $cls.nextActions += 'Verify RevitMCPServer.exe and sidecar files exist in addin server directory.'
     }
     'SERVER_START_FAILED' {
@@ -715,7 +715,7 @@ function Classify-Result([hashtable]$Report) {
       $cls.nextActions += 'Check addin log tail for startup exceptions.'
     }
     'PORT_CONFLICT' {
-      $cls.nextActions += 'Stop conflicting process on target port or change RevitMCP port.'
+      $cls.nextActions += 'Stop conflicting process on target port or change Revit MCP port.'
       $cls.nextActions += 'Re-run diagnostics and confirm owner process is RevitMCPServer.'
     }
     'LOOPBACK_BLOCKED' {
@@ -746,7 +746,7 @@ function Classify-Result([hashtable]$Report) {
 function Build-Markdown([hashtable]$Report) {
   $lines = New-Object System.Collections.Generic.List[string]
   $cls = $Report.classification
-  $lines.Add('# RevitMCP Connectivity Diagnostics Report')
+  $lines.Add('# Revit MCP Connectivity Diagnostics Report')
   $lines.Add('')
   $lines.Add('- Timestamp (UTC): ' + $Report.timestamp)
   $lines.Add('- Port: ' + $Report.inputs.port)
@@ -819,8 +819,8 @@ Write-DiagStep 'Resolve server path'
 $resolved = Resolve-ServerPath -ExplicitPath $ServerPath
 $serverExe = $resolved.selected
 
-$addinLogPath = Join-Path $env:LOCALAPPDATA ('RevitMCP\logs\addin_{0}.log' -f $Port)
-$serverStatePath = Join-Path $env:LOCALAPPDATA 'RevitMCP\server_state.json'
+$addinLogPath = Join-Path $env:LOCALAPPDATA ('Revit MCP\logs\addin_{0}.log' -f $Port)
+$serverStatePath = Join-Path $env:LOCALAPPDATA 'Revit MCP\server_state.json'
 
 $report = [ordered]@{
   timestamp = Get-IsoNow

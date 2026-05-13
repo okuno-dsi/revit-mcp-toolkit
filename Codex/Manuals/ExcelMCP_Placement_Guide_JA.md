@@ -17,7 +17,7 @@
 優先度順のおすすめパターンです。状況に合わせて選択してください。
 
 - 開発（ローカル）
-  - `C:\\Users\\<you>\\Documents\\VS2022\\ExcelMCP`
+  - `<repo-root>\\ExcelMCP`
   - メリット: Add-in と同一マシンで管理・デバッグしやすい
 
 - 運用（配布・本番）
@@ -88,6 +88,6 @@
 
 ## まとめ
 - ExcelMCP は Add-in 配下ではなく、分離配置が原則。
-- 開発: `C:\\Users\\<you>\\Documents\\VS2022\\ExcelMCP`、運用: `C:\\Users\\<you>\\Documents\\Revit_MCP\\Apps\\ExcelMCP` を推奨。
+- 開発: `<repo-root>\\ExcelMCP`、運用: `C:\\Users\\<you>\\Documents\\Revit_MCP\\Apps\\ExcelMCP` を推奨。
 - Add-in／スクリプトからは `serviceUrl`（または `EXCEL_MCP_URL`）で参照し、`mcp_commands.jsonl` を含む配布単位で管理します。
 - 配布物の確認は `README.md` / `MANUAL_JA.md` / `BUILD_RELEASE.md` の3点と、`/health` / `/mcp` の疎通で行います。

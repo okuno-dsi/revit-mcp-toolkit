@@ -47,6 +47,9 @@ app.MapGet("/health", async (RevitMcpClient revit, CancellationToken ct) =>
     JsonNode? targetHealth;
     try { targetHealth = await revit.GetHealthAsync(ct).ConfigureAwait(false); }
     catch (Exception ex) { targetHealth = new JsonObject { ["ok"] = false, ["msg"] = ex.Message }; }
+    JsonNode? targetContext;
+    try { targetContext = await revit.GetContextAsync(ct).ConfigureAwait(false); }
+    catch (Exception ex) { targetContext = new JsonObject { ["ok"] = false, ["msg"] = ex.Message }; }
 
     return Results.Json(new
     {
@@ -55,7 +58,8 @@ app.MapGet("/health", async (RevitMcpClient revit, CancellationToken ct) =>
         protocolVersion = options.ProtocolVersion,
         startedUtc = startedUtc.ToString("o"),
         target = options.RevitMcpServerUrl,
-        targetHealth
+        targetHealth,
+        targetContext
     });
 });
 

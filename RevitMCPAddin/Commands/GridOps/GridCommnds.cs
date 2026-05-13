@@ -465,6 +465,344 @@ namespace RevitMCPAddin.Commands.DatumOps
             }
         }
     }
+
+    // ================================================================
+    // delete_grids : 複数通り芯の安全削除
+    //   - gridIds[] / uniqueIds[] / elementIds[] に対応
+    //   - dryRun=true では rollback で削除影響だけ確認
+    //   - 実削除は confirm=true が必須
+    // ================================================================
+    public sealed class DeleteGridsCommand : IRevitCommandHandler
+    {
+        public string CommandName => "delete_grids";
+
+        private sealed class GridDeleteTarget
+        {
+            public ElementId Id = ElementId.InvalidElementId;
+            public string UniqueId = string.Empty;
+            public string Name = string.Empty;
+        }
+
+        private sealed class GridDeletePreview
+        {
+            public int gridId { get; set; }
+            public int elementId { get; set; }
+            public string uniqueId { get; set; } = string.Empty;
+            public string name { get; set; } = string.Empty;
+            public int deletedElementCount { get; set; }
+            public List<int> deletedElementIds { get; set; } = new List<int>();
+            public List<int> dependentElementIds { get; set; } = new List<int>();
+            public string? error { get; set; }
+        }
+
+        public object Execute(UIApplication uiapp, RequestCommand cmd)
+        {
+            var doc = uiapp?.ActiveUIDocument?.Document;
+            if (doc == null) return new { ok = false, message = "アクティブドキュメントがありません。" };
+
+            var p = (JObject)(cmd.Params ?? new JObject());
+            bool dryRun = GridUnit.ToBool(p["dryRun"], false);
+            bool confirm = GridUnit.ToBool(p["confirm"], false);
+            int maxCount = Math.Max(1, GridUnit.ToInt(p["maxCount"], 20));
+
+            var targets = ResolveTargets(doc, p, out var invalidTargets);
+            if (targets.Count == 0)
+            {
+                return new
+                {
+                    ok = false,
+                    code = "INVALID_PARAM",
+                    message = "gridIds / uniqueIds / elementIds のいずれかで削除対象の通り芯を指定してください。",
+                    invalidTargets
+                };
+            }
+
+            if (targets.Count > maxCount)
+            {
+                return new
+                {
+                    ok = false,
+                    code = "TOO_MANY_TARGETS",
+                    message = $"削除対象が maxCount={maxCount} を超えています。必要な場合は maxCount を明示してください。",
+                    targetCount = targets.Count,
+                    maxCount,
+                    targets = targets.Select(ToTargetInfo).ToList(),
+                    invalidTargets
+                };
+            }
+
+            var preview = PreviewDeletes(doc, targets);
+            bool hasPreviewError = preview.Any(x => x.error != null);
+            int wouldDeleteElementCount = preview.Sum(x => x.deletedElementCount);
+            int wouldDeleteNonGridElementCount = preview.Sum(x => Math.Max(0, x.deletedElementCount - 1));
+
+            if (dryRun || !confirm)
+            {
+                return new
+                {
+                    ok = dryRun && !hasPreviewError,
+                    code = dryRun ? (hasPreviewError ? "DRY_RUN_HAS_ERRORS" : "DRY_RUN") : "CONFIRM_REQUIRED",
+                    message = dryRun
+                        ? "dryRun のため削除していません。"
+                        : "実削除には confirm=true を指定してください。dryRun 結果を確認してください。",
+                    dryRun = true,
+                    confirmRequired = !confirm,
+                    targetCount = targets.Count,
+                    maxCount,
+                    wouldDeleteElementCount,
+                    wouldDeleteNonGridElementCount,
+                    targets = preview,
+                    invalidTargets
+                };
+            }
+
+            if (hasPreviewError)
+            {
+                return new
+                {
+                    ok = false,
+                    code = "PREVIEW_FAILED",
+                    message = "削除前確認で失敗した通り芯があるため、実削除を中止しました。",
+                    dryRun = false,
+                    targetCount = targets.Count,
+                    maxCount,
+                    wouldDeleteElementCount,
+                    wouldDeleteNonGridElementCount,
+                    targets = preview,
+                    invalidTargets
+                };
+            }
+
+            using (var t = new Transaction(doc, "Delete Grids"))
+            {
+                t.Start();
+                try
+                {
+                    var deleted = new HashSet<int>();
+                    foreach (var target in targets)
+                    {
+                        var ids = doc.Delete(target.Id);
+                        foreach (var id in ids)
+                        {
+                            try { deleted.Add(id.IntValue()); } catch { }
+                        }
+                    }
+
+                    t.Commit();
+                    return new
+                    {
+                        ok = true,
+                        code = "OK",
+                        message = "OK",
+                        dryRun = false,
+                        targetCount = targets.Count,
+                        deletedGridIds = targets.Select(x => x.Id.IntValue()).ToList(),
+                        deletedElementCount = deleted.Count,
+                        deletedElementIds = deleted.OrderBy(x => x).ToList(),
+                        invalidTargets
+                    };
+                }
+                catch (Exception ex)
+                {
+                    t.RollBack();
+                    return new
+                    {
+                        ok = false,
+                        code = "EXCEPTION",
+                        message = ex.Message,
+                        dryRun = false,
+                        targetCount = targets.Count,
+                        targets = targets.Select(ToTargetInfo).ToList(),
+                        invalidTargets
+                    };
+                }
+            }
+        }
+
+        private static List<GridDeleteTarget> ResolveTargets(Document doc, JObject p, out List<object> invalidTargets)
+        {
+            invalidTargets = new List<object>();
+            var targets = new List<GridDeleteTarget>();
+            var seen = new HashSet<int>();
+
+            foreach (int id in ReadIntArray(p, "gridIds")
+                         .Concat(ReadIntArray(p, "elementIds"))
+                         .Concat(ReadSingleInt(p, "gridId"))
+                         .Concat(ReadSingleInt(p, "elementId")))
+            {
+                AddTargetById(doc, id, targets, seen, invalidTargets);
+            }
+
+            foreach (string uid in ReadStringArray(p, "uniqueIds").Concat(ReadSingleString(p, "uniqueId")))
+            {
+                AddTargetByUniqueId(doc, uid, targets, seen, invalidTargets);
+            }
+
+            return targets;
+        }
+
+        private static IEnumerable<int> ReadSingleInt(JObject p, string name)
+        {
+            if (p.TryGetValue(name, StringComparison.OrdinalIgnoreCase, out var tok))
+            {
+                int id = GridUnit.ToInt(tok, 0);
+                if (id > 0) yield return id;
+            }
+        }
+
+        private static IEnumerable<int> ReadIntArray(JObject p, string name)
+        {
+            if (!p.TryGetValue(name, StringComparison.OrdinalIgnoreCase, out var tok) || !(tok is JArray arr))
+                yield break;
+
+            foreach (var item in arr)
+            {
+                int id = GridUnit.ToInt(item, 0);
+                if (id > 0) yield return id;
+            }
+        }
+
+        private static IEnumerable<string> ReadSingleString(JObject p, string name)
+        {
+            if (p.TryGetValue(name, StringComparison.OrdinalIgnoreCase, out var tok))
+            {
+                string s = tok?.ToString() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(s)) yield return s.Trim();
+            }
+        }
+
+        private static IEnumerable<string> ReadStringArray(JObject p, string name)
+        {
+            if (!p.TryGetValue(name, StringComparison.OrdinalIgnoreCase, out var tok) || !(tok is JArray arr))
+                yield break;
+
+            foreach (var item in arr)
+            {
+                string s = item?.ToString() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(s)) yield return s.Trim();
+            }
+        }
+
+        private static void AddTargetById(
+            Document doc,
+            int id,
+            List<GridDeleteTarget> targets,
+            HashSet<int> seen,
+            List<object> invalidTargets)
+        {
+            if (!seen.Add(id)) return;
+
+            var elemId = Autodesk.Revit.DB.ElementIdCompat.From(id);
+            var elem = doc.GetElement(elemId);
+            var grid = elem as Grid;
+            if (grid == null)
+            {
+                invalidTargets.Add(new
+                {
+                    input = id,
+                    reason = elem == null ? "not_found" : "not_grid",
+                    className = elem?.GetType().Name,
+                    categoryName = elem?.Category?.Name
+                });
+                return;
+            }
+
+            targets.Add(new GridDeleteTarget
+            {
+                Id = grid.Id,
+                UniqueId = grid.UniqueId ?? string.Empty,
+                Name = grid.Name ?? string.Empty
+            });
+        }
+
+        private static void AddTargetByUniqueId(
+            Document doc,
+            string uniqueId,
+            List<GridDeleteTarget> targets,
+            HashSet<int> seen,
+            List<object> invalidTargets)
+        {
+            var elem = doc.GetElement(uniqueId);
+            var grid = elem as Grid;
+            if (grid == null)
+            {
+                invalidTargets.Add(new
+                {
+                    input = uniqueId,
+                    reason = elem == null ? "not_found" : "not_grid",
+                    className = elem?.GetType().Name,
+                    categoryName = elem?.Category?.Name
+                });
+                return;
+            }
+
+            int id = grid.Id.IntValue();
+            if (!seen.Add(id)) return;
+
+            targets.Add(new GridDeleteTarget
+            {
+                Id = grid.Id,
+                UniqueId = grid.UniqueId ?? string.Empty,
+                Name = grid.Name ?? string.Empty
+            });
+        }
+
+        private static List<GridDeletePreview> PreviewDeletes(Document doc, List<GridDeleteTarget> targets)
+        {
+            var preview = new List<GridDeletePreview>(targets.Count);
+            foreach (var target in targets)
+            {
+                using (var t = new Transaction(doc, "Preview Delete Grid"))
+                {
+                    t.Start();
+                    try
+                    {
+                        var deleted = doc.Delete(target.Id);
+                        var deletedIds = deleted.Select(x => x.IntValue()).Distinct().OrderBy(x => x).ToList();
+                        t.RollBack();
+                        preview.Add(new GridDeletePreview
+                        {
+                            gridId = target.Id.IntValue(),
+                            elementId = target.Id.IntValue(),
+                            uniqueId = target.UniqueId,
+                            name = target.Name,
+                            deletedElementCount = deletedIds.Count,
+                            deletedElementIds = deletedIds,
+                            dependentElementIds = deletedIds.Where(x => x != target.Id.IntValue()).ToList(),
+                            error = null
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        t.RollBack();
+                        preview.Add(new GridDeletePreview
+                        {
+                            gridId = target.Id.IntValue(),
+                            elementId = target.Id.IntValue(),
+                            uniqueId = target.UniqueId,
+                            name = target.Name,
+                            deletedElementCount = 0,
+                            deletedElementIds = new List<int>(),
+                            dependentElementIds = new List<int>(),
+                            error = ex.Message
+                        });
+                    }
+                }
+            }
+            return preview;
+        }
+
+        private static object ToTargetInfo(GridDeleteTarget target)
+        {
+            return new
+            {
+                gridId = target.Id.IntValue(),
+                elementId = target.Id.IntValue(),
+                uniqueId = target.UniqueId,
+                name = target.Name
+            };
+        }
+    }
 }
 
 

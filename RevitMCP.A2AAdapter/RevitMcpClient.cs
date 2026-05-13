@@ -31,6 +31,15 @@ public sealed class RevitMcpClient
         return ParseOrText(text);
     }
 
+    public async Task<JsonNode?> GetContextAsync(CancellationToken cancellationToken)
+    {
+        return await PostRpcAsync("get_context", new JsonObject
+        {
+            ["includeSelectionIds"] = false,
+            ["maxSelectionIds"] = 0
+        }, "a2a-health-context", cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<JsonNode?> PostRpcAsync(string method, JsonNode? parameters, string rpcId, CancellationToken cancellationToken)
     {
         var payload = new JsonObject

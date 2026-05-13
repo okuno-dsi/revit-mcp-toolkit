@@ -42,7 +42,7 @@ function Resolve-Port {
 
 $usePort = Resolve-Port -Port $Port
 
-Write-Host "[RevitMCP] Checking TCP port $usePort ..." -ForegroundColor Cyan
+Write-Host "[Revit MCP] Checking TCP port $usePort ..." -ForegroundColor Cyan
 $portOk = $false
 try {
   $tnc = Test-NetConnection -ComputerName 'localhost' -Port $usePort -WarningAction SilentlyContinue
@@ -69,7 +69,7 @@ if (-not (Test-Path -Path $scriptPath -PathType Leaf)) {
   throw "Bootstrap script not found: $scriptPath"
 }
 
-Write-Host "[RevitMCP] Running bootstrap via test_connection.ps1 ..." -ForegroundColor Cyan
+Write-Host "[Revit MCP] Running bootstrap via test_connection.ps1 ..." -ForegroundColor Cyan
 
 & pwsh -ExecutionPolicy Bypass -File $scriptPath -Port $usePort | Out-Host
 
@@ -86,7 +86,7 @@ if (-not $logs -or $logs.Count -eq 0) {
 
 if ($logs -and $logs.Count -gt 0) {
   $latest = $logs[0].FullName
-  Write-Host "[RevitMCP] Bootstrap saved: `n  $latest" -ForegroundColor Green
+  Write-Host "[Revit MCP] Bootstrap saved: `n  $latest" -ForegroundColor Green
   try {
     $json = Get-Content -Raw -Encoding UTF8 -Path $latest | ConvertFrom-Json
     $activeViewId = $json.result.result.environment.activeViewId

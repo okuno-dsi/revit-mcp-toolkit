@@ -111,6 +111,7 @@
                    Exclude="$(ServerRootSource)\publish\**\*.*;
                             $(ServerRootSource)\publish_sc\**\*.*;
                             $(ServerRootSource)\publish_sc_*\**\*.*;
+                            $(ServerRootSource)\server\**\*.*;
                             $(ServerRootSource)\capture-agent\**\*.*;
                             $(ServerRootSource)\CaptureAgent\**\*.*;
                             $(ServerRootSource)\tessdata\**\*.*;

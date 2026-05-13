@@ -27,6 +27,14 @@ Please refer to the documentation of each component for its distribution terms, 
 
 ---
 
+## Recent Updates
+
+- **2026-05-13: HTML schedule / Excel roundtrip fixes**: improved the browser-based schedule Excel export / import preview / apply / verify flow so edited schedules can be returned to Revit more safely.
+- **HTML schedule / Excel workflow**: the browser UI can preview schedules, export to Excel, review differences, and apply changes through Revit-side confirmation.
+- **A2A adapter**: `RevitMCP.A2AAdapter` provides an A2A-style HTTP/JSON-RPC bridge into the existing Revit MCP queue.
+
+---
+
 ## What it can do (Examples)
 
 - Query and inspect Revit elements (filters, categories, parameter inspection)

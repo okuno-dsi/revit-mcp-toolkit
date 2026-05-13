@@ -41,7 +41,7 @@ JSON?RPC Endpoint
 
 Example (via file path body)
 
-- Body: `%USERPROFILE%\Documents\VS2022\Ver421\Codex\Projects\\AutoCadOut\command.txt`
+- Body: `%USERPROFILE%\Documents\Revit_MCP\Source\Codex\Projects\\AutoCadOut\command.txt`
 
 Example (raw JSON body)
 

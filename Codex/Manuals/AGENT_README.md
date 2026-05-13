@@ -3,7 +3,7 @@
 Purpose: enable any automation agent to connect to Revit MCP reliably and safely.
 
 Critical Notes (Read First)
-- Source-of-truth repo: `C:\Users\<user>\Documents\VS2022\Ver602_old` is the current master.  
+- Source-of-truth repo: `C:\Users\<user>\Documents\Revit_MCP\Source` is the current master.
   `Ver602_rescue` is reference-only (possible corruption); never overwrite master from rescue without explicit diff review.
 - Read first: `Manuals/RevitMCP_Client_Dev_Guide.md` (client transport rules, queued handling, unwrap rules)
 - Work rules: always use `Projects/<RevitFileName>_<docKey>/...` for all outputs, temp files, and scripts (no files directly under `Projects/`).

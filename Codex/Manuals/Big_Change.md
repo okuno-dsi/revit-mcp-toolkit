@@ -58,18 +58,18 @@
 - docKey が取得できない場合は従来通り UniqueId をフォールバック。
 
 ## 変更ファイル（今回）
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\Paths.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Commands\Dev\LaunchCodexGuiCommand.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\UI\PythonRunner\PythonRunnerWindow.xaml.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\UI\InfoPick\InfoPickWindow.xaml.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\ContextTokenService.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\RpcResultEnvelope.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\ConfirmTokenService.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\ExpectedContextGuard.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Core\DocumentResolver.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Commands\MetaOps\AgentBootstrapHandler.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\RevitMCPAddin\Commands\Rpc\GetOpenDocumentsCommand.cs`
-- `%USERPROFILE%\Documents\VS2022\Ver602\Codex\Manuals\Big_Change.md`
-- `%USERPROFILE%\Documents\VS2022\Ver602\Codex\CodexGui\MainWindow.xaml.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\Paths.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Commands\Dev\LaunchCodexGuiCommand.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\UI\PythonRunner\PythonRunnerWindow.xaml.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\UI\InfoPick\InfoPickWindow.xaml.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\ContextTokenService.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\RpcResultEnvelope.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\ConfirmTokenService.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\ExpectedContextGuard.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Core\DocumentResolver.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Commands\MetaOps\AgentBootstrapHandler.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\RevitMCPAddin\Commands\Rpc\GetOpenDocumentsCommand.cs`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\Codex\Manuals\Big_Change.md`
+- `%USERPROFILE%\Documents\Revit_MCP\Source\Codex\CodexGui\MainWindow.xaml.cs`
 
 

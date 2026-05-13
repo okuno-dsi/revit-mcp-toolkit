@@ -57,7 +57,7 @@ function Invoke-RevitMcp {
   $raw = & python $scriptPath --port $Port --command $Command --params $paramsJson --wait-seconds 60 --output-file $tmp 2>&1 | Out-String
 
   if (-not (Test-Path -Path $tmp -PathType Leaf)) {
-    throw "RevitMCP did not write output file: $tmp`nRaw output:`n$raw"
+    throw "Revit MCP did not write output file: $tmp`nRaw output:`n$raw"
   }
 
   try {

@@ -118,6 +118,7 @@ namespace RevitMCPAddin
             {
                 Environment.SetEnvironmentVariable("REVIT_MCP_PORT", port.ToString());
                 PortLocator.SaveCurrentPort(port);
+                RevitInstanceStateService.Publish(application, port);
             }
             catch (Exception ex)
             {
@@ -208,6 +209,7 @@ namespace RevitMCPAddin
             RevitLogger.Info("AddIn OnShutdown");
 
             try { _worker?.Stop(); } catch (Exception ex) { RevitLogger.Warn($"Worker.Stop failed: {ex.Message}"); }
+            try { RevitInstanceStateService.RemoveCurrentProcess(); } catch { }
             try { ViewWorkspaceService.Shutdown(application); } catch { }
             try { ChatInviteNotifier.Stop(); } catch { }
             TryStopSelectionMonitor(application);
@@ -345,6 +347,7 @@ namespace RevitMCPAddin
                 var uidoc = uiapp?.ActiveUIDocument;
                 var doc = uidoc?.Document;
                 if (doc == null) return;
+                try { RevitInstanceStateService.Publish(doc, AppServices.CurrentPort); } catch { }
 
                 // 1) Live selection
                 ICollection<ElementId> sel;
@@ -429,6 +432,7 @@ namespace RevitMCPAddin
                 var doc = e != null ? e.Document : null;
                 if (doc == null) return;
                 RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "ViewActivated");
+                try { RevitInstanceStateService.Publish(doc, AppServices.CurrentPort); } catch { }
                 try { ChatInviteNotifier.UpdateContextFromDocument(doc); } catch { }
             }
             catch
@@ -459,6 +463,7 @@ namespace RevitMCPAddin
                 var doc = e != null ? e.GetDocument() : null;
                 if (doc == null) return;
                 RevitMCPAddin.Core.ContextTokenService.BumpRevision(doc, "DocumentChanged");
+                try { RevitInstanceStateService.Publish(doc, AppServices.CurrentPort); } catch { }
             }
             catch
             {

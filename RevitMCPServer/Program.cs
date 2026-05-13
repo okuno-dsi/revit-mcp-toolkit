@@ -101,7 +101,16 @@ try { RevitMcpServer.Docs.CapabilitiesGenerator.TryWriteDefault(RevitMcpServer.D
 app.MapGet("/", () => Results.Json(new { ok = true, port = chosenPort, message = "Revit Automation Server (legacy RPC + MCP)", mcpEndpoint = "/mcp", legacyRpcEndpoint = "/rpc" }));
 
 // ----------------------------- Health -----------------------------
-app.MapGet("/health", () => Results.Json(new { ok = true, port = chosenPort, time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }));
+app.MapGet("/health", () => Results.Json(new
+{
+    ok = true,
+    port = chosenPort,
+    pid = System.Diagnostics.Process.GetCurrentProcess().Id,
+    processId = System.Diagnostics.Process.GetCurrentProcess().Id,
+    endpoint = $"http://127.0.0.1:{chosenPort}/rpc",
+    startedUtc = serverStartedUtc.ToString("o"),
+    time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+}));
 
 // Debug (lightweight)
 app.MapGet("/debug", () => Results.Json(new { ok = true, port = chosenPort, ssr = "disabled" }));

@@ -7,8 +7,24 @@ public static class AgentCardFactory
         var baseUrl = ResolvePublicBaseUrl(request);
         return new
         {
+            agentId = BuildAgentId(options),
+            kind = "revit-mcp",
             name = "Revit MCP A2A Adapter",
             description = "Official A2A-facing adapter for deterministic Revit MCP requests. The adapter exposes A2A JSON-RPC and bridges requests to a local RevitMCPServer.",
+            targetEndpoint = options.RevitMcpServerUrl,
+            port = TryExtractPort(options.RevitMcpServerUrl),
+            capabilitiesList = new[]
+            {
+                "revit.context.read",
+                "revit.selection.read",
+                "revit.schedule.read",
+                "revit.view.read",
+                "revit.element.read",
+                "revit.schedule.preview_import",
+                "revit.parameter.diff",
+                "revit.element.write",
+                "revit.schedule.apply_changes"
+            },
             supportedInterfaces = new[]
             {
                 new
@@ -69,5 +85,22 @@ public static class AgentCardFactory
         var scheme = request.Scheme;
         var host = request.Host.HasValue ? request.Host.Value : "127.0.0.1";
         return $"{scheme}://{host}".TrimEnd('/');
+    }
+
+    private static string BuildAgentId(A2AOptions options)
+    {
+        var port = TryExtractPort(options.RevitMcpServerUrl);
+        return port > 0 ? $"revit:unknown:0:{port}" : "revit:unknown:0:0";
+    }
+
+    private static int TryExtractPort(string url)
+    {
+        try
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return uri.Port;
+        }
+        catch { }
+        return 0;
     }
 }

@@ -634,6 +634,7 @@ namespace RevitMCPAddin
                 new UpdateGridNameCommand(),
                 new MoveGridCommand(),
                 new DeleteGridCommand(),
+                new DeleteGridsCommand(),
                 new AdjustGridExtentsCommand(),
                 new SetGridBubblesVisibilityCommand(),
                 new SetGridSegmentsAroundElementInViewCommand(),

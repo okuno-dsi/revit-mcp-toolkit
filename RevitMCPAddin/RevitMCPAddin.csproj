@@ -111,6 +111,7 @@
                    Exclude="$(ServerRootSource)\publish\**\*.*;
                             $(ServerRootSource)\publish_sc\**\*.*;
                             $(ServerRootSource)\publish_sc_*\**\*.*;
+                            $(ServerRootSource)\server\**\*.*;
                             $(ServerRootSource)\capture-agent\**\*.*;
                             $(ServerRootSource)\CaptureAgent\**\*.*;
                             $(ServerRootSource)\tessdata\**\*.*;
@@ -562,6 +563,8 @@
     <Compile Include="Core\ParamUtils.cs" />
     <Compile Include="Core\Paths.cs" />
     <Compile Include="Core\PortLocator.cs" />
+    <Compile Include="Core\RevitInstanceStateService.cs" />
+    <Compile Include="Core\SqliteWorkspace.cs" />
     <Compile Include="Core\ExpectedContextGuard.cs" />
     <Compile Include="Core\FamilyBatchParameterService.cs" />
     <Compile Include="Core\FamilyBatchParameterService.Execution.cs" />

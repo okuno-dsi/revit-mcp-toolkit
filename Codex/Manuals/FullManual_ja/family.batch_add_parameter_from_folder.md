@@ -71,12 +71,12 @@
   "id": 1,
   "method": "family.batch_add_parameter_from_folder",
   "params": {
-    "folderPath": "C:\\Users\\<you>\\Documents\\Revit_MCP\\Samples\\Family",
+    "folderPath": "C:\\Users\\<user>\\Documents\\Revit_MCP\\Samples\\Family",
     "searchPattern": "*.rfa",
     "recursive": false,
     "dryRun": true,
     "saveMode": "overwrite",
-    "defaultSharedParameterFile": "C:\\Users\\<you>\\Documents\\Revit_MCP\\Samples\\family_batch_test_shared_params.txt",
+    "defaultSharedParameterFile": "C:\\Users\\<user>\\Documents\\Revit_MCP\\Samples\\family_batch_test_shared_params.txt",
     "defaultSharedParameterGroupName": "Common",
     "parameters": [
       {
@@ -99,15 +99,15 @@
   "id": 1,
   "method": "family.batch_add_parameter_from_folder",
   "params": {
-    "folderPath": "C:\\Users\\<you>\\Documents\\Revit_MCP\\Samples\\Family",
+    "folderPath": "C:\\Users\\<user>\\Documents\\Revit_MCP\\Samples\\Family",
     "searchPattern": "*.rfa",
     "recursive": false,
     "dryRun": false,
     "continueOnError": true,
     "saveMode": "overwrite",
     "createBackup": true,
-    "backupFolder": "C:\\Users\\<you>\\Documents\\Revit_MCP\\Samples\\Family__backup",
-    "defaultSharedParameterFile": "C:\\Users\\<you>\\Documents\\Revit_MCP\\Samples\\family_batch_test_shared_params.txt",
+    "backupFolder": "C:\\Users\\<user>\\Documents\\Revit_MCP\\Samples\\Family__backup",
+    "defaultSharedParameterFile": "C:\\Users\\<user>\\Documents\\Revit_MCP\\Samples\\family_batch_test_shared_params.txt",
     "defaultSharedParameterGroupName": "Common",
     "parameters": [
       {

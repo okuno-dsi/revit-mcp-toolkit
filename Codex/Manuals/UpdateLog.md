@@ -3,17 +3,18 @@
 ## まとめ（現行版の主要更新ポイント）
 > ここでは「現行アドインに存在する機能のみ」を、時系列ではなく**用途別に簡潔に整理**しています。
 
-### A2A adapter / 外部連携
-- `RevitMCP.A2AAdapter` を追加し、A2A 風の HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできるようにした。
-- `SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `GetExtendedAgentCard` を提供し、既定では loopback に閉じた運用を前提にした。
-
 ### HTML集計表・Excel連携
-- ブラウザの HTML 画面から集計表を選択し、プレビュー、Excel 書き出し、差分確認、反映までを一連で扱えるようにした。
-- Revit 側の確認ダイアログ、キュー再確認、import preview / verify を強化し、外部編集をそのまま即反映しない運用を取りやすくした。
+- ブラウザの HTML 画面から Revit 集計表を選択し、プレビュー、Excel 書き出し、差分確認、Revit 側確認付き反映まで扱える。
+- 2026-05-13 版では、HTML 経由の Excel export / import preview / apply / verify 周辺の不具合を修正し、外部編集した集計表をより安全に戻せるようにした。
+- `.xlsx` / `.xltx` を対象にし、マクロ付きファイルや不正な拡張子を公開ワークフローに入れない方針を維持。
+
+### A2A adapter / 外部連携
+- `RevitMCP.A2AAdapter` により、A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできる。
+- `SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `GetExtendedAgentCard` を提供し、既定では loopback に閉じた運用を前提にしている。
 
 ### DWG / Import 後片付け
-- DWG/import 由来の未使用 Object Styles、関連 Material、残留カテゴリ root を調査・削除するコマンドを追加した。
-- `dryRun`、候補リスト出力、段階的 purge を使い、広範囲削除を避けながらモデル整理できるようにした。
+- DWG/import 由来の未使用 Object Styles、関連 Material、残留カテゴリ root を調査・削除するコマンドを追加。
+- `dryRun`、候補リスト出力、段階的 purge を使い、広範囲削除を避けながらモデル整理できる。
 
 ### 鉄筋（Rebar）
 - AutoRebar（Plan → Apply）と RebarMapping による**属性ベース配筋**の整備（柱/梁の本数・ピッチ・径を反映）。
@@ -43,11 +44,36 @@
 
 ---
 
+## 2026-05-13 HTML経由の集計表 Excel 入出力バグ修正
+
+### 目的
+- ブラウザから集計表を Excel に出し、編集後に Revit へ戻す往復フローを安定させる。
+- 外部で編集された Excel をそのまま即反映せず、preview / apply / verify の確認手順で誤反映を減らす。
+
+### 変更概要
+- `/room-excel-roundtrip` と `/api/room-excel-roundtrip/*` の export / import preview / apply / verify を調整。
+- アップロードされた Excel の一時保存、preview token、import queue の扱いを整理し、HTML 画面からの再確認と反映を安定化。
+- display export の行マッピング、baseline snapshot、ライブ値との競合検出を使い、編集前後の差分確認を強化。
+- import 失敗時や export 失敗時のメッセージを見直し、再 export が必要なケースを判断しやすくした。
+- 直接 import はローカル運用向けに限定し、HTML 経由では preview / apply / verify の段階確認を通す方針を継続。
+- Office ファイルや実行バイナリはリポジトリに含めず、ソースコードと公開ドキュメントのみを更新対象とする。
+
+### 主な関連ファイル
+- `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs`
+- `RevitMCPAddin/Commands/ScheduleOps/ScheduleRoundtripExcelCommands.cs`
+- `RevitMCPAddin/Commands/ScheduleOps/ConfirmHtmlScheduleImportCommand.cs`
+- `RevitMCPAddin/Core/HtmlScheduleImportQueueService.cs`
+- `RevitMCPAddin/Core/ContextTokenService.cs`
+
+### 運用メモ
+- 集計表を編集してから時間が経っている場合、Revit 側の値が先に変わっている可能性があるため、再 export 後の編集を推奨。
+- `.xlsx` / `.xltx` 以外の Office ファイルは GitHub へ含めない。
+
 ## 2026-04-15 A2A adapter / HTML集計表連携 / DWG-import後片付け
 
 ### 目的
 - A2A 系クライアントから、既存の Revit MCP 実行キューへ決定的なリクエストを渡せる入口を用意する。
-- HTML 経由の集計表 Excel 往復編集を、preview / apply / verify / queue の手順でより安全に運用できるようにする。
+- HTML 経由の集計表 Excel 往復編集を、preview / apply / verify / queue の手順で安全に運用できるようにする。
 - DWG/import 削除後に残る Object Styles、Material、カテゴリ root の確認と整理をしやすくする。
 
 ### 変更概要
@@ -57,29 +83,23 @@
   - `GET /a2a/agent-card`
   - `POST /a2a/rpc`
   - `SendMessage` / `GetTask` / `ListTasks` / `CancelTask` / `GetExtendedAgentCard` に対応。
-  - 既定ターゲットは `http://127.0.0.1:5210`。既定 bind は loopback。
 - HTML集計表・Excel連携
   - `/room-excel-roundtrip` と `/api/room-excel-roundtrip/*` を強化。
   - 集計表一覧、HTML プレビュー、Excel export、import preview、apply、verify、queue 削除の流れを整理。
-  - `.xlsx` / `.xltx` のみ受理し、`docGuid` 照合、差分 preview、CSV / JSON 監査出力を継続。
+  - `.xlsx` / `.xltx` のみ受理し、docGuid 照合、差分 preview、CSV / JSON 監査出力を継続。
 - DWG/import後片付け
   - `analyze_unused_imported_object_styles`
   - `list_dwg_related_materials`
   - `purge_unused_imported_object_styles`
   - `purge_dwg_residue`
   - dry-run と候補リストを使った確認を前提にし、必要時だけ purge を実行できるようにした。
-- 安定性
-  - `create_level` / `create_structural_column` の transaction commit 後検証を強化。
-  - 共有プロジェクトパラメータ追加、スケジュール roundtrip、Python Runner / リボン UI 周辺の細かな安定性を改善。
 
 ### 変更ファイル
-- `RevitMCP.A2AAdapter/*` (new)
-- `RevitMCPAddin/Commands/LinkOps/ImportedObjectStylesCommands.cs` (new)
-- `RevitMCPAddin/Commands/LinkOps/DwgResidueCleanupCommand.cs` (new)
+- `RevitMCP.A2AAdapter/*`
+- `RevitMCPAddin/Commands/LinkOps/ImportedObjectStylesCommands.cs`
+- `RevitMCPAddin/Commands/LinkOps/DwgResidueCleanupCommand.cs`
 - `RevitMCPAddin/Commands/ScheduleOps/ScheduleRoundtripExcelCommands.cs`
 - `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs`
-- `RevitMCPAddin/Commands/LevelOps/CreateLevelCommand.cs`
-- `RevitMCPAddin/Commands/ElementOps/StructuralColumn/CreateStructuralColumnCommand.cs`
 
 ## 2026-03-27 HTML経由の集計表～Excel連携を追加
 
@@ -90,20 +110,15 @@
 ### 変更概要
 - `RevitMCPServer` に `/room-excel-roundtrip` と `/api/room-excel-roundtrip/*` を追加。
 - 共有リンク発行、集計表一覧、HTML プレビュー、Excel 書き出し、import preview / apply / verify / queue delete を追加。
-- `confirm_html_schedule_import`
-  - HTML からの反映要求を Revit 側で都度承認できるようにした。
-- `HtmlScheduleImportQueueService`
-  - キュー保存、5分後の再確認、削除、即時反映を扱えるようにした。
-- アップロード受理は `.xlsx` / `.xltx` のみに限定し、`docGuid` 一致確認、差分 preview、CSV / JSON 監査出力を含めて安全側に寄せた。
+- `confirm_html_schedule_import` により、HTML からの反映要求を Revit 側で都度承認できるようにした。
+- `HtmlScheduleImportQueueService` で、キュー保存、5分後の再確認、削除、即時反映を扱えるようにした。
 
 ### 変更ファイル
-- `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs` (new)
+- `RevitMCPServer/Web/ScheduleExcelRoundtripRoutes.cs`
 - `RevitMCPServer/Program.cs`
-- `RevitMCPAddin/Commands/ScheduleOps/ConfirmHtmlScheduleImportCommand.cs` (new)
-- `RevitMCPAddin/Core/HtmlScheduleImportQueueService.cs` (new)
+- `RevitMCPAddin/Commands/ScheduleOps/ConfirmHtmlScheduleImportCommand.cs`
+- `RevitMCPAddin/Core/HtmlScheduleImportQueueService.cs`
 - `RevitMCPAddin/Commands/ScheduleOps/ScheduleRoundtripExcelCommands.cs`
-- `RevitMCPAddin/Commands/ScheduleOps/GetSchedulesCommand.cs`
-- `RevitMCPAddin/Commands/ScheduleOps/GetScheduleDataCommand.cs`
 
 ## 2026-03-27 Family: family.batch_add_parameter_from_folder 追加
 

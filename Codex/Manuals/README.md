@@ -23,6 +23,15 @@ Naming note:
     - `Scripts/Reference/hide_elements_resilient.ps1` — time‑sliced hide with detachTemplate/startIndex/nextIndex
 - Port override: set `$env:REVIT_MCP_PORT = <PORT>` or pass `-Port` to scripts.
 
+## New (2026-05-13)
+- HTML 経由の集計表 Excel 入出力の不具合を修正。
+  - 対象: export / import preview / apply / verify
+  - preview token、一時ファイル、import queue、競合検出、エラーメッセージの扱いを整理
+  - 反映前に差分確認を通す運用を維持
+- 参照:
+  - `Manuals/UpdateLog.md`
+  - `Manuals/Schedule_Exports_Guide_JA.md`
+
 ## New (2026-01-26)
 - AutoRebar（梁）: start/end = `LocationCurve.EndPoint(0/1)` を明確化（`Manuals/FullManual/rebar_plan_auto.md`, `Manuals/FullManual_ja/rebar_plan_auto.md`）
 - AutoRebar（柱）: コンクリート隣接（構造柱/構造基礎）を考慮した上下端の軸方向被り + 柱帯筋の `base/head`（中間高さ 2分割）対応（同ドキュメント参照）
@@ -59,7 +68,6 @@ Naming note:
 - AutoCAD / Rhino は capabilities を `tools` のみに修正し、実装と advertise の不一致を解消。
 - Playbook proxy は `GET /mcp` / `DELETE /mcp` passthrough を追加。
 - 詳細:
-  - `Manuals/UpdateLog.md`
   - `Manuals/RevitMCP_Client_Dev_Guide.md`
   - `Manuals/ConnectionGuide/QUICKSTART.md`
 
@@ -88,26 +96,7 @@ Naming note:
   - `Manuals/FullManual_ja/get_spatial_params_bulk.md`
   - `Manuals/UpdateLog.md`
 
-## New (2026-04-15)
-- A2A adapter を追加。
-  - `RevitMCP.A2AAdapter`
-  - A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡し。
-  - `SendMessage`, `GetTask`, `ListTasks`, `CancelTask`, `GetExtendedAgentCard` に対応。
-- DWG/import 後片付けコマンドを追加。
-  - `analyze_unused_imported_object_styles`
-  - `list_dwg_related_materials`
-  - `purge_unused_imported_object_styles`
-  - `purge_dwg_residue`
-- HTML 集計表→Excel 連携を強化。
-  - HTML プレビュー、Excel export、import preview、apply、verify、queue 削除の流れを整理。
-- References:
-  - `Manuals/UpdateLog.md`
-  - `../RevitMCP.A2AAdapter/README.md`
-
 ## New (2026-03-27)
-- HTML 経由の集計表→Excel 連携を追加。
-  - `/room-excel-roundtrip` から集計表一覧、HTML プレビュー、Excel 書き出し、差分確認、反映確認までを一連で実行可能。
-  - Revit 側は `confirm_html_schedule_import` とキュー再確認に対応し、即時反映と保留運用を切り替え可能。
 - Family batch parameter add:
   - `family.batch_add_parameter_from_folder`
   - Open `.rfa` files in a folder, add family/shared parameters safely, save, close, and emit per-file JSONL audit logs.

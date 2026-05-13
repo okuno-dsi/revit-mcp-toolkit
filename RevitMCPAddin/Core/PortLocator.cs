@@ -112,9 +112,6 @@ namespace RevitMCPAddin.Core
                 int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
                 var procPath = Path.Combine(BaseDir, $"server_state_{pid}.json");
                 if (File.Exists(procPath)) File.Delete(procPath);
-
-                var legacy = Path.Combine(BaseDir, "server_state.json");
-                if (File.Exists(legacy)) File.Delete(legacy);
             }
             catch (Exception ex)
             {

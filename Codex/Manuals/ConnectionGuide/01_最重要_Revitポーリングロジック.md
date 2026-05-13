@@ -402,7 +402,7 @@ python Python/Scripts/Reference/send_revit_command_durable.py --command get_room
 
 **正しいコマンドの例:**
 ```bash
-python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_rooms --output-file C:\Users\user\path\to\rooms.json
+python Python/Scripts/Reference/send_revit_command_durable.py --port 5210 --command get_rooms --output-file C:\Users\<user>\path\to\rooms.json
 ```
 
 パラメータを渡す必要がある場合は、`--params-file` オプションを併用します。

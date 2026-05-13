@@ -92,7 +92,7 @@ function Copy-TreeSafe {
 function Resolve-DefaultDest {
   # 1) paths.json (LocalAppData\RevitMCP)
   try {
-    $paths = Join-Path $env:LOCALAPPDATA 'RevitMCP\paths.json'
+    $paths = Join-Path $env:LOCALAPPDATA 'Revit MCP\paths.json'
     if (Test-Path -LiteralPath $paths -PathType Leaf) {
       $cfg = Get-Content -LiteralPath $paths -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($cfg.root) {

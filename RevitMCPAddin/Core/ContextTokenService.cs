@@ -29,6 +29,13 @@ namespace RevitMCPAddin.Core
         public string docGuid { get; set; } = string.Empty;
         public string docTitle { get; set; } = string.Empty;
         public string docPath { get; set; } = string.Empty;
+        public string revitVersion { get; set; } = string.Empty;
+        public int processId { get; set; }
+        public int port { get; set; }
+        public string endpoint { get; set; } = string.Empty;
+        public string agentId { get; set; } = string.Empty;
+        public bool isDocumentModifiable { get; set; }
+        public DateTime lastSeenUtc { get; set; } = DateTime.MinValue;
 
         public int activeViewId { get; set; }
         public string activeViewName { get; set; } = string.Empty;
@@ -96,6 +103,13 @@ namespace RevitMCPAddin.Core
             snap.docGuid = GetDocGuid(doc);
             snap.docTitle = SafeGet(() => doc.Title) ?? string.Empty;
             snap.docPath = SafeGet(() => doc.PathName) ?? string.Empty;
+            snap.revitVersion = SafeGet(() => uiapp.Application.VersionNumber) ?? string.Empty;
+            snap.processId = System.Diagnostics.Process.GetCurrentProcess().Id;
+            snap.port = AppServices.CurrentPort;
+            snap.endpoint = snap.port > 0 ? "http://127.0.0.1:" + snap.port.ToString(CultureInfo.InvariantCulture) + "/rpc" : string.Empty;
+            snap.agentId = "revit:" + (string.IsNullOrWhiteSpace(snap.docGuid) ? "unknown" : snap.docGuid) + ":" + snap.processId.ToString(CultureInfo.InvariantCulture) + ":" + snap.port.ToString(CultureInfo.InvariantCulture);
+            snap.lastSeenUtc = DateTime.UtcNow;
+            try { snap.isDocumentModifiable = !doc.IsReadOnly; } catch { snap.isDocumentModifiable = false; }
 
             var av = SafeGet(() => uidoc.ActiveView);
             if (av != null)

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Safe installer for RevitMCP add-in and server.
+  Safe installer for Revit MCP add-in and server.
 
 .DESCRIPTION
   - Stops Revit / RevitMCPServer if running (to avoid locked/partial copies).
@@ -196,11 +196,44 @@ function Remove-InstallerLegacyPath {
   }
 }
 
+function Move-NestedServerDuplicateToTrash {
+  param(
+    [string]$Path,
+    [string]$ServerRoot,
+    [string]$TrashRoot
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Path) -or [string]::IsNullOrWhiteSpace($ServerRoot)) { return }
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
+
+  $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+  $resolvedServerRoot = [System.IO.Path]::GetFullPath($ServerRoot)
+  if (-not $resolvedPath.StartsWith($resolvedServerRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "移動対象が server 配下ではありません: $resolvedPath"
+  }
+
+  $leaf = Split-Path -Leaf $resolvedPath
+  $parentLeaf = Split-Path -Leaf (Split-Path -Parent $resolvedPath)
+  if ($leaf -ne 'server' -or $parentLeaf -ne 'server') {
+    throw "許可されていない重複フォルダ移動対象です: $resolvedPath"
+  }
+
+  Ensure-Dir $TrashRoot | Out-Null
+  $dest = Join-Path $TrashRoot ("nested_server_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+  Move-Item -LiteralPath $resolvedPath -Destination $dest -Force -ErrorAction Stop
+  Write-Host "[Move] duplicate nested server -> $dest" -ForegroundColor Yellow
+}
+
 function Remove-LegacyCaptureAgentDupes {
   param([string]$AddinsYearRoot, [string]$AddinName)
 
   $serverRoot = Join-Path $AddinsYearRoot (Join-Path $AddinName 'server')
   if (-not (Test-Path -LiteralPath $serverRoot -PathType Container)) { return }
+
+  $nestedServer = Join-Path $serverRoot 'server'
+  if (Test-Path -LiteralPath $nestedServer -PathType Container) {
+    Move-NestedServerDuplicateToTrash -Path $nestedServer -ServerRoot $serverRoot -TrashRoot (Join-Path $AddinsYearRoot '_Trash')
+  }
 
   $legacyDir = Join-Path $serverRoot 'CaptureAgent'
   if (Test-Path -LiteralPath $legacyDir -PathType Container) {

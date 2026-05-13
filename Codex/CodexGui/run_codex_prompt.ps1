@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Bridge script between Codex GUI and the actual Codex CLI or backend.
 
@@ -139,7 +139,7 @@ function Get-RepoRoot {
 
   # 3) paths.json（%LOCALAPPDATA%\RevitMCP\paths.json）を読む
   try {
-    $paths = Join-Path $env:LOCALAPPDATA 'RevitMCP\paths.json'
+    $paths = Join-Path $env:LOCALAPPDATA 'Revit MCP\paths.json'
     if (Test-Path -LiteralPath $paths -PathType Leaf) {
       $cfg = Get-Content -LiteralPath $paths -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($cfg.codexRoot -and (Test-Path -LiteralPath $cfg.codexRoot -PathType Container)) {
@@ -173,7 +173,7 @@ function Get-RepoRoot {
 
 function Set-RevitMcpEnvFromPaths {
   try {
-    $paths = Join-Path $env:LOCALAPPDATA 'RevitMCP\\paths.json'
+    $paths = Join-Path $env:LOCALAPPDATA 'Revit MCP\\paths.json'
     if (Test-Path -LiteralPath $paths -PathType Leaf) {
       $cfg = Get-Content -LiteralPath $paths -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($cfg.root -and (Test-Path -LiteralPath $cfg.root -PathType Container)) {
@@ -182,6 +182,25 @@ function Set-RevitMcpEnvFromPaths {
       if ($cfg.workRoot -and (Test-Path -LiteralPath $cfg.workRoot -PathType Container)) {
         $env:REVIT_MCP_WORK_ROOT = (Resolve-Path -LiteralPath $cfg.workRoot).Path
       }
+    }
+  } catch {
+    # ignore
+  }
+}
+
+function Set-BuildingLawBundleEnv {
+  param([string]$RepoRoot)
+  try {
+    if ($env:REVIT_MCP_BUILDING_LAW_SQLITE_ROOT) { return }
+    if (-not $RepoRoot) { return }
+    $rootCandidate = $RepoRoot
+    if ($rootCandidate -match '\\Codex$') {
+      $rootCandidate = Split-Path -Parent $rootCandidate
+    }
+    if (-not $rootCandidate) { return }
+    $bundle = Join-Path $rootCandidate 'SQLite\Legal\BuildingCode'
+    if (Test-Path -LiteralPath $bundle -PathType Container) {
+      $env:REVIT_MCP_BUILDING_LAW_SQLITE_ROOT = (Resolve-Path -LiteralPath $bundle).Path
     }
   } catch {
     # ignore
@@ -330,6 +349,7 @@ switch ($Backend) {
           $env:REVIT_MCP_WORK_ROOT = (Resolve-Path -LiteralPath $wr).Path
         }
       }
+      Set-BuildingLawBundleEnv -RepoRoot $repoRoot
     } catch {
       # ignore
     }

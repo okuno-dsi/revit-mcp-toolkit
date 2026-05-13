@@ -29,6 +29,7 @@ public sealed class A2AService
 
         try
         {
+            method = NormalizeA2AMethod(method);
             return method switch
             {
                 "SendMessage" => JsonRpcUtil.Success(id, await SendMessageAsync(parameters, cancellationToken).ConfigureAwait(false)),
@@ -47,6 +48,15 @@ public sealed class A2AService
         {
             return JsonRpcUtil.Error(id, -32603, "A2A adapter error.", JsonValue.Create(ex.Message));
         }
+    }
+
+    private static string NormalizeA2AMethod(string method)
+    {
+        if (string.Equals(method, "message/send", StringComparison.OrdinalIgnoreCase)) return "SendMessage";
+        if (string.Equals(method, "tasks/get", StringComparison.OrdinalIgnoreCase)) return "GetTask";
+        if (string.Equals(method, "tasks/list", StringComparison.OrdinalIgnoreCase)) return "ListTasks";
+        if (string.Equals(method, "tasks/cancel", StringComparison.OrdinalIgnoreCase)) return "CancelTask";
+        return method;
     }
 
     private async Task<JsonNode> SendMessageAsync(JsonNode? parameters, CancellationToken cancellationToken)
@@ -277,6 +287,12 @@ public sealed class A2AService
                   ?? RevitMcpClient.TryGetString(parameters, "method");
         var revitParams = RevitMcpClient.TryGetNode(parameters, "revitParams")
                        ?? RevitMcpClient.TryGetNode(parameters, "params");
+
+        var arguments = RevitMcpClient.TryGetNode(parameters, "arguments");
+        method ??= RevitMcpClient.TryGetString(arguments, "revitMethod")
+                ?? RevitMcpClient.TryGetString(arguments, "method");
+        revitParams ??= RevitMcpClient.TryGetNode(arguments, "revitParams")
+                     ?? RevitMcpClient.TryGetNode(arguments, "params");
 
         var metadata = RevitMcpClient.TryGetNode(parameters, "metadata");
         method ??= RevitMcpClient.TryGetString(metadata, "revitMethod")

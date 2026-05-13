@@ -30,11 +30,12 @@ namespace RevitMCPAddin.Core
                         ["include3dOrientation"] = true
                     }
                 };
+                SqliteWorkspace.EnsureSettingsSection(jo);
                 File.WriteAllText(path, JsonNetCompat.ToIndentedJson(jo));
             }
             else
             {
-                // Minimal migration: ensure viewWorkspace defaults exist (non-destructive).
+                // Minimal migration: ensure default sections exist (non-destructive).
                 try
                 {
                     var root = JObject.Parse(File.ReadAllText(path));
@@ -52,6 +53,7 @@ namespace RevitMCPAddin.Core
                     if (vw["includeZoom"] == null) vw["includeZoom"] = true;
                     if (vw["include3dOrientation"] == null) vw["include3dOrientation"] = true;
 
+                    SqliteWorkspace.EnsureSettingsSection(root);
                     File.WriteAllText(path, JsonNetCompat.ToIndentedJson(root));
                 }
                 catch
@@ -59,6 +61,7 @@ namespace RevitMCPAddin.Core
                     // ignore
                 }
             }
+            SqliteWorkspace.EnsureInitialized();
             return path;
         }
 

@@ -3070,6 +3070,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
 
             if (keyIndexes != null
                 && keyIndexes.Count > 0
+                && keyIndexes.Count < cols.Count
                 && HasOnlyBlankNonKeyValues(values, keyIndexes))
                 return true;
 
@@ -5068,8 +5069,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                     var auditRows = new List<ScheduleImportAuditRowResult>();
                     var exportMode = meta.Cell(4, 2).GetString();
                     bool allowHeuristicDisplayWriteRemap =
-                        !rowTokenAuthoritative
-                        && string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase);
+                        string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase);
                     int missingElementIdRows = 0;
                     ViewSchedule? displaySchedule = null;
                     ElementId tempId = ElementId.InvalidElementId;
@@ -5248,6 +5248,45 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                     if (rowElementIds.Count > 0)
                                         mappingSource = "baseline-display-live-match";
                                 }
+                            }
+                            if (rowElementIds.Count == 0
+                                && stableBaselineResolution
+                                && allowHeuristicDisplayWriteRemap
+                                && baselineSequentialRowElementMap.TryGetValue(baselineRow, out var tokenSequentialIds)
+                                && tokenSequentialIds != null
+                                && tokenSequentialIds.Count > 0)
+                            {
+                                rowElementIds = tokenSequentialIds
+                                    .Where(id => id > 0)
+                                    .Distinct()
+                                    .OrderBy(x => x)
+                                    .ToList();
+                                if (rowElementIds.Count > 0)
+                                    mappingSource = "baseline-helper-sequence";
+                            }
+                            if (rowElementIds.Count == 0
+                                && allowHeuristicDisplayWriteRemap
+                                && stableBaselineResolution
+                                && displayCols.Count > 0
+                                && itemizedDisplayRows.Count > 0)
+                            {
+                                var displayRowValues = ScheduleRoundtripExcelUtil.ReadWorksheetDisplayRowValues(
+                                    baselineSheet,
+                                    baselineRow,
+                                    displayCols,
+                                    baselineHeaderColumnMap);
+                                if (ScheduleRoundtripExcelUtil.IsLikelyDisplayNonElementRow(displayRowValues, displayCols, displayKeyIndexes))
+                                    displayRowValues = Array.Empty<string>();
+                                rowElementIds = ScheduleRoundtripExcelUtil
+                                    .MatchDisplayRowToLiveElementIds(displayRowValues, displayCols, identityValueElementMap, itemizedDisplayRows)
+                                    .ToList();
+                                rowElementIds = rowElementIds
+                                    .Where(id => id > 0 && !usedDisplayFallbackElementIds.Contains(id))
+                                    .Distinct()
+                                    .OrderBy(x => x)
+                                    .ToList();
+                                if (rowElementIds.Count > 0)
+                                    mappingSource = "baseline-display-live-match";
                             }
                             foreach (var id in rowElementIds)
                                 usedDisplayFallbackElementIds.Add(id);
@@ -5780,8 +5819,7 @@ namespace RevitMCPAddin.Commands.ScheduleOps
 
                     var exportMode = meta.Cell(4, 2).GetString();
                     bool allowHeuristicDisplayWriteRemap =
-                        !rowTokenAuthoritative
-                        && string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase);
+                        string.Equals(exportMode, ScheduleRoundtripExcelUtil.ExportModeDisplay, StringComparison.OrdinalIgnoreCase);
                     ViewSchedule? displaySchedule = null;
                     ElementId tempId = ElementId.InvalidElementId;
                     IList<ScheduleRoundtripColumn> displayCols = Array.Empty<ScheduleRoundtripColumn>();
@@ -5961,6 +5999,45 @@ namespace RevitMCPAddin.Commands.ScheduleOps
                                 if (rowElementIds.Count > 0)
                                     mappingSource = "baseline-display-live-match";
                             }
+                        }
+                        if (rowElementIds.Count == 0
+                            && stableBaselineResolution
+                            && allowHeuristicDisplayWriteRemap
+                            && baselineSequentialRowElementMap.TryGetValue(baselineRow, out var tokenSequentialIds)
+                            && tokenSequentialIds != null
+                            && tokenSequentialIds.Count > 0)
+                        {
+                            rowElementIds = tokenSequentialIds
+                                .Where(id => id > 0)
+                                .Distinct()
+                                .OrderBy(x => x)
+                                .ToList();
+                            if (rowElementIds.Count > 0)
+                                mappingSource = "baseline-helper-sequence";
+                        }
+                        if (rowElementIds.Count == 0
+                            && allowHeuristicDisplayWriteRemap
+                            && stableBaselineResolution
+                            && displayCols.Count > 0
+                            && itemizedDisplayRows.Count > 0)
+                        {
+                            var displayRowValues = ScheduleRoundtripExcelUtil.ReadWorksheetDisplayRowValues(
+                                baselineSheet,
+                                baselineRow,
+                                displayCols,
+                                baselineHeaderColumnMap);
+                            if (ScheduleRoundtripExcelUtil.IsLikelyDisplayNonElementRow(displayRowValues, displayCols, displayKeyIndexes))
+                                displayRowValues = Array.Empty<string>();
+                            rowElementIds = ScheduleRoundtripExcelUtil
+                                .MatchDisplayRowToLiveElementIds(displayRowValues, displayCols, identityValueElementMap, itemizedDisplayRows)
+                                .ToList();
+                            rowElementIds = rowElementIds
+                                .Where(id => id > 0 && !usedDisplayFallbackElementIds.Contains(id))
+                                .Distinct()
+                                .OrderBy(x => x)
+                                .ToList();
+                            if (rowElementIds.Count > 0)
+                                mappingSource = "baseline-display-live-match";
                         }
                         foreach (var id in rowElementIds)
                             usedDisplayFallbackElementIds.Add(id);

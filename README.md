@@ -29,9 +29,9 @@
 
 ## 最近の更新
 
-- **A2A adapter**: A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできる `RevitMCP.A2AAdapter` を追加しました。
-- **HTML集計表・Excel連携**: ブラウザで集計表を確認し、Excel 書き出し、差分確認、Revit 側確認付き反映まで進められる導線を強化しました。
-- **DWG/import後片付け**: DWG/import 由来の Object Styles、Material、残留 root を dry-run 前提で調査・整理するコマンドを追加しました。
+- **2026-05-13: HTML集計表・Excel入出力のバグ修正**: ブラウザ経由の集計表 Excel export / import preview / apply / verify を修正し、外部編集した集計表をより安全に Revit へ戻せるようにしました。
+- **HTML集計表・Excel連携**: ブラウザで集計表を確認し、Excel 書き出し、差分確認、Revit 側確認付き反映まで進められる導線を強化しています。
+- **A2A adapter**: A2A 風 HTTP/JSON-RPC 入口から既存の Revit MCP queue へ橋渡しできる `RevitMCP.A2AAdapter` を追加しています。
 
 ---
 
